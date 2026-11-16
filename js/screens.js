@@ -29,9 +29,26 @@ SCREENS.home = {
     ground(-400, 138, 700, 150, C.drive);
     ground(-400, 150, 700, 192, C.road);
     for (let x = -400; x < 700; x += 24) line(...P(x, 171), ...P(x + 12, 171), C.white);
+    // the far pavement and front gardens across the road
+    ground(-400, 192, 700, 204, C.drive);
+    for (let x = -400; x < 700; x += 12) line(...P(x, 192), ...P(x, 204), shade(C.drive, 0.9));
+    for (let x = -60; x < 400; x += 70) { ibox(x, 210, x + 50, 214, 0, 6, C.wood); for (let k = 0; k < 50; k += 6) ibox(x + k, 210, x + k + 2, 214, 0, 9, C.bench); }
+    isoCarX(-120, 176, 1, C.red);                                                          // a neighbour's car parked opposite
+    // kerb stones, drains, the line of the kerb
+    line(...P(-400, 150), ...P(700, 150), C.white); line(...P(-400, 192), ...P(700, 192), C.white);
+    for (const x of [-60, 60, 180]) { const d = P(x, 151); rect(d[0] - 3, d[1], 7, 3, C.ink); for (let k = -2; k < 4; k += 2) px(d[0] + k, d[1] + 1, C.steel2); }
     ground(92, 60, 138, 138, C.drive);                                                     // driveway
     ground(42, 60, 56, 138, C.concreteDark);                                               // path
+    for (let y = 64; y < 136; y += 8) line(...P(42, y), ...P(56, y), shade(C.concreteDark, 0.9));
     tree(-40, 10); tree(150, -30); tree(-80, 90);
+    // the front garden: a low hedge along the pavement (gaps for the path and the drive), flower beds, a fence to next door
+    ibox(-60, 130, 40, 136, 0, 8, C.tree2, C.tree1); ibox(58, 130, 90, 136, 0, 8, C.tree2, C.tree1); ibox(140, 130, 176, 136, 0, 8, C.tree2, C.tree1);
+    for (let k = 0; k < 40; k++) { const f = P(2 + (k % 10) * 3.6, 64 + Math.floor(k / 10) * 4, 1); px(f[0], f[1], [C.red, C.warm, C.white, hex('#e070a8')][k % 4]); }
+    for (let y = 0; y < 130; y += 10) ibox(170, y, 172, y + 2, 0, 14, C.wood);
+    line(...P(171, 0, 12), ...P(171, 130, 12), C.wood); line(...P(171, 0, 6), ...P(171, 130, 6), C.wood);
+    // a lamp post and the red postbox by the kerb
+    ibox(-30, 140, -27, 143, 0, 80, C.greyDark); ibox(-34, 136, -20, 147, 80, 84, C.greyDark); onLeft(147, -32, -22, 79, 80, C.warm);
+    ibox(156, 138, 164, 146, 0, 16, C.red, shade(C.red, 1.2)); onLeft(146, 158, 162, 11, 12, C.ink);
     // the house: red brick, slate roof, white windows, blue front door
     ibox(0, 0, 90, 60, 0, 54, C.brick);
     bricks(0, 0, 90, 60, 54, C.brickLine);
