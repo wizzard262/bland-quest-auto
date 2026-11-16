@@ -215,7 +215,10 @@ SCREENS.place = {
     hud();
   },
   actions() {
+    const info = PLACE_INFO[S.place] || {}, [from] = info.open || [9 * 60, 0];
+    const opensLater = !S.inside && !info.gone && !info.holiday && S.mins < from;
     return [
+      ...(opensLater ? [{ label: 'Wait until it opens (' + hhmm(from) + ')', act: 'waitopen' }] : []),
       { label: 'Wait 30 minutes', act: 'wait' },
       { label: 'Back to the map', act: 'go:city' },
       { label: 'Go home', act: 'go:home' }

@@ -343,3 +343,23 @@ test('turn the key by tapping it: I, II, then start; running, only the red light
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rev');
   expect(errors).toEqual([]);
 });
+
+test('the post office: ten in the queue and it never moves, unless you were outside when it opened at 9', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // late: at the back of the queue, and waiting gets you nowhere
+  await page.evaluate(() => { S.mins = 11 * 60; });
+  await goPlace(page, 'Post Office');
+  await talk(page);
+  expect(await dialogText(page)).toContain('Ten people');
+  await choose(page, 'Wait in the queue');
+  expect(await page.evaluate(() => S.flags.poFirst)).toBeFalsy();
+  // next morning: get there before nine, wait outside, go in when it opens: first
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await act(page, 'Go to bed'); await ok(page);
+  await goPlace(page, 'Post Office');
+  await act(page, 'Wait until it opens'); await ok(page);
+  await talk(page);
+  expect(await dialogText(page)).toContain('first');
+  expect(errors).toEqual([]);
+});

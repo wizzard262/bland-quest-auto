@@ -96,6 +96,7 @@ function shopInterior(name, shut) {
   if (shut) { onLeft(COUNTER[3], 80, 130, 28, 40, C.ink); LABELS.push(''); }
   // things standing on the floor in front of the counter
   if (FLOOR[style]) FLOOR[style]();
+  if (name === 'Post Office') postQueue();
   // you
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
@@ -273,4 +274,27 @@ function shopExterior(name, shut) {
   // your car (blue), parked at the kerb
   isoCarX(40, 72, 1, C.car);
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+}
+
+// =====================================================================
+// THE POST OFFICE QUEUE: ten people, and it never moves.
+// Be standing outside when it opens at 9:00 and you're first; otherwise you're at the back
+// =====================================================================
+const QUEUE_LOOKS = [
+  { shirt: hex('#8a5a9a'), shirtDark: hex('#6a3a7a'), hair: C.white }, { shirt: hex('#3a7a4a'), shirtDark: hex('#2a5a34') },
+  { shirt: C.warm, shirtDark: C.warmDim, hair: hex('#202020') }, { shirt: hex('#a04040'), shirtDark: hex('#702828'), hair: C.steel },
+  { shirt: hex('#4a6aa0'), shirtDark: hex('#2a4a80'), jeans: C.ink, jeansDark: C.ink }, { shirt: C.white, shirtDark: C.steel, hair: hex('#c08040') },
+  { shirt: hex('#e070a8'), shirtDark: hex('#b05080'), hair: hex('#202020') }, { shirt: C.greyDark, shirtDark: C.ink, hair: C.white },
+  { shirt: hex('#c0a040'), shirtDark: hex('#907020') }, { shirt: hex('#40a090'), shirtDark: hex('#2a7060'), hair: hex('#803020') }
+];
+// Where each person in the queue stands: two rows, snaking back from the counter to the door
+const QUEUE_SPOTS = [[104, 80], [92, 86], [80, 92], [68, 98], [56, 104], [56, 116], [68, 122], [80, 128], [92, 134], [104, 140]];
+function postFirst() { return S.flags.poFirst === S.day; }
+function postQueue() {
+  // first in the queue: they all came in after you, behind you; otherwise they're all in front of you
+  const spots = postFirst() ? QUEUE_SPOTS.slice(1).concat([[116, 146]]) : QUEUE_SPOTS;
+  spots.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1])).forEach(([x, y], k) => {
+    const m = P(x, y);
+    man(m[0], m[1], 'stand', 2, 0, QUEUE_LOOKS[(k * 3) % QUEUE_LOOKS.length]);
+  });
 }

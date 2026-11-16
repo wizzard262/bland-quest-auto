@@ -57,6 +57,7 @@ function readCodes(how) {
 // open = [from, to] in minutes; closedDays = days it's shut; shop = things for sale
 const PLACE_INFO = {
   'Spanner & Son': { open: [8 * 60, 17 * 60 + 30], person: 'Mr Spanner' },
+  'Post Office': { open: [9 * 60, 17 * 60 + 30], person: 'the woman behind the glass' },
   'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
   "Sparky's Auto Electrics": { open: [9 * 60, 16 * 60 + 30], lunch: true, person: 'Sparky' },
   'Main Dealer': { open: [9 * 60, 17 * 60], person: 'the service desk' },
@@ -102,6 +103,7 @@ function arriveAt(name) {
   S.spot.place = [105, 140];                                       // you come in at the door
   S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
   S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
+  if (name === 'Post Office' && S.mins < 9 * 60) S.flags.poEarly = S.day;   // here before it opens: you'll be first in
 }
 // Talking at the counter (or on the doorstep)
 function talk(name) {
@@ -123,6 +125,17 @@ function talk(name) {
   say(name, lines[i]);
 }
 const TALK = {
+  'Post Office'() {
+    if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
+    anger(5);
+    say('Post Office', 'You join the back of the queue. Ten people. Nobody moves.', [
+      { label: 'Wait in the queue (30 minutes)', run() {
+        pass(30); anger(5);
+        say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside when it opens at 9:00.`);
+      } },
+      { label: 'Give up', run() {} }
+    ]);
+  },
   'Spanner & Son'() {
     if (S.flags.spanner) return say('Spanner & Son', '"Still three months, mate."');
     S.flags.spanner = true;
@@ -266,7 +279,20 @@ const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
   talk() { talk(S.place); },
-  wait() { pass(30); say('You wait', `Half an hour in the car park. It's ${hhmm(S.mins)}.`); },
+  // wait outside until it opens (you're there, ready, when the door unlocks)
+  waitopen() {
+    const [from] = (PLACE_INFO[S.place] || {}).open || [9 * 60];
+    if (S.mins >= from) return;
+    if (S.place === 'Post Office') S.flags.poEarly = S.day;
+    pass(from - S.mins);
+    say('You wait', `You wait on the pavement. At ${hhmm(S.mins)} the door unlocks.`);
+  },
+  wait() {
+    const early = S.place === 'Post Office' && S.mins < 9 * 60;
+    pass(30);
+    if (early && !S.inside) S.flags.poEarly = S.day;                  // still outside when it opens
+    say('You wait', `Half an hour${S.inside ? '' : ' on the pavement'}. It's ${hhmm(S.mins)}.`);
+  },
   // look at another part of town on the map (centre it on that block)
   cam(arg) {
     const [bi, bj] = arg.split(',').map(Number);
@@ -303,7 +329,9 @@ const ACTIONS = {
   enter() {
     const shut = closedReason(S.place);
     if (shut) { sfx('door'); anger(3); return say(S.place, shut); }
-    S.inside = true; S.spot.place = [105, 140]; sfx('bell');
+    // the post office: if you were outside before it opened and you go in by 9:10, you're first in the queue
+    if (S.place === 'Post Office' && S.flags.poEarly === S.day && S.mins <= 9 * 60 + 10) S.flags.poFirst = S.day;
+    S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
   },
   leave() { S.inside = false; S.spot.outside = [162, 52]; sfx('bell'); },
   browse() { pass(5); say('The stock', BROWSE[placeStyle(S.place)]); },
