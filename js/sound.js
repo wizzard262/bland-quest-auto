@@ -14,6 +14,8 @@ function audioStart() {
     MASTER = AC.createGain();
     MASTER.gain.value = MUTED ? 0 : 0.5;
     MASTER.connect(AC.destination);
+    // once the browser lets sound play, start the background for wherever you are
+    AC.onstatechange = () => { if (typeof S !== 'undefined') soundScene(S.screen, !!S.flags.running); };
     // two seconds of white noise, reused for every scrape, thud and hiss
     NOISE = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
     const d = NOISE.getChannelData(0);
@@ -25,6 +27,7 @@ function setMuted(m) {
   MUTED = m;
   try { localStorage.setItem('thankless-task-muted', m ? '1' : '0'); } catch (e) { /* ignore */ }
   if (MASTER) MASTER.gain.value = m ? 0 : 0.5;
+  if (typeof S !== 'undefined' && AC) soundScene(S.screen, !!S.flags.running);
 }
 
 // ---------- building blocks ----------
@@ -94,3 +97,105 @@ function sfx(name, delay = 0) {
   if (MUTED || !audioStart() || !SOUNDS[name]) return;
   try { SOUNDS[name](AC.currentTime + 0.01 + delay); } catch (e) { /* a sound failing never stops the game */ }
 }
+
+// ---------- muffled chatter when someone talks: syllables of "mwah-mwuh-mwa", no real words ----------
+// n = how many syllables (longer speeches chatter longer), pitch = the voice (low for some, higher for others)
+function chatter(n, pitch = 140) {
+  if (MUTED || !audioStart()) return;
+  try {
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;   // muffled, as if through a wall
+    lp.connect(MASTER);
+    let t = AC.currentTime + 0.02;
+    for (let i = 0; i < n; i++) {
+      const len = 0.07 + Math.random() * 0.09, f = pitch * (0.85 + Math.random() * 0.35);
+      const o = AC.createOscillator(), bp = AC.createBiquadFilter(), g = AC.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (0.9 + Math.random() * 0.2), t + len);
+      bp.type = 'bandpass'; bp.Q.value = 3; bp.frequency.setValueAtTime(500 + Math.random() * 700, t);   // a different vowel each time
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(bp); bp.connect(g); g.connect(lp);
+      o.start(t); o.stop(t + len + 0.02);
+      t += len + (Math.random() < 0.2 ? 0.12 : 0.025);                                 // little gaps between words
+    }
+  } catch (e) { /* never stop the game for a sound */ }
+}
+
+// ---------- background sound for each screen, and the engine ----------
+let AMB = { name: null, nodes: [], timers: [] };
+let ENGINE = null;                       // the running engine: { oscs, filter, gain }
+// A looping hum or hiss that runs until the screen changes
+function loopNoise(freq, vol, kind = 'lowpass') {
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = NOISE; s.loop = true; f.type = kind; f.frequency.value = freq; g.gain.value = vol;
+  s.connect(f); f.connect(g); g.connect(MASTER); s.start();
+  AMB.nodes.push(s);
+}
+function loopTone(freq, vol, type = 'sine') {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = vol;
+  o.connect(g); g.connect(MASTER); o.start();
+  AMB.nodes.push(o);
+}
+// Every so often, play a sound (birds, a distant horn…)
+function every(minS, maxS, name) {
+  const next = () => { AMB.timers.push(setTimeout(() => { sfx(name); next(); }, (minS + Math.random() * (maxS - minS)) * 1000)); };
+  next();
+}
+function stopAmbience() {
+  AMB.nodes.forEach(n => { try { n.stop(); } catch (e) { /* already stopped */ } });
+  AMB.timers.forEach(clearTimeout);
+  AMB = { name: null, nodes: [], timers: [] };
+}
+// Start the background for a screen (only changes when the screen does)
+const AMBIENCE = {
+  home() { loopNoise(400, 0.02); every(2, 5, 'bird'); },
+  city() { loopNoise(250, 0.05); every(4, 9, 'horn'); },
+  place() { loopNoise(600, 0.015, 'bandpass'); },
+  garage() { loopTone(100, 0.012); loopTone(200, 0.006); },
+  toolbox() { loopTone(100, 0.01); },
+  under() { loopTone(100, 0.008); },
+  underZoom() { loopTone(100, 0.008); },
+  bonnet() { loopTone(100, 0.01); },
+  bench() { loopTone(100, 0.01); },
+  yard() { loopNoise(500, 0.03); every(5, 10, 'bark'); }
+};
+// Called after every repaint: the right background, and the engine running or not
+function soundScene(screen, engineRunning) {
+  if (!AC || AC.state !== 'running' || MUTED) { stopAmbience(); engineOff(); return; }
+  if (AMB.name !== screen) { stopAmbience(); AMB.name = screen; if (AMBIENCE[screen]) AMBIENCE[screen](); }
+  const near = ['dash', 'garage', 'bonnet', 'under', 'underZoom', 'toolbox', 'bench'].includes(screen);
+  if (engineRunning && near) engineOn(screen === 'dash' ? 0.22 : 0.1); else engineOff();
+}
+// The engine ticking over: two low buzzes, muffled, pulsing with each firing
+function engineOn(vol) {
+  if (ENGINE) { ENGINE.gain.gain.setTargetAtTime(vol, AC.currentTime, 0.2); return; }
+  const g = AC.createGain(), f = AC.createBiquadFilter(), am = AC.createGain(), lfo = AC.createOscillator(), lfoGain = AC.createGain();
+  f.type = 'lowpass'; f.frequency.value = 260;
+  g.gain.value = 0.0001; g.gain.setTargetAtTime(vol, AC.currentTime, 0.3);
+  am.gain.value = 0.7; lfo.frequency.value = 13; lfoGain.gain.value = 0.3;
+  lfo.connect(lfoGain); lfoGain.connect(am.gain);
+  const oscs = [36, 72, 108].map((fr, i) => { const o = AC.createOscillator(); o.type = i ? 'sawtooth' : 'square'; o.frequency.value = fr; o.connect(am); o.start(); return o; });
+  am.connect(f); f.connect(g); g.connect(MASTER); lfo.start();
+  ENGINE = { oscs, lfo, filter: f, gain: g };
+}
+function engineOff() {
+  if (!ENGINE) return;
+  const e = ENGINE; ENGINE = null;
+  e.gain.gain.setTargetAtTime(0.0001, AC.currentTime, 0.15);
+  setTimeout(() => { e.oscs.forEach(o => o.stop()); e.lfo.stop(); }, 800);
+}
+// A blip of the accelerator: the engine note rises and falls
+function engineRev() {
+  if (!ENGINE) return;
+  const t = AC.currentTime;
+  ENGINE.oscs.forEach((o, i) => { const base = [36, 72, 108][i]; o.frequency.cancelScheduledValues(t); o.frequency.setValueAtTime(base, t); o.frequency.linearRampToValueAtTime(base * 3.2, t + 0.35); o.frequency.exponentialRampToValueAtTime(base, t + 1.6); });
+  ENGINE.filter.frequency.cancelScheduledValues(t); ENGINE.filter.frequency.setValueAtTime(260, t);
+  ENGINE.filter.frequency.linearRampToValueAtTime(1200, t + 0.35); ENGINE.filter.frequency.exponentialRampToValueAtTime(260, t + 1.6);
+  ENGINE.lfo.frequency.setValueAtTime(13, t); ENGINE.lfo.frequency.linearRampToValueAtTime(40, t + 0.35); ENGINE.lfo.frequency.exponentialRampToValueAtTime(13, t + 1.6);
+}
+// More one-off sounds for the backgrounds
+SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };
+SOUNDS.horn = t => { tone(t, 330, 0.35, 0.025, 'square'); tone(t, 415, 0.35, 0.02, 'square'); };
+SOUNDS.bark = t => { for (let i = 0; i < 2; i++) { tone(t + i * 0.22, [420, 260], 0.12, 0.12, 'sawtooth'); hiss(t + i * 0.22, 900, 0.1, 0.1); } };
+SOUNDS.carpass = t => { hiss(t, [180, 700], 0.9, 0.12, 'lowpass'); hiss(t + 0.9, [700, 150], 0.9, 0.12, 'lowpass'); tone(t, [55, 75], 0.9, 0.05, 'sawtooth'); tone(t + 0.9, [75, 48], 0.9, 0.05, 'sawtooth'); };
+SOUNDS.plink = t => { tone(t, [1900, 1300], 0.09, 0.06); };

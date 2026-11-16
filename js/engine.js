@@ -32,6 +32,7 @@ function freshState() {
 }
 let S = freshState();
 let DIALOG = null;                     // the dialog box on screen (not saved)
+let SPEAKER = null;                    // [x, y] picture position of whoever is talking: the next dialog is their speech bubble
 
 // =====================================================================
 // TIME, MONEY, ANGER
@@ -218,7 +219,7 @@ function visit(name) {
   S.place = name;
   if (S.screen !== 'place') S.history.push(S.screen);
   S.screen = 'place';
-  sfx('car'); sfx(closedReason(name) ? 'sad' : 'bell', 0.5);
+  sfx('car');
   arriveAt(name);
   render();
 }
@@ -228,7 +229,10 @@ function visit(name) {
 // =====================================================================
 // Show a dialog: options = [{ label, run }]; with no options there's an OK button
 function say(title, body, options) {
-  DIALOG = { title, body, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
+  const at = S.screen === 'place' ? SPEAKER : null;                // a speech bubble from the person you're talking to
+  SPEAKER = null;
+  DIALOG = { title, body, at, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
+  if (at) chatter(Math.min(28, 4 + Math.round(body.length / 7)), 95 + hash(title.length, title.charCodeAt(0)) * 120);   // muffled chatter in their voice
   render();
 }
 // A dialog to show after the current one (e.g. kicking something)
@@ -298,7 +302,7 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .front, .lid, .scr, .back, .dlg').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .lid, .scr, .back, .dlg').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (S.screen !== 'home') stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
@@ -309,9 +313,17 @@ function render() {
   if (!DIALOG && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
   if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
     const opts = DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');
-    stage.insertAdjacentHTML('beforeend', `<div class="dlg"><b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p><div>${opts}</div></div>`);
+    const body = `<b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p><div>${opts}</div>`;
+    if (DIALOG.at) {                                                 // a speech bubble above the speaker, its arrow pointing at them
+      const [x, y] = DIALOG.at, cx = x / W * 100, left = Math.max(22, Math.min(78, cx));
+      const tail = 50 + (cx - left) / 40 * 100;
+      stage.insertAdjacentHTML('beforeend', `<div class="dlg bubble" style="left:${left}%;top:${y / H * 100}%;--tail:${tail}%">${body}</div>`);
+    } else {
+      stage.insertAdjacentHTML('beforeend', `<div class="dlg note">${body}</div>`);   // anything else: a box along the bottom
+    }
   }
   save();
+  soundScene(S.screen, !!S.flags.running);
 }
 
 // =====================================================================
@@ -368,6 +380,7 @@ document.addEventListener('click', e => {
   const opt = e.target.closest('[data-opt]');
   if (opt) {                                                         // a dialog button
     const o = DIALOG.options[+opt.dataset.opt];
+    if (DIALOG.at) SPEAKER = DIALOG.at;                               // their answer comes from them too
     DIALOG = null;
     o.run();
     save();

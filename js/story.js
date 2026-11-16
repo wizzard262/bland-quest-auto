@@ -98,13 +98,15 @@ function closedReason(name) {
 }
 // Arriving at a place: open, or closed (with a reason)
 function arriveAt(name) {
-  const shut = closedReason(name);
-  if (shut) return say(name, shut);
-  talk(name);
+  S.spot = S.spot || {};
+  S.spot.place = [105, 140];                                       // you come in at the door
+  S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
+  S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
 }
 // Talking at the counter (or on the doorstep)
 function talk(name) {
   pass(10);
+  SPEAKER = keeperHead();                                          // what they say comes in a speech bubble from them
   const fn = TALK[name];
   if (fn) return fn();
   // everywhere else: friendly, sure of itself, and no help
@@ -205,12 +207,10 @@ const TALK = {
   },
   'Breakers Yard'() {
     if (!findJob('new-sensor')) return say('Breakers Yard', '"Got all sorts. What are you after?"');
-    if (S.flags.breakers) return say('Breakers Yard', '"Same as before: square ones only."');
-    S.flags.breakers = true;
-    pass(60);
-    anger(10);
-    closeLead('breakers', 'x', 'Breakers Yard: their sensor is a square peg');
-    say('Breakers Yard', '"Got a Zafira. Take it off yourself."\n\nAn hour later you\'ve got it off. It\'s square. Yours is round.');
+    say('Breakers Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."', [
+      { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
+      { label: 'Not today', run() {} }
+    ]);
   },
   'Home'() { show('home'); }
 };
@@ -298,6 +298,31 @@ const ACTIONS = {
     finishJob('nut3', 'Found nut 3 (in the screws)');
     closeLead('bench-floor', 'ok');
     say('Under the workbench', 'Half an hour of sorting screws later: the nut! You put it somewhere safe.');
+  },
+  // ----- in a shop -----
+  enter() {
+    const shut = closedReason(S.place);
+    if (shut) { sfx('door'); anger(3); return say(S.place, shut); }
+    S.inside = true; S.spot.place = [105, 140]; sfx('bell');
+  },
+  leave() { S.inside = false; S.spot.outside = [162, 52]; sfx('bell'); },
+  browse() { pass(5); say('The stock', BROWSE[placeStyle(S.place)]); },
+  posters() { const [a, b] = POSTERS[placeStyle(S.place)] || ['', '']; pass(2); say('The posters', `"${a}" (${b}). And one that just says SALE. It's from 2017.`); },
+  // ----- the breakers yard: look at each wreck -----
+  wreck(n) {
+    const i = +n;
+    pass(10);
+    S.flags['wreck' + i] = true;
+    if (i === 4) { anger(10); sfx('sad'); } else { anger(3); sfx('clink'); }
+    const seen = WRECKS.filter((w, k) => S.flags['wreck' + k]).length;
+    if (seen === WRECKS.length) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
+    say('A wreck', WRECKS[i][4] + (seen === WRECKS.length ? '\n\nThat\'s all of them.' : ''));
+  },
+  // ----- the dashboard: tap the key to turn it one click -----
+  rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
+  turnkey() {
+    if (S.flags.running) { S.flags.running = false; S.key = 0; sfx('click'); return; }
+    ACTIONS.key(String(S.key + 1));
   },
   // ----- the toolbox -----
   drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; sfx('drawer'); },

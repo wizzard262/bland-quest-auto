@@ -216,7 +216,9 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
 
 // ---------- the man: tall, thin, 1-pixel limbs, no face; red shirt, jeans ----------
 // s = pixel size (2 draws him twice as big, still with chunky 1-pixel-wide limbs)
-function man(x, y, pose, s = 1, phase = 0) {
+function man(x, y, pose, s = 1, phase = 0, look) {
+  // look: other clothes for other people, e.g. { shirt, shirtDark, jeans, jeansDark, hair, skin }
+  const K = Object.assign({ skin: C.skin, hair: C.hair, shirt: C.shirt, shirtDark: C.shirtDark, jeans: C.jeans, jeansDark: C.jeansDark }, look || {});
   x = Math.round(x); y = Math.round(y);
   const R = (dx, dy, w, h, c) => rect(x + dx * s, y + dy * s, w * s, h * s, c);
   const D = (dx, dy, c) => R(dx, dy, 1, 1, c);
@@ -226,43 +228,46 @@ function man(x, y, pose, s = 1, phase = 0) {
     while (true) { D(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
   };
   if (pose === 'lie') {                                  // on his back on a creeper, head on the left, knees up, arm up
-    R(0, -3, 3, 2, C.skin); D(0, -3, C.hair); R(4, -3, 6, 2, C.shirt);
-    L(10, -3, 13, -7, C.jeansDark); L(13, -7, 16, -2, C.jeansDark);
-    L(10, -2, 14, -6, C.jeans); L(14, -6, 18, -2, C.jeans);
-    L(6, -4, 7, -9, C.shirt); D(7, -10, C.skin); return;
+    R(0, -3, 3, 2, K.skin); D(0, -3, K.hair); R(4, -3, 6, 2, K.shirt);
+    L(10, -3, 13, -7, K.jeansDark); L(13, -7, 16, -2, K.jeansDark);
+    L(10, -2, 14, -6, K.jeans); L(14, -6, 18, -2, K.jeans);
+    L(6, -4, 7, -9, K.shirt); D(7, -10, K.skin); return;
   }
   if (pose === 'walk') {                                 // mid-stride: legs and arms swing opposite ways; phase = how far through the step
     const sw = Math.round(Math.sin(phase) * 2), up = Math.abs(Math.sin(phase)) < 0.4 ? 0 : 1;
     const Y = d => d - up;                               // a little bob on each step
-    R(0, Y(-19), 2, 3, C.skin); R(0, Y(-19), 2, 1, C.hair); D(0, Y(-16), C.skin);
-    R(0, Y(-15), 2, 5, C.shirt); D(0, Y(-10), C.jeans);
-    L(0, Y(-9), -1 - sw, -1, C.jeansDark); L(1, Y(-9), 2 + sw, -1, C.jeans);
-    L(0, Y(-14), -1 + sw, Y(-9), C.shirtDark); D(-1 + sw, Y(-8), C.skin);
-    L(1, Y(-14), 2 - sw, Y(-9), C.shirt); D(2 - sw, Y(-8), C.skin);
+    R(0, Y(-19), 2, 3, K.skin); R(0, Y(-19), 2, 1, K.hair); D(0, Y(-16), K.skin);
+    R(0, Y(-15), 2, 5, K.shirt); D(0, Y(-10), K.jeans);
+    L(0, Y(-9), -1 - sw, -1, K.jeansDark); L(1, Y(-9), 2 + sw, -1, K.jeans);
+    L(0, Y(-14), -1 + sw, Y(-9), K.shirtDark); D(-1 + sw, Y(-8), K.skin);
+    L(1, Y(-14), 2 - sw, Y(-9), K.shirt); D(2 - sw, Y(-8), K.skin);
     return;
   }
-  R(0, -19, 2, 3, C.skin); R(0, -19, 2, 1, C.hair); D(0, -16, C.skin);
-  R(0, -15, 2, 5, C.shirt); D(0, -10, C.jeans);
-  L(0, -9, -1, -1, C.jeansDark); L(1, -9, 2, -1, C.jeans);
-  L(0, -14, -1, -9, C.shirtDark); D(-1, -8, C.skin);
-  L(1, -14, 2, -9, C.shirt); D(2, -8, C.skin);
+  R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin);
+  R(0, -15, 2, 5, K.shirt); D(0, -10, K.jeans);
+  L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);
+  L(0, -14, -1, -9, K.shirtDark); D(-1, -8, K.skin);
+  L(1, -14, 2, -9, K.shirt); D(2, -8, K.skin);
 }
 
 // ---------- things you can point at: invisible until the pointer is over them ----------
 // The screen box round an isometric box (for a hover area over an object)
+// Also gives the box's outline (its six-sided silhouette), so only the object itself lights up and can be tapped
 function isoArea(x0, y0, x1, y1, z0, z1) {
-  const pts = [];
-  for (const x of [x0, x1]) for (const y of [y0, y1]) for (const z of [z0, z1]) pts.push(P(x, y, z));
-  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
-  const l = Math.min(...xs), t = Math.min(...ys);
-  return [l, t, Math.max(...xs) - l, Math.max(...ys) - t];
+  const outline = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0), P(x0, y1, z1)];
+  const xs = outline.map(p => p[0]), ys = outline.map(p => p[1]);
+  const l = Math.min(...xs), t = Math.min(...ys), w = Math.max(...xs) - l, h = Math.max(...ys) - t;
+  return [l, t, w, h, outline.map(([x, y]) => [(x - l) / Math.max(w, 1) * 100, (y - t) / Math.max(h, 1) * 100])];
 }
 // A thing you can tap: area = [x, y, w, h] in picture pixels; it lights up and shows its name when pointed at.
 // walk = [x, y] world spot the man walks to first (home and garage); style = extra colours for the name
 function spot(label, area, go, walk, style = '') {
-  const [x, y, w, h] = area;
+  const [x, y, w, h, outline] = area;
   const walkAttr = walk ? ` data-walk="${walk[0]},${walk[1]}"` : '';
-  LABELS.push(`<a class="hs" data-go="${go}"${walkAttr} style="left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"><span class="lab"${style ? ` style="${style}"` : ''}>${label}</span></a>`);
+  const clip = outline ? `;clip-path:polygon(${outline.map(([a, b]) => `${a.toFixed(1)}% ${b.toFixed(1)}%`).join(',')})` : '';
+  const box = `left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%`;
+  // the shape you point at, then its name (a separate piece, so the shape's outline doesn't cut the name off)
+  LABELS.push(`<a class="hs${outline ? ' shaped' : ''}" data-go="${go}"${walkAttr} style="${box}${clip}"></a><span class="lab" style="left:${(x + w / 2) / W * 100}%;top:${y / H * 100}%${style ? ';' + style : ''}">${label}</span>`);
 }
 
 

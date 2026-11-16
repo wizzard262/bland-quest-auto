@@ -52,6 +52,22 @@ async function goPlace(page, name) {
   await page.click(`[data-act="cam:${i % 7},${Math.floor(i / 7)}"]`);   // look at that part of town on the little map
   await page.locator(`.hs[data-go="place:${name}"]`).click();
 }
+// Tap the shopkeeper (you walk over), and wait for what they say
+async function talk(page) {
+  await idle(page);
+  if (!(await page.evaluate(() => S.inside))) { await page.locator('.hs[data-go="act:enter"]').click(); await idle(page); }   // go in first
+  await page.locator('.hs[data-go="act:talk"]').click();
+  await idle(page);
+}
+// Try the door: true if it's open and you went in (a closed door gives a message instead)
+async function tryDoor(page) {
+  await idle(page);
+  if (await page.evaluate(() => S.inside)) return true;
+  await page.locator('.hs[data-go="act:enter"]').click();
+  await idle(page);
+  if (await page.locator('.dlg').count()) { await ok(page); return false; }
+  return true;
+}
 // Walk home, then into the garage, then somewhere in it
 async function garage(page, where) {
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
@@ -112,6 +128,8 @@ test('shops shut: Sparky\'s is closed at lunchtime', async ({ page }) => {
   await start(page, errors);
   await page.evaluate(() => { S.mins = 12 * 60 + 30; render(); });
   await goPlace(page, "Sparky's Auto Electrics");
+  expect(await page.evaluate(() => S.inside)).toBe(false);             // you only see the outside
+  await page.locator('.hs[data-go="act:enter"]').click();
   expect(await dialogText(page)).toContain('Back in 10 minutes');
 });
 
@@ -130,9 +148,9 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await start(page, errors);
 
   // ask the mechanics, then pay the main dealer to read the codes
-  await goPlace(page, 'Spanner & Son'); await ok(page);
-  await goPlace(page, 'Quickfix Motors'); await ok(page);
-  await goPlace(page, 'Main Dealer'); await choose(page, 'Pay £120');
+  await goPlace(page, 'Spanner & Son'); await talk(page); await ok(page);
+  await goPlace(page, 'Quickfix Motors'); await talk(page); await ok(page);
+  await goPlace(page, 'Main Dealer'); await talk(page); await choose(page, 'Pay £120');
   expect(await flag(page, 'codes')).toBe(true);
 
   // look it up on the forum
@@ -150,10 +168,10 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Undo nut 3'); await ok(page);
 
   // the cheap extractor snaps; the proper one works
-  await goPlace(page, 'Tool Shop'); await choose(page, 'cheap');
+  await goPlace(page, 'Tool Shop'); await talk(page); await choose(page, 'cheap');
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
   await act(page, 'Use the extractor'); await ok(page);
-  await goPlace(page, 'Hardware Shop'); await choose(page, 'proper');
+  await goPlace(page, 'Hardware Shop'); await talk(page); await choose(page, 'proper');
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
   await act(page, 'Use the extractor'); await ok(page);
   expect(await flag(page, 'b2')).toBe(true);
@@ -167,14 +185,13 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   expect(await flag(page, 'n3found')).toBe(true);
 
   // order the sensor, sleep on it, collect it from the other branch
-  await goPlace(page, 'Motor Factors'); await ok(page);
+  await goPlace(page, 'Motor Factors'); await talk(page); await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await act(page, 'Go to bed'); await ok(page);
   await goPlace(page, 'Parts 4 Less'); await ok(page);
   for (let i = 0; i < 10 && !(await page.evaluate(() => !!S.inv['part-p4l'])); i++) {
-    const canTalk = await page.locator('.acts button', { hasText: 'Talk' }).count();
-    if (canTalk) {
-      await act(page, 'Talk');
+    if (await tryDoor(page)) {                                                      // open: go in and talk
+      await talk(page);
       const pay = page.locator('.dlg button', { hasText: 'Pay £31.50' });
       if (await pay.count()) { await pay.click(); await ok(page); continue; }
       await ok(page);
@@ -266,10 +283,63 @@ test('labels stay hidden until you point at a thing; then it lights up and shows
   const errors = [];
   await start(page, errors);
   const garage = page.locator('.hs[data-go="garage"]');
-  await expect(garage.locator('.lab')).toBeHidden();
+  const name = garage.locator('xpath=following-sibling::span[1]');      // its name sits just after it
+  await expect(name).toBeHidden();
   await garage.hover();
-  await expect(garage.locator('.lab')).toBeVisible();
-  await expect(garage.locator('.lab')).toHaveText('Garage');
-  const glow = await garage.evaluate(el => getComputedStyle(el).boxShadow);
-  expect(glow).not.toBe('none');
+  await expect(name).toBeVisible();
+  await expect(name).toHaveText('Garage');
+  const lit = await garage.evaluate(el => getComputedStyle(el).backgroundColor);
+  expect(lit).not.toBe('rgba(0, 0, 0, 0)');
+});
+
+test('in a shop you walk to the shopkeeper and they answer in a speech bubble with an arrow', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goPlace(page, 'Spanner & Son');
+  expect(await page.evaluate(() => S.inside)).toBe(false);             // the shop front first
+  await page.locator('.hs[data-go="act:enter"]').click(); await idle(page);
+  expect(await page.evaluate(() => S.inside)).toBe(true);
+  expect(await page.locator('.dlg').count()).toBe(0);                  // nobody talks until you go to them
+  await page.locator('.hs[data-go="act:talk"]').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('walk');
+  await idle(page);
+  const bubble = page.locator('.dlg.bubble');
+  await expect(bubble).toBeVisible();
+  const arrow = await bubble.evaluate(el => getComputedStyle(el, '::after').borderTopWidth);
+  expect(parseFloat(arrow)).toBeGreaterThan(10);
+  expect(errors).toEqual([]);
+});
+
+test('the breakers yard: look round the wrecks; your exact car has had the part taken', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', 'light'); lead('new-sensor', 'breakers', 'Breakers', 'Gaz', 'maybe', 'place:Breakers Yard'); S.mins = 10 * 60; });
+  await goPlace(page, 'Breakers Yard');
+  await talk(page);
+  await choose(page, 'Look round the yard');
+  expect(await page.evaluate(() => S.screen)).toBe('yard');
+  for (let i = 0; i < 6; i++) {
+    await idle(page);
+    await page.locator(`.hs[data-go="act:wreck:${i}"]`).click();
+    await idle(page);
+    if (i === 4) expect(await dialogText(page)).toContain('gone');
+    await ok(page);
+  }
+  expect(await page.evaluate(() => leadOpen('breakers'))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('turn the key by tapping it: I, II, then start; running, only the red light stays on', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  for (let k = 1; k <= 2; k++) { await idle(page); await page.locator('.hs[data-go="act:turnkey"]').click(); expect(await page.evaluate(() => S.key)).toBe(k); }
+  await idle(page);
+  await page.locator('.hs[data-go="act:turnkey"]').click();
+  await ok(page);
+  expect(await page.evaluate(() => S.flags.running)).toBe(true);
+  await expect(page.locator('.acts button', { hasText: 'Rev the engine' })).toBeVisible();
+  await act(page, 'Rev the engine');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rev');
+  expect(errors).toEqual([]);
 });

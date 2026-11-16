@@ -102,9 +102,9 @@ SCREENS.city = {
     for (let bj = 0; bj < 6; bj++) for (let bi = 0; bi < 7; bi++) lots.push({ bi, bj, place: PLACES[bj * 7 + bi] });
     lots.sort((a, b) => (a.bi + a.bj) - (b.bi + b.bj));
     for (const lot of lots) lot.top = building(lot);
-    // your car, parked at the last place you went
+    // your car (the only blue one), parked in the street outside the last place you went
     const here = Math.max(0, placeIndex(S.place || 'Home'));
-    isoCar((here % 7) * BLOCK + 8, Math.floor(here / 7) * BLOCK + STREET + 10, 0.5);
+    isoCarX((here % 7) * BLOCK + STREET + 22, Math.floor(here / 7) * BLOCK + STREET + 74, 0.5, C.car);
     for (const lot of lots) sign(lot);
     minimap();
     tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round.', 1, 80);
@@ -174,41 +174,35 @@ function minimap() {
 SCREENS.place = {
   size: [480, 270],
   paint() {
-    const name = S.place, i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = hex(CAT[cat][1]);
-    const shut = closedReason(name);
-    ISO.ox = 230; ISO.oy = 96;
-    rect(0, 0, W, H, C.greyDark);
-    if (cat === 'people') {                                // a front door
-      ground(-200, -200, 400, 400, C.grass);
-      ibox(0, 0, 160, 40, 0, 70, col);
-      onLeft(40, 66, 90, 0, 44, C.white); onLeft(40, 68, 88, 0, 42, C.door);
-      winLeft(40, 20, 44, 26, 46); winLeft(40, 112, 136, 26, 46);
-      ground(66, 40, 90, 120, C.concrete);
-      if (!shut) { const m = P(78, 46); man(m[0], m[1], 'stand', 2); }
-      const y = P(80, 110); man(y[0], y[1], 'stand', 2);
-    } else {                                               // a shop: shelves in the shop's colour, a counter
-      poly([P(0, 0, 0), P(0, 150, 0), P(0, 150, 80), P(0, 0, 80)], shade(col, 0.8));
-      poly([P(0, 0, 0), P(200, 0, 0), P(200, 0, 80), P(0, 0, 80)], col);
-      ground(0, 0, 200, 150, C.concrete);
-      for (const z of [20, 40, 60]) { ibox(10, 0, 190, 10, z - 2, z, C.wood); for (let x = 14, k = 0; x < 186; x += 10, k++) ibox(x, 1, x + 7, 8, z, z + 8 + (k % 3) * 2, [CARDBOARD, C.white, C.red, C.car][(k + z) % 4]); }
-      ibox(40, 50, 170, 70, 0, 22, C.bench, C.benchTop);
-      onLeft(0, 36, 164, 64, 78, C.white); frontSign(name, 36, 0, 128, 78, 14);   // the shop's sign on the back wall
-      if (!shut) { const m = P(100, 40); man(m[0], m[1], 'stand', 2); }
-      const y = P(100, 100); man(y[0], y[1], 'stand', 2);
-      if (shut) { onLeft(0, 70, 130, 30, 50, C.ink); }
+    const name = S.place, shut = closedReason(name), style = placeStyle(name);
+    if (!S.inside) {                                               // outside: the shop front; go in through the door
+      shopExterior(name, shut);
+      spot(shut ? 'The door (' + esc(shut.split('.')[0]) + ')' : 'Go in', isoArea(148, 39, 176, 41, 0, 50), 'act:enter', [162, 50]);
+      spot('Back in the car', isoArea(40, 72, 86, 96, 0, 20), 'city', [64, 62]);
+      tip(name, shut ? esc(shut) : 'Open. Tap the door to go in.', 1, 8);
+      return hud();
     }
-    tip(name, shut ? esc(shut) : `Open · ${esc((PLACE_INFO[name] || {}).person || 'someone at the counter')}`, 1, 8);
+    shopInterior(name, shut);
+    ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
+    const person = (PLACE_INFO[name] || {}).person || (style === 'house' ? name.replace("'s", '') : 'the shopkeeper');
+    if (!shut) {
+      const [hx, hy] = keeperHead();
+      spot('Talk to ' + esc(person), [hx - 12, hy - 2, 26, 44], 'act:talk', style === 'house' ? [80, 70] : [104, 80]);
+    }
+    if (style !== 'house') {
+      spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
+      spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
+    }
+    spot('Leave', isoArea(80, 138, 130, 150, 0, 6), style === 'house' ? 'city' : 'act:leave', [105, 146]);
+    tip(name, shut ? esc(shut) : 'Tap the ' + (style === 'house' ? 'door' : 'shopkeeper') + ' to talk. Walk round and look at things.', 1, 8);
     hud();
   },
   actions() {
-    const name = S.place;
-    const acts = [];
-    if (!closedReason(name)) acts.push({ label: 'Talk', act: 'talk' });
-    if (PLACE_INFO[name] && PLACE_INFO[name].shop && !closedReason(name)) acts.push({ label: 'Buy something', act: 'talk' });
-    acts.push({ label: 'Wait 30 minutes', act: 'wait' });
-    acts.push({ label: 'Back to the map', act: 'go:city' });
-    acts.push({ label: 'Go home', act: 'go:home' });
-    return acts;
+    return [
+      { label: 'Wait 30 minutes', act: 'wait' },
+      { label: 'Back to the map', act: 'go:city' },
+      { label: 'Go home', act: 'go:home' }
+    ];
   }
 };
 
@@ -548,9 +542,10 @@ SCREENS.dash = {
     }
     text('MPH', 148, 168, C.dim); text('RPM', 258, 168, C.dim);
     const on = S.key >= 2;
-    warnLight(209, 126, 'gear', C.red, on && !S.flags.fitted);
-    warnLight(209, 146, 'engine', C.warm, on && !S.flags.fitted);
-    warnLight(196, 166, 'battery', C.red, S.key === 2); warnLight(222, 166, 'oil', C.red, S.key === 2);
+    const check = on && !S.flags.running;                            // key at II: every bulb lights to show it works; running: they go out
+    warnLight(209, 126, 'gear', C.red, on && !S.flags.fitted);       // …except the red one
+    warnLight(209, 146, 'engine', C.warm, check);
+    warnLight(196, 166, 'battery', C.red, check); warnLight(222, 166, 'oil', C.red, check);
     warnLight(209, 184, 'abs', C.warm, on && !!S.flags.fitted);
     for (let r = 64; r < 74; r++) ring(209, 262, r, r < 66 || r > 71 ? hex('#121214') : hex('#1c1d20'));
     pipe(150, 252, 268, 252, 10, hex('#1c1d20')); rbox(186, 232, 46, 30, 8, hex('#1c1d20')); disc(209, 246, 6, C.steel2);
@@ -570,7 +565,8 @@ SCREENS.dash = {
       LABELS.push(`<div class="scr" style="left:${27 / W * 100}%;top:${161 / H * 100}%;width:${60 / W * 100}%;height:${42 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
     if (S.key >= 1) LABELS.push(`<div class="scr blink" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
-    tip("Driver's seat", ['Key out.', 'Key at I: radio on.', 'Key at II: dash lights on.', ''][S.key], 1, 8);
+    spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [314, 184, 36, 32], 'act:turnkey');
+    tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
   },
   actions() {
@@ -579,6 +575,7 @@ SCREENS.dash = {
     ];
     if (S.inv['reader-good']) a.push({ label: 'Plug in your code reader', act: 'plug:good' });
     if (S.inv['reader-old']) a.push({ label: "Plug in Gaz's reader", act: 'plug:old' });
+    if (S.flags.running) a.push({ label: 'Rev the engine', act: 'rev' });
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
     a.push({ label: 'Sit and think (1 hour)', act: 'think' });
     a.push({ label: 'Get out', act: 'go:garage' });

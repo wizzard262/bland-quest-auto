@@ -41,6 +41,14 @@ function drip(t, x, y0, y1, period, col) {
   if (f <= 1) { rect(x, Math.round(lerp(y0, y1, f * f)), 2, 3, col); return; }
   rect(x - 3, y1, 7, 1, col);
 }
+const PASSED = [];                                                   // where each passing car was last frame (for its whoosh)
+// A drip that also goes "plink" when it lands
+function dripSound(t, period, key) {
+  const q = (t % period) / period, landed = q >= 0.95;
+  if (landed && !DRIPPED[key]) sfx('plink');
+  DRIPPED[key] = landed;
+}
+const DRIPPED = {};
 // A strip light that flickers now and then
 const flicker = t => Math.sin(t * 7) + Math.sin(t * 13.3) + Math.sin(t * 2.1) > 2.3;
 // A nut or bolt head turned by angle a
@@ -66,7 +74,12 @@ function spanner(x, y, a, len = 90) {
 SCREENS.home.animate = function (t) {
   ISO.ox = 250; ISO.oy = 96;
   const cols = [C.red, C.warm, hex('#40a060')];
-  for (let k = 0; k < 3; k++) isoCarX(((t * (50 + k * 12) + k * 380) % 1200) - 500, k % 2 ? 172 : 154, 0.9, cols[k]);   // traffic
+  for (let k = 0; k < 3; k++) {                                                                                        // traffic
+    const x = ((t * (50 + k * 12) + k * 380) % 1200) - 500;
+    isoCarX(x, k % 2 ? 172 : 154, 0.9, cols[k]);
+    if (PASSED[k] !== undefined && PASSED[k] < -60 && x >= -60) sfx('carpass');                                           // whoosh as it goes by
+    PASSED[k] = x;
+  }
   for (let k = 0; k < 2; k++) {                                                                                        // two birds
     const x = ((t * 22 + k * 260) % 560) - 40, y = 34 + k * 14 + Math.sin(t * 2 + k) * 3, w = Math.floor(t * 6 + k) % 2 ? 2 : 1;
     px(x - 2, y - w, C.ink); px(x - 1, y, C.ink); px(x, y + 1, C.ink); px(x + 1, y, C.ink); px(x + 2, y - w, C.ink);
@@ -74,7 +87,7 @@ SCREENS.home.animate = function (t) {
 };
 SCREENS.city.animate = function (t) {
   ISO.ox = S.cam.ox; ISO.oy = S.cam.oy;
-  const cols = [C.red, C.warm, hex('#40a060'), C.white, C.car];
+  const cols = [C.red, C.warm, hex('#40a060'), C.white, C.steel2];          // never blue: blue is your car
   for (let k = 0; k < 8; k++) {                                                                                        // traffic on the streets
     const along = (t * (18 + k * 4) + k * 170) % (7 * BLOCK + STREET);
     if (k % 2) isoCarX(along - 20, (k % 7) * BLOCK + 6, 0.42, cols[k % 5]);
@@ -90,9 +103,9 @@ SCREENS.garage.animate = function (t) {
   ISO.ox = 230; ISO.oy = 106;
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
   const a = P(62, 86, 5), b = P(62, 86, 0);
-  drip(t, a[0], a[1], b[1], 3.1, C.ink);                                                                               // oil dripping from the car
+  drip(t, a[0], a[1], b[1], 3.1, C.ink); dripSound(t, 3.1, 'garage');                                                 // oil dripping from the car
 };
-SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
+SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); dripSound(t, 2.7, 'under'); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
 SCREENS.underZoom.animate = function (t) { drip(t, 250, 176, 262, 2.9, hex('#2a2010')); };
 SCREENS.bench.animate = function (t) {
   for (let k = 0; k < 10; k++) {                                                                                      // dust in the light
@@ -110,24 +123,26 @@ SCREENS.dash.animate = function (t) {
 // =====================================================================
 // THE MAN, standing where he last walked to on the home and garage screens
 // =====================================================================
-const SPOT_HOME = { home: [46, 84], garage: [110, 74] };
-const MAN_SIZE = { home: 2, garage: 2 };
-const VIEW = { home: [250, 96], garage: [230, 106] };
-function manSpot(screen) { return (S.spot && S.spot[screen]) || SPOT_HOME[screen]; }
+const SPOT_HOME = { home: [46, 84], garage: [110, 74], place: [105, 140], outside: [100, 52], yard: [100, 150] };
+const MAN_SIZE = { home: 2, garage: 2, place: 2, outside: 2, yard: 2 };
+const VIEW = { home: [250, 96], garage: [230, 106], place: [230, 96], outside: [250, 70], yard: [240, 70] };
+// A place in town has two views: outside (the shop front) and inside
+function spotKey(screen) { return screen === 'place' ? (S.inside ? 'place' : 'outside') : screen; }
+function manSpot(screen) { const k = spotKey(screen); return (S.spot && S.spot[k]) || SPOT_HOME[k]; }
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
   if (ANIM && ANIM.kind === 'walk') return;
   const [x, y] = manSpot(screen), m = P(x, y);
-  man(m[0], m[1], 'stand', MAN_SIZE[screen]);
+  man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
 }
 // Walk from where he is to a spot, then do `then` (open the screen he walked to)
 function walkTo(x, y, then) {
-  const screen = S.screen, from = manSpot(screen);
+  const screen = S.screen, key = spotKey(screen), from = manSpot(screen);
   const dist = Math.hypot(x - from[0], y - from[1]);
   if (dist < 3) return then();
-  ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], screen, then() {
+  ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], screen: key, then() {
     S.spot = S.spot || {};
-    S.spot[screen] = [x, y];
+    S.spot[key] = [x, y];
     then();
   } };
   render();                                                         // repaint without him standing still, so only the walking man shows
@@ -254,5 +269,11 @@ const MOMENTS = {
       warnLight(209, 184, 'abs', C.warm, p > 0.62 && (p > 0.9 || Math.floor(p * 30) % 2 === 0));                       // …and the ABS light flicks ON
     }
   },
-  clear(p) { warnLight(209, 126, 'gear', C.red, p > 0.78); }        // the light goes out… then comes back
+  clear(p) { warnLight(209, 126, 'gear', C.red, p > 0.78); },
+  rev(p) {                                                            // a blip of the accelerator: the rev needle jumps and falls back
+    const up = p < 0.22 ? p / 0.22 : Math.max(0, 1 - (p - 0.22) / 0.78);
+    disc(264, 152, 27, hex('#0e0f11'));
+    const a = 3.05 + up * 2.2;
+    line(264, 152, 264 + Math.cos(a) * 26, 152 + Math.sin(a) * 26, C.red); disc(264, 152, 3, C.steel2);
+  }        // the light goes out… then comes back
 };

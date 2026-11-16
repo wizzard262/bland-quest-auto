@@ -34,10 +34,12 @@
   /* ---- things you can point at: they light up and show their name ---- */
   .hs { position: absolute; cursor: pointer; border-radius: 6px; }
   .hs:hover { background: rgba(159, 243, 208, .16); box-shadow: 0 0 0 2px var(--mint), 0 0 22px rgba(159, 243, 208, .55); }
-  .hs .lab { display: none; position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -6px); font: bold 1.1cqw Tahoma, 'Segoe UI', sans-serif; color: var(--mint); background: var(--ink); border: 2px solid var(--mint); padding: .15em .55em; white-space: nowrap; pointer-events: none; }
-  .hs:hover .lab { display: block; }
+  .hs.shaped:hover { background: rgba(159, 243, 208, .38); }
+  .lab { display: none; position: absolute; transform: translate(-50%, calc(-100% - 6px)); font: bold 1.1cqw Tahoma, 'Segoe UI', sans-serif; color: var(--mint); background: var(--ink); border: 2px solid var(--mint); padding: .15em .55em; white-space: nowrap; pointer-events: none; z-index: 2; }
+  .hs:hover + .lab { display: block; }
 
   /* ---- a shop's name on its shop front: slanted to lie on the wall (the walls run 2 across for 1 down) ---- */
+  .front.side { transform: skewY(-26.565deg); }
   .front { position: absolute; transform-origin: 0 0; transform: skewY(26.565deg); color: var(--ink); font-family: Tahoma, 'Segoe UI', sans-serif; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; pointer-events: none; }
 
   /* ---- kicking something shakes the picture ---- */
@@ -47,7 +49,13 @@
   @keyframes blink { 50% { opacity: 0; } }
 
   /* ---- the dialog box ---- */
-  .dlg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; background: var(--ink); border: 3px solid var(--mint); padding: 1em 1.2em; font: 1.35cqw/1.45 Tahoma, 'Segoe UI', sans-serif; color: #f4f4f0; box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+  .dlg { position: absolute; background: var(--ink); border: 3px solid var(--mint); padding: .8em 1.1em; font: 1.3cqw/1.4 Tahoma, 'Segoe UI', sans-serif; color: #f4f4f0; box-sizing: border-box; }
+  .dlg.note { left: 50%; bottom: 3%; transform: translateX(-50%); width: 62%; }
+  /* a speech bubble: white, above the speaker, with an arrow pointing down at them */
+  .dlg.bubble { width: 40%; transform: translate(-50%, calc(-100% - 22px)); background: #fbfbf6; color: #101018; border-color: #101018; border-radius: 14px; }
+  .dlg.bubble b { color: #24506a; }
+  .dlg.bubble::after { content: ''; position: absolute; left: var(--tail, 50%); bottom: -22px; transform: translateX(-50%); border: 11px solid transparent; border-top: 22px solid #101018; border-bottom: 0; }
+  .dlg.bubble::before { content: ''; position: absolute; left: var(--tail, 50%); bottom: -16px; transform: translateX(-50%); border: 8px solid transparent; border-top: 17px solid #fbfbf6; border-bottom: 0; z-index: 1; }
   .dlg b { color: var(--mint); font-size: 1.1em; }
   .dlg p { margin: .5em 0 .8em; }
   .dlg div { display: flex; flex-wrap: wrap; gap: .5em; }
@@ -145,6 +153,7 @@
 <script src="js/sound.js"></script>
 <script src="js/art.js"></script>
 <script src="js/screens.js"></script>
+<script src="js/interiors.js"></script>
 <script src="js/life.js"></script>
 <script src="js/story.js"></script>
 <script src="js/engine.js"></script>
