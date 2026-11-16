@@ -1,0 +1,1092 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Thankless Task — screen mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  :root { --page: #06080a; --ui: #cfd8cf; --dim: #7d8a85; --mint: #9ff3d0; }
+  html, body { margin: 0; background: var(--page); color: var(--ui); }
+  body { font-family: 'Silkscreen', monospace; padding: 12px 16px 40px; }
+  h1 { font-size: 16px; letter-spacing: 1px; margin: 0 0 10px; font-weight: normal; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  nav button { font: inherit; font-size: 11px; color: var(--ui); background: #10161a; border: 1px solid #34434d; padding: 6px 10px; cursor: pointer; }
+  nav button.on { border-color: var(--mint); color: var(--mint); }
+  .stage { position: relative; width: min(100%, 1120px); aspect-ratio: 16 / 9; container-type: inline-size; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .caption { max-width: 1120px; font-size: 11px; line-height: 1.7; color: var(--dim); }
+  .caption b { color: var(--ui); font-weight: normal; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: Tahoma, 'Segoe UI', sans-serif; font-size: 12px; color: var(--ui); max-width: 1120px; margin-top: 8px; }
+  .legend span::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 5px; background: var(--c); }
+
+  /* ---- realistic text screens (computer and phone) sit over the pixel frame ---- */
+  .ov { position: absolute; overflow: hidden; font-family: Tahoma, 'Segoe UI', sans-serif; color: #1a2226; }
+  .pc { left: 8.75%; top: 7.78%; width: 82.5%; height: 68.9%; background: #d6dbd0; display: flex; font-size: 1.15cqw; }
+  .pc .dock { width: 15%; background: #27343a; display: flex; flex-direction: column; gap: 2px; padding: .4em .3em; }
+  .pc .dock button { font: inherit; text-align: left; color: #cfd8cf; background: none; border: 0; padding: .45em .5em; cursor: pointer; }
+  .pc .dock button.on { background: #3e5058; color: #fff; }
+  .pc .win { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .pc .bar { background: #b9c0b4; padding: .3em .7em; font-size: .9em; color: #3a4448; border-bottom: 1px solid #9aa298; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc .body { flex: 1; overflow: auto; padding: .6em .9em; line-height: 1.35; }
+  .pc h2 { font-size: 1.25em; margin: .1em 0 .4em; }
+  .pc .meta { color: #5d686b; font-size: .85em; }
+  .pc .post { border-top: 1px solid #b4bbb0; padding: .45em 0; }
+  .pc .post b { color: #24506a; }
+  .pc .vid { display: flex; gap: .8em; }
+  .pc .player { width: 70%; aspect-ratio: 16/9; background: #1a2226; position: relative; }
+  .pc .player::after { content: '▶  13:42 / 10:00'; position: absolute; left: .5em; bottom: .4em; color: #cfd8cf; font-size: .85em; }
+  .pc .player i { position: absolute; left: 30%; top: 25%; width: 12%; height: 50%; background: #5a6a70; }
+  .pc .player i + i { left: 50%; width: 25%; height: 20%; top: 55%; background: #8a6a3a; }
+  .pc .side div { padding: .25em 0; border-bottom: 1px solid #c2c8bd; font-size: .9em; }
+  .pc table { border-collapse: collapse; width: 100%; font-size: .95em; }
+  .pc td { padding: .35em .4em; border-bottom: 1px solid #c2c8bd; vertical-align: top; }
+  .pc tr.unread td { font-weight: bold; }
+  .pc .search { background: #fff; border: 1px solid #8a948a; padding: .35em .6em; margin-bottom: .6em; }
+  .pc .red { color: #a03030; }
+  .pc .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6em; }
+  .pc .grid div { font-size: .85em; }
+  .pc .grid div::before { content: ''; display: block; aspect-ratio: 4/3; background: var(--p, #6a7a80); margin-bottom: .2em; }
+
+  .ph { left: 36.6%; top: 12.2%; width: 26.9%; height: 76.1%; background: #e3e6dd; font-size: 1.1cqw; display: flex; flex-direction: column; }
+  .ph .call { background: #24506a; color: #fff; padding: .6em .7em; }
+  .ph .call small { display: block; opacity: .8; }
+  .ph .call span { display: inline-block; margin-top: .4em; margin-right: .5em; padding: .2em .7em; background: #3d8a5a; }
+  .ph .call span + span { background: #a03a3a; }
+  .ph .msgs { flex: 1; overflow: auto; }
+  .ph .m { padding: .5em .7em; border-bottom: 1px solid #c4c9bf; line-height: 1.3; }
+  .ph .m b { display: block; }
+  .ph .m em { font-style: normal; color: #6a7478; float: right; font-size: .85em; }
+  .ph .tabs { display: flex; background: #c9cec3; }
+  .ph .tabs div { flex: 1; text-align: center; padding: .5em 0; font-size: .9em; }
+  .ph .tabs div:first-child { background: #b2b9ac; }
+
+  /* ---- city signs and the place card, in real text so they can be read ---- */
+  .lbl { position: absolute; transform: translate(-50%, -100%); font: bold 1.05cqw Tahoma, 'Segoe UI', sans-serif; padding: .15em .45em; border: 2px solid #101018; white-space: nowrap; pointer-events: none; }
+  .tip { position: absolute; font: 1.2cqw/1.4 Tahoma, 'Segoe UI', sans-serif; color: #f4f4f0; background: #101018; border: 2px solid #9ff3d0; padding: .4em .7em; }
+  .tip b { display: block; color: #9ff3d0; }
+  .zl { position: absolute; transform: translate(-50%, -100%); font: bold 1cqw Tahoma, 'Segoe UI', sans-serif; color: #101018; background: #9ff3d0; padding: .1em .4em; white-space: nowrap; }
+  .zl.hot { background: #f8d038; }
+  .zl[data-go] { cursor: pointer; outline: 2px solid #101018; }
+
+  /* ---- joining the screens up: tappable areas, Back, notebook, small screens ---- */
+  .go { position: absolute; cursor: pointer; }
+  .go:hover { outline: 2px solid #9ff3d0; }
+  .lbl[data-go] { pointer-events: auto; cursor: pointer; }
+  .back { position: absolute; left: 1%; bottom: 2%; font: bold 1.2cqw Tahoma, 'Segoe UI', sans-serif; color: #101018; background: #9ff3d0; border: 2px solid #101018; padding: .3em .8em; cursor: pointer; }
+  .nb { background: none; color: #20304a; font: 1.25cqw/1.45 'Segoe Print', 'Comic Sans MS', cursive; top: 11%; height: 84%; overflow: hidden; }
+  .nb1 { left: 15.5%; width: 32%; } .nb2 { left: 57.5%; width: 32%; }
+  .nb h3 { font-size: 1.1em; margin: .2em 0 .1em; text-decoration: underline; color: #102040; }
+  .nb .ok { color: #2a7a3a; } .nb .x { color: #8a6a6a; text-decoration: line-through; } .nb .none { color: #a03030; }
+  .nb .lead { color: #1a4a9a; cursor: pointer; } .nb .lead:hover { text-decoration: underline; }
+  .nb .lead i { color: #6a6a7a; font-size: .85em; } .nb .idea { color: #7a5a10; font-size: .9em; margin-top: .3em; }
+  .lid { position: absolute; font: .95cqw/1.6 Tahoma, 'Segoe UI', sans-serif; color: #303030; }
+  .lid .note { font-style: italic; margin-top: .6em; }
+  .scr { position: absolute; font: .85cqw/1.3 'Consolas', monospace; color: #9ff3d0; overflow: hidden; padding: .2em; }
+</style>
+</head>
+<body>
+<h1>THE THANKLESS TASK · SCREEN MOCKUPS (STILL, NOT ANIMATED)</h1>
+<nav id="nav"></nav>
+<div class="stage" id="stage"><canvas id="c" width="320" height="180"></canvas></div>
+<div class="caption" id="cap"></div>
+<div class="legend" id="legend"></div>
+<script>
+// =====================================================================
+// Still pixel mockups: every screen is painted once into a 320 x 180
+// buffer and scaled up with hard edges. The computer and the phone put
+// real text on top, so it can be read and clicked.
+// =====================================================================
+let W = 320, H = 180;                                    // picture size; some screens use a bigger one
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let img = ctx.createImageData(W, H);
+
+// ---------- palette: bright daytime arcade colours ----------
+const hex = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const C = {
+  ink: hex('#101018'), grass: hex('#58b048'), grassDark: hex('#48a038'), grassLine: hex('#78c858'),
+  hill1: hex('#8cc0b0'), hill2: hex('#6aa878'), tree1: hex('#3e9a40'), tree2: hex('#2e8034'),
+  skin: hex('#e8b090'), hair: hex('#603818'), shirt: hex('#e04838'), shirtDark: hex('#a83020'), jeans: hex('#4060a8'), jeansDark: hex('#304a88'),
+  ui: hex('#f4f4f0'), dim: hex('#a8b0a8'), mint: hex('#9ff3d0'), sun: hex('#fff4b0'),
+  warm: hex('#f8d038'), warmDim: hex('#c8a030'), red: hex('#e04838'), redDim: hex('#a03028'),
+  brick: hex('#c0583c'), brickLine: hex('#a04832'), cream: hex('#e8dcbc'), creamDark: hex('#c8b898'),
+  roof: hex('#5a5a7a'), roofLine: hex('#46465e'), white: hex('#f4f4f0'), door: hex('#2860a0'), winGlass: hex('#78b0e8'),
+  steel: hex('#b8bcc4'), steel2: hex('#8a909a'), grey: hex('#3a3a44'), greyDark: hex('#2a2a32'),
+  car: hex('#3c78c8'), carDark: hex('#285094'), glass: hex('#203048'), tyre: hex('#222228'), rim: hex('#a8acb4'),
+  concrete: hex('#c8c0a8'), concreteDark: hex('#aaa18a'), floor: hex('#9a927c'), drive: hex('#b4b4b0'), road: hex('#5a5a64'),
+  bench: hex('#7a5634'), benchTop: hex('#b88a58'), wood: hex('#9a7048'), peg: hex('#c8a070'), pegHole: hex('#9a7048'),
+  tool: hex('#5a5e68'), light: hex('#f8fff8'), rust: hex('#8a5028')
+};
+
+// ---------- pixel primitives ----------
+function px(x, y, c) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const i = (y * W + x) * 4;
+  img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = 255;
+}
+function rect(x, y, w, h, c) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) px(xx, yy, c); }
+function line(x0, y0, x1, y1, c) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  while (true) {
+    px(x0, y0, c);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+function poly(points, c) {
+  const ys = points.map(p => p[1]);
+  for (let y = Math.max(0, Math.floor(Math.min(...ys))); y <= Math.min(H - 1, Math.ceil(Math.max(...ys))); y++) {
+    const cy = y + 0.5, xs = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], b = points[(i + 1) % points.length];
+      if ((a[1] <= cy && b[1] > cy) || (b[1] <= cy && a[1] > cy)) xs.push(a[0] + (cy - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+    }
+    xs.sort((m, n) => m - n);
+    for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.ceil(xs[k] - 0.5); x <= Math.floor(xs[k + 1] - 0.5); x++) px(x, y, c);
+  }
+}
+function disc(cx, cy, r, c) { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, c); }
+function hash(x, y) { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+// Darken everything painted so far (used behind the phone)
+function dim(f) { for (let i = 0; i < img.data.length; i += 4) { img.data[i] *= f; img.data[i + 1] *= f; img.data[i + 2] *= f; } }
+
+// ---------- tiny 3 x 5 pixel font ----------
+const FONT = {
+  A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'],
+  D: ['##.', '#.#', '#.#', '#.#', '##.'], E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'],
+  G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'], I: ['###', '.#.', '.#.', '.#.', '###'],
+  J: ['..#', '..#', '..#', '#.#', '.#.'], K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
+  M: ['#.#', '###', '###', '#.#', '#.#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'],
+  P: ['##.', '#.#', '##.', '#..', '#..'], Q: ['.#.', '#.#', '#.#', '##.', '.##'], R: ['##.', '#.#', '##.', '#.#', '#.#'],
+  S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'],
+  V: ['#.#', '#.#', '#.#', '#.#', '.#.'], W: ['#.#', '#.#', '###', '###', '#.#'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'],
+  Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['###', '..#', '.#.', '#..', '###'],
+  0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['##.', '..#', '.#.', '#..', '###'],
+  3: ['##.', '..#', '.#.', '..#', '##.'], 4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '##.', '..#', '##.'],
+  6: ['.##', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'], 8: ['###', '#.#', '###', '#.#', '###'],
+  9: ['###', '#.#', '###', '..#', '##.'],
+  '.': ['...', '...', '...', '...', '.#.'], ',': ['...', '...', '...', '.#.', '#..'], "'": ['.#.', '.#.', '...', '...', '...'],
+  '!': ['.#.', '.#.', '.#.', '...', '.#.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '&': ['.#.', '#.#', '.#.', '#.#', '.##'],
+  '-': ['...', '...', '###', '...', '...'], ':': ['...', '.#.', '...', '.#.', '...'], '/': ['..#', '..#', '.#.', '#..', '#..'],
+  '(': ['.#.', '#..', '#..', '#..', '.#.'], ')': ['.#.', '..#', '..#', '..#', '.#.'], '>': ['#..', '.#.', '..#', '.#.', '#..'],
+  '+': ['...', '.#.', '###', '.#.', '...'], ' ': ['...', '...', '...', '...', '...']
+};
+function text(str, x, y, c, s = 1) {
+  x = Math.round(x); y = Math.round(y);
+  let cx = x;
+  for (const ch of str.toUpperCase()) {
+    const g = FONT[ch] || FONT[' '];
+    for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) if (g[r][k] === '#') rect(cx + k * s, y + r * s, s, s, c);
+    cx += 4 * s;
+  }
+}
+const textW = s => s.length * 4 - 1;
+// A label with a small arrow pointing down at what you can tap
+// go = the screen it opens when tapped (if any)
+function hotspot(label, x, y, go) {
+  const w = textW(label) + 6;
+  rect(x - w / 2, y - 9, w, 9, C.ink);
+  text(label, x - w / 2 + 3, y - 7, C.mint);
+  px(x - 1, y, C.mint); px(x, y, C.mint); px(x + 1, y, C.mint); px(x, y + 1, C.mint);
+  if (go) link(go, x - w / 2, y - 10, w, 12);
+}
+// An invisible tappable area over part of the picture that opens another screen
+function link(go, x, y, w, h) {
+  LABELS.push(`<a class="go" data-go="${go}" style="left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"></a>`);
+}
+// A boxed panel with lines of pixel text
+function panel(lines, x, y, colour = C.ui) {
+  const w = Math.max(...lines.map(textW)) + 8, h = lines.length * 8 + 5;
+  rect(x, y, w, h, C.ink); rect(x, y, w, 1, C.hill2); rect(x, y + h - 1, w, 1, C.hill2);
+  rect(x, y, 1, h, C.hill2); rect(x + w - 1, y, 1, h, C.hill2);
+  lines.forEach((ln, i) => text(ln, x + 4, y + 4 + i * 8, i === 0 ? C.mint : colour));
+}
+
+// ---------- the same strip on every world screen: time, task, anger, phone ----------
+// s = how big the pixels of the strip are (2 on the bigger city picture, so it reads the same)
+function hud(task) {
+  const s = W >= 640 ? 2 : 1;
+  rect(0, 0, W, 18 * s, C.ink);
+  text('TUE 08:40   DAY 1', 4 * s, 3 * s, C.dim, s);
+  text('TASK: ' + task, 4 * s, 10 * s, C.ui, s);
+  text('ANGER', W - 74 * s, 3 * s, C.dim, s);
+  rect(W - 50 * s, 3 * s, 46 * s, 5 * s, C.grey); rect(W - 49 * s, 4 * s, 15 * s, 3 * s, C.red);
+  // phone in your pocket, with 3 unread
+  const x = W - 18 * s, y = H - 23 * s;
+  rect(x, y, 11 * s, 17 * s, C.ink); rect(x + s, y + s, 9 * s, 15 * s, C.ui); rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, C.glass);
+  disc(x + 10 * s, y + s, 3 * s, C.red); text('3', x + 9 * s, y - s, C.white, s);
+  link('phone', x - s, y - 4 * s, 14 * s, 22 * s);
+  // notebook in your other pocket: the list of jobs and leads
+  const nx = W - 34 * s;
+  rect(nx, y + s, 12 * s, 15 * s, C.ink); rect(nx + s, y + 2 * s, 10 * s, 13 * s, C.warm); rect(nx + s, y + 2 * s, 2 * s, 13 * s, C.redDim);
+  for (let k = 0; k < 4; k++) rect(nx + 4 * s, y + (5 + k * 3) * s, 6 * s, s, C.bench);
+  link('notebook', nx - s, y, 14 * s, 18 * s);
+}
+
+// ---------- isometric drawing ----------
+// World x runs down-right, world y runs down-left, z is straight up. ISO is where world 0,0,0 lands on screen
+const ISO = { ox: 0, oy: 0 };
+const P = (x, y, z = 0) => [ISO.ox + x - y, ISO.oy + (x + y) / 2 - z];
+const shade = (c, f) => c.map(v => Math.max(0, Math.min(255, Math.round(v * f))));
+// A box: the left wall (facing down-left), the right wall (facing down-right) and the top
+function ibox(x0, y0, x1, y1, z0, z1, col, top) {
+  poly([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], shade(col, 0.78));
+  poly([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], col);
+  poly([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top || shade(col, 1.18));
+}
+// A patch painted on a wall that faces down-left (at y = yf) or down-right (at x = xf)
+function onLeft(yf, a, b, c, d, col) { poly([P(a, yf, c), P(b, yf, c), P(b, yf, d), P(a, yf, d)], col); }
+function onRight(xf, a, b, c, d, col) { poly([P(xf, a, c), P(xf, b, c), P(xf, b, d), P(xf, a, d)], col); }
+// A flat patch on the ground (z = 0 unless given)
+function ground(x0, y0, x1, y1, col, z = 0) { poly([P(x0, y0, z), P(x1, y0, z), P(x1, y1, z), P(x0, y1, z)], col); }
+// A pitched roof with its ridge running along x, from wall height h up r more
+function gableRoof(x0, y0, x1, y1, h, r, wallCol, roofCol) {
+  const ym = (y0 + y1) / 2;
+  poly([P(x0, y0, h), P(x1, y0, h), P(x1, ym, h + r), P(x0, ym, h + r)], shade(roofCol, 0.8));
+  poly([P(x0, y1, h), P(x1, y1, h), P(x1, ym, h + r), P(x0, ym, h + r)], roofCol);
+  for (let t = 0.2; t < 1; t += 0.2) line(...P(x0, y1 + (ym - y1) * t, h + r * t), ...P(x1, y1 + (ym - y1) * t, h + r * t), shade(roofCol, 0.8));
+  poly([P(x1, y0, h), P(x1, y1, h), P(x1, ym, h + r)], wallCol);
+  line(...P(x0, y1, h), ...P(x1, y1, h), C.white); line(...P(x1, y1, h), ...P(x1, ym, h + r), C.white);
+  line(...P(x0, ym, h + r), ...P(x1, ym, h + r), C.white);
+}
+// Brick lines across both walls of a box
+function bricks(x0, y0, x1, y1, h, col) {
+  for (let z = 4; z < h; z += 4) { line(...P(x0, y1, z), ...P(x1, y1, z), col); line(...P(x1, y0, z), ...P(x1, y1, z), shade(col, 1.1)); }
+}
+// A window with a white frame on a wall facing down-left or down-right
+function winLeft(yf, a, b, c, d) { onLeft(yf, a - 1, b + 1, c - 1, d + 1, C.white); onLeft(yf, a, b, c, d, C.winGlass); onLeft(yf, (a + b) / 2, (a + b) / 2 + 1, c, d, C.white); }
+function winRight(xf, a, b, c, d) { onRight(xf, a - 1, b + 1, c - 1, d + 1, C.white); onRight(xf, a, b, c, d, C.winGlass); onRight(xf, (a + b) / 2, (a + b) / 2 + 1, c, d, C.white); }
+// A filled ellipse (a circle lying flat looks like this in isometric)
+function ellipse(cx, cy, rx, ry, c) {
+  for (let y = -ry; y <= ry; y++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry)))); rect(Math.round(cx - hw), Math.round(cy + y), hw * 2 + 1, 1, c); }
+}
+// A round tree: trunk and a ball of leaves
+function tree(x, y) {
+  const [sx, sy] = P(x, y);
+  rect(sx - 1, sy - 10, 3, 10, C.wood);
+  disc(sx, sy - 18, 10, C.tree2); disc(sx - 3, sy - 21, 6, C.tree1);
+}
+
+// ---------- the car, isometric, nose pointing down-left (towards +y) ----------
+// x, y = the back-left corner of where it stands; s = size (1 = full size); col = paint
+// opts.broken: a wreck for the breakers yard (no wheels, no glass, rust, bonnet gone); opts.dz: lifts it (to stack wrecks)
+// Shape from the side, front at y = 46: sloping hatch at the back, roof, raked windscreen, bonnet sloping down to the nose
+function isoCar(x, y, s = 1, col = C.car, opts = {}) {
+  const broken = !!opts.broken, dz = opts.dz || 0;
+  const Q = (a, b, c) => P(x + a * s, y + b * s, (broken ? c - 3 : c) * s + dz);
+  const F = pts => pts.map(([a, b, c]) => Q(a, b, c));
+  const glass = broken ? C.ink : C.glass;
+  if (!dz) poly(F([[-2, 2, 0], [26, 2, 0], [26, 48, 0], [-2, 48, 0]]), shade(C.floor, 0.6));          // shadow
+  poly(F([[2, 1, 14], [22, 1, 14], [22, 9, 22], [2, 9, 22]]), shade(col, 0.7));                       // back hatch
+  poly(F([[24, 0, 4], [24, 0, 14], [24, 36, 15], [24, 46, 11], [24, 46, 4]]), col);                   // side
+  poly(F([[24, 0, 4], [24, 46, 4], [24, 46, 6], [24, 0, 6]]), shade(col, 0.7));                       // sill
+  poly(F([[22, 1, 14], [22, 9, 22], [22, 28, 22], [22, 36, 15]]), col);                              // side above the doors
+  poly(F([[22, 3, 15], [22, 10, 21], [22, 27, 21], [22, 34, 15.5]]), glass);                         // side windows
+  if (!broken) poly(F([[22, 18, 15], [22, 18, 21], [22, 19.5, 21], [22, 19.5, 15]]), col);           // door pillar
+  poly(F([[0, 46, 4], [24, 46, 4], [24, 46, 11], [0, 46, 11]]), shade(col, 0.8));                     // nose
+  poly(F([[0, 36, 15], [24, 36, 15], [24, 46, 11], [0, 46, 11]]), broken ? C.greyDark : shade(col, 1.15));   // bonnet (gone on a wreck)
+  poly(F([[0, 0, 14], [24, 0, 14], [24, 1, 14], [0, 1, 14]]), shade(col, 1.15));
+  poly(F([[2, 9, 22], [22, 9, 22], [22, 28, 22], [2, 28, 22]]), shade(col, 1.2));                     // roof
+  poly(F([[2, 28, 22], [22, 28, 22], [24, 36, 15], [0, 36, 15]]), glass);                             // windscreen
+  if (broken) {                                                                                         // rust patches
+    for (let n = 0; n < 7; n++) { const p = Q(24, 4 + hash(n, x) * 38, 6 + hash(x, n) * 8); rect(p[0], p[1], 2 + (n % 2), 2, C.rust); }
+    return;
+  }
+  poly(F([[2, 46, 7], [6, 46, 7], [6, 46, 10], [2, 46, 10]]), C.warm); poly(F([[18, 46, 7], [22, 46, 7], [22, 46, 10], [18, 46, 10]]), C.warm);   // headlights
+  if (s >= 1) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }                            // the red light on the dash
+  for (const wy of [9, 37]) {                                                                          // wheels
+    const [wx, wz] = Q(24, wy, 4);
+    ellipse(wx, wz, Math.max(1, Math.round(3 * s)), Math.max(1, Math.round(4.5 * s)), C.tyre);
+    if (s >= 0.8) ellipse(wx, wz, Math.round(1.5 * s), Math.round(2.2 * s), C.rim);
+  }
+}
+
+// ---------- the man: tall, thin, 1-pixel limbs, no face; red shirt, jeans ----------
+// s = pixel size (2 draws him twice as big, still with chunky 1-pixel-wide limbs)
+function man(x, y, pose, s = 1) {
+  x = Math.round(x); y = Math.round(y);
+  const R = (dx, dy, w, h, c) => rect(x + dx * s, y + dy * s, w * s, h * s, c);
+  const D = (dx, dy, c) => R(dx, dy, 1, 1, c);
+  const L = (x0, y0, x1, y1, c) => {                     // a 1-pixel line, each pixel s x s
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    while (true) { D(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+  };
+  if (pose === 'lie') {                                  // on his back on a creeper, head on the left, knees up, arm up
+    R(0, -3, 3, 2, C.skin); D(0, -3, C.hair); R(4, -3, 6, 2, C.shirt);
+    L(10, -3, 13, -7, C.jeansDark); L(13, -7, 16, -2, C.jeansDark);
+    L(10, -2, 14, -6, C.jeans); L(14, -6, 18, -2, C.jeans);
+    L(6, -4, 7, -9, C.shirt); D(7, -10, C.skin); return;
+  }
+  R(0, -19, 2, 3, C.skin); R(0, -19, 2, 1, C.hair); D(0, -16, C.skin);
+  R(0, -15, 2, 5, C.shirt); D(0, -10, C.jeans);
+  L(0, -9, -1, -1, C.jeansDark); L(1, -9, 2, -1, C.jeans);
+  L(0, -14, -1, -9, C.shirtDark); D(-1, -8, C.skin);
+  L(1, -14, 2, -9, C.shirt); D(2, -8, C.skin);
+}
+
+// =====================================================================
+// SCREENS
+// =====================================================================
+const SCREENS = {};
+
+// ---------- 1. Home: the house, the car, the garage (isometric) ----------
+SCREENS.home = {
+  name: 'HOME',
+  size: [480, 270],
+  paint() {
+    ISO.ox = 250; ISO.oy = 96;
+    // grass, then the pavement and the road along the front
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
+    ground(-400, 138, 700, 150, C.drive);
+    ground(-400, 150, 700, 192, C.road);
+    for (let x = -400; x < 700; x += 24) line(...P(x, 171), ...P(x + 12, 171), C.white);
+    // driveway and path
+    ground(92, 60, 138, 138, C.drive);
+    ground(42, 60, 56, 138, C.concreteDark);
+    // trees behind
+    tree(-40, 10); tree(150, -30); tree(-80, 90);
+    // the house: red brick, slate roof, white windows, blue front door
+    ibox(0, 0, 90, 60, 0, 54, C.brick);
+    bricks(0, 0, 90, 60, 54, C.brickLine);
+    gableRoof(-3, -3, 93, 63, 54, 28, C.brick, C.roof);
+    winLeft(60, 10, 26, 32, 46); winLeft(60, 64, 80, 32, 46); winLeft(60, 10, 26, 10, 24);
+    winRight(90, 20, 36, 38, 48);
+    onLeft(60, 39, 53, 0, 27, C.white); onLeft(60, 40, 52, 0, 26, C.door);
+    { const k = P(50, 60, 12); px(k[0], k[1], C.warm); }
+    // the garage, joined on, with its roller door facing the street
+    ibox(90, 8, 140, 60, 0, 34, C.cream, C.steel);
+    onLeft(60, 96, 134, 0, 28, C.steel);
+    for (let z = 3; z < 28; z += 3) line(...P(96, 60, z), ...P(134, 60, z), C.steel2);
+    // the neighbour's house on the right
+    ibox(180, 10, 236, 60, 0, 40, hex('#e8a8c0'));
+    gableRoof(177, 7, 239, 63, 40, 20, hex('#e8a8c0'), C.roof);
+    winLeft(60, 190, 204, 16, 30); winLeft(60, 214, 228, 16, 30);
+    // the car on the drive, the bin, a parcel by the door, the man
+    isoCar(102, 72);
+    ibox(-18, 66, -8, 76, 0, 14, C.tree2);                                                 // wheelie bin
+    ibox(56, 62, 64, 70, 0, 7, hex('#c09060')); line(...P(60, 62, 7), ...P(60, 70, 7), C.warm);
+    { const m = P(46, 84); man(m[0], m[1], 'stand'); }
+    { const p = P(114, 95, 40); hotspot('CAR', p[0], p[1], 'city'); }
+    { const p = P(46, 60, 44); hotspot('FRONT DOOR', p[0], p[1], 'pc'); }
+    { const p = P(115, 60, 50); hotspot('GARAGE', p[0], p[1], 'garage'); }
+    { const p = P(60, 66, 18); hotspot('PARCEL', p[0] + 18, p[1], 'notebook'); }
+    hud('GET THE RED LIGHT OFF THE DASH');
+  },
+  cap: `<b>Home</b> is where every day starts. The man stands outside. Tap one of these:<br>
+    · <b>Car</b>: drive into town (the city map)<br>
+    · <b>Front door</b>: go in and sit at the computer<br>
+    · <b>Garage</b>: work on the car, under it or at the bench<br>
+    · <b>Parcel</b>: sometimes one is handed over or left by the front door (wrong part, right part, or a neighbour's)<br>
+    · <b>Phone</b> (bottom right, any screen): calls and texts come in whenever; you can ring or text anyone too`
+};
+
+// ---------- 2. City: a big isometric grid of streets; the view follows your car ----------
+const PLACES = [
+  // [name, category]  (one per lot, 7 across x 6 down)
+  ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Library (free Wi-Fi)', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
+  ['Pawn Shop', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
+  ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
+  ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Breakers Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
+  ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Makerspace (3D printer)', 'other'], ['Café', 'other'],
+  ['Home', 'home'], ["Neighbour Ken's", 'people'], ['Wired Up Auto Electric', 'elec'], ['Trusty Autos', 'mech'], ['Pattern Parts', 'parts'], ['Hardware Shop', 'tools'], ['Pound Shop', 'other']
+];
+const CAT = {
+  parts: ['Parts shops', '#e08830'], mech: ['Mechanics', '#3c78c8'], elec: ['Auto electrics', '#f0c830'],
+  trans: ['Auto transmission', '#9a5ac8'], tools: ['Tool shops', '#c84040'], big: ['Big box stores', '#a8aab0'], yard: ['Breakers yard', '#8a6a4a'],
+  people: ['Family and friends', '#e070a8'], other: ['Everything else', '#40a090'], home: ['Home', '#f4f4f0']
+};
+const BLOCK = 100, STREET = 30;                          // each block is 100 world units: a 30-wide street, then a 70-wide lot
+SCREENS.city = {
+  name: 'CITY',
+  size: [640, 360],
+  paint() {
+    ISO.ox = 330; ISO.oy = -85;                           // the camera, centred near the car
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
+    // streets everywhere, white dashes down the middle of each
+    ground(0, 0, 7 * BLOCK + STREET, 6 * BLOCK + STREET, C.road);
+    for (let k = 0; k <= 7; k++) for (let t = 0; t < 6 * BLOCK + STREET; t += 20) line(...P(k * BLOCK + 15, t), ...P(k * BLOCK + 15, t + 10), C.white);
+    for (let k = 0; k <= 6; k++) for (let t = 0; t < 7 * BLOCK + STREET; t += 20) line(...P(t, k * BLOCK + 15), ...P(t + 10, k * BLOCK + 15), C.white);
+    // the lots, back to front
+    const lots = [];
+    for (let bj = 0; bj < 6; bj++) for (let bi = 0; bi < 7; bi++) lots.push({ bi, bj, place: PLACES[bj * 7 + bi] });
+    lots.sort((a, b) => (a.bi + a.bj) - (b.bi + b.bj));
+    for (const lot of lots) lot.top = building(lot);
+    // other traffic, your car and the dotted route to Sparky's
+    isoCar(306, 120, 0.5, C.red); isoCar(108, 210, 0.5, C.warm);
+    for (let y = 312; y > 215; y -= 8) { const p = P(215, y); rect(p[0], p[1], 2, 2, C.mint); }
+    for (let x = 223; x < 262; x += 8) { const p = P(x, 215); rect(p[0], p[1], 2, 2, C.mint); }
+    isoCar(209, 318, 0.5);
+    // a sign over every building, so each place can be read
+    for (const lot of lots) sign(lot);
+    LABELS.push(`<div class="tip" style="left:${450 / W * 100}%;top:${150 / H * 100}%"><b>Sparky's Auto Electrics</b>Open 9 – 4:30, shut Weds<br>2 min drive · tap to go</div>`);
+    minimap();
+    hud('GET THE CODES READ');
+  },
+  cap: `<b>City</b>: point and click, no driving. Tap a place and you're there; the trip just costs game time (and shops shut).<br>
+    · Every building has its name over it. 42 places in this mockup (list below): shops, garages, a tool shop, the post office, and family and friends' houses<br>
+    · Your car (the little blue one) shows where you are; the map in the corner shows the whole town<br>
+    · Each place: walk in, talk at the counter, buy, ask, get told to go somewhere else`,
+  legend: true
+};
+// One lot: a low shop (flat roof, coloured walls, shop window and door), a house (pitched roof) or the breakers yard.
+// Returns the height of its top, for the sign
+function building(lot) {
+  const x0 = lot.bi * BLOCK + STREET, y0 = lot.bj * BLOCK + STREET, x1 = x0 + 70, y1 = y0 + 70;
+  const cat = lot.place[1], col = hex(CAT[cat][1]);
+  ground(x0, y0, x1, y1, C.concrete);
+  if (cat === 'yard') {                                    // breakers yard: piles of old cars in a fence
+    const paint = [C.car, C.red, C.warm, C.steel2, C.tree2];
+    for (let n = 0; n < 6; n++) {                         // wrecks, two of them stacked on others
+      const cx = x0 + 6 + (n % 3) * 21, cy = y0 + 6 + Math.floor(n / 3) * 32;
+      isoCar(cx, cy, 0.45, shade(paint[n % 5], 0.8), { broken: true });
+      if (n === 1 || n === 3) isoCar(cx + 1, cy + 2, 0.45, shade(paint[(n + 2) % 5], 0.75), { broken: true, dz: 6 });
+    }
+    ibox(x0 + 60, y0 + 4, x0 + 66, y0 + 10, 0, 4, C.tyre); ibox(x0 + 60, y0 + 4, x0 + 66, y0 + 10, 4, 8, C.tyre);   // tyre pile
+    line(...P(x0, y1), ...P(x1, y1), C.wood); line(...P(x1, y0), ...P(x1, y1), C.wood);
+    return 12;
+  }
+  if (cat === 'home' || cat === 'people') {                // a house on a lawn
+    ground(x0 + 4, y0 + 4, x1 - 4, y1 - 4, C.grassLine);
+    ibox(x0 + 14, y0 + 16, x1 - 14, y1 - 16, 0, 16, col);
+    gableRoof(x0 + 12, y0 + 14, x1 - 12, y1 - 14, 16, 12, col, C.roof);
+    onLeft(y1 - 16, x0 + 30, x0 + 37, 0, 11, C.door);
+    winLeft(y1 - 16, x0 + 18, x0 + 25, 6, 12); winLeft(y1 - 16, x0 + 44, x0 + 51, 6, 12);
+    return 30;
+  }
+  const big = cat === 'big', h = big ? 22 : 14 + Math.floor(hash(lot.bi, lot.bj) * 10);
+  const a = big ? 4 : 10;
+  ibox(x0 + a, y0 + a, x1 - a, y1 - a, 0, h, col, C.steel);
+  onLeft(y1 - a, x0 + a, x1 - a, h - 6, h - 3, C.white);                                   // a white band (the shop front)
+  onLeft(y1 - a, x0 + a + 6, x0 + 30, 3, h - 9, C.glass);                                  // shop window
+  onLeft(y1 - a, x0 + 38, x0 + 46, 0, h - 9, C.ink);                                       // door
+  for (let y = y0 + a + 8; y < y1 - a - 6; y += 12) winRight(x1 - a, y, y + 6, h - 12, h - 7);
+  return h;
+}
+// The name of a lot on a sign above its building, in real (smooth) text so it can be read
+function sign(lot) {
+  const x0 = lot.bi * BLOCK + STREET, y0 = lot.bj * BLOCK + STREET;
+  const [sx, sy] = P(x0 + 35, y0 + 35, lot.top + 8);
+  if (sx < -40 || sx > W + 40 || sy < 20 || sy > H) return;
+  const cat = lot.place[1], dark = cat === 'elec' || cat === 'home' || cat === 'big';
+  LABELS.push(`<div class="lbl"${cat === 'home' ? ' data-go="home"' : ''} style="left:${sx / W * 100}%;top:${sy / H * 100}%;background:${CAT[cat][1]};color:${dark ? '#101018' : '#fff'}">${lot.place[0]}</div>`);
+}
+// The whole town from above, top right: a square per place, a dot for you
+function minimap() {
+  const x = W - 104, y = 44;
+  rect(x - 4, y - 4, 7 * 13 + 7, 6 * 13 + 7, C.ink);
+  for (let bj = 0; bj < 6; bj++) for (let bi = 0; bi < 7; bi++) rect(x + bi * 13, y + bj * 13, 10, 10, hex(CAT[PLACES[bj * 7 + bi][1]][1]));
+  rect(x + 1 * 13 + 10, y + 3 * 13 + 2, 3, 3, C.mint);
+  text('TOWN', x, y + 6 * 13 + 1, C.ui);
+}
+
+// ---------- 3. Computer: sit down, the screen fills the view ----------
+SCREENS.pc = {
+  name: 'COMPUTER',
+  paint() {
+    rect(0, 0, W, H, C.cream);                                                                       // wall
+    for (let x = 0; x < W; x += 16) rect(x, 0, 1, 152, C.creamDark);                                // wallpaper stripes
+    rect(0, 152, W, 28, C.wood); rect(0, 152, W, 1, C.bench);                                       // desk
+    rect(20, 6, 280, 140, C.greyDark); rect(22, 8, 276, 136, C.grey); rect(26, 12, 268, 128, C.ink);  // monitor
+    rect(148, 146, 24, 6, C.greyDark); rect(136, 151, 48, 2, C.greyDark);
+    rect(300, 20, 14, 12, C.warm); text('PW?', 302, 23, C.bench);                                    // sticky note
+    rect(70, 160, 120, 10, C.greyDark); for (let k = 0; k < 14; k++) rect(73 + k * 8, 162, 6, 2, C.grey), rect(73 + k * 8, 166, 6, 2, C.grey);
+    rect(214, 158, 10, 12, C.white); rect(224, 161, 3, 5, C.white); rect(216, 159, 6, 1, C.bench);   // cold tea
+    text('COLD TEA', 206, 173, C.bench);
+  },
+  overlay: 'pc',
+  cap: `<b>Computer</b>: go in the front door and you sit here. The screen uses real, readable text. Tap an app on the left:<br>
+    · <b>ViewTube</b>: how-to videos, always for the wrong model<br>
+    · <b>Forum</b>: old threads, "fixed it" with no detail<br>
+    · <b>Mail</b>: orders, sign-in codes, tickets that close themselves<br>
+    · <b>Pics</b>: photos you took of the part, the connector, the VIN plate<br>
+    · <b>MegaMart</b>: the everything shop; sponsored junk first, "fits all models*"<br>
+    · <b>eBuy</b>: used, untested, collection only, 300 miles away<br>
+    · <b>TechDocs</b>: the official technical pages; every word is real and none of it helps`
+};
+
+// ---------- 4. Garage: isometric room with the car, bench, shelves, boxes, toolboxes ----------
+const CARDBOARD = hex('#c09060');
+SCREENS.garage = {
+  name: 'GARAGE',
+  size: [480, 270],
+  paint() {
+    ISO.ox = 230; ISO.oy = 106;
+    rect(0, 0, W, H, C.greyDark);
+    // two back walls (block work) and the floor
+    poly([P(0, 0, 0), P(0, 140, 0), P(0, 140, 84), P(0, 0, 84)], shade(C.concrete, 0.88));
+    poly([P(0, 0, 0), P(180, 0, 0), P(180, 0, 84), P(0, 0, 84)], C.concrete);
+    for (let z = 7; z < 84; z += 7) { line(...P(0, 0, z), ...P(0, 140, z), C.concreteDark); line(...P(0, 0, z), ...P(180, 0, z), C.concreteDark); }
+    ground(0, 0, 180, 140, C.floor);
+    ground(30, 100, 50, 112, shade(C.floor, 0.85));                                          // oil stain
+    onLeft(0, 30, 90, 74, 77, C.light);                                                     // strip light
+    // pegboard with tools, over the bench
+    onLeft(0, 100, 172, 36, 70, C.peg);
+    for (let x = 104; x < 170; x += 5) for (let z = 40; z < 68; z += 5) { const p = P(x, 0, z); px(p[0], p[1], C.pegHole); }
+    for (const [x, len] of [[106, 20], [112, 16], [118, 22], [124, 14]]) line(...P(x, 0, 64), ...P(x, 0, 64 - len), C.tool);
+    onLeft(0, 132, 148, 56, 60, C.tool); onLeft(0, 138, 141, 44, 56, C.tool);              // hammer
+    // shelves on the left wall: manuals on top, parts boxes below
+    for (const z of [24, 50]) ibox(0, 18, 14, 96, z - 2, z, C.wood);
+    const spines = [C.red, C.car, C.warm, C.tree2, C.red, C.white, C.car, C.warm, C.redDim, C.tree1, C.car, C.red, C.warm, C.white];
+    for (let k = 0; k < 14; k++) ibox(0, 20 + k * 5, 10, 24 + k * 5, 50, 60 + Math.floor(hash(k, 3) * 5), spines[k]);
+    ibox(0, 20, 12, 38, 24, 36, CARDBOARD); ibox(0, 42, 12, 58, 24, 33, CARDBOARD); ibox(0, 62, 12, 92, 24, 38, CARDBOARD);
+    // red tool chest against the back wall, workbench beside it
+    ibox(60, 0, 86, 18, 0, 40, C.red); ibox(60, 0, 86, 18, 40, 50, C.red);
+    for (const z of [8, 16, 24, 32, 44]) onLeft(18, 62, 84, z, z + 1, C.redDim);
+    ibox(98, 0, 176, 26, 0, 28, C.bench, C.benchTop);
+    ibox(102, 4, 112, 14, 28, 36, C.tool);                                                  // vice
+    ibox(124, 4, 140, 16, 28, 29, C.grey); onLeft(4, 124, 140, 29, 40, C.grey); onLeft(4, 125, 139, 30, 39, C.winGlass);   // laptop
+    ibox(150, 4, 172, 16, 28, 38, C.red); line(...P(156, 10, 41), ...P(166, 10, 41), C.ink); // toolbox on the bench
+    // parts boxes on the floor, front left
+    ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
+    // the car in the middle, a creeper beside it, the man
+    isoCar(40, 46, 1.25);
+    ibox(82, 60, 92, 86, 1, 3, C.red);
+    { const m = P(110, 74); man(m[0], m[1], 'stand', 2); }
+    { const p = P(88, 74, 6); hotspot('UNDER THE CAR', p[0] + 30, p[1] + 10, 'under'); }
+    { const p = P(55, 100, 24); hotspot('BONNET', p[0] - 16, p[1] + 4, 'bonnet'); }
+    { const p = P(55, 75, 44); hotspot('DRIVER SEAT', p[0], p[1], 'dash'); }
+    { const p = P(137, 13, 62); hotspot('WORKBENCH', p[0], p[1], 'bench'); }
+    { const p = P(5, 50, 74); hotspot('MANUALS', p[0], p[1]); }
+    { const p = P(8, 118, 34); hotspot('PARTS BOXES', p[0], p[1]); }
+    { const p = P(73, 9, 62); hotspot('TOOLS', p[0], p[1]); }
+    { const p = P(150, 140, 0); hotspot('OUT', p[0], p[1] + 14, 'home'); }
+    hud('GET THE GEARBOX SENSOR OFF');
+  },
+  cap: `<b>Garage</b>: the car in the middle. Tap where to work or what to look at:<br>
+    · <b>Under the car</b>: lie on the creeper, undo things, shine the torch<br>
+    · <b>Workbench</b>: try the part in the hole, measure it, file it<br>
+    · <b>Manuals</b> on the shelf (for the wrong model, of course), <b>parts boxes</b> (old parts, wrong parts, returns), <b>tools</b> (the chest and the toolbox; the 10 mm is always missing)`
+};
+
+// ---------- 5. Under the car: lying underneath, looking straight up (back of the car on the left) ----------
+// Detail helpers: grimy fills, rounded boxes, rings, bolts, dashed zoom boxes
+function grime(x, y, w, h, col, amt = 0.18, seed = 1) {
+  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) px(xx, yy, shade(col, 1 + (hash(xx * 3 + seed, yy * 7) - 0.5) * amt));
+}
+function rbox(x, y, w, h, r, col) {
+  for (let yy = 0; yy < h; yy++) {
+    const dy = yy < r ? r - yy : yy >= h - r ? yy - (h - r - 1) : 0;
+    const inset = dy ? Math.round(r - Math.sqrt(Math.max(0, r * r - dy * dy))) : 0;
+    rect(x + inset, y + yy, w - inset * 2, 1, col);
+  }
+}
+function ring(cx, cy, r, col) { for (let a = 0; a < 6.283; a += 0.5 / Math.max(r, 1)) px(cx + Math.cos(a) * r, cy + Math.sin(a) * r, col); }
+// A hex bolt head seen end-on; a stripped one is rounded off and shiny
+function bolt(cx, cy, r, stripped) {
+  disc(cx, cy, r + 1, C.greyDark);
+  if (stripped) { disc(cx, cy, r, C.steel); disc(cx - 1, cy - 1, r - 2, C.light); return; }
+  const pts = []; for (let k = 0; k < 6; k++) pts.push([cx + Math.cos(k * 1.047) * r, cy + Math.sin(k * 1.047) * r]);
+  poly(pts, C.steel2); line(pts[3][0], pts[3][1], pts[4][0], pts[4][1], C.steel); line(pts[4][0], pts[4][1], pts[5][0], pts[5][1], C.steel);
+  disc(cx, cy, Math.max(1, r - 3), shade(C.steel2, 0.85));
+}
+function dashBox(x, y, w, h, col) {
+  for (let k = 0; k < w; k += 4) { rect(x + k, y, 2, 1, col); rect(x + k, y + h - 1, 2, 1, col); }
+  for (let k = 0; k < h; k += 4) { rect(x, y + k, 1, 2, col); rect(x + w - 1, y + k, 1, 2, col); }
+}
+// A pipe from one point to another, w wide, with a light edge and a dark edge
+function pipe(x0, y0, x1, y1, w, col) {
+  const len = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / len, ny = (x1 - x0) / len;
+  for (let k = -w / 2; k <= w / 2; k += 0.5) {
+    const c = k < -w / 2 + 1 ? shade(col, 1.35) : k > w / 2 - 1 ? shade(col, 0.6) : col;
+    line(x0 + nx * k, y0 + ny * k, x1 + nx * k, y1 + ny * k, c);
+  }
+}
+// A real-text label on a zoom box
+function zoomLabel(name, x, y, hot, go) {
+  LABELS.push(`<div class="zl${hot ? ' hot' : ''}"${go ? ` data-go="${go}"` : ''} style="left:${x / W * 100}%;top:${y / H * 100}%">🔍 ${name}</div>`);
+}
+// Dashed zoom boxes with their labels; a box with a screen to go to can be tapped
+function zoomZones(zones) {
+  for (const [name, x, y, w, h, hot, go] of zones) {
+    dashBox(x, y, w, h, hot ? C.warm : C.mint);
+    if (go) link(go, x, y, w, h);
+    zoomLabel(name, x + w / 2, y, hot, go);
+  }
+}
+const UNDERSIDE = hex('#4a4540'), BLACKPART = hex('#24221f'), ALLOY = hex('#a4a6a0'), RUSTPIPE = hex('#7a6656');
+SCREENS.under = {
+  name: 'UNDER THE CAR',
+  size: [480, 270],
+  paint() {
+    // garage ceiling and lights beyond the car
+    grime(0, 0, W, H, hex('#d6d9d4'), 0.06, 5);
+    for (const y of [30, 250]) rect(0, y, W, 4, C.light);
+    // lift arms reaching in to the four lifting points
+    for (const [x0, y0, x1, y1] of [[0, 8, 70, 44], [0, 262, 70, 236], [480, 8, 410, 44], [480, 262, 410, 236]]) { pipe(x0, y0, x1, y1, 8, hex('#5a5c60')); disc(x1, y1, 5, C.red); disc(x1, y1, 2, C.greyDark); }
+    // wheel arches, then the body: a blue rim round the dark underside
+    for (const wx of [56, 352]) for (const wy of [34, 228]) rect(wx - 6, wy, 76, 24, hex('#1e1c1a'));
+    rbox(24, 36, 432, 214, 18, C.car);
+    rbox(28, 40, 424, 206, 16, UNDERSIDE);
+    grime(36, 46, 408, 194, UNDERSIDE, 0.22, 9);
+    for (const wx of [56, 352]) for (const wy of [38, 226]) grime(wx - 4, wy, 72, 22, hex('#26231f'), 0.2, wx + wy);   // arch liners
+    // sills with pinch-weld dots, pressed ribs in the floor, rust
+    for (const y of [44, 238]) { rect(120, y, 220, 4, shade(UNDERSIDE, 1.25)); for (let x = 122; x < 340; x += 5) px(x, y + 2, C.greyDark); }
+    for (const y of [72, 80, 200, 208]) { rect(214, y, 112, 1, shade(UNDERSIDE, 1.3)); rect(214, y + 1, 112, 1, shade(UNDERSIDE, 0.7)); }
+    for (let n = 0; n < 160; n++) { const x = 40 + hash(n, 1) * 400, y = 50 + hash(1, n) * 186; if (hash(n, n) < 0.6) px(x, y, C.rust); }
+    // tyres (tread across them) poking out from the arches
+    for (const wx of [58, 354]) for (const wy of [22, 232]) {
+      rbox(wx, wy, 60, 18, 6, C.tyre);
+      for (let x = wx + 3; x < wx + 57; x += 4) rect(x, wy + 3, 2, 12, hex('#34343a'));
+      rect(wx + 4, wy === 22 ? wy + 18 : wy - 4, 52, 4, hex('#8a8c90'));                    // brake disc edge
+    }
+    // the exhaust tunnel and its heat shield
+    grime(150, 118, 250, 44, hex('#2e2b28'), 0.2, 3);
+    grime(232, 120, 96, 40, hex('#b8b4a8'), 0.25, 4);
+    for (let y = 122; y < 158; y += 3) for (let x = 234; x < 326; x += 3) px(x + (y % 2), y, hex('#8e8a80'));
+    // fuel tank (black plastic, saddle shaped round the tunnel) with its straps
+    for (const [y, h] of [[58, 58], [164, 58]]) { rbox(128, y, 74, h, 6, BLACKPART); for (let x = 134; x < 198; x += 8) rect(x, y + 4, 1, h - 8, shade(BLACKPART, 1.4)); }
+    for (const x of [144, 184]) rect(x, 56, 4, 168, C.steel2);
+    // rear torsion beam, trailing arms, springs and shock absorbers
+    pipe(118, 50, 118, 236, 9, BLACKPART);
+    for (const wy of [62, 224]) { pipe(118, wy, 86, wy, 6, BLACKPART); for (let r = 9; r > 2; r -= 2) ring(100, wy === 62 ? 76 : 210, r, r % 4 === 1 ? C.red : C.redDim); }
+    // brake and fuel lines along one side, clipped every so often
+    for (const [y, col] of [[222, hex('#c0a070')], [225, hex('#b0b4b0')], [228, hex('#c0a070')]]) line(126, y, 340, y, col);
+    for (let x = 140; x < 340; x += 28) rect(x, 220, 3, 10, C.white);
+    // the exhaust: from the engine, flex joint, cat, middle silencer, rear silencer, tailpipe
+    pipe(392, 141, 104, 141, 6, RUSTPIPE);
+    for (let x = 376; x < 392; x += 2) for (let y = 138; y < 145; y += 2) px(x + (y % 4 ? 1 : 0), y, C.steel);
+    rbox(334, 128, 38, 26, 8, hex('#8a8478')); rect(340, 130, 26, 1, C.steel);
+    rbox(238, 128, 56, 26, 12, hex('#7d7468')); rect(240, 140, 52, 1, shade(RUSTPIPE, 0.6));
+    rbox(38, 100, 66, 54, 22, hex('#7d7468')); rect(44, 112, 54, 1, C.steel); rect(42, 126, 60, 1, shade(RUSTPIPE, 0.6));
+    pipe(42, 140, 14, 140, 7, RUSTPIPE); disc(14, 140, 3, C.ink);
+    for (const x of [130, 214, 316]) rect(x, 134, 4, 14, C.ink);                                // rubber hangers
+    // front subframe, control arms, driveshafts with rubber boots
+    for (const x of [340, 432]) grime(x, 54, 8, 178, BLACKPART, 0.3, x);
+    pipe(344, 64, 384, 46, 7, BLACKPART); pipe(344, 222, 384, 240, 7, BLACKPART);
+    pipe(372, 98, 382, 46, 5, C.steel2); pipe(372, 120, 382, 238, 5, C.steel2);
+    for (const [x, y] of [[379, 58], [376, 108], [377, 130], [380, 226]]) { rbox(x - 6, y - 5, 12, 10, 4, C.ink); for (let k = -4; k < 5; k += 2) rect(x + k, y - 4, 1, 8, C.greyDark); }
+    // gearbox (alloy, with cast ribs) and the engine sump (fins and a drain plug)
+    grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
+    grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
+    bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
+    disc(352, 98, 5, C.ink); px(351, 96, C.white); line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);   // the sensor and its wires
+    rect(436, 60, 12, 166, hex('#202020'));                                                       // bumper undertray
+    // zoom boxes (tap one to look closer)
+    const zones = [['Rear suspension', 62, 54, 66, 54], ['Fuel tank', 126, 166, 78, 58], ['Exhaust', 234, 118, 96, 44], ['Brake lines', 206, 216, 120, 18], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68]];
+    zoomZones(zones);
+    LABELS.push(`<div class="tip" style="left:2%;top:${222 / H * 100}%"><b>Under the car</b>Tap a box to zoom in.<br>The gearbox sensor is the job.</div>`);
+    hud('GET THE GEARBOX SENSOR OFF');
+  },
+  cap: `<b>Under the car</b>: you're on the creeper looking straight up. The back of the car is on the left, the front on the right.<br>
+    · You can see the tyres, rear suspension and springs, fuel tank, exhaust (silencers, cat, heat shield), brake and fuel lines, driveshafts, gearbox and engine sump<br>
+    · Tap a dashed box to <b>zoom in</b> and see that area close up (next screen: the gearbox)`
+};
+
+// ---------- 5b. Under the car, zoomed in on the gearbox ----------
+SCREENS.underZoom = {
+  name: 'ZOOM: GEARBOX',
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, UNDERSIDE, 0.25, 21);                                                      // floor pan behind
+    for (let n = 0; n < 300; n++) { const x = hash(n, 7) * W, y = hash(7, n) * H; px(x, y, C.rust); }
+    // the gearbox casing: a big alloy shape with cast ribs and a flange of bolts
+    poly([[40, 40], [400, 30], [450, 90], [440, 250], [60, 262], [20, 160]], ALLOY);
+    for (let y = 30; y < 262; y++) for (let x = 20; x < 450; x++) {
+      const i = (y * W + x) * 4;
+      if (img.data[i] === ALLOY[0] && img.data[i + 1] === ALLOY[1] && img.data[i + 2] === ALLOY[2]) px(x, y, shade(ALLOY, 1 + (hash(x, y) - 0.5) * 0.16));
+    }
+    for (let k = 0; k < 7; k++) { const x = 70 + k * 46; line(x, 50, x + 30, 240, shade(ALLOY, 1.25)); line(x + 2, 50, x + 32, 240, shade(ALLOY, 0.7)); }   // cast ribs
+    for (const [x, y] of [[52, 52], [140, 44], [230, 40], [320, 36], [410, 60], [436, 140], [424, 228], [300, 250], [180, 254], [80, 246], [36, 150]]) bolt(x, y, 7);
+    // oil seeping down from the sensor
+    for (let n = 0; n < 400; n++) { const x = 230 + hash(n, 3) * 60 - 30, y = 160 + hash(3, n) * 80; px(x, y, shade(ALLOY, 0.45)); }
+    // the sensor: round black body on a plate with three bolt holes
+    rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));
+    disc(246, 140, 30, BLACKPART); ring(246, 140, 30, C.greyDark); ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));
+    bolt(194, 120, 8);                                                                           // a good bolt
+    bolt(298, 164, 8, true);                                                                     // stripped: rounded off
+    disc(194, 162, 7, C.ink); ring(194, 162, 7, C.greyDark); ring(194, 162, 4, shade(C.greyDark, 1.3));   // missing nut: an empty hole
+    // the connector: a plug with a locking tab, then the wires in tape and a cable tie
+    rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm);
+    for (const [k, col] of [[0, C.red], [1, C.warm], [2, hex('#40a060')]]) pipe(328, 134 + k * 6, 470, 112 + k * 6, 4, col);
+    for (const x of [360, 400, 440]) pipe(x, 122 + (440 - x) * 0.05, x + 8, 120 + (440 - x) * 0.05, 22, hex('#1c1c1c'));
+    // torchlight: bright round the sensor, darker towards the edges
+    for (let y = 18; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = Math.hypot(x - 250, (y - 140) * 1.2), f = d < 110 ? 1.12 : Math.max(0.45, 1.12 - (d - 110) / 220);
+      const i = (y * W + x) * 4; img.data[i] *= f; img.data[i + 1] *= f; img.data[i + 2] *= f;
+    }
+    const items = [['Sensor', 246, 104], ['Connector (locking tab)', 302, 118], ['Bolt: rounded off', 300, 194], ['Bolt: fine', 194, 108], ['Bolt hole: nut missing', 194, 182], ['Oil leak?', 250, 240], ['Wiring loom', 420, 104]];
+    for (const [name, x, y] of items) LABELS.push(`<div class="lbl" style="left:${x / W * 100}%;top:${y / H * 100}%;background:#101018;color:#9ff3d0">${name}</div>`);
+    LABELS.push(`<div class="tip" style="left:2%;top:${24 / H * 100}%"><b>Under the car › Gearbox</b>One nut is stripped. The other one rolled away.</div>`);
+    text('LOOK   UNDO   PULL   TWIST   UNCLIP   TORCH   ZOOM OUT', 52, 258, C.ui);
+    hud('GET THE GEARBOX SENSOR OFF');
+  },
+  cap: `<b>Zoomed in: the gearbox</b>. Close up, everything can be tapped:<br>
+    · The <b>sensor</b>, its <b>connector</b> (press the locking tab first, or it snaps), each <b>bolt</b> (one fine, one rounded off, one nut missing), the <b>wiring</b>, the <b>oil leak</b><br>
+    · Actions along the bottom; <b>Zoom out</b> goes back to the whole underside`
+};
+
+// ---------- 5c. Under the bonnet: looking down into the engine bay ----------
+const FUSECOLS = [[C.red, '10A'], [C.car, '15A'], [C.warm, '20A'], [hex('#e8e8e0'), '25A'], [hex('#40a060'), '30A']];
+SCREENS.bonnet = {
+  name: 'UNDER THE BONNET',
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, C.floor, 0.12, 31);                                                         // garage floor round the car
+    // the bonnet, propped up at the top (its underside and the stay)
+    rbox(40, 20, 400, 34, 6, C.car); grime(52, 24, 376, 26, hex('#5a5a5a'), 0.3, 32);
+    for (let x = 60; x < 420; x += 12) rect(x, 26, 6, 22, hex('#4c4c4c'));
+    pipe(420, 50, 380, 26, 2, C.steel);
+    // wings left and right, the bay in between
+    rbox(18, 50, 444, 214, 10, C.car); grime(48, 56, 384, 190, hex('#26241f'), 0.25, 33);
+    rect(48, 56, 384, 6, hex('#1a1a1a'));                                                        // bulkhead seal
+    // radiator and front panel at the bottom
+    rect(80, 226, 320, 16, hex('#3a3c40')); for (let x = 82; x < 398; x += 3) rect(x, 228, 1, 12, hex('#55585c'));
+    rbox(18, 244, 444, 20, 6, C.car); rect(200, 250, 80, 6, C.ink); disc(240, 253, 4, C.steel);   // bumper and badge
+    // air filter box (left), intake hose to the engine
+    rbox(62, 70, 98, 80, 8, C.ink); grime(66, 74, 90, 72, hex('#2a2a2a'), 0.2, 34);
+    for (const [x, y] of [[62, 90], [62, 130], [158, 90], [158, 130]]) rect(x - 2, y, 5, 8, C.steel2);
+    pipe(158, 110, 176, 112, 16, hex('#1e1e1e')); for (let x = 160; x < 176; x += 3) rect(x, 102, 1, 18, hex('#3a3a3a'));
+    // engine cover with ribs, the oil cap and the dipstick
+    rbox(172, 76, 150, 120, 14, hex('#3c3e44')); for (let y = 90; y < 186; y += 8) rect(186, y, 122, 2, hex('#4a4d54'));
+    rbox(214, 118, 66, 22, 6, C.steel2); text('1.6 16V', 222, 126, C.ink);
+    disc(300, 96, 9, C.warm); ring(300, 96, 9, C.warmDim); rect(296, 95, 9, 2, C.warmDim);
+    rect(196, 186, 2, 22, C.warm); ring(197, 212, 5, C.warm);
+    // brake fluid (top right), battery, fuse box, washer bottle, coolant tank
+    rbox(330, 66, 32, 26, 4, hex('#d8d4b0')); disc(346, 66, 6, C.warm); rect(332, 82, 28, 8, hex('#c8a858'));
+    rbox(354, 98, 64, 46, 4, hex('#1c1c1c')); rect(358, 96, 12, 8, C.red); rect(400, 96, 12, 8, C.ink); text('+', 362, 98, C.white); text('-', 404, 98, C.white);
+    rbox(352, 152, 68, 56, 4, hex('#202020'));
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const f = FUSECOLS[(r * 6 + k * 5) % 5][0]; rect(358 + k * 10, 158 + r * 12, 7, 9, f); rect(360 + k * 10, 160 + r * 12, 3, 2, shade(f, 0.7)); }
+    rect(398, 182, 7, 9, C.ink); px(401, 186, C.rust);                                            // the blown one, scorched
+    rbox(64, 166, 56, 50, 10, hex('#e4e0d4')); rect(68, 190, 48, 22, hex('#e080a0')); disc(92, 166, 8, C.warm); text('MAX', 70, 186, C.ink);
+    disc(420, 222, 7, C.car); ring(420, 222, 7, C.carDark);                                     // washer cap
+    // wiring loom with tape
+    for (const [x0, y0, x1, y1] of [[160, 160, 340, 170], [330, 170, 352, 180], [322, 120, 354, 120]]) pipe(x0, y0, x1, y1, 4, C.ink);
+    for (let x = 180; x < 330; x += 22) rect(x, 158, 3, 10, hex('#3a3a3a'));
+    // zoom boxes
+    const zones = [['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 94, 72, 52], ['Engine', 170, 74, 154, 124], ['Air filter', 58, 66, 106, 88], ['Coolant', 60, 160, 64, 60], ['Brake fluid', 326, 58, 40, 36]];
+    zoomZones(zones);
+    LABELS.push(`<div class="tip" style="left:30%;top:${214 / H * 100}%"><b>Under the bonnet</b>The fuse for the dash keeps blowing.</div>`);
+    hud('FIND OUT WHY THE FUSE BLOWS');
+  },
+  cap: `<b>Under the bonnet</b>: open it from the garage and look down into the engine bay.<br>
+    · Engine, air filter, battery, <b>fuse box</b>, coolant, brake fluid, washer bottle, dipstick, oil cap, wiring<br>
+    · Tap a dashed box to zoom in (next screen: the fuse box)`
+};
+
+// ---------- 5d. Zoomed in on the fuse box ----------
+SCREENS.fuseZoom = {
+  name: 'ZOOM: FUSE BOX',
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, hex('#26241f'), 0.25, 41);
+    rbox(30, 34, 270, 222, 10, hex('#1c1c1c')); rbox(38, 42, 254, 206, 6, hex('#141414'));
+    // 5 rows of 6 fuses, numbered; colour = amps
+    for (let r = 0; r < 5; r++) for (let k = 0; k < 6; k++) {
+      const n = r * 6 + k + 1, x = 50 + k * 40, y = 54 + r * 38, [col] = FUSECOLS[(r * 6 + k * 5) % 5];
+      rect(x - 2, y - 2, 30, 30, hex('#0c0c0c'));
+      if (n === 27 || n === 28) { text('F' + n, x + 4, y + 30, C.dim); continue; }               // empty slots (the spares are gone)
+      rbox(x, y, 26, 18, 3, col); rect(x + 3, y + 3, 20, 3, shade(col, 1.25));
+      rect(x + 4, y + 18, 4, 8, C.steel); rect(x + 18, y + 18, 4, 8, C.steel);                  // the metal legs
+      if (n === 23) { rbox(x, y, 26, 18, 3, shade(col, 0.55)); rect(x + 6, y + 8, 5, 2, C.ink); rect(x + 15, y + 8, 5, 2, C.ink); for (let q = 0; q < 12; q++) px(x + 6 + hash(q, 1) * 14, y + 4 + hash(1, q) * 10, C.ink); }
+      else { rect(x + 6, y + 8, 14, 2, shade(col, 0.6)); }                                       // the wire inside, unbroken
+      text('F' + n, x + 4, y + 30, n === 23 ? C.warm : C.dim);
+    }
+    // the lid, upside down beside it, with its worn diagram
+    rbox(316, 34, 140, 222, 8, hex('#1c1c1c')); rect(326, 46, 120, 196, hex('#d8d4c4'));
+    for (let n = 0; n < 2000; n++) px(326 + hash(n, 5) * 120, 46 + hash(5, n) * 196, hex('#b8b4a4'));
+    const fuses = [['F21', 'Radio'], ['F22', '█▒▒ ▒▒'], ['F23', 'Instr. (see note 7)'], ['F24', '—'], ['F25', 'Spare?'], ['F26', 'ABS / ESP / ???'], ['F27', 'Spare'], ['F28', 'Spare'], ['F29', 'Not used*'], ['F30', '*see F29']];
+    LABELS.push(`<div class="lid" style="left:${330 / W * 100}%;top:${52 / H * 100}%;width:${112 / W * 100}%">${fuses.map(([f, t]) => `<div><b>${f}</b> ${t}</div>`).join('')}<div class="note">Note 7: see owner's manual</div></div>`);
+    for (const [name, x, y] of [['Blown: F23 (the dash)', 223, 166], ['Spare slots: empty', 170, 250], ['Fuse puller: missing', 166, 34]]) LABELS.push(`<div class="lbl" style="left:${x / W * 100}%;top:${y / H * 100}%;background:#101018;color:#9ff3d0">${name}</div>`);
+    LABELS.push(`<div class="tip" style="left:69%;top:56%"><b>Under the bonnet › Fuse box</b>F23 has blown. Again.</div>`);
+    hud('FIND OUT WHY THE FUSE BLOWS');
+    text('PULL FUSE   FIT NEW ONE   TEST IT   READ THE LID   ZOOM OUT', 40, 262, C.ui);
+  },
+  cap: `<b>Zoomed in: the fuse box</b>. Lid off, the fuses colour-coded by amps.<br>
+    · <b>F23</b> (the dash) has blown: the wire inside is broken and scorched. The spare slots are empty and the fuse puller is gone<br>
+    · The diagram on the lid is worn, and the bit you need says "see note 7", which says "see owner's manual"<br>
+    · Fit a new fuse: it blows again as soon as you turn the key → find the short (a whole new tree)`
+};
+
+// ---------- 5e. The dashboard: sit in the driver's seat ----------
+// A small warning-light icon, lit (bright) or not (dark)
+function warnLight(x, y, kind, col, lit) {
+  const c = lit ? col : hex('#2a2c30');
+  if (kind === 'gear') { disc(x, y, 5, c); for (let a = 0; a < 6.28; a += 0.785) rect(Math.round(x + Math.cos(a) * 6) - 1, Math.round(y + Math.sin(a) * 6) - 1, 2, 2, c); disc(x, y, 2, hex('#101012')); }
+  if (kind === 'engine') { rect(x - 6, y - 3, 12, 7, c); rect(x - 3, y - 6, 6, 3, c); rect(x + 6, y - 1, 2, 3, c); }
+  if (kind === 'battery') { rect(x - 6, y - 4, 12, 8, c); rect(x - 4, y - 6, 2, 2, c); rect(x + 2, y - 6, 2, 2, c); }
+  if (kind === 'oil') { rect(x - 7, y - 1, 10, 5, c); rect(x + 3, y - 3, 4, 2, c); px(x + 6, y + 3, c); }
+  if (kind === 'abs') { ring(x, y, 6, c); text('ABS', x - 5, y - 2, c); }
+}
+SCREENS.dash = {
+  name: 'DASHBOARD',
+  size: [480, 270],
+  paint() {
+    // through the windscreen: the garage wall
+    grime(0, 18, W, 90, C.concrete, 0.1, 51); for (let y = 24; y < 108; y += 7) rect(0, y, W, 1, C.concreteDark);
+    rect(0, 18, 14, 100, hex('#2a2c30')); rect(466, 18, 14, 100, hex('#2a2c30'));               // pillars
+    // the dash: dark plastic, curved top
+    for (let x = 0; x < W; x++) { const top = 100 + Math.round(10 * Math.cos((x - 240) / 160)); rect(x, top, 1, H - top, hex('#2c2e33')); }
+    grime(0, 112, W, 158, hex('#2c2e33'), 0.12, 52);
+    // the instrument binnacle: two dials and the warning lights between
+    rbox(104, 108, 210, 92, 20, hex('#18191c'));
+    for (const cx of [154, 264]) {
+      disc(cx, 152, 36, hex('#0e0f11')); ring(cx, 152, 36, C.steel2);
+      for (let a = 2.4; a < 7.1; a += 0.39) { const r0 = 30, r1 = 34; line(cx + Math.cos(a) * r0, 152 + Math.sin(a) * r0, cx + Math.cos(a) * r1, 152 + Math.sin(a) * r1, C.ui); }
+      line(cx, 152, cx + Math.cos(2.5) * 26, 152 + Math.sin(2.5) * 26, C.red); disc(cx, 152, 3, C.steel2);
+    }
+    text('MPH', 148, 168, C.dim); text('RPM', 258, 168, C.dim);
+    warnLight(209, 126, 'gear', C.red, true);                                                   // the red light: the whole problem
+    warnLight(209, 146, 'engine', C.warm, true);
+    warnLight(196, 166, 'battery', C.red, false); warnLight(222, 166, 'oil', C.red, false); warnLight(209, 184, 'abs', C.warm, false);
+    // the steering wheel
+    for (let r = 64; r < 74; r++) ring(209, 262, r, r < 66 || r > 71 ? hex('#121214') : hex('#1c1d20'));
+    pipe(150, 252, 268, 252, 10, hex('#1c1d20')); rbox(186, 232, 46, 30, 8, hex('#1c1d20')); disc(209, 246, 6, C.steel2);
+    // ignition with the key in it
+    disc(330, 200, 10, C.steel2); disc(330, 200, 6, hex('#18191c')); rect(326, 199, 22, 3, C.steel); rbox(346, 192, 14, 18, 4, C.ink); ring(330, 200, 13, C.dim);
+    text('0 I II III', 312, 182, C.dim);
+    // centre console: radio (locked), hazard button, heater dials
+    rbox(372, 116, 96, 60, 6, hex('#18191c')); rect(380, 124, 80, 22, hex('#0a2a20'));
+    for (const x of [384, 412, 440]) disc(x + 6, 160, 6, C.steel2);
+    rbox(404, 184, 34, 22, 4, hex('#18191c')); poly([[421, 188], [430, 202], [412, 202]], C.red); poly([[421, 193], [426, 200], [416, 200]], hex('#18191c'));
+    for (const x of [390, 420, 450]) { disc(x, 232, 11, hex('#18191c')); ring(x, 232, 11, C.steel2); line(x, 232, x + 5, 224, C.white); }
+    // the code reader, plugged into the port under the dash
+    rbox(18, 150, 78, 110, 8, hex('#d0a020')); rect(26, 160, 62, 44, hex('#0a2a20'));
+    for (const [x, y] of [[30, 214], [56, 214], [30, 232], [56, 232]]) rbox(x, y, 22, 12, 3, hex('#3a3a3a'));
+    pipe(96, 230, 120, 262, 4, C.ink); rect(112, 258, 22, 10, C.ink);
+    LABELS.push(`<div class="scr" style="left:${27 / W * 100}%;top:${161 / H * 100}%;width:${60 / W * 100}%;height:${42 / H * 100}%">2 codes found<br><b>P0705</b> Trans. range sensor circ. malf. (PRNDL input)<br><b>P0706</b> Range/perf.</div>`);
+    LABELS.push(`<div class="scr" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
+    for (const [name, x, y] of [['Warning light: gearbox', 209, 114], ['Ignition key', 330, 178], ['Code reader', 57, 148], ['Radio: wants its code', 420, 114], ['Hazards', 421, 182]]) LABELS.push(`<div class="lbl" style="left:${x / W * 100}%;top:${y / H * 100}%;background:#101018;color:#9ff3d0">${name}</div>`);
+    LABELS.push(`<div class="tip" style="left:2%;top:${24 / H * 100}%"><b>Driver's seat</b>Key at II. The red light is on.</div>`);
+    hud('READ THE ERROR CODES');
+  },
+  cap: `<b>Dashboard</b>: get in the driver's seat from the garage (or the drive).<br>
+    · <b>Turn the key</b> (0, I, II, start): watch which warning lights come on and which stay on<br>
+    · <b>Code reader</b>: plug it into the port under the dash, read the codes, look them up, clear them (they come back)<br>
+    · The <b>radio</b> wants its security code since the battery was off (the code is in the manual; the manual is missing)<br>
+    · Hazards, heater, horn, wipers: each one can show a new fault`
+};
+
+// ---------- 5f. The notebook: every job you know about, with its leads ----------
+SCREENS.notebook = {
+  name: 'NOTEBOOK',
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, C.wood, 0.15, 61);                                                          // table top
+    rbox(40, 22, 400, 242, 4, hex('#c8bc98'));                                                  // open notebook
+    rect(44, 26, 190, 234, hex('#f2ecd8')); rect(246, 26, 190, 234, hex('#f2ecd8'));
+    for (let y = 40; y < 258; y += 10) { rect(46, y, 186, 1, hex('#c8d4e0')); rect(248, y, 186, 1, hex('#c8d4e0')); }
+    rect(70, 26, 1, 234, hex('#e0a0a0')); rect(272, 26, 1, 234, hex('#e0a0a0'));
+    rect(236, 22, 8, 242, hex('#a89870'));                                                      // spine
+  },
+  overlay: 'notebook',
+  cap: `<b>Notebook</b>: in your pocket on every screen. It holds the jobs you know about, as a tree, and how each branch went.<br>
+    · <b>Leads</b> come from everyone and everything (a shop counter, a video, Gaz). Each one says who it came from and how sure they were. Sure ones can be wrong; doubtful ones can be right. Tap a lead to go there<br>
+    · <b>Dead ends</b> get crossed out, so you can see what you've tried<br>
+    · When a job has <b>no leads</b>, you're stuck for a while, but something always turns up: a call, a neighbour, a memory, or sitting in the car thinking`
+};
+
+// ---------- 6. Workbench: isometric; push the part into the hole in the bigger part ----------
+SCREENS.bench = {
+  name: 'WORKBENCH',
+  size: [480, 270],
+  paint() {
+    ISO.ox = 240; ISO.oy = 64;
+    rect(0, 0, W, H, C.greyDark);
+    // pegboard on both walls, the bench top
+    poly([P(0, 0, 0), P(0, 170, 0), P(0, 170, 90), P(0, 0, 90)], shade(C.peg, 0.88));
+    poly([P(0, 0, 0), P(230, 0, 0), P(230, 0, 90), P(0, 0, 90)], C.peg);
+    for (let a = 6; a < 230; a += 8) for (let z = 6; z < 90; z += 8) { const p = P(a, 0, z); px(p[0], p[1], C.pegHole); if (a < 170) { const q = P(0, a, z); px(q[0], q[1], C.pegHole); } }
+    ibox(0, 0, 230, 170, -30, 0, C.bench, C.benchTop);
+    for (let x = 30; x < 230; x += 40) line(...P(x, 0), ...P(x, 170), C.wood);
+    // the big part we took off: a grey casting with a round hole on top, and two slots for the pins
+    ibox(60, 60, 140, 130, 0, 40, C.steel2, C.steel);
+    const h = P(100, 95, 40);
+    ellipse(h[0], h[1], 20, 10, C.greyDark); ellipse(h[0], h[1] + 2, 17, 7, C.ink);
+    rect(h[0] - 23, h[1] - 1, 5, 3, C.ink); rect(h[0] + 19, h[1] - 1, 5, 3, C.ink);        // pin slots
+    // the new part, held over the hole: a cylinder with two pins
+    const top = P(100, 95, 96), bot = P(100, 95, 58);
+    ellipse(bot[0], bot[1], 14, 7, shade(C.car, 0.7));
+    rect(bot[0] - 14, top[1], 29, bot[1] - top[1], C.car);
+    rect(bot[0] - 10, top[1] + 2, 3, bot[1] - top[1] - 2, C.winGlass);                      // shine
+    ellipse(top[0], top[1], 14, 7, shade(C.car, 1.25));
+    rect(bot[0] - 20, bot[1] - 10, 6, 3, C.tool); rect(bot[0] + 15, bot[1] - 10, 6, 3, C.tool);   // pins
+    ibox(96, 91, 104, 99, 96, 104, C.redDim);                                                // plug on top
+    // arrows: push down, rotate
+    for (let y = bot[1] + 10; y < h[1] - 10; y += 4) rect(bot[0] - 1, y, 2, 2, C.mint);
+    for (let a = -2.6; a < 0.4; a += 0.12) { const ex = top[0] + Math.cos(a) * 26, ey = top[1] - 4 + Math.sin(a) * 9; rect(Math.round(ex), Math.round(ey), 2, 2, C.mint); }
+    text('ROTATE', top[0] + 26, top[1] - 14, C.ink);
+    // the old part lying on the bench, and a caliper
+    ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink);
+    ibox(30, 120, 80, 126, 0, 2, C.steel); ibox(30, 112, 36, 126, 0, 2, C.steel);
+    panel(['TRY IT IN THE HOLE', 'PUSHED IN: STUCK HALFWAY.', 'NOW IT WILL NOT COME OUT EITHER.'], 6, 26);
+    text('PUSH   PULL   ROTATE   FLIP   WIGGLE   HIT IT   MEASURE   FILE IT', 34, 254, C.ui);
+    hud('FIND A SENSOR THAT FITS');
+  },
+  cap: `<b>Workbench</b>: the part we took off sits on the bench with its hole. Hold the new part over it and try it:<br>
+    · <b>Push</b> it in, <b>pull</b> it out, <b>rotate</b> it, <b>flip</b> it to try it the other way up, <b>wiggle</b> it, <b>hit it</b><br>
+    · It can be wrong by its pins, diameter, shape, depth or colour; it can go in and get stuck<br>
+    · <b>Measure</b> it, <b>file it</b> down, or send it back (needs the box you threw away)`
+};
+
+// ---------- 7. Phone: comes out of your pocket over any screen ----------
+SCREENS.phone = {
+  name: 'PHONE',
+  size: [480, 270],
+  paint() {
+    SCREENS.home.paint();
+    dim(0.55);
+    rect(168, 9, 144, 255, C.greyDark); rect(171, 12, 138, 249, C.ink);   // the phone
+    rect(225, 17, 30, 3, C.grey);
+  },
+  overlay: 'phone',
+  cap: `<b>Phone</b>: tap it in the bottom corner of any screen. Calls and texts arrive whenever they like (usually while you're under the car).<br>
+    · Answer or ignore calls; ring a shop (you are caller number 47); text people back<br>
+    · Some texts are useful, some are scams, some are your mum`
+};
+
+// =====================================================================
+// REALISTIC-TEXT SCREENS
+// =====================================================================
+const APPS = {
+  ViewTube: `<div class="bar">viewtube.example/watch?v=zaf1ra-excite</div><div class="body"><div class="vid">
+    <div><div class="player"><i></i><i></i></div>
+    <h2>2005 Zafira 1.6i EXCITE gearbox sensor replacement (EASY 10 MIN JOB)</h2>
+    <div class="meta">GarageGuy Gaz · 1.2M views · 9 years ago</div>
+    <p>Right lads, first get the car on a ramp. After removing the dashboard, simply slide the sensor out. Refit in reverse order of removal.</p>
+    <div class="post"><b>@ZafPlusOwner</b> mine is the PLUS, totally different connector 😡</div>
+    <div class="post"><b>@tony_b</b> 13:42 he just skips the hard bit</div>
+    <div class="post"><b>@deb1977</b> did it in 6 hours. cheers</div></div>
+    <div class="side"><div>Why your Zafira will NEVER pass</div><div>Zafira PLUS? Doesn't exist (proof)</div><div>10 tools you need (you have 0)</div><div>Removing a seized bolt — part 7 of 12</div></div></div></div>`,
+  Forum: `<div class="bar">SpannerTalk Forums › Vauxhall › Zafira A (1999–2005) › Gearbox</div><div class="body">
+    <h2>Red light on dash, auto box?? HELP</h2><div class="meta">Started by <b>zaf_dave</b> · 14 March 2009 · 3,412 views</div>
+    <div class="post"><b>zaf_dave</b> · 14 Mar 2009<br>Red light on dash, car won't go in reverse first time. Garage says 3 months. Any ideas?</div>
+    <div class="post"><b>MrTorque</b> · 15 Mar 2009<br>Its the selector sensor. Or the loom. Or the TCM. Could be the battery tbh</div>
+    <div class="post"><b>zaf_dave</b> · 2 Jun 2009<br>Fixed it.</div>
+    <div class="post"><b>Lisa_K</b> · 11 Nov 2016<br>how?? same problem</div>
+    <div class="post"><b>zaf_dave</b> · 12 Nov 2016<br>Solved, PM me<br><span class="red">[image no longer available]</span></div>
+    <div class="post"><b>Moderator</b> · 1 Jan 2020<br>Please use the search function before posting. Thread locked.</div></div>`,
+  Mail: `<div class="bar">Inbox (5 unread)</div><div class="body"><table>
+    <tr class="unread"><td>PartsWorld</td><td>Your order has been dispatched — estimated delivery 14–38 working days</td><td>08:31</td></tr>
+    <tr class="unread"><td>Account Security</td><td>Your sign-in code is 482 913. This code expires in 30 seconds.</td><td>08:29</td></tr>
+    <tr class="unread"><td>Support</td><td>Re: Ticket #48213 — your ticket has been closed as we did not hear from you</td><td>Mon</td></tr>
+    <tr class="unread"><td>Courier</td><td>Sorry we missed you! We tried to deliver at 10:02 (you were in)</td><td>Mon</td></tr>
+    <tr class="unread"><td>eBuy</td><td>Return request: item must be in its original packaging</td><td>Sun</td></tr>
+    <tr><td>Mum</td><td>did you get my email about sunday</td><td>Sat</td></tr></table></div>`,
+  Pics: `<div class="bar">Pictures › Car</div><div class="body"><div class="grid">
+    <div style="--p:#4a5a60">connector_1.jpg</div><div style="--p:#5a4a40">wrong_connector.jpg</div><div style="--p:#3a4448">the_nut (lost).jpg</div><div style="--p:#6a6050">part_number_blurry.jpg</div>
+    <div style="--p:#7a5a3a">vin_plate_rusted.jpg</div><div style="--p:#4a5848">sensor_old.jpg</div><div style="--p:#304a6a">sensor_new_blue.jpg</div><div style="--p:#5a5a5a">IMG_0042.jpg</div></div></div>`,
+  MegaMart: `<div class="bar">megamart.example — Everything, Delivered Eventually</div><div class="body">
+    <div class="search">zafira 1.6 gearbox selector sensor</div>
+    <div class="meta">1–5 of over 2,000 results · Sponsored results first</div><table>
+    <tr><td><b>Sponsored</b> · Universal Car Sensor Fits All Models* 2005 2006 2007 Zafira Astra Golf Focus Tractor<br><span class="meta">*not all models · ★★★★☆ (12,408)</span></td><td>£24.99</td><td class="red">Currently unavailable</td></tr>
+    <tr><td>Gear Selector Sensor (Pack of 50), Upgraded Version<br><span class="meta">★★☆☆☆ (3) · "came in a bag, no label"</span></td><td>£3.99</td><td>Arrives 14 Dec – 9 Feb</td></tr>
+    <tr><td>MegaMart Basics Sensor, Black<br><span class="meta">Customers also bought: the same sensor, Blue</span></td><td>£17.49</td><td>Tomorrow, if you order within 0 hrs 3 mins</td></tr>
+    <tr><td>Genuine part 55 352 101<br><span class="meta">Sold by GLOBALPARTS-STORE-88</span></td><td>£189.00</td><td class="red">No longer made — see 55 352 102</td></tr></table></div>`,
+  eBuy: `<div class="bar">ebuy.example — Used, untested, spares or repair</div><div class="body">
+    <div class="search">zafira excite gearbox sensor</div><table>
+    <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Used · 0 bids · Collection only, Aberdeen</span></td><td>£0.99</td><td>2d 4h left</td></tr>
+    <tr><td>Selector sensor 1.6 Plus/Excite? not sure, photo is of a different one<br><span class="meta">Used · 7 bids · Postage £18.50</span></td><td>£11.00</td><td>6m left</td></tr>
+    <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">Used · Buy it now · No returns</span></td><td>£45.00</td><td>Buy it now</td></tr>
+    <tr><td>WANTED: same sensor, will swap for a lawnmower<br><span class="meta">Seller: ken_next_door</span></td><td>—</td><td>Make offer</td></tr></table></div>`,
+  TechDocs: `<div class="bar">techdocs.example › TIS › Bulletins › SB-0471/09 Rev C (superseded by Rev B)</div><div class="body">
+    <h2>SB-0471/09 Rev C — TCM DTC P0705/P0706 sporadic, MY 03–05, see note 4</h2>
+    <div class="meta">Applies to: VIN from 5F000001 to 5F999999 except where fitted with option code MX7, M32 or "other"</div>
+    <p><b>1.</b> With KL15 ON and KL50 OFF, measure resistance between X12/3 (BK/WH) and X12/7 (BU/RD). Specified value: 4.7 kΩ ± 12% (see table 9, not included).</p>
+    <p><b>2.</b> If value is within specification, continue at step 4. If not, continue at step 2.</p>
+    <p><b>3.</b> Step deleted.</p>
+    <p><b>4.</b> Perform TCM adaptation (requires special tool KM-9001-B, superseded by KM-9001-A). Note 4: refer to note 4.</p>
+    <p class="red">Diagram 12 of 12 failed to load.</p></div>`
+};
+let currentApp = 'Forum';
+function overlayHTML(kind) {
+  if (kind === 'notebook') {
+    return `<div class="ov nb nb1">
+      <h3>Get the red light off the dash</h3>
+      <div class="ok">✔ Read the error codes: P0705</div>
+      <div class="x">✘ Spanner &amp; Son: 3 months</div>
+      <div class="x">✘ Trusty Autos: gone bust</div>
+      <div>○ What does P0705 mean?</div>
+      <div class="lead" data-go="pc">→ "Gearbox selector sensor" <i>(forum, 2009 · fairly sure)</i></div>
+      <div class="lead" data-go="city">→ "It's the loom" <i>(man at Motor Factors · very sure)</i></div>
+      <div class="lead" data-go="bonnet">→ "Check your fuses first" <i>(Gaz · Gaz is usually wrong)</i></div>
+      <h3>Find a sensor that fits</h3>
+      <div class="x">✘ MegaMart blue one: wrong shape</div>
+      <div class="x">✘ Motor Factors: other branch, shut</div>
+      <div class="lead" data-go="city">→ Breakers Yard has a Zafira <i>(text from Gaz · maybe)</i></div>
+    </div><div class="ov nb nb2">
+      <h3>Get the sensor off</h3>
+      <div class="ok">✔ Bolt 1 out</div>
+      <div class="x">✘ Bolt 2: rounded off</div>
+      <div>○ Nut 3: rolled away</div>
+      <div class="lead" data-go="garage">→ "Under the bench, probably" <i>(you · hopeful)</i></div>
+      <div>○ Wheel in the way: need the locking nut key</div>
+      <div class="none">No leads. Not in the glovebox or the boot.</div>
+      <h3>Why does fuse F23 keep blowing?</h3>
+      <div class="none">No leads yet.</div>
+      <div class="idea">Ideas: ring someone? walk round town? sit in the car and think? (thinking costs an hour, calms you down, and gives a hunch)</div>
+    </div>`;
+  }
+  if (kind === 'pc') {
+    const dock = Object.keys(APPS).map(a => `<button data-app="${a}" class="${a === currentApp ? 'on' : ''}">${a}</button>`).join('');
+    return `<div class="ov pc"><div class="dock">${dock}</div><div class="win">${APPS[currentApp]}</div></div>`;
+  }
+  return `<div class="ov ph">
+    <div class="call">Withheld number<small>Incoming call…</small><span>Answer</span><span>Ignore</span></div>
+    <div class="msgs">
+      <div class="m"><em>08:12</em><b>Mum</b>Are you still coming Sunday? Bring the car x</div>
+      <div class="m"><em>07:55</em><b>Unknown</b>Your parcel is held. Pay £1.45 to release: parcel-helddd.example</div>
+      <div class="m"><em>Yesterday</em><b>Brother</b>got your drill in the van, back thurs maybe</div>
+      <div class="m"><em>Yesterday</em><b>Dave's Garage</b>Hi it's Dave. Can't look at it till March, sorry mate</div>
+      <div class="m"><em>Mon</em><b>Gearbox Gurus</b>Thank you for calling. You are caller number 47.</div>
+    </div>
+    <div class="tabs"><div>Messages</div><div>Calls</div><div>Contacts</div></div></div>`;
+}
+
+// =====================================================================
+// PAGE: buttons for each screen, paint the chosen one
+// =====================================================================
+const stage = document.getElementById('stage');
+const nav = document.getElementById('nav');
+const cap = document.getElementById('cap');
+const legend = document.getElementById('legend');
+let current = 'home';
+let LABELS = [];
+
+const HISTORY = [];                                       // where you came from, for the Back button
+function go(key) {
+  if (key !== current) HISTORY.push(current);
+  show(key);
+}
+function show(key) {
+  current = key;
+  const s = SCREENS[key];
+  [W, H] = s.size || [320, 180];                          // this screen's picture size
+  canvas.width = W; canvas.height = H;
+  img = ctx.createImageData(W, H);                       // fresh buffer
+  LABELS = [];                                           // real-text signs the screen adds while painting
+  s.paint();
+  ctx.putImageData(img, 0, 0);
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .lid, .scr, .back').forEach(el => el.remove());
+  stage.insertAdjacentHTML('beforeend', LABELS.join(''));
+  if (s.overlay) stage.insertAdjacentHTML('beforeend', overlayHTML(s.overlay));
+  if (key !== 'home') stage.insertAdjacentHTML('beforeend', `<button class="back" data-back="1">◀ Back</button>`);
+  cap.innerHTML = s.cap;
+  legend.innerHTML = s.legend ? PLACES.map(p => `<span style="--c:${CAT[p[1]][1]}">${p[0]}</span>`).join('') : '';
+  nav.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.key === key));
+}
+
+nav.innerHTML = Object.entries(SCREENS).map(([k, s], n) => `<button data-key="${k}">${n + 1}. ${s.name}</button>`).join('');
+nav.addEventListener('click', e => { const b = e.target.closest('button'); if (b) go(b.dataset.key); });
+stage.addEventListener('click', e => {
+  // Back: return to the screen you came from (home if there's none)
+  if (e.target.closest('[data-back]')) { show(HISTORY.pop() || 'home'); return; }
+  // a hotspot, zoom box, sign or lead that opens another screen
+  const target = e.target.closest('[data-go]');
+  if (target) { go(target.dataset.go); return; }
+  // switch app on the computer
+  const b = e.target.closest('[data-app]');
+  if (!b) return;
+  currentApp = b.dataset.app;
+  show('pc');
+});
+show(location.hash.slice(1) in SCREENS ? location.hash.slice(1) : 'home');
+</script>
+</body>
+</html>

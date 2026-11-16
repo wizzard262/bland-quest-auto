@@ -1,0 +1,506 @@
+// The Thankless Task: the story. Branch 1: the red light on the dash.
+// Who says what, what each action does, what's for sale, and the leads each thing gives.
+// Lead targets: a screen ('garage', 'under', 'underZoom', 'dash', 'fuseZoom', 'bench', 'city'),
+// a place in town ('place:Motor Factors') or a computer app ('app:Forum').
+
+// =====================================================================
+// THE START
+// =====================================================================
+function STORY_START() {
+  job('light', 'Get the red light off the dash', null);
+  note('light', 'The car failed its test: a red light on the dash.', 'info');
+  job('codes', 'Find out what the red light means', 'light');
+  lead('codes', 'ask-mech', 'Ask a mechanic', 'you', 'obviously', 'city');
+  textMsg('MOT Test Centre', 'Your vehicle has FAILED its test. Reason: warning lamp illuminated (red). Please rebook.');
+}
+
+// =====================================================================
+// THINGS THAT HAPPEN AT A SET TIME (each once)
+// =====================================================================
+const EVENTS = [
+  { id: 'gaz-text', day: 1, mins: 11 * 60, run() {
+    textMsg('Mate Gaz', "heard ur car's knackered. got a code reader somewhere, come round");
+    lead('codes', 'gaz-reader', "Borrow Gaz's code reader", 'Gaz', 'maybe', "place:Mate Gaz's");
+  } },
+  { id: 'mum-text', day: 1, mins: 15 * 60, run() { textMsg('Mum', 'Are you still coming Sunday? Bring the car x'); } },
+  { id: 'scam-text', day: 2, mins: 9 * 60, run() { textMsg('Unknown', 'Your parcel is held. Pay £1.45 to release: parcel-helddd.example'); } }
+];
+
+// =====================================================================
+// HUNCHES: what sitting and thinking gives you when a job has no leads
+// =====================================================================
+const HUNCHES = {
+  codes() { lead('codes', 'dealer', 'The main dealer can read the codes', 'a hunch', 'vague', 'place:Main Dealer'); },
+  meaning() { lead('meaning', 'sensor', 'Something on the gearbox?', 'a hunch', 'vague', 'underZoom'); },
+  bolt2() { lead('bolt2', 'extractor2', 'A better extractor', 'a hunch', 'vague', 'place:Hardware Shop'); },
+  nut3() { lead('nut3', 'bench-floor', 'Under the workbench?', 'a hunch', 'vague', 'garage'); },
+  'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Motor Factors'); }
+};
+
+// =====================================================================
+// THE CODES
+// =====================================================================
+function readCodes(how) {
+  if (S.flags.codes) return say('The codes', 'Same two codes as before:\n\nP0705 Transmission range sensor circuit malfunction\nP0706 Range / performance');
+  S.flags.codes = true;
+  finishJob('codes', 'Codes: P0705 and P0706 (' + how + ')');
+  job('meaning', 'What does P0705 mean?', 'light');
+  lead('meaning', 'forum', 'Look it up on the forum', 'you', 'hopeful', 'app:Forum');
+  lead('meaning', 'techdocs', 'The official technical pages', "the reader's booklet", 'sure', 'app:TechDocs');
+  lead('meaning', 'gurus', 'Ask the gearbox people', 'the man at Main Dealer', 'very sure', 'place:Gearbox Gurus');
+  say('Two codes', 'P0705 Transmission range sensor circuit malfunction\nP0706 Range / performance\n\nWhatever that means. New job in the notebook.');
+}
+
+// =====================================================================
+// PLACES IN TOWN
+// =====================================================================
+// open = [from, to] in minutes; closedDays = days it's shut; shop = things for sale
+const PLACE_INFO = {
+  'Spanner & Son': { open: [8 * 60, 17 * 60 + 30], person: 'Mr Spanner' },
+  'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
+  "Sparky's Auto Electrics": { open: [9 * 60, 16 * 60 + 30], lunch: true, person: 'Sparky' },
+  'Main Dealer': { open: [9 * 60, 17 * 60], person: 'the service desk' },
+  'Gearbox Gurus': { open: [9 * 60, 17 * 60], person: 'a man in overalls' },
+  'Voltz Auto Electric': { open: [9 * 60, 17 * 60], person: 'a man with a meter' },
+  "Mate Gaz's": { open: [10 * 60, 22 * 60], person: 'Gaz' },
+  'Tool Shop': { open: [8 * 60, 17 * 60], person: 'the man at the till', shop: ['extractor-cheap', 'socket-9'] },
+  'Hardware Shop': { open: [9 * 60, 17 * 60 + 30], person: 'an old man in a brown coat', shop: ['extractor-good', 'fuses'] },
+  'Motor Factors': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
+  'Parts 4 Less': { open: [9 * 60, 16 * 60 + 30], person: 'a woman on the phone' },
+  'Breakers Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog' },
+  'Trusty Autos': { gone: true },
+  "Dave's Garage": { holiday: true },
+  'Clutch & Co': { closedDays: ['TUE', 'WED'] }
+};
+// Things you can buy: price, what it is, and where it goes
+const ITEMS = {
+  'extractor-cheap': { name: 'Bolt extractor (cheap)', price: 8.99 },
+  'extractor-good': { name: 'Bolt extractor (proper one)', price: 14.5 },
+  'socket-9': { name: '9 mm socket', price: 0, none: true },
+  'fuses': { name: 'Box of fuses (wrong amps)', price: 3.5 },
+  'reader-cheap': { name: 'Code reader, "fits all cars*"', price: 12.99 },
+  'reader-good': { name: 'Handheld code reader (used)', price: 15 },
+  'part-mega': { name: 'Gearbox sensor, "fits all models*"', price: 17.49 },
+  'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 }
+};
+
+// Is a place open right now? Returns null if open, or the reason it isn't
+function closedReason(name) {
+  const info = PLACE_INFO[name] || {};
+  if (info.gone) return 'Boarded up. OUT OF BUSINESS. The website still takes bookings.';
+  if (info.holiday) return 'A sign on the door: "On holiday. Back in 3 weeks. Sorry for any inconvenience."';
+  if (info.closedDays && info.closedDays.includes(weekday())) return `Closed on ${weekday()}s.`;
+  const [from, to] = info.open || [9 * 60, 17 * 60 + 30];
+  if (S.mins < from) return `Closed. Opens at ${hhmm(from)}.`;
+  if (S.mins >= to) return `Closed. Shut at ${hhmm(to)}. It's ${hhmm(S.mins)}.`;
+  if (info.lunch && S.mins >= 12 * 60 && S.mins < 14 * 60) return 'A sign on the door: "Back in 10 minutes." (It\'s been there since 12:00.)';
+  return null;
+}
+// Arriving at a place: open, or closed (with a reason)
+function arriveAt(name) {
+  const shut = closedReason(name);
+  if (shut) return say(name, shut);
+  talk(name);
+}
+// Talking at the counter (or on the doorstep)
+function talk(name) {
+  pass(10);
+  const fn = TALK[name];
+  if (fn) return fn();
+  // everywhere else: friendly, sure of itself, and no help
+  const lines = [
+    "Not us, mate. Try round the corner.",
+    "We don't do that. Never have.",
+    "Twenty years I've done this and I've never heard of that.",
+    "You want the main dealer for that. Or don't. They're useless.",
+    "Ooh. No. Couldn't tell you.",
+    "We had one of those last week. Can't remember what it was.",
+    "Sounds electrical. Or mechanical. One of the two."
+  ];
+  const i = Math.floor(hash(name.length * 7, name.charCodeAt(0)) * lines.length);
+  say(name, lines[i]);
+}
+const TALK = {
+  'Spanner & Son'() {
+    if (S.flags.spanner) return say('Spanner & Son', '"Still three months, mate."');
+    S.flags.spanner = true;
+    anger(5);
+    closeLead('ask-mech', 'x', 'Spanner & Son: earliest is 3 months');
+    lead('codes', 'quickfix', 'Try Quickfix Motors', "Spanner's son", 'sure', 'place:Quickfix Motors');
+    say('Spanner & Son', '"Ooh, not good. Earliest I can look at it is three months, mate."\n\nHis son leans out of the office: "Try Quickfix."');
+  },
+  'Quickfix Motors'() {
+    if (S.flags.quickfix) return say('Quickfix Motors', '"Like I said: we don\'t do autos."');
+    S.flags.quickfix = true;
+    closeLead('quickfix', 'x', "Quickfix: they don't do autos");
+    closeLead('ask-mech', 'x');
+    lead('codes', 'sparkys', "Get the codes read at Sparky's", 'Quickfix', 'very sure', "place:Sparky's Auto Electrics");
+    lead('codes', 'dealer', 'The main dealer can read the codes', 'Quickfix', 'sure, but dear', 'place:Main Dealer');
+    say('Quickfix Motors', '"We don\'t do autos. You want the codes read first. Sparky\'s has a reader. Or the main dealer, if you\'re made of money."');
+  },
+  "Sparky's Auto Electrics"() {
+    if (S.flags.sparky) return say("Sparky's", '"Still broken, mate."');
+    S.flags.sparky = true;
+    closeLead('sparkys', 'x', "Sparky's: their reader's broken");
+    lead('codes', 'mega-reader', 'Buy your own code reader on MegaMart', 'Sparky', 'fairly sure', 'app:MegaMart');
+    say("Sparky's Auto Electrics", '"Reader\'s broken, mate. Waiting on a part. Get your own: MegaMart do one for a tenner."');
+  },
+  'Main Dealer'() {
+    if (S.flags.codes) return say('Main Dealer', '"Anything else? That\'ll be £120."');
+    say('Main Dealer', '"We can plug it in, sir. That\'s £120 for the diagnostic."', [
+      { label: 'Pay £120', run() {
+        if (!spend(120)) { anger(10); return say('Main Dealer', 'Card declined.'); }
+        pass(30);
+        closeLead('dealer', 'ok', 'Main dealer read the codes (£120)');
+        readCodes('main dealer, £120');
+      } },
+      { label: 'Too dear', run() { anger(5); say('Main Dealer', '"Suit yourself."'); } }
+    ]);
+  },
+  'Gearbox Gurus'() {
+    closeLead('gurus', 'x', 'Gearbox Gurus: "that\'s electrics"');
+    if (S.flags.codes) lead('meaning', 'voltz', 'Ask an auto electrician', 'Gearbox Gurus', 'very sure', 'place:Voltz Auto Electric');
+    say('Gearbox Gurus', '"P0705? That\'s electrics, mate. Nothing to do with the gearbox. Try Voltz."');
+  },
+  'Voltz Auto Electric'() {
+    anger(10);
+    closeLead('voltz', 'x', 'Voltz: "that\'s the gearbox" (round and round)');
+    say('Voltz Auto Electric', '"P0705? That\'s the gearbox, mate. You want the gearbox people."');
+  },
+  "Mate Gaz's"() {
+    if (S.inv['reader-old'] || !leadExists('gaz-reader')) return say("Gaz's", '"Alright? Did my reader work?"');
+    if (!S.flags.gazTried) {
+      S.flags.gazTried = S.day;
+      return say("Gaz's", '"Can\'t find it. Might\'ve lent it to the brother-in-law. Come back tomorrow."');
+    }
+    if (S.flags.gazTried === S.day) return say("Gaz's", '"Still looking, mate. Tomorrow."');
+    S.inv['reader-old'] = true;
+    note('codes', "Got Gaz's code reader (old type)", 'info');
+    say("Gaz's", '"Found it! It\'s the old type, mind."\n\nTry it in the car: the port is under the dash.');
+  },
+  'Tool Shop'() { shopCounter('Tool Shop', '"What are you after?"'); },
+  'Hardware Shop'() { shopCounter('Hardware Shop', '"Yes?"'); },
+  'Motor Factors'() {
+    if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Motor Factors', '"It\'s at the other branch, like I said."');
+    if (!findJob('new-sensor')) return say('Motor Factors', '"What part do you need? No part number, no part."');
+    S.flags.p4lReady = now() + 120;
+    closeLead('motor-factors', 'ok', 'Motor Factors: ordered, ready in 2 hours at the other branch');
+    lead('new-sensor', 'p4l', 'Collect it at Parts 4 Less', 'Motor Factors', 'sure', 'place:Parts 4 Less');
+    say('Motor Factors', '"Got one. Ready in two hours… at our other branch. Parts 4 Less. They shut at half four."');
+  },
+  'Parts 4 Less'() {
+    if (S.inv['part-p4l']) return say('Parts 4 Less', '"You\'ve already got it."');
+    if (!S.flags.p4lReady) return say('Parts 4 Less', '"Nothing here for you, love."');
+    if (now() < S.flags.p4lReady) return say('Parts 4 Less', '"Not come over yet. Try later."');
+    say('Parts 4 Less', '"Here it is. £31.50."', [
+      { label: 'Pay £31.50', run() {
+        if (!spend(31.5)) return say('Parts 4 Less', 'Card declined.');
+        S.inv['part-p4l'] = true;
+        closeLead('p4l', 'ok', 'Bought a sensor at Parts 4 Less');
+        lead('new-sensor', 'try-p4l', 'Try the new sensor on the bench', 'you', 'hopeful', 'bench');
+        say('Parts 4 Less', 'It looks right. It looks… nearly right.');
+      } },
+      { label: 'Not now', run() {} }
+    ]);
+  },
+  'Breakers Yard'() {
+    if (!findJob('new-sensor')) return say('Breakers Yard', '"Got all sorts. What are you after?"');
+    if (S.flags.breakers) return say('Breakers Yard', '"Same as before: square ones only."');
+    S.flags.breakers = true;
+    pass(60);
+    anger(10);
+    closeLead('breakers', 'x', 'Breakers Yard: their sensor is a square peg');
+    say('Breakers Yard', '"Got a Zafira. Take it off yourself."\n\nAn hour later you\'ve got it off. It\'s square. Yours is round.');
+  },
+  'Home'() { show('home'); }
+};
+// A shop counter with things for sale
+function shopCounter(place, greeting) {
+  const items = (PLACE_INFO[place].shop || []).map(id => ({
+    label: ITEMS[id].none ? `${ITEMS[id].name}?` : `Buy ${ITEMS[id].name} (£${ITEMS[id].price.toFixed(2)})`,
+    run() { buy(id, place); }
+  }));
+  say(place, greeting, items.concat([{ label: 'Nothing, thanks', run() {} }]));
+}
+// Buying something at a counter
+function buy(id, place) {
+  const item = ITEMS[id];
+  if (item.none) { anger(5); return say(place, '"A 9? There\'s no such thing as a 9, mate."'); }
+  if (!spend(item.price)) { anger(10); return say(place, 'Card declined.'); }
+  S.inv[id] = true;
+  if (id === 'extractor-cheap') closeLead('extractor', 'ok');
+  if (id === 'extractor-good') closeLead('extractor2', 'ok');
+  if (id === 'fuses') note('meaning', 'Bought fuses: all the wrong amps', 'x');
+  say(place, `You buy: ${item.name}.`);
+}
+
+// =====================================================================
+// WHEN YOU OPEN CERTAIN SCREENS
+// =====================================================================
+const SCREEN_ENTER = {
+  underZoom() {
+    // having found the codes, a look at the gearbox makes it the sensor (probably)
+    if (!S.flags.codes || S.flags.sensorJob) return;
+    if (!leadExists('sensor')) return;
+    S.flags.sensorJob = true;
+    closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
+    finishJob('meaning', 'Probably the gearbox sensor');
+    job('sensor-off', 'Get the old sensor off', 'light');
+    note('sensor-off', '2 bolts and a nut hold it on.', 'info');
+  },
+  pc() { pass(5); },
+  phone() { for (const m of S.msgs) m.read = true; }
+};
+
+// =====================================================================
+// ACTIONS (from the buttons under the picture and the dialogs)
+// =====================================================================
+const ACTIONS = {
+  // ----- moving round -----
+  go(target) { goTo(target); },
+  talk() { talk(S.place); },
+  wait() { pass(30); say('You wait', `Half an hour in the car park. It's ${hhmm(S.mins)}.`); },
+  // look at another part of town on the map (centre it on that block)
+  cam(arg) {
+    const [bi, bj] = arg.split(',').map(Number);
+    const cx = bi * BLOCK + STREET + 35, cy = bj * BLOCK + STREET + 35;
+    S.cam.ox = 320 - (cx - cy);
+    S.cam.oy = 190 - (cx + cy) / 2;
+  },
+  // ----- home -----
+  tea() { pass(10); anger(-15); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
+  bed() { sleepUntilMorning(); say('Next morning', `It's ${weekday()} morning. You feel a bit better.`); },
+  parcel() {
+    const p = S.doorstep.shift();
+    if (!p) return say('The doorstep', 'Nothing there.');
+    openParcel(p.item);
+  },
+  // ----- garage -----
+  'under-bench'() {
+    if (!S.flags.n3lost || S.flags.n3found) { pass(10); return say('Under the workbench', 'Dust, a spider and a 1996 calendar.'); }
+    pass(30);
+    if (!S.flags.screwsSpilt) {
+      S.flags.screwsSpilt = true;
+      anger(10);
+      return say('Under the workbench', 'You knock a box of hundreds of screws off the bench. They go everywhere. If the nut is here, it\'s somewhere in that lot now.');
+    }
+    S.flags.n3found = true;
+    finishJob('nut3', 'Found nut 3 (in the screws)');
+    closeLead('bench-floor', 'ok');
+    say('Under the workbench', 'Half an hour of sorting screws later: the nut! You put it somewhere safe.');
+  },
+  // ----- the toolbox -----
+  drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; },
+  find10() { pass(10); anger(5); say('The 10 mm', "It's not there. It's never there. There's a 10-shaped gap in the foam."); },
+  findspanner() { pass(15); anger(5); say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and not the one you need.'); },
+  meter() { pass(5); say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.'); },
+  // ----- dashboard -----
+  key(pos) {
+    S.key = +pos;
+    if (S.key === 3) {
+      S.key = 2;
+      if (S.flags.fitted) return finishBranch();
+      return say('Start it', S.flags.codesCleared ? 'It starts. The red light stays off… for two seconds. Then it comes back on.' : 'It starts. The red light stays on.');
+    }
+    render();
+  },
+  plug(which) {
+    if (S.key < 2) return say('Code reader', 'Nothing. The key needs to be at II for the reader to wake up.');
+    pass(10);
+    if (which === 'old') {
+      anger(10);
+      closeLead('gaz-reader', 'x', "Gaz's reader: wrong plug (from 1994)");
+      return say('Code reader', "Gaz's reader has a round plug. Your car's port is flat. It's from 1994.");
+    }
+    S.flags.readerIn = true;
+    closeLead('plug-in', 'ok');
+    readCodes('own reader');
+  },
+  clear() {
+    if (!S.flags.codes) return;
+    pass(5);
+    S.flags.codesCleared = true;
+    anger(5);
+    say('Clear the codes', 'The red light goes out. Then you start the car, and it comes back on.');
+  },
+  think() { think(); },
+  // ----- under the car: the gearbox -----
+  bolt1() { pass(10); S.flags.b1 = true; note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.'); },
+  bolt2() {
+    pass(10);
+    if (S.flags.b2round) return say('Bolt 2', 'Your spanner just spins on it. It\'s rounded off.');
+    S.flags.b2round = true;
+    anger(15);
+    job('bolt2', 'Get the rounded bolt out', 'sensor-off');
+    lead('bolt2', 'extractor', 'Buy a bolt extractor', 'you', 'sure', 'place:Tool Shop');
+    say('Bolt 2', 'The spanner slips. The bolt head is rounded off. Brilliant.');
+  },
+  nut3() {
+    pass(10);
+    S.flags.n3lost = true;
+    anger(10);
+    job('nut3', 'Find nut 3', 'sensor-off');
+    lead('nut3', 'bench-floor', 'Under the workbench?', 'you', 'hopeful', 'garage');
+    say('Nut 3', 'It comes off, drops, bounces off your face and rolls away into the dark. You hear it go under the workbench. Probably.');
+  },
+  extract() {
+    pass(20);
+    if (S.inv['extractor-good']) {
+      S.flags.b2 = true;
+      finishJob('bolt2', 'The proper extractor got it out');
+      return say('Bolt 2', 'The proper extractor bites… and the bolt turns. It\'s out!');
+    }
+    delete S.inv['extractor-cheap'];
+    anger(20);
+    note('bolt2', 'The cheap extractor snapped off inside the bolt', 'x');
+    lead('bolt2', 'extractor2', 'A better extractor from the Hardware Shop', 'the man at the Tool Shop (who sold you the first)', 'very sure', 'place:Hardware Shop');
+    say('Bolt 2', 'The cheap extractor snaps. Half of it is now stuck in the bolt as well.');
+  },
+  wiring() { pass(15); closeLead('loom', 'x', 'The wiring looks fine (as far as you can tell)'); say('The wiring', 'You follow the wires. They look fine. As far as you can tell.'); },
+  pull() {
+    if (!(S.flags.b1 && S.flags.b2 && S.flags.n3lost)) return say('Pull the sensor', 'It won\'t budge. Something\'s still holding it.');
+    pass(10);
+    S.flags.sensorOut = true;
+    S.inv['old-sensor'] = true;
+    finishJob('sensor-off', 'The old sensor is out');
+    job('new-sensor', 'Find a sensor that fits', 'light');
+    note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
+    lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
+    lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
+    lead('new-sensor', 'breakers', 'The Breakers Yard has a Zafira', 'Gaz', 'maybe', 'place:Breakers Yard');
+    say('The sensor', 'With a twist and a pull, the old sensor comes out. There\'s a hole where it was.\n\nNow you need one that fits.');
+  },
+  fit() {
+    if (!S.flags.fits) return say('Fit it', 'You haven\'t got one that fits yet.');
+    if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
+    pass(30);
+    S.flags.fitted = true;
+    closeLead('fit', 'ok', 'New sensor fitted and plugged in');
+    lead('light', 'test', 'Start the car and see', 'you', 'hopeful', 'dash');
+    say('Fit it', 'Bolt, bolt, nut. Plug the connector in (gently: the tab). Done.\n\nNow the moment of truth: start it.');
+  },
+  // ----- under the bonnet -----
+  fuses() {
+    pass(15);
+    closeLead('fuses', 'x', 'Checked every fuse: all fine');
+    say('The fuses', 'You pull every fuse with your fingernails and hold each one up to the light. All fine. Every one.');
+  },
+  look(what) { pass(5); say(what, LOOKS[what] || 'Looks fine. Probably.'); },
+  // ----- the workbench -----
+  pick(id) { S.bench = { part: id, rotated: false, state: 'over' }; },
+  push() {
+    const b = S.bench;
+    if (!b) return say('The workbench', 'Pick a part to try first.');
+    pass(5);
+    if (b.part === 'part-mega') {
+      anger(10);
+      closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
+      return say('Push', 'It\'s hexagonal. The hole is round. It\'s not going in.');
+    }
+    if (b.state === 'stuck') return say('Push', 'It won\'t go any further.');
+    if (!b.rotated) { b.state = 'stuck'; anger(10); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
+    b.state = 'in';
+    S.flags.fits = true;
+    finishJob('new-sensor', 'The Parts 4 Less sensor fits!');
+    closeLead('try-p4l', 'ok');
+    lead('light', 'fit', 'Fit the new sensor to the car', 'you', 'sure', 'underZoom');
+    say('Push', 'Click. It fits. It actually fits.\n\nNow fit it to the car.');
+  },
+  pullpart() {
+    const b = S.bench;
+    if (!b) return;
+    pass(5);
+    if (b.state === 'stuck') { b.state = 'over'; anger(5); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
+    say('Pull', 'It\'s not in.');
+  },
+  rotate() { const b = S.bench; if (!b) return; b.rotated = true; say('Rotate', 'You turn it until the pins line up with the slots.'); },
+  flip() { const b = S.bench; if (!b) return; b.rotated = false; say('Flip', 'You turn it the other way up. Now the pins don\'t line up at all.'); },
+  // ----- the phone -----
+  ring(who) {
+    pass(5);
+    const lines = {
+      Gaz: S.flags.gazTried ? '"Still looking for it, mate."' : '"Come round, I\'ll have a look for that reader."',
+      Mum: '"Are you still coming Sunday? Bring the car."',
+      Brother: '"Can\'t talk, in the van. Ring you back." (He doesn\'t.)'
+    };
+    say('Ringing ' + who, lines[who] || 'No answer.');
+  },
+  // ----- the computer -----
+  buy(id) {
+    const item = ITEMS[id];
+    if (S.flags['ordered-' + id]) return say('Already ordered', 'It\'s on its way.');
+    if (!spend(item.price)) { anger(10); return say('Payment', 'Card declined.'); }
+    S.flags['ordered-' + id] = true;
+    const shop = id === 'reader-good' ? 'eBuy' : 'MegaMart';
+    order(id, id === 'reader-good' ? 2 : 1, shop);
+    if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from MegaMart (due tomorrow)');
+    if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on eBuy (2 days)');
+    if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the MegaMart sensor (due tomorrow)'); }
+    say('Order placed', `${item.name}: £${item.price.toFixed(2)}. It'll be left by the front door.`);
+  },
+  readforum() {
+    if (!S.flags.codes) return say('The forum', 'Without the error codes you don\'t know what to search for.');
+    if (S.flags.forumRead) return say('The forum', 'You\'ve read it. Three times.');
+    S.flags.forumRead = true;
+    pass(30);
+    closeLead('forum', 'ok', 'The forum has three ideas');
+    lead('meaning', 'sensor', "It's the gearbox selector sensor", 'forum, 2009', 'fairly sure', 'underZoom');
+    lead('meaning', 'loom', "It's the wiring loom", 'MrTorque', 'sure', 'underZoom');
+    lead('meaning', 'fuses', 'Check your fuses first', 'MrTorque', '"tbh"', 'fuseZoom');
+    say('The forum', 'Half an hour of reading. Three ideas: the sensor, the wiring, or the fuses. All posted with total confidence.');
+  },
+  readdocs() {
+    pass(20);
+    anger(5);
+    closeLead('techdocs', 'x', 'TechDocs: every word is real, none of it helps');
+    say('TechDocs', 'You read it twice. Step 2 sends you back to step 2. The diagram didn\'t load.');
+  },
+  watch() {
+    pass(15);
+    if (S.flags.codes) note('meaning', 'ViewTube: a video for the Excite. Yours is the Plus.', 'x');
+    say('ViewTube', '"Right lads, first get the car on a ramp…" It\'s for the Excite. Yours is the Plus.');
+  }
+};
+// Opening a parcel at the front door
+function openParcel(item) {
+  pass(5);
+  if (item === 'reader-cheap') {
+    anger(10);
+    note('codes', 'MegaMart reader: wrong plug (it\'s for lorries)', 'x');
+    lead('codes', 'ebuy-reader', 'Get a proper one on eBuy', 'a MegaMart review', 'fairly sure', 'app:eBuy');
+    return say('A parcel', 'A code reader! …for lorries. The plug is nothing like the port in your car.');
+  }
+  if (item === 'reader-good') {
+    S.inv['reader-good'] = true;
+    lead('codes', 'plug-in', 'Plug the reader in (key to II)', 'you', 'sure', 'dash');
+    return say('A parcel', 'A used code reader. The plug looks right!\n\nThe port is under the dash.');
+  }
+  if (item === 'part-mega') {
+    S.inv['part-mega'] = true;
+    lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');
+    return say('A parcel', 'The MegaMart sensor. It\'s blue. The old one was black. Does that matter?');
+  }
+  say('A parcel', 'Something you didn\'t order.');
+}
+// Looking at things under the car and the bonnet
+const LOOKS = {
+  'Rear suspension': 'Springs, rust, a spider. Not the problem. Probably.',
+  'Fuel tank': 'Black plastic. A strap. Not the problem.',
+  'Exhaust': 'Rusty, held on by a rubber hanger and hope. Not today\'s problem.',
+  'Brake lines': 'Crusty but dry. Leave them alone.',
+  'Engine': 'An engine. It looks like an engine.',
+  'Battery': 'It reads 12.6 volts on the dash. Fine.',
+  'Air filter': 'Full of leaves. Not the problem, but you feel judged.',
+  'Coolant': 'Pink, at MAX. Fine.',
+  'Brake fluid': 'Fine.',
+  'Manuals': 'Haynes-style manuals: the diesel, the old model, one in German. The page you need is stuck to the next one with oil.',
+  'Parts boxes': 'Old parts, wrong parts, returns you never sent back, and a box of hundreds of screws.'
+};
+// The end of branch 1: the red light goes off, and another one comes on
+function finishBranch() {
+  finishJob('light', 'THE RED LIGHT IS OFF!');
+  closeLead('test', 'ok');
+  job('abs', 'Get the ABS light off', null);
+  note('abs', 'It came on the moment the red one went off.', 'x');
+  say('It starts…', 'The red light goes OFF.\n\nYou punch the air.\n\nThen the orange ABS light comes ON.\n\n(That\'s the end of branch 1. More branches next.)');
+}

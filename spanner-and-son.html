@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endless Repair</title>
+<style>
+  :root { --page: #14141c; }
+  html, body { margin: 0; height: 100%; background: var(--page); }
+  body { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Pixel art: Spanner and Son garage, a broken car with its bonnet up, the owner and the mechanic talking"></canvas>
+<script>
+// =====================================================================
+// The Endless Repair: scene 1, the garage.
+// A still pixel-art picture, 320 x 240 pixels, scaled up with hard edges.
+// Every pixel is set by hand-written code into one image buffer.
+// The building's front faces us; its length runs away up-left
+// (3 pixels left and 2 up for each step back).
+// =====================================================================
+
+const W = 320;                                        // picture width in pixels
+const H = 240;                                        // picture height in pixels
+const canvas = document.getElementById('scene');      // the canvas on the page
+canvas.width = W;
+canvas.height = H;
+const ctx = canvas.getContext('2d');
+const img = ctx.createImageData(W, H);                // the pixel buffer we paint into
+
+// ---------- palette ----------
+function hex(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const C = {
+  black: hex('#101018'), white: hex('#f4f4f0'), cream: hex('#e8dcbc'), creamDark: hex('#b8a888'),
+  grass: hex('#48a838'), grassDark: hex('#3a8c2e'), grassLight: hex('#5cbc4a'),
+  concrete: hex('#c8c0a8'), concreteDark: hex('#aaa18a'), stain: hex('#8e8672'),
+  pavement: hex('#b4b4b0'), kerb: hex('#dcdcd4'), road: hex('#4a4a54'), roadDark: hex('#40404a'), yellow: hex('#f0c830'),
+  brick: hex('#b04a34'), brick2: hex('#a04030'), brick3: hex('#bc5640'), mortar: hex('#d29a7e'),
+  sideBrick: hex('#7c3024'), sideBrick2: hex('#6e2a20'), sideMortar: hex('#a06450'),
+  roofL: hex('#46465e'), roofLLine: hex('#30304a'), roofR: hex('#6c6c8a'), roofRLine: hex('#52526e'), ridge: hex('#8a8aa8'),
+  steel: hex('#b0b4bc'), steelDark: hex('#7a7e88'), steelLight: hex('#d4d8e0'), frame: hex('#5a5e68'),
+  signBlue: hex('#2850b0'), signDark: hex('#183078'), gold: hex('#f8d038'),
+  doorBlue: hex('#2860a0'), glass: hex('#203048'), glassLight: hex('#5878a0'), red: hex('#c83030'),
+  car: hex('#3c78c8'), carDark: hex('#285094'), carLight: hex('#78a8e8'), carDoor: hex('#c03838'), carDoorDark: hex('#902828'),
+  tyre: hex('#222228'), rim: hex('#a8acb4'), amber: hex('#f8a020'), lamp: hex('#f8f0b0'), rust: hex('#8a5028'),
+  engine: hex('#686c74'), bay: hex('#2a2a32'), steam: hex('#e8e8f0'), steamDark: hex('#c4c4d0'),
+  skin: hex('#e8b090'), skinDark: hex('#c88a6a'), hair: hex('#603818'), moustache: hex('#4a2810'),
+  jacket: hex('#e09828'), jacketDark: hex('#b07418'), jeans: hex('#4060a8'), jeansDark: hex('#304a88'),
+  overalls: hex('#2848a0'), overallsDark: hex('#1c3478'), cap: hex('#d02828'), orange: hex('#f08020'),
+  sweat: hex('#90d0f8'), trunk: hex('#704828'), leaf: hex('#2e7a28'), leafLight: hex('#46a03a'), fence: hex('#9a7048'), fenceDark: hex('#6e4c2e')
+};
+
+// ---------- pixel primitives ----------
+function px(x, y, c) {
+  x = Math.round(x);
+  y = Math.round(y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const i = (y * W + x) * 4;
+  img.data[i] = c[0];
+  img.data[i + 1] = c[1];
+  img.data[i + 2] = c[2];
+  img.data[i + 3] = 255;
+}
+
+function rect(x, y, w, h, c) {
+  for (let yy = y; yy < y + h; yy++) {
+    for (let xx = x; xx < x + w; xx++) px(xx, yy, c);
+  }
+}
+
+// Straight line, one pixel wide (Bresenham)
+function line(x0, y0, x1, y1, c) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  while (true) {
+    px(x0, y0, c);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+// Filled polygon with hard edges; colour can be a function of x,y (for textures)
+function fillPoly(points, colour) {
+  const ys = points.map((p) => p[1]);
+  const top = Math.max(0, Math.floor(Math.min(...ys)));
+  const bottom = Math.min(H - 1, Math.ceil(Math.max(...ys)));
+  for (let y = top; y <= bottom; y++) {
+    const cy = y + 0.5;
+    const xs = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      const crosses = (a[1] <= cy && b[1] > cy) || (b[1] <= cy && a[1] > cy);
+      if (crosses) xs.push(a[0] + ((cy - a[1]) * (b[0] - a[0])) / (b[1] - a[1]));
+    }
+    xs.sort((m, n) => m - n);
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      const from = Math.max(0, Math.ceil(xs[k] - 0.5));
+      const to = Math.min(W - 1, Math.floor(xs[k + 1] - 0.5));
+      for (let x = from; x <= to; x++) px(x, y, typeof colour === 'function' ? colour(x, y) : colour);
+    }
+  }
+}
+
+function disc(cx, cy, r, c) {
+  for (let y = -r; y <= r; y++) {
+    for (let x = -r; x <= r; x++) {
+      if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, c);
+    }
+  }
+}
+
+// Same random-looking number for the same x,y every time
+function hash(x, y) {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// ---------- tiny 3 x 5 pixel font ----------
+const FONT = {
+  A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'],
+  D: ['##.', '#.#', '#.#', '#.#', '##.'], E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'],
+  G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'], I: ['###', '.#.', '.#.', '.#.', '###'],
+  J: ['..#', '..#', '..#', '#.#', '.#.'], K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
+  M: ['#.#', '###', '###', '#.#', '#.#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'],
+  P: ['##.', '#.#', '##.', '#..', '#..'], Q: ['.#.', '#.#', '#.#', '##.', '.##'], R: ['##.', '#.#', '##.', '#.#', '#.#'],
+  S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'],
+  V: ['#.#', '#.#', '#.#', '#.#', '.#.'], W: ['#.#', '#.#', '###', '###', '#.#'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'],
+  Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['###', '..#', '.#.', '#..', '###'],
+  0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['##.', '..#', '.#.', '#..', '###'],
+  3: ['##.', '..#', '.#.', '..#', '##.'], 4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '##.', '..#', '##.'],
+  6: ['.##', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'], 8: ['###', '#.#', '###', '#.#', '###'],
+  9: ['###', '#.#', '###', '..#', '##.'],
+  '.': ['...', '...', '...', '...', '.#.'], ',': ['...', '...', '...', '.#.', '#..'], "'": ['.#.', '.#.', '...', '...', '...'],
+  '!': ['.#.', '.#.', '.#.', '...', '.#.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '&': ['.#.', '#.#', '.#.', '#.#', '.##'],
+  '-': ['...', '...', '###', '...', '...'], ':': ['...', '.#.', '...', '.#.', '...'], ' ': ['...', '...', '...', '...', '...']
+};
+
+// ---------- bigger 5 x 7 pixel font, for the sign and the speech bubble ----------
+const BIG = {
+  A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'], B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
+  C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'], D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
+  E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'], F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+  G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.####'], H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+  I: ['.###.', '..#..', '..#..', '..#..', '..#..', '..#..', '.###.'], J: ['..###', '...#.', '...#.', '...#.', '...#.', '#..#.', '.##..'],
+  K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'], L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'],
+  M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'], N: ['#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#', '#...#'],
+  O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+  Q: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'], R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
+  S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'], T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+  U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], V: ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'],
+  W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '#.#.#', '.#.#.'], X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'],
+  Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'], Z: ['#####', '....#', '...#.', '..#..', '.#...', '#....', '#####'],
+  0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'], 1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+  2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'], 3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
+  4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'], 5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+  6: ['.###.', '#....', '#....', '####.', '#...#', '#...#', '.###.'], 7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+  8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'], 9: ['.###.', '#...#', '#...#', '.####', '....#', '....#', '.###.'],
+  '.': ['..', '..', '..', '..', '..', '##', '##'], ',': ['..', '..', '..', '..', '##', '.#', '#.'],
+  "'": ['#', '#', '.', '.', '.', '.', '.'], '!': ['#', '#', '#', '#', '#', '.', '#'],
+  '?': ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'], '&': ['.##..', '#..#.', '#.#..', '.#...', '#.#.#', '#..#.', '.##.#'],
+  '-': ['....', '....', '....', '####', '....', '....', '....'], ' ': ['...', '...', '...', '...', '...', '...', '...']
+};
+
+// Write text in either font; each letter advances by its width plus a 1-pixel gap
+function text(str, x, y, c, scale = 1, font = FONT) {
+  let cx = x;
+  for (const ch of str.toUpperCase()) {
+    const glyph = font[ch] || font[' '];
+    for (let row = 0; row < glyph.length; row++) {
+      for (let col = 0; col < glyph[row].length; col++) {
+        if (glyph[row][col] === '#') rect(cx + col * scale, y + row * scale, scale, scale, c);
+      }
+    }
+    cx += (glyph[0].length + 1) * scale;
+  }
+}
+
+function textWidth(str, scale = 1, font = FONT) {
+  let width = 0;
+  for (const ch of str.toUpperCase()) width += ((font[ch] || font[' '])[0].length + 1) * scale;
+  return width - scale;
+}
+
+// =====================================================================
+// THE BUILDING: front at x 50..240, ground y 142, eaves y 48, apex x 145
+// =====================================================================
+const FL = 50, FR = 240, GROUND = 142, EAVE = 48, APEX_X = 145, APEX_Y = 15;
+const DX = -3, DY = -2;    // one step back = 3 left, 2 up
+const BACK = 40;           // how many steps the building runs back (off the picture)
+
+// ---------- ground ----------
+function drawGround() {
+  // grass everywhere, speckled
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const r = hash(x, y);
+      px(x, y, r < 0.08 ? C.grassDark : r > 0.94 ? C.grassLight : C.grass);
+    }
+  }
+  // concrete forecourt: in front of the building, beside it on the left,
+  // and to the right of it up to the fence line at y 96
+  const yard = (x, y) => {
+    const r = hash(x + 7, y + 3);
+    const slabLine = y === 172 || y === 192 || (y > 96 && (x * 2 + y * 3) % 120 === 0);
+    if (slabLine) return C.concreteDark;
+    return r < 0.05 ? C.concreteDark : C.concrete;
+  };
+  fillPoly([[FL, GROUND], [FL + DX * BACK, GROUND + DY * BACK], [-10, 210], [330, 210], [330, 96], [FR, 96], [FR, GROUND]], yard);
+  // oil stains
+  for (const [sx, sy, sr] of [[100, 160, 3], [262, 128, 3], [40, 137, 2]]) {
+    for (let y = -sr; y <= sr; y++) {
+      for (let x = -sr * 2; x <= sr * 2; x++) {
+        if ((x * x) / 4 + y * y <= sr * sr) px(sx + x, sy + y, C.stain);
+      }
+    }
+  }
+  // pavement, kerb, road
+  rect(0, 210, W, 6, C.pavement);
+  for (let x = 4; x < W; x += 12) rect(x, 210, 1, 6, C.concreteDark);
+  rect(0, 216, W, 1, C.kerb);
+  rect(0, 217, W, 1, C.concreteDark);
+  for (let y = 218; y < H; y++) {
+    for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.roadDark : C.road);
+  }
+  rect(0, 220, W, 1, C.yellow);
+  rect(0, 222, W, 1, C.yellow);
+  for (let x = 6; x < W; x += 24) rect(x, 233, 12, 1, C.white);
+}
+
+// ---------- background: a tree and a fence on the right ----------
+function drawBackground() {
+  rect(276, 36, 4, 18, C.trunk);
+  disc(278, 24, 13, C.leaf);
+  disc(274, 20, 8, C.leafLight);
+  disc(284, 28, 6, C.leafLight);
+  for (let x = 241; x < W; x++) {
+    px(x, 90, C.fence);
+    px(x, 93, C.fence);
+    px(x, 96, C.fenceDark);
+  }
+  for (let x = 243; x < W; x += 8) rect(x, 88, 2, 9, C.fenceDark);
+}
+
+// Point on the left side wall: t steps back, h pixels up
+const sidePoint = (t, h) => [FL + DX * t, GROUND + DY * t - h];
+
+function drawSideWall() {
+  const top = GROUND - EAVE;  // wall height in pixels
+  const wallColour = (x, y) => {
+    const t = (FL - x) / 3;                 // steps back
+    const h = Math.floor(GROUND + DY * t - y); // height above the ground at that point
+    const row = Math.floor(h / 4);
+    if (h % 4 === 3) return C.sideMortar;
+    if ((x + (row % 2) * 5) % 10 === 0) return C.sideMortar;
+    return hash(Math.floor((x + (row % 2) * 5) / 10), row) < 0.3 ? C.sideBrick2 : C.sideBrick;
+  };
+  fillPoly([sidePoint(0, 0), sidePoint(BACK, 0), sidePoint(BACK, top), sidePoint(0, top)], wallColour);
+  // two windows along the side
+  for (const t0 of [7, 19]) {
+    fillPoly([sidePoint(t0, 44), sidePoint(t0 + 5, 44), sidePoint(t0 + 5, 70), sidePoint(t0, 70)], C.cream);
+    fillPoly([sidePoint(t0 + 0.5, 46), sidePoint(t0 + 4.5, 46), sidePoint(t0 + 4.5, 68), sidePoint(t0 + 0.5, 68)], C.glass);
+    const a = sidePoint(t0 + 1.2, 49), b = sidePoint(t0 + 1.2, 64);
+    line(a[0], a[1], b[0], b[1], C.glassLight);
+  }
+  // ground line
+  const g0 = sidePoint(0, 0), g1 = sidePoint(BACK, 0);
+  line(g0[0], g0[1], g1[0], g1[1], C.black);
+}
+
+// Roof slope texture: rows of tiles running back, joints running up the slope
+function roofTexture(base, gable, fill, lineColour) {
+  const ux = gable[0], uy = gable[1];               // up-the-slope vector
+  const det = ux * DY - uy * DX;
+  const slopeLength = Math.hypot(ux, uy);
+  return (x, y) => {
+    const qx = x + 0.5 - base[0];
+    const qy = y + 0.5 - base[1];
+    const s = (qx * DY - qy * DX) / det;           // 0 at the eave, 1 at the ridge
+    const t = (ux * qy - uy * qx) / det;           // steps back
+    const rowPos = (s * slopeLength) / 5;
+    const row = Math.floor(rowPos);
+    if (rowPos - row < 0.22) return lineColour;
+    const colPos = (t * 3.6 + (row % 2) * 4.5) / 9;
+    if (colPos - Math.floor(colPos) < 0.12) return lineColour;
+    return fill;
+  };
+}
+
+function drawRoof() {
+  const leftEave = [FL - 4, EAVE + 2];
+  const rightEave = [FR + 4, EAVE + 2];
+  const apex = [APEX_X, APEX_Y - 4];
+  const back = (p) => [p[0] + DX * BACK, p[1] + DY * BACK];
+  // left slope (in shade) and right slope (in sun)
+  fillPoly([apex, leftEave, back(leftEave), back(apex)], roofTexture(leftEave, [apex[0] - leftEave[0], apex[1] - leftEave[1]], C.roofL, C.roofLLine));
+  fillPoly([apex, rightEave, back(rightEave), back(apex)], roofTexture(rightEave, [apex[0] - rightEave[0], apex[1] - rightEave[1]], C.roofR, C.roofRLine));
+  // ridge tiles and the eave boards
+  const ra = back(apex);
+  line(apex[0], apex[1], ra[0], ra[1], C.ridge);
+  line(apex[0] + 1, apex[1], ra[0] + 1, ra[1], C.roofRLine);
+  const le = back(leftEave);
+  line(leftEave[0], leftEave[1], le[0], le[1], C.white);
+  line(leftEave[0], leftEave[1] + 1, le[0], le[1] + 1, C.black);
+  const re = back(rightEave);
+  line(rightEave[0], rightEave[1], re[0], re[1], C.white);
+  line(rightEave[0] + 1, rightEave[1], re[0] + 1, re[1], C.black);
+}
+
+function drawFront() {
+  // bricks on the front wall
+  const brickColour = (x, y) => {
+    const h = GROUND - y;
+    const row = Math.floor(h / 4);
+    if (h % 4 === 0) return C.mortar;
+    if ((x + (row % 2) * 5) % 10 === 0) return C.mortar;
+    const r = hash(Math.floor((x + (row % 2) * 5) / 10), row + 50);
+    return r < 0.25 ? C.brick2 : r > 0.85 ? C.brick3 : C.brick;
+  };
+  fillPoly([[FL, EAVE], [FR + 1, EAVE], [FR + 1, GROUND], [FL, GROUND]], brickColour);
+  // gable triangle with cream boards
+  fillPoly([[FL, EAVE], [APEX_X, APEX_Y], [FR + 1, EAVE]], (x, y) => (y % 3 === 0 ? C.creamDark : C.cream));
+  // round vent and the date
+  disc(APEX_X, 29, 4, C.frame);
+  for (let y = 26; y <= 32; y += 2) rect(APEX_X - 3, y, 7, 1, C.black);
+  text('EST 1987', APEX_X - textWidth('EST 1987') / 2, 37, C.creamDark.map((v) => v - 50));
+  // barge boards along the gable
+  for (const k of [0, 1]) {
+    line(FL - 4, EAVE + 2 - k, APEX_X, APEX_Y - 4 - k, C.white);
+    line(APEX_X, APEX_Y - 4 - k, FR + 4, EAVE + 2 - k, C.white);
+  }
+  line(FL - 4, EAVE + 3, APEX_X, APEX_Y - 2, C.black);
+  line(APEX_X, APEX_Y - 2, FR + 4, EAVE + 3, C.black);
+  // fascia band under the eaves, plinth, corners
+  rect(FL, EAVE, FR - FL + 1, 2, C.white);
+  rect(FL, GROUND - 2, FR - FL + 1, 2, C.frame);
+  line(FL, EAVE, FL, GROUND, C.black);
+  line(FR + 1, EAVE, FR + 1, GROUND, C.black);
+  line(FL, GROUND, FR + 1, GROUND, C.black);
+  drawSign();
+  drawRollerDoor();
+  drawOfficeDoor();
+}
+
+function drawSign() {
+  const x = 75, y = 52, w = 140, h = 20;
+  rect(x - 1, y - 1, w + 2, h + 2, C.black);
+  rect(x, y, w, h, C.signBlue);
+  rect(x + 1, y + 1, w - 2, 1, C.gold);
+  rect(x + 1, y + h - 2, w - 2, 1, C.gold);
+  rect(x + 1, y + 1, 1, h - 2, C.gold);
+  rect(x + w - 2, y + 1, 1, h - 2, C.gold);
+  const name = 'SPANNER & SON';
+  const nx = x + Math.floor((w - textWidth(name, 1, BIG)) / 2);
+  text(name, nx + 1, y + 4, C.signDark, 1, BIG);       // drop shadow
+  text(name, nx, y + 3, C.gold, 1, BIG);
+  const sub = 'MOTOR REPAIRS - MOT - TYRES';
+  text(sub, x + Math.floor((w - textWidth(sub)) / 2), y + 13, C.white);
+}
+
+function drawRollerDoor() {
+  const x = 72, y = 75, w = 107, h = GROUND - 2 - 75;
+  rect(x - 2, y - 3, w + 4, h + 3, C.frame);            // steel frame
+  rect(x - 3, y - 4, w + 6, 3, C.steelDark);           // roll box
+  for (let yy = y; yy < y + h; yy++) {
+    const band = (yy - y) % 4;
+    const c = band === 0 ? C.steelDark : band === 1 ? C.steelLight : C.steel;
+    rect(x, yy, w, 1, c);
+  }
+  rect(x, y + h - 2, w, 2, C.frame);                   // bottom rail
+  rect(166, 112, 3, 4, C.black);                       // lock
+  rect(167, 113, 1, 2, C.steelLight);
+  // rust streak
+  for (let yy = y + 6; yy < y + 30; yy++) if (hash(yy, 3) < 0.6) px(100 + (yy % 3 === 0 ? 1 : 0), yy, C.rust);
+}
+
+function drawOfficeDoor() {
+  const x = 199, y = 99, w = 29, h = GROUND - 2 - 99;
+  rect(x - 2, y - 2, w + 4, h + 2, C.white);
+  rect(x, y, w, h, C.doorBlue);
+  rect(x + 3, y + 3, w - 6, 18, C.glass);
+  line(x + 5, y + 18, x + 12, y + 5, C.glassLight);
+  rect(x + 6, y + 8, 17, 7, C.white);
+  text('OPEN', x + 7, y + 9, C.red);
+  rect(x + w - 5, y + 24, 2, 2, C.gold);              // door knob
+  // lamp above the door
+  rect(x + 11, y - 9, 7, 3, C.black);
+  rect(x + 12, y - 6, 5, 1, C.lamp);
+}
+
+// =====================================================================
+// FORECOURT: tyres, the broken car
+// =====================================================================
+function drawTyres() {
+  // a stack of four tyres, each with rounded ends and a tread line
+  for (let i = 0; i < 4; i++) {
+    const ty = 136 - i * 5;
+    rect(23, ty, 13, 5, C.tyre);
+    rect(22, ty + 1, 15, 3, C.tyre);
+    rect(24, ty + 1, 11, 1, C.frame);
+    for (let x = 25; x < 35; x += 2) px(x, ty + 3, C.black);
+    rect(23, ty + 4, 13, 1, C.black);
+  }
+  rect(25, 116, 9, 1, C.black);                        // hole in the top tyre
+}
+
+function drawCar() {
+  // shadow and oil puddle on the ground
+  rect(20, 197, 140, 3, C.concreteDark);
+  for (let x = -14; x <= 14; x++) {
+    for (let y = -2; y <= 2; y++) if ((x * x) / 196 + (y * y) / 4 <= 1) px(152 + x, 201 + y, C.bay);
+  }
+  px(146, 200, C.glassLight);
+  px(147, 200, C.glassLight);
+
+  // lower body with clipped corners
+  rect(17, 163, 144, 27, C.car);
+  rect(17, 163, 2, 2, C.concrete); rect(159, 163, 2, 2, C.concrete);
+  rect(18, 164, 142, 1, C.carLight);                   // shoulder highlight
+  rect(17, 186, 144, 4, C.carDark);                    // sill
+  rect(15, 178, 4, 10, C.frame);                       // rear bumper
+  rect(159, 178, 4, 10, C.frame);                      // front bumper
+  // cabin
+  fillPoly([[24, 163], [31, 146], [93, 146], [111, 163]], C.car);
+  rect(31, 146, 62, 1, C.carLight);
+  fillPoly([[28, 161], [33, 149], [91, 149], [105, 161]], C.glass);
+  line(70, 160, 78, 150, C.glassLight);
+  line(73, 160, 81, 150, C.glassLight);
+  line(40, 160, 45, 151, C.glassLight);
+  rect(41, 149, 2, 13, C.car);                         // C pillar
+  rect(64, 149, 2, 13, C.car);                         // B pillar
+  rect(104, 158, 4, 3, C.black);                       // wing mirror
+  // odd red front door (second-hand)
+  rect(66, 163, 40, 23, C.carDoor);
+  rect(66, 164, 40, 1, hex('#e06060'));
+  rect(66, 184, 40, 2, C.carDoorDark);
+  for (const dx of [40, 66, 105]) rect(dx, 163, 1, 23, C.carDark);
+  rect(56, 168, 5, 1, C.black);
+  rect(96, 168, 5, 1, C.black);
+  // lights
+  rect(17, 166, 2, 6, C.red);
+  rect(158, 166, 3, 4, C.lamp);
+  rect(158, 171, 3, 2, C.amber);
+  // rust by the rear arch
+  for (const [rx, ry] of [[30, 176], [31, 177], [58, 179], [57, 180], [33, 175]]) px(rx, ry, C.rust);
+
+  // wheel arches then wheels (the back one is flat)
+  for (const wx of [45, 133]) {
+    for (let y = -12; y <= 0; y++) for (let x = -12; x <= 12; x++) if (x * x + y * y <= 150) px(wx + x, 189 + y, C.black);
+  }
+  wheel(45, 189, true);
+  wheel(133, 188, false);
+
+  // engine bay with the bonnet up
+  rect(111, 160, 46, 4, C.bay);
+  rect(122, 156, 18, 7, C.engine);
+  rect(124, 155, 14, 2, C.red);                        // rocker cover
+  rect(144, 157, 8, 6, C.black);                       // battery
+  px(146, 156, C.red);
+  rect(114, 155, 4, 8, C.cream);                       // coolant bottle
+  // bonnet: hinged at the windscreen, front edge lifted up
+  for (let k = -1; k <= 1; k++) line(110 + k, 161, 137 + k, 133, k === 0 ? C.carDark : C.car);
+  line(108, 161, 135, 133, C.black);
+  line(112, 162, 139, 134, C.black);
+  line(151, 160, 134, 137, C.steelLight);              // bonnet stay
+  // steam
+  for (const [sx, sy, sr, c] of [[130, 146, 4, C.steamDark], [136, 141, 5, C.steam], [144, 136, 4, C.steam], [150, 131, 3, C.steamDark], [128, 151, 3, C.steam]]) disc(sx, sy, sr, c);
+}
+
+function wheel(cx, cy, flat) {
+  disc(cx, cy, 10, C.tyre);
+  if (flat) {
+    rect(cx - 11, cy + 7, 23, 2, C.tyre);              // flat bulge on the ground
+    rect(cx - 12, cy + 8, 25, 1, C.tyre);
+    rect(cx - 12, cy + 10, 25, 1, C.concreteDark);
+  }
+  disc(cx, cy, 5, C.rim);
+  disc(cx, cy, 2, C.frame);
+  px(cx - 3, cy - 3, C.white);
+}
+
+// =====================================================================
+// PEOPLE: the owner (facing right) and the mechanic (facing left)
+// =====================================================================
+function drawOwner() {
+  const x = 182;   // left edge of the figure
+  rect(x, 184, 13, 2, C.concreteDark);                 // shadow
+  // legs and trainers
+  rect(x + 2, 163, 3, 18, C.jeansDark);
+  rect(x + 6, 163, 3, 18, C.jeans);
+  rect(x + 2, 181, 4, 3, C.white);
+  rect(x + 6, 181, 5, 3, C.white);
+  // jacket
+  rect(x + 1, 148, 10, 15, C.jacket);
+  rect(x + 1, 148, 2, 15, C.jacketDark);
+  rect(x + 8, 149, 1, 14, C.jacketDark);              // zip
+  rect(x + 4, 148, 4, 2, C.cream);                     // T-shirt collar
+  // front arm, hand on hip
+  rect(x + 10, 149, 2, 7, C.jacketDark);
+  rect(x + 9, 155, 2, 2, C.skin);
+  // head
+  rect(x + 2, 140, 8, 7, C.skin);
+  rect(x + 1, 137, 9, 3, C.hair);
+  rect(x + 1, 140, 2, 4, C.hair);
+  px(x + 10, 143, C.skin);                             // nose
+  px(x + 7, 142, C.black);                             // eye
+  px(x + 6, 141, C.hair);                              // worried brow
+  rect(x + 7, 145, 2, 1, C.skinDark);                  // mouth
+  px(x + 3, 143, C.skinDark);                          // ear
+  rect(x + 5, 147, 2, 1, C.skinDark);                  // neck
+  // back arm up, hand on head
+  rect(x - 1, 140, 2, 9, C.jacketDark);
+  rect(x, 136, 4, 2, C.skin);
+  px(x - 1, 138, C.skin);
+  // sweat drop
+  px(x + 12, 138, C.sweat);
+  rect(x + 11, 139, 3, 2, C.sweat);
+}
+
+function drawMechanic() {
+  const x = 212;   // left edge of the figure
+  rect(x - 1, 206, 15, 2, C.concreteDark);             // shadow
+  // legs and boots
+  rect(x + 7, 186, 4, 17, C.overallsDark);
+  rect(x + 2, 186, 4, 17, C.overalls);
+  rect(x + 6, 203, 5, 3, C.black);
+  rect(x, 203, 6, 3, C.black);
+  // overalls body
+  rect(x + 1, 167, 11, 19, C.overalls);
+  rect(x + 10, 167, 2, 19, C.overallsDark);
+  rect(x + 1, 177, 11, 1, C.orange);                   // hi-vis band
+  rect(x + 3, 170, 3, 2, C.white);                     // name patch
+  rect(x + 12, 178, 2, 5, C.red);                      // rag in back pocket
+  px(x + 7, 173, C.black);                             // grease spot
+  // back arm hanging
+  rect(x + 11, 168, 2, 9, C.overallsDark);
+  rect(x + 11, 177, 2, 2, C.skinDark);
+  // head
+  rect(x + 2, 159, 8, 7, C.skin);
+  rect(x + 2, 156, 9, 3, C.cap);
+  rect(x - 1, 159, 5, 1, C.cap);                       // cap peak
+  rect(x + 3, 156, 6, 1, hex('#f05050'));
+  rect(x + 9, 159, 2, 3, C.hair);
+  px(x + 1, 162, C.skin);                              // nose
+  px(x + 4, 161, C.black);                             // eye
+  rect(x + 2, 163, 4, 1, C.moustache);
+  rect(x + 3, 164, 2, 1, hex('#802020'));              // mouth open: talking
+  px(x + 8, 162, C.skinDark);                          // ear
+  rect(x + 5, 166, 3, 1, C.skinDark);                  // neck
+  // front arm raised, waving a spanner at the car
+  rect(x - 3, 169, 5, 3, C.overalls);
+  rect(x - 5, 164, 3, 6, C.overalls);
+  rect(x - 5, 162, 3, 2, C.skin);
+  rect(x - 4, 154, 1, 8, C.steel);
+  rect(x - 6, 152, 2, 2, C.steel);
+  rect(x - 3, 152, 2, 2, C.steel);
+}
+
+// =====================================================================
+// SPEECH BUBBLE from the mechanic
+// =====================================================================
+function drawBubble() {
+  const lines = ['OOH, NOT GOOD.', 'EARLIEST I CAN', 'LOOK AT IT IS', '3 MONTHS, MATE.'];
+  const w = Math.max(...lines.map((ln) => textWidth(ln, 1, BIG))) + 12;
+  const h = lines.length * 10 + 8;
+  const x = W - 2 - w, y = 62;
+  const bottom = y + h - 1;
+  // tail: white wedge with a black edge, pointing at the mechanic's head
+  const tip = [221, 152];
+  const t0 = x + 10, t1 = x + 22;
+  fillPoly([[t0, bottom], [t1, bottom], tip], C.white);
+  line(t0, bottom, tip[0], tip[1], C.black);
+  line(t1, bottom, tip[0], tip[1], C.black);
+  // rounded box
+  rect(x + 2, y, w - 4, h, C.white);
+  rect(x, y + 2, w, h - 4, C.white);
+  rect(x + 1, y + 1, w - 2, h - 2, C.white);
+  rect(x + 2, y - 1, w - 4, 1, C.black);
+  rect(x + 2, y + h, w - 4, 1, C.black);
+  rect(x - 1, y + 2, 1, h - 4, C.black);
+  rect(x + w, y + 2, 1, h - 4, C.black);
+  for (const [cx, cy] of [[x, y + 1], [x + 1, y], [x + w - 1, y + 1], [x + w - 2, y], [x, y + h - 2], [x + 1, y + h - 1], [x + w - 1, y + h - 2], [x + w - 2, y + h - 1]]) px(cx, cy, C.black);
+  rect(t0 + 1, bottom, t1 - t0 - 1, 2, C.white);       // open the box where the tail joins
+  lines.forEach((ln, i) => text(ln, x + 6, y + 5 + i * 10, C.black, 1, BIG));
+}
+
+// =====================================================================
+// PAINT THE PICTURE ONCE, THEN SCALE IT TO THE WINDOW
+// =====================================================================
+function paint() {
+  drawGround();
+  drawBackground();
+  drawSideWall();
+  drawRoof();
+  drawFront();
+  drawTyres();
+  drawCar();
+  drawOwner();
+  drawMechanic();
+  drawBubble();
+  ctx.putImageData(img, 0, 0);
+}
+
+// Whole-number scaling keeps every pixel the same size (falls back to a fit on small screens)
+function fit() {
+  const best = Math.min(window.innerWidth / W, window.innerHeight / H);
+  const scale = best >= 2 ? Math.floor(best) : best;
+  canvas.style.width = `${W * scale}px`;
+  canvas.style.height = `${H * scale}px`;
+}
+
+paint();
+fit();
+window.addEventListener('resize', fit);
+</script>
+</body>
+</html>

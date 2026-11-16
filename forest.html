@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>The Thankless Task — the forest</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#06080a;overflow:hidden;touch-action:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+  #c{position:absolute;display:block}
+  .ui{font-family:'Silkscreen',monospace;color:#cfd8cf;letter-spacing:1px}
+  #msg{position:absolute;left:0;right:0;text-align:center;font-size:13px;opacity:0;transition:opacity 1.4s;
+    pointer-events:none;text-shadow:0 0 10px rgba(160,255,220,.35);padding:0 18px}
+  #hint{position:absolute;left:0;right:0;text-align:center;font-size:10px;opacity:.75;transition:opacity 2s;pointer-events:none;
+    bottom:calc(64px + env(safe-area-inset-bottom))}
+  button.ui{position:absolute;background:rgba(10,14,16,.55);border:1px solid rgba(207,216,207,.35);border-radius:0;
+    padding:10px 14px;font-size:12px;cursor:pointer;touch-action:none}
+  button.ui:active{background:rgba(159,243,208,.18)}
+  #sword{right:calc(14px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));font-size:14px;padding:12px 18px}
+  #mute{right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));font-size:10px;padding:6px 9px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="msg" class="ui"></div>
+<div id="hint" class="ui">hold left or right side to walk · ⚔ to raise your sword</div>
+<button id="sword" class="ui" aria-label="Raise sword">⚔</button>
+<button id="mute" class="ui">sound: on</button>
+<script>
+(() => {
+"use strict";
+// ---------- setup ----------
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const buf = document.createElement('canvas');   // low-res pixel buffer
+const bctx = buf.getContext('2d');
+const skyC = document.createElement('canvas');
+const msgEl = document.getElementById('msg');
+const hintEl = document.getElementById('hint');
+
+const WORLD = 720;          // world width in pixels (low-res)
+const SPEED = 20;           // walking speed, px/s
+let W = 160, H = 90, GY = 74, scale = 1, dpr = 1, S = 1;
+
+// seeded random so the forest is the same every time
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng = mulberry32(1312);
+
+// ---------- world generation ----------
+function makeTrees(f, minGap, maxGap, hmin, hmax, wmin, wmax){
+  const span = WORLD * f + 420, a = [];
+  let x = -30;
+  while (x < span){
+    a.push({x: Math.round(x), h: (hmin + rng()*(hmax-hmin))|0, w: (wmin + rng()*(wmax-wmin))|0});
+    x += minGap + rng()*(maxGap-minGap);
+  }
+  return a;
+}
+const layers = [
+  {f:0.30, dy:-6, col:'#27353d', trees: makeTrees(0.30, 5, 13, 12, 24, 5, 9),  haze:0.30},
+  {f:0.55, dy:-3, col:'#1b272d', trees: makeTrees(0.55, 9, 22, 18, 34, 7, 12), haze:0.20},
+  {f:0.80, dy: 0, col:'#11191d', trees: makeTrees(0.80, 16, 40, 28, 50, 9, 15), haze:0},
+];
+const mountains = [
+  {f:0.06, col:'#4a5966', base:-7, amp:[13,7,3], fr:[0.021,0.057,0.15], ph:1.3, h0:14},
+  {f:0.14, col:'#34434d', base:-6, amp:[8,5,2],  fr:[0.034,0.081,0.21], ph:4.1, h0:8},
+];
+const grass = [];
+for (let x = 0; x < WORLD; x += 2 + (rng()*7|0)) grass.push({x, h: 1 + (rng()*3|0)});
+const fgTrunks = [];
+for (let x = 120; x < WORLD*1.35 + 400; x += 150 + rng()*170) fgTrunks.push({x: Math.round(x), w: 4 + (rng()*5|0)});
+const fireflies = [];
+for (let i = 0; i < 42; i++) fireflies.push({bx: rng()*WORLD, by: 6 + rng()*30, ph: rng()*6.283, sp: 0.5 + rng(), ox:0, oy:0});
+const wisps = [];
+for (let i = 0; i < 9; i++) wisps.push({x: rng()*WORLD*0.9, y: rng()*10 - 4, w: 40 + rng()*50, sp: 1 + rng()*2.5});
+const shafts = [{x:40,w:16,s:26},{x:150,w:10,s:22},{x:260,w:22,s:30},{x:390,w:12,s:24}];
+
+const stone = {x: 430, lit: false, seen: false, litT: 0};
+const motes = [];
+// ph = walk cycle (0 to 1, one full stride), walkMix = 0 standing still to 1 fully walking
+const player = {x: 36, dir: 1, ph: 0, walkMix: 0, walking: false, raise: 0};
+
+// body sizes, in pixels (feet at -1, just above the ground line)
+const HIP_Y = -9, SHOULDER_Y = -14, THIGH = 4.05, SHIN = 4.05, UPPER_ARM = 3.4, FOREARM = 3.2;
+const STRIDE = 3;           // how far each foot reaches in front of and behind the hips
+const LIFT = 2;             // how high a foot lifts as it swings forward
+const SWORD_TIP_Y = -29;    // top of the raised blade
+let camX = 0, T = 0, endSeen = false, walked = false;
+
+// ---------- layout ----------
+const SKY = [[24,30,46],[36,46,64],[54,67,84],[82,98,106],[120,136,132],[160,170,152],[186,184,160]];
+function buildSky(){
+  skyC.width = W; skyC.height = H;
+  const s = skyC.getContext('2d'), img = s.createImageData(W, H), d = img.data;
+  const hz = GY - 2, bayer = [[0.1,0.6],[0.85,0.35]];
+  for (let y = 0; y < H; y++){
+    const t = Math.min(1, Math.max(0, y / hz)) * (SKY.length - 1);
+    const i = Math.min(SKY.length - 1, Math.floor(t)), f = t - i;
+    const fd = Math.min(1, Math.max(0, (f - 0.62) / 0.38)); // dither only near band edges
+    for (let x = 0; x < W; x++){
+      const k = Math.min(SKY.length - 1, fd > bayer[y&1][x&1] ? i + 1 : i), c = SKY[k], o = (y*W + x)*4;
+      d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=255;
+    }
+  }
+  s.putImageData(img, 0, 0);
+}
+function resize(){
+  const vw = innerWidth, vh = innerHeight;
+  scale = Math.max(1, Math.floor(Math.min(vw/128, vh/72)));
+  W = Math.ceil(vw / scale);
+  H = Math.max(72, Math.min(Math.ceil(vh / scale), Math.round(W * 0.8), 140));
+  GY = H - 16;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  S = scale * dpr;
+  const cw = W*scale, ch = H*scale, left = (vw - cw)/2, top = (vh - ch)/2;
+  Object.assign(canvas.style, {width: cw+'px', height: ch+'px', left: left+'px', top: top+'px'});
+  canvas.width = Math.round(cw*dpr); canvas.height = Math.round(ch*dpr);
+  buf.width = W; buf.height = H;
+  msgEl.style.top = Math.max(top, 0) + ch*0.12 + 'px';
+  buildSky();
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- audio (all generated, no files) ----------
+let ac = null, master = null, noiseBuf = null, muted = false;
+function initAudio(){
+  if (ac){ if (ac.state === 'suspended') ac.resume().catch(()=>{}); return; }
+  try {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ac.destination);
+    // low drone
+    const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 360; lp.connect(master);
+    const dg = ac.createGain(); dg.gain.value = 0.05; dg.connect(lp);
+    [55, 82.41, 110.3].forEach((f,i) => { const o = ac.createOscillator(); o.type = i===2 ? 'sine' : 'triangle';
+      o.frequency.value = f; o.detune.value = (i-1)*7; o.connect(dg); o.start(); });
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.07; lg.gain.value = 0.025;
+    lfo.connect(lg); lg.connect(dg.gain); lfo.start();
+    // wind
+    noiseBuf = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate);
+    const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+    const ns = ac.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true;
+    const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 600; bp.Q.value = 0.8;
+    const wg = ac.createGain(); wg.gain.value = 0.022;
+    ns.connect(bp); bp.connect(wg); wg.connect(master); ns.start();
+    const wl = ac.createOscillator(), wlg = ac.createGain(); wl.frequency.value = 0.11; wlg.gain.value = 320;
+    wl.connect(wlg); wlg.connect(bp.frequency); wl.start();
+    if (ac.state === 'suspended') ac.resume().catch(()=>{});
+  } catch(e){ ac = null; }
+}
+function chime(freqs, vol){
+  if (!ac) return; const t = ac.currentTime;
+  freqs.forEach((f,i) => { const st = t + i*0.13, o = ac.createOscillator(), g = ac.createGain();
+    o.type='sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, st); g.gain.linearRampToValueAtTime(vol, st+0.02); g.gain.exponentialRampToValueAtTime(0.0001, st+2.6);
+    o.connect(g); g.connect(master); o.start(st); o.stop(st+2.7); });
+}
+function footstep(){
+  if (!ac || !noiseBuf) return; const t = ac.currentTime;
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noiseBuf; f.type='lowpass'; f.frequency.value = 650 + Math.random()*200;
+  g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()*1.5, 0.1);
+}
+document.addEventListener('visibilitychange', () => { if (!ac) return;
+  if (document.hidden) ac.suspend().catch(()=>{}); else ac.resume().catch(()=>{}); });
+
+// ---------- text ----------
+let msgTimer = 0;
+function say(t, ms = 4000){
+  msgEl.textContent = t; msgEl.style.opacity = 1;
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => msgEl.style.opacity = 0, ms);
+}
+
+// ---------- input ----------
+const keys = {l:false, r:false};
+let touchDir = 0, activeId = null;
+function dirFromX(x){ return x < innerWidth/2 ? -1 : 1; }
+addEventListener('pointerdown', e => {
+  if (e.target.closest('button')) return;
+  initAudio(); activeId = e.pointerId; touchDir = dirFromX(e.clientX);
+});
+addEventListener('pointermove', e => { if (e.pointerId === activeId) touchDir = dirFromX(e.clientX); });
+['pointerup','pointercancel'].forEach(t => addEventListener(t, e => { if (e.pointerId === activeId){ activeId = null; touchDir = 0; } }));
+addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('keydown', e => {
+  initAudio();
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.r = true;
+  if ((e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') && !e.repeat){ e.preventDefault(); raiseSword(); }
+});
+addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.r = false;
+});
+document.getElementById('sword').addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); raiseSword(); });
+const muteBtn = document.getElementById('mute');
+muteBtn.addEventListener('click', () => { initAudio(); muted = !muted;
+  if (master) master.gain.value = muted ? 0 : 0.9; muteBtn.textContent = 'sound: ' + (muted ? 'off' : 'on'); });
+
+function raiseSword(){
+  if (player.raise > 0) return;
+  player.raise = 1.5;
+  if (Math.abs(player.x - stone.x) < 16 && !stone.lit){
+    stone.lit = true; stone.litT = 0;
+    chime([523.25, 659.25, 783.99, 1046.5], 0.07);
+    setTimeout(() => say('it wakes. it remembers you.', 4500), 600);
+  } else {
+    chime([392, 587.33], 0.05);
+  }
+}
+
+// ---------- drawing helpers (low-res buffer) ----------
+function pine(cx, base, h, w){
+  bctx.fillRect(cx, base - h, 1, h);
+  const tiers = Math.max(2, Math.round(h/7)), th = (h - 2)/tiers, mh = w/2;
+  for (let r = 0; r < h - 2; r++){
+    const p = (r % th)/th, taper = 1 - r/(h - 2);
+    const hw = Math.round(mh * taper * (1 - 0.55*p));
+    if (hw > 0) bctx.fillRect(cx - hw, base - 3 - r, hw*2 + 1, 1);
+  }
+}
+function haze(y0, y1, a){
+  if (a <= 0) return;
+  const g = bctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, 'rgba(150,170,164,0)'); g.addColorStop(1, `rgba(150,170,164,${a})`);
+  bctx.fillStyle = g; bctx.fillRect(0, y0, W, y1 - y0);
+}
+function drawMountains(m){
+  const off = Math.round(camX * m.f);
+  bctx.fillStyle = m.col;
+  for (let x = 0; x < W; x++){
+    const wx = x + off;
+    const h = m.h0 + m.amp[0]*Math.sin(wx*m.fr[0] + m.ph) + m.amp[1]*Math.sin(wx*m.fr[1] + m.ph*2) + m.amp[2]*Math.sin(wx*m.fr[2]);
+    const top = Math.round(GY + m.base - Math.max(2, h));
+    bctx.fillRect(x, top, 1, H - top);
+  }
+}
+function drawTreeLayer(L){
+  const off = Math.round(camX * L.f), base = GY + L.dy;
+  bctx.fillStyle = L.col;
+  for (const t of L.trees){
+    const sx = t.x - off;
+    if (sx < -t.w || sx > W + t.w) continue;
+    pine(sx, base, t.h, t.w);
+  }
+  bctx.fillRect(0, base, W, H - base);
+}
+// The wanderer: tall and thin, 1-pixel limbs, drawn from joint positions each frame
+function drawPlayer(sx){
+  const d = player.dir, y0 = GY;
+  const C = '#d9d4c5', C2 = '#8d897e', CAPE = '#7d7a70', BL = '#eef7f2', HILT = '#b8ae92', SHEATH = '#6f7c7a';
+  // P = filled box, dot = one pixel, line = 1-pixel line; all in "facing right" coordinates, mirrored when facing left
+  const P = (dx, dy, w, h, c) => { bctx.fillStyle = c; bctx.fillRect(d > 0 ? sx + dx : sx - dx - w + 1, y0 + dy, w, h); };
+  const dot = (dx, dy) => bctx.fillRect(d > 0 ? sx + dx : sx - dx, y0 + dy, 1, 1);
+  const line = (a, b, c) => { bctx.fillStyle = c; pixelLine(Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), dot); };
+
+  const mix = player.walkMix;
+  const raised = player.raise > 0;
+  // the body dips a pixel when both feet are apart, so the legs stay straight-ish and the walk has a gentle bob
+  const feetApart = Math.cos(4*Math.PI*player.ph) > 0.3;
+  const bob = (mix > 0.5 && feetApart) ? 1 : 0;
+
+  // ---- legs: blend the standing pose with the walk ----
+  const legFor = (hipX, standX, q) => {
+    const hip = {x: hipX, y: HIP_Y + bob};
+    const walkFoot = footAt(q);
+    const foot = {x: standX + (walkFoot.x - standX)*mix, y: -1 + (walkFoot.y + 1)*mix};
+    return {hip, knee: kneeFor(hip, foot), foot};
+  };
+  const farLeg = legFor(0, -0.6, (player.ph + 0.5) % 1);
+  const nearLeg = legFor(1, 1.6, player.ph);
+
+  // ---- arms: each swings opposite its own leg ----
+  const armFor = (shoulderX, q) => {
+    const shoulder = {x: shoulderX, y: SHOULDER_Y + bob};
+    const swing = -0.55 * Math.cos(2*Math.PI*q) * mix;   // angle from straight down; + is forward
+    const bend = 0.15 + 0.35*mix;                       // elbow bends forward a little while walking
+    const elbow = {x: shoulder.x + UPPER_ARM*Math.sin(swing), y: shoulder.y + UPPER_ARM*Math.cos(swing)};
+    const hand = {x: elbow.x + FOREARM*Math.sin(swing + bend), y: elbow.y + FOREARM*Math.cos(swing + bend)};
+    return {shoulder, elbow, hand};
+  };
+  const farArm = armFor(0, (player.ph + 0.5) % 1);
+  const nearArm = armFor(1, player.ph);
+
+  // ---- back to front: cape, sword on back, far limbs, body, near limbs ----
+  const flutter = mix * (0.12 + 0.08*Math.sin(T*9));
+  for (let r = 0; r < 6; r++){
+    const back = Math.round(r * (0.12 + flutter));
+    P(-1 - back, SHOULDER_Y - 1 + bob + r, back + 1, 1, CAPE);
+  }
+  if (!raised){
+    line({x: -2, y: -18 + bob}, {x: 0, y: -10 + bob}, SHEATH);
+    P(-2, -19 + bob, 1, 1, HILT);
+  }
+  line(farLeg.hip, farLeg.knee, C2); line(farLeg.knee, farLeg.foot, C2);
+  if (raised) line(farArm.shoulder, {x: -0.4, y: SHOULDER_Y + 6}, C2);
+  else { line(farArm.shoulder, farArm.elbow, C2); line(farArm.elbow, farArm.hand, C2); }
+
+  P(0, SHOULDER_Y - 1 + bob, 2, 5, C);           // narrow body
+  P(0, HIP_Y - 1 + bob, 1, 1, C);                // waist
+  P(0, SHOULDER_Y - 2 + bob, 1, 1, C);           // neck
+  P(0, SHOULDER_Y - 5 + bob, 2, 3, C);           // head (no face, that's the style)
+
+  line(nearLeg.hip, nearLeg.knee, C); line(nearLeg.knee, nearLeg.foot, C);
+  if (raised){
+    line(nearArm.shoulder, {x: 2, y: SHOULDER_Y - 6}, C);     // arm straight up
+    P(1, SHOULDER_Y - 7, 3, 1, HILT);                       // crossguard
+    P(2, SWORD_TIP_Y, 1, (SHOULDER_Y - 7) - SWORD_TIP_Y, BL); // blade
+  } else {
+    line(nearArm.shoulder, nearArm.elbow, C); line(nearArm.elbow, nearArm.hand, C);
+  }
+}
+// Bresenham line between two whole-pixel points; plot(x, y) draws one pixel
+function pixelLine(x0, y0, x1, y1, plot){
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  while (true){
+    plot(x0, y0);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2*err;
+    if (e2 >= dy){ err += dy; x0 += sx; }
+    if (e2 <= dx){ err += dx; y0 += sy; }
+  }
+}
+function drawStone(sx){
+  bctx.fillStyle = '#1c282c'; bctx.fillRect(sx-2, GY-12, 5, 12); bctx.fillRect(sx-1, GY-13, 3, 1);
+  bctx.fillStyle = '#2f4044'; bctx.fillRect(sx-2, GY-11, 1, 11);
+  const on = stone.lit ? 0.6 + 0.4*Math.sin(T*2.2) : 0;
+  bctx.fillStyle = stone.lit ? `rgba(159,243,208,${0.55 + 0.45*on})` : '#3a4c50';
+  bctx.fillRect(sx, GY-10, 1, 1); bctx.fillRect(sx-1, GY-7, 1, 1); bctx.fillRect(sx+1, GY-7, 1, 1); bctx.fillRect(sx, GY-4, 1, 2);
+}
+
+// ---------- hi-res effect helpers (drawn after upscaling) ----------
+function glow(x, y, r, rgb, a){
+  const X = x*S, Y = y*S, R = r*S, g = ctx.createRadialGradient(X, Y, 0, X, Y, R);
+  g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g; ctx.fillRect(X - R, Y - R, R*2, R*2);
+}
+function fireflyPos(f){
+  return [f.bx + Math.sin(T*0.3*f.sp + f.ph)*10 + f.ox, GY - f.by + Math.sin(T*0.7*f.sp + f.ph*2)*4 + f.oy];
+}
+function swordGlow(){
+  const r = player.raise; if (r <= 0) return 0;
+  return r > 1.3 ? (1.5 - r)/0.2 : r/1.3;
+}
+
+// ---------- walking ----------
+// One stride moves the body 4 × STRIDE pixels, so the feet never slide on the ground
+function advanceWalkCycle(dt){
+  const before = player.ph;
+  const cyclesPerSecond = SPEED / (4 * STRIDE);
+  player.ph = (player.ph + dt * cyclesPerSecond) % 1;
+  // a foot lands at the start of each half of the cycle
+  const crossedHalf = before < 0.5 && player.ph >= 0.5;
+  const crossedWhole = player.ph < before;
+  if (crossedHalf || crossedWhole) footstep();
+}
+// Where one foot is, for a leg at phase q (0 to 1). First half: on the ground, sliding back. Second half: lifted, swinging forward
+function footAt(q){
+  if (q < 0.5){
+    const t = q / 0.5;
+    return {x: STRIDE * (1 - 2*t), y: -1};
+  }
+  const t = (q - 0.5) / 0.5;
+  const eased = t*t*(3 - 2*t);
+  return {x: -STRIDE + 2*STRIDE*eased, y: -1 - LIFT*Math.sin(Math.PI*t)};
+}
+// Two-bone leg: given hip and foot, find the knee (bending forward)
+function kneeFor(hip, foot){
+  const dx = foot.x - hip.x, dy = foot.y - hip.y;
+  const reach = THIGH + SHIN - 0.01;
+  const d = Math.min(reach, Math.hypot(dx, dy));
+  const toFoot = Math.atan2(dy, dx);
+  const cosBend = (THIGH*THIGH + d*d - SHIN*SHIN) / (2*THIGH*d);
+  const bend = Math.acos(Math.max(-1, Math.min(1, cosBend)));
+  const a = toFoot - bend;
+  return {x: hip.x + THIGH*Math.cos(a), y: hip.y + THIGH*Math.sin(a)};
+}
+
+// ---------- update ----------
+function update(dt){
+  T += dt;
+  const dir = ((keys.r?1:0) - (keys.l?1:0)) || touchDir;
+  if (player.raise > 0){ player.raise = Math.max(0, player.raise - dt); player.walking = false; }
+  else if (dir){
+    player.dir = dir; player.x += dir*SPEED*dt; player.walking = true;
+    advanceWalkCycle(dt);
+    if (!walked){ walked = true; hintEl.style.opacity = 0; }
+  } else { player.walking = false; }
+  // ease between the standing pose and the walk, so starting and stopping look smooth
+  const mixTarget = player.walking ? 1 : 0;
+  const mixStep = dt * 6;
+  if (player.walkMix < mixTarget) player.walkMix = Math.min(mixTarget, player.walkMix + mixStep);
+  if (player.walkMix > mixTarget) player.walkMix = Math.max(mixTarget, player.walkMix - mixStep);
+  player.x = Math.max(6, Math.min(WORLD - 6, player.x));
+
+  const target = player.x - W/2 + player.dir*W*0.12;
+  camX += (target - camX) * Math.min(1, dt*2.2);
+  camX = Math.max(0, Math.min(WORLD - W, camX));
+
+  if (!stone.seen && Math.abs(player.x - stone.x) < 34){ stone.seen = true; say('a stone, older than the trees.'); }
+  if (!endSeen && player.x > WORLD - 30){ endSeen = true; say('beyond here, only mist.'); }
+
+  // fireflies drift towards a raised sword
+  const g = swordGlow(), hx = player.x + player.dir*2, hy = GY + SWORD_TIP_Y + 4;
+  for (const f of fireflies){
+    const [x, y] = fireflyPos(f);
+    let tx = 0, ty = 0;
+    if (g > 0 && Math.abs(x - hx) < 70){ tx = f.ox + (hx - x) + Math.sin(f.ph*7)*6; ty = f.oy + (hy - y) + Math.cos(f.ph*5)*4; }
+    const k = Math.min(1, dt*(g > 0 ? 1.6 : 0.35));
+    f.ox += (tx - f.ox)*k; f.oy += (ty - f.oy)*k;
+  }
+  // stone motes
+  if (stone.lit){
+    stone.litT += dt;
+    if (Math.random() < dt*7) motes.push({x: stone.x + (Math.random()*6 - 3), y: GY - 6 - Math.random()*6, life: 3 + Math.random()*1.5, ph: Math.random()*6.28});
+  }
+  for (let i = motes.length - 1; i >= 0; i--){
+    const m = motes[i]; m.life -= dt; m.y -= dt*(5 + Math.sin(m.ph)*2); m.x += Math.sin(T*1.5 + m.ph)*dt*3;
+    if (m.life <= 0) motes.splice(i, 1);
+  }
+}
+
+// ---------- render ----------
+function render(){
+  const cam = Math.round(camX);
+  bctx.globalAlpha = 1;
+  bctx.drawImage(skyC, 0, 0);
+  // moon
+  const mx = Math.round(W*0.74 - camX*0.02), my = Math.round(H*0.2);
+  bctx.fillStyle = '#e8e4cf';
+  for (let y = -4; y <= 4; y++){ const hw = Math.round(Math.sqrt(16.5 - y*y)); bctx.fillRect(mx - hw, my + y, hw*2 + 1, 1); }
+  bctx.fillStyle = '#cfcab3'; bctx.fillRect(mx + 1, my - 1, 2, 1); bctx.fillRect(mx - 2, my + 2, 1, 1);
+
+  drawMountains(mountains[0]); haze(GY - 34, GY, 0.35);
+  drawMountains(mountains[1]); haze(GY - 24, GY, 0.30);
+  for (const L of layers){ drawTreeLayer(L); haze(GY - 30, GY + L.dy, L.haze); }
+
+  // ground
+  bctx.fillStyle = '#0a0f12'; bctx.fillRect(0, GY, W, H - GY);
+  bctx.fillStyle = '#1b2924'; bctx.fillRect(0, GY, W, 1);
+  for (const gr of grass){
+    const sx = gr.x - cam; if (sx < -1 || sx > W) continue;
+    const sw = Math.round(Math.sin(T*1.4 + gr.x*0.3)*0.6);
+    bctx.fillRect(sx, GY - gr.h + 1, 1, gr.h - 1); bctx.fillRect(sx + sw, GY - gr.h, 1, 1);
+  }
+  drawStone(stone.x - cam);
+  drawPlayer(Math.round(player.x) - cam);
+
+  // firefly and mote pixels
+  for (const f of fireflies){
+    const [x, y] = fireflyPos(f), sx = Math.round(x - camX);
+    if (sx < -2 || sx > W + 2) continue;
+    const b = Math.pow(0.5 + 0.5*Math.sin(T*2*f.sp + f.ph), 2);
+    bctx.globalAlpha = 0.25 + 0.75*b; bctx.fillStyle = '#f6e7a1'; bctx.fillRect(sx, Math.round(y), 1, 1);
+  }
+  bctx.fillStyle = '#9ff3d0';
+  for (const m of motes){ bctx.globalAlpha = Math.min(1, m.life/1.5); bctx.fillRect(Math.round(m.x - camX), Math.round(m.y), 1, 1); }
+  bctx.globalAlpha = 1;
+
+  // foreground trunks, darker and faster than the player's layer
+  bctx.fillStyle = '#030506';
+  const fo = Math.round(camX*1.35);
+  for (const t of fgTrunks){
+    const sx = t.x - fo; if (sx < -t.w - 12 || sx > W + 12) continue;
+    bctx.fillRect(sx, 0, t.w, H);
+    for (let r = 0; r < 6; r++){ const hw = Math.round(Math.sqrt(36 - r*r)*1.6); bctx.fillRect(sx + (t.w>>1) - hw, H - 1 - r, hw*2, 1); }
+  }
+
+  // ---- upscale: nearest-neighbour keeps the pixels chunky ----
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buf, 0, 0, W*S, H*S);
+
+  // ---- soft modern lighting on top of the pixels ----
+  ctx.globalCompositeOperation = 'lighter';
+  glow(mx, my, 26, '220,225,200', 0.16);
+  // light shafts
+  const so = camX*0.25;
+  for (const s of shafts){
+    const x0 = (s.x - so)*S, a = 0.035 + 0.02*Math.sin(T*0.4 + s.x);
+    const gr = ctx.createLinearGradient(0, 0, 0, GY*S);
+    gr.addColorStop(0, `rgba(215,225,195,${a})`); gr.addColorStop(1, 'rgba(215,225,195,0)');
+    ctx.fillStyle = gr; ctx.beginPath();
+    ctx.moveTo(x0, 0); ctx.lineTo(x0 + s.w*S, 0); ctx.lineTo(x0 + (s.w + s.s)*S, GY*S); ctx.lineTo(x0 + s.s*S, GY*S); ctx.closePath(); ctx.fill();
+  }
+  for (const f of fireflies){
+    const [x, y] = fireflyPos(f), sx = x - camX; if (sx < -6 || sx > W + 6) continue;
+    const b = Math.pow(0.5 + 0.5*Math.sin(T*2*f.sp + f.ph), 2);
+    glow(Math.round(sx) + 0.5, Math.round(y) + 0.5, 5, '246,231,161', 0.32*b + 0.05);
+  }
+  for (const m of motes) glow(Math.round(m.x - camX) + 0.5, Math.round(m.y) + 0.5, 3, '159,243,208', 0.2*Math.min(1, m.life/1.5));
+  if (stone.lit){
+    const p = Math.min(1, stone.litT/1.2);
+    glow(stone.x - camX + 0.5, GY - 7, 18 + Math.sin(T*2.2)*2, '159,243,208', 0.22*p);
+  }
+  const sg = swordGlow();
+  if (sg > 0){
+    const tx = Math.round(player.x) - cam + (player.dir > 0 ? 2 : -2) + 0.5;
+    glow(tx, GY + SWORD_TIP_Y + 1, 10 + 16*sg, '235,250,240', 0.35*sg);
+    glow(tx, GY + SWORD_TIP_Y + 1, 3 + 2*sg, '255,255,255', 0.6*sg);
+  }
+
+  // drifting ground fog
+  ctx.globalCompositeOperation = 'source-over';
+  for (const w of wisps){
+    let x = ((w.x + T*w.sp) % (WORLD + 120)) - 60 - camX*0.95;
+    if (x < -w.w || x > W + w.w) continue;
+    const cx = x*S, cy = (GY + w.y)*S, rx = w.w*S, ry = 7*S;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(1, ry/rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, 'rgba(175,192,186,0.22)'); g.addColorStop(1, 'rgba(175,192,186,0)');
+    ctx.fillStyle = g; ctx.fillRect(-rx, -rx, rx*2, rx*2); ctx.restore();
+  }
+  // vignette
+  const vg = ctx.createRadialGradient(W*S/2, H*S*0.45, Math.min(W,H)*S*0.35, W*S/2, H*S*0.45, Math.max(W,H)*S*0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W*S, H*S);
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  update(dt); render(); requestAnimationFrame(loop);
+}
+setTimeout(() => say('a hush over the pines.'), 700);
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
