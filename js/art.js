@@ -216,7 +216,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
 
 // ---------- the man: tall, thin, 1-pixel limbs, no face; red shirt, jeans ----------
 // s = pixel size (2 draws him twice as big, still with chunky 1-pixel-wide limbs)
-function man(x, y, pose, s = 1) {
+function man(x, y, pose, s = 1, phase = 0) {
   x = Math.round(x); y = Math.round(y);
   const R = (dx, dy, w, h, c) => rect(x + dx * s, y + dy * s, w * s, h * s, c);
   const D = (dx, dy, c) => R(dx, dy, 1, 1, c);
@@ -231,11 +231,38 @@ function man(x, y, pose, s = 1) {
     L(10, -2, 14, -6, C.jeans); L(14, -6, 18, -2, C.jeans);
     L(6, -4, 7, -9, C.shirt); D(7, -10, C.skin); return;
   }
+  if (pose === 'walk') {                                 // mid-stride: legs and arms swing opposite ways; phase = how far through the step
+    const sw = Math.round(Math.sin(phase) * 2), up = Math.abs(Math.sin(phase)) < 0.4 ? 0 : 1;
+    const Y = d => d - up;                               // a little bob on each step
+    R(0, Y(-19), 2, 3, C.skin); R(0, Y(-19), 2, 1, C.hair); D(0, Y(-16), C.skin);
+    R(0, Y(-15), 2, 5, C.shirt); D(0, Y(-10), C.jeans);
+    L(0, Y(-9), -1 - sw, -1, C.jeansDark); L(1, Y(-9), 2 + sw, -1, C.jeans);
+    L(0, Y(-14), -1 + sw, Y(-9), C.shirtDark); D(-1 + sw, Y(-8), C.skin);
+    L(1, Y(-14), 2 - sw, Y(-9), C.shirt); D(2 - sw, Y(-8), C.skin);
+    return;
+  }
   R(0, -19, 2, 3, C.skin); R(0, -19, 2, 1, C.hair); D(0, -16, C.skin);
   R(0, -15, 2, 5, C.shirt); D(0, -10, C.jeans);
   L(0, -9, -1, -1, C.jeansDark); L(1, -9, 2, -1, C.jeans);
   L(0, -14, -1, -9, C.shirtDark); D(-1, -8, C.skin);
   L(1, -14, 2, -9, C.shirt); D(2, -8, C.skin);
+}
+
+// ---------- things you can point at: invisible until the pointer is over them ----------
+// The screen box round an isometric box (for a hover area over an object)
+function isoArea(x0, y0, x1, y1, z0, z1) {
+  const pts = [];
+  for (const x of [x0, x1]) for (const y of [y0, y1]) for (const z of [z0, z1]) pts.push(P(x, y, z));
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const l = Math.min(...xs), t = Math.min(...ys);
+  return [l, t, Math.max(...xs) - l, Math.max(...ys) - t];
+}
+// A thing you can tap: area = [x, y, w, h] in picture pixels; it lights up and shows its name when pointed at.
+// walk = [x, y] world spot the man walks to first (home and garage); style = extra colours for the name
+function spot(label, area, go, walk, style = '') {
+  const [x, y, w, h] = area;
+  const walkAttr = walk ? ` data-walk="${walk[0]},${walk[1]}"` : '';
+  LABELS.push(`<a class="hs" data-go="${go}"${walkAttr} style="left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"><span class="lab"${style ? ` style="${style}"` : ''}>${label}</span></a>`);
 }
 
 
@@ -278,11 +305,7 @@ function zoomLabel(name, x, y, hot, go) {
 }
 // Dashed zoom boxes with their labels; a box with a screen to go to can be tapped
 function zoomZones(zones) {
-  for (const [name, x, y, w, h, hot, go] of zones) {
-    dashBox(x, y, w, h, hot ? C.warm : C.mint);
-    if (go) link(go, x, y, w, h);
-    zoomLabel(name, x + w / 2, y, hot, go);
-  }
+  for (const [name, x, y, w, h, hot, go] of zones) spot('🔍 ' + name, [x, y, w, h], go || 'act:look:' + name);
 }
 const UNDERSIDE = hex('#4a4540'), BLACKPART = hex('#24221f'), ALLOY = hex('#a4a6a0'), RUSTPIPE = hex('#7a6656');
 const CARDBOARD = hex('#c09060');

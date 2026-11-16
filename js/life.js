@@ -33,13 +33,6 @@ function isoCarX(x, y, s, col) {
   onRight(X(46), Y(2), Y(6), Z(7), Z(10), C.warm); onRight(X(46), Y(18), Y(22), Z(7), Z(10), C.warm);
   for (const wx of [9, 37]) { const [a, b] = P(X(wx), Y(24), Z(4)); ellipse(a, b, Math.max(1, Math.round(4 * s)), Math.max(1, Math.round(3 * s)), C.tyre); }
 }
-// A fly buzzing round a spot
-function fly(t, cx, cy, r, seed) {
-  const x = cx + Math.sin(t * 2.3 + seed) * r + Math.sin(t * 7.1 + seed * 2) * r * 0.3;
-  const y = cy + Math.cos(t * 1.7 + seed) * r * 0.6 + Math.sin(t * 9.3) * 2;
-  px(x, y, C.ink); px(x + 1, y, C.ink);
-  if (Math.floor(t * 20) % 2) { px(x, y - 1, C.white); px(x + 1, y - 1, C.white); }
-}
 // A drip: a drop swells at x,y0, then falls to y1 and splashes; every `period` seconds
 function drip(t, x, y0, y1, period, col) {
   const q = (t % period) / period;
@@ -92,19 +85,15 @@ SCREENS.place.animate = function (t) {
   ISO.ox = 230; ISO.oy = 96;
   const i = placeIndex(S.place), cat = i >= 0 ? PLACES[i][1] : 'other';
   if (cat !== 'people' && !closedReason(S.place)) { const q = P(150, 56, 23); rect(q[0], q[1], 3, 2, Math.floor(t * 2) % 2 ? C.red : hex('#40a060')); }   // the till light
-  fly(t, 300, 70, 30, 3);
 };
 SCREENS.garage.animate = function (t) {
   ISO.ox = 230; ISO.oy = 106;
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
   const a = P(62, 86, 5), b = P(62, 86, 0);
   drip(t, a[0], a[1], b[1], 3.1, C.ink);                                                                               // oil dripping from the car
-  const f = P(60, 0, 70); fly(t, f[0], f[1], 24, 1);
 };
-SCREENS.toolbox.animate = function (t) { fly(t, 400, 60, 40, 5); };
 SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
 SCREENS.underZoom.animate = function (t) { drip(t, 250, 176, 262, 2.9, hex('#2a2010')); };
-SCREENS.bonnet.animate = function (t) { fly(t, 250, 140, 60, 7); };
 SCREENS.bench.animate = function (t) {
   for (let k = 0; k < 10; k++) {                                                                                      // dust in the light
     const x = (hash(k, 1) * W + t * (4 + k)) % W, y = 30 + hash(1, k) * 150 + Math.sin(t + k) * 8;
@@ -119,9 +108,41 @@ SCREENS.dash.animate = function (t) {
 };
 
 // =====================================================================
+// THE MAN, standing where he last walked to on the home and garage screens
+// =====================================================================
+const SPOT_HOME = { home: [46, 84], garage: [110, 74] };
+const MAN_SIZE = { home: 2, garage: 2 };
+const VIEW = { home: [250, 96], garage: [230, 106] };
+function manSpot(screen) { return (S.spot && S.spot[screen]) || SPOT_HOME[screen]; }
+// Draw him standing (not while he's walking: the walk draws him)
+function standingMan(screen) {
+  if (ANIM && ANIM.kind === 'walk') return;
+  const [x, y] = manSpot(screen), m = P(x, y);
+  man(m[0], m[1], 'stand', MAN_SIZE[screen]);
+}
+// Walk from where he is to a spot, then do `then` (open the screen he walked to)
+function walkTo(x, y, then) {
+  const screen = S.screen, from = manSpot(screen);
+  const dist = Math.hypot(x - from[0], y - from[1]);
+  if (dist < 3) return then();
+  ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], screen, then() {
+    S.spot = S.spot || {};
+    S.spot[screen] = [x, y];
+    then();
+  } };
+  render();                                                         // repaint without him standing still, so only the walking man shows
+}
+
+// =====================================================================
 // MOMENTS
 // =====================================================================
 const MOMENTS = {
+  walk(p) {                                                           // the man walks across to what you tapped
+    const a = ANIM, [vx, vy] = VIEW[a.screen];
+    ISO.ox = vx; ISO.oy = vy;
+    const x = lerp(a.from[0], a.to[0], p), y = lerp(a.from[1], a.to[1], p), m = P(x, y);
+    man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90);
+  },
   bolt1Out(p) {                                                       // the bolt winds out and comes free
     spanner(194, 120, -2.4 + p * 4, 80);
     if (p > 0.6) nutAt(lerp(194, 150, (p - 0.6) / 0.4), lerp(120, 100, (p - 0.6) / 0.4), 8, p * 12);

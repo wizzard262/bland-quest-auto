@@ -50,7 +50,7 @@ async function goPlace(page, name) {
   }
   const i = await page.evaluate(n => placeIndex(n), name);
   await page.click(`[data-act="cam:${i % 7},${Math.floor(i / 7)}"]`);   // look at that part of town on the little map
-  await page.locator(`.lbl[data-go="place:${name}"]`).click();
+  await page.locator(`.hs[data-go="place:${name}"]`).click();
 }
 // Walk home, then into the garage, then somewhere in it
 async function garage(page, where) {
@@ -244,4 +244,32 @@ test('sound can be switched off and stays off', async ({ page }) => {
   await expect(page.locator('#mute')).toHaveText('Sound: off');
   await page.reload();
   await expect(page.locator('#mute')).toHaveText('Sound: off');
+});
+
+test('tapping the garage: the man walks over to it first, then you are in the garage', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.locator('.hs[data-go="garage"]').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('walk');
+  expect(await page.evaluate(() => S.screen)).toBe('home');            // still walking
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  // in the garage he walks to the workbench before it opens
+  await page.locator('.hs[data-go="bench"]').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('walk');
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('bench');
+  expect(errors).toEqual([]);
+});
+
+test('labels stay hidden until you point at a thing; then it lights up and shows its name', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const garage = page.locator('.hs[data-go="garage"]');
+  await expect(garage.locator('.lab')).toBeHidden();
+  await garage.hover();
+  await expect(garage.locator('.lab')).toBeVisible();
+  await expect(garage.locator('.lab')).toHaveText('Garage');
+  const glow = await garage.evaluate(el => getComputedStyle(el).boxShadow);
+  expect(glow).not.toBe('none');
 });

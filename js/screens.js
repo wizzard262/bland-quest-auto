@@ -52,11 +52,11 @@ SCREENS.home = {
     isoCar(102, 72);
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
     S.doorstep.forEach((p, i) => { ibox(56, 62 + i * 9, 64, 70 + i * 9, 0, 7, CARDBOARD); line(...P(60, 62 + i * 9, 7), ...P(60, 70 + i * 9, 7), C.warm); });
-    { const m = P(46, 84); man(m[0], m[1], 'stand', 2); }
-    { const p = P(114, 95, 40); hotspot('CAR: INTO TOWN', p[0], p[1], 'city'); }
-    { const p = P(46, 60, 44); hotspot('FRONT DOOR', p[0], p[1], 'pc'); }
-    { const p = P(115, 60, 50); hotspot('GARAGE', p[0], p[1], 'garage'); }
-    if (S.doorstep.length) { const p = P(60, 66, 18); hotspot('PARCEL', p[0] + 18, p[1], 'act:parcel'); }
+    standingMan('home');
+    spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
+    spot('Front door: the computer', isoArea(38, 58, 54, 62, 0, 28), 'pc', [46, 66]);
+    spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
+    if (S.doorstep.length) spot('Parcel', isoArea(54, 60, 66, 72 + (S.doorstep.length - 1) * 9, 0, 9), 'act:parcel', [62, 76]);
     hud();
   },
   actions() {
@@ -107,7 +107,7 @@ SCREENS.city = {
     isoCar((here % 7) * BLOCK + 8, Math.floor(here / 7) * BLOCK + STREET + 10, 0.5);
     for (const lot of lots) sign(lot);
     minimap();
-    tip('Town', 'Tap a place to go there (20 minutes).<br>Drag the map to look round.', 1, 82);
+    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round.', 1, 80);
     hud();
   },
   actions() { return [{ label: 'Go home', act: 'go:home' }]; }
@@ -138,7 +138,8 @@ function building(lot) {
   const big = cat === 'big', h = big ? 22 : 14 + Math.floor(hash(lot.bi, lot.bj) * 10);
   const a = big ? 4 : 10;
   ibox(x0 + a, y0 + a, x1 - a, y1 - a, 0, h, col, C.steel);
-  onLeft(y1 - a, x0 + a, x1 - a, h - 6, h - 3, C.white);
+  onLeft(y1 - a, x0 + a, x1 - a, h - 10, h - 2, C.white);                                 // the sign board along the shop front
+  frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 2, 8);
   onLeft(y1 - a, x0 + a + 6, x0 + 30, 3, h - 9, C.glass);
   onLeft(y1 - a, x0 + 38, x0 + 46, 0, h - 9, C.ink);
   for (let y = y0 + a + 8; y < y1 - a - 6; y += 12) winRight(x1 - a, y, y + 6, h - 12, h - 7);
@@ -151,10 +152,8 @@ function sign(lot) {
   if (sx < -60 || sx > W + 60 || sy < 20 || sy > H - 10) return;
   const name = lot.place[0], cat = lot.place[1], dark = cat === 'elec' || cat === 'home' || cat === 'big';
   const target = name === 'Home' ? 'home' : 'place:' + name;
-  // the building itself: a tap area over its footprint
-  const [lx] = P(x0, y0 + 70), [rx] = P(x0 + 70, y0), [, ty] = P(x0, y0, lot.top), [, by] = P(x0 + 70, y0 + 70);
-  link(target, lx + 6, ty, rx - lx - 12, by - ty);
-  LABELS.push(`<div class="lbl tap" data-go="${esc(target)}" style="left:${sx / W * 100}%;top:${sy / H * 100}%;background:${CAT[cat][1]};color:${dark ? '#101018' : '#fff'}">${esc(name)}</div>`);
+  // the building itself: it lights up and shows its name when you point at it
+  spot(esc(name), isoArea(x0 + 8, y0 + 8, x0 + 62, y0 + 62, 0, lot.top), target, null, `background:${CAT[cat][1]};color:${dark ? '#101018' : '#fff'};border-color:#101018`);
 }
 // The whole town from above: tap a square to look there; the mint dot is you
 function minimap() {
@@ -193,6 +192,7 @@ SCREENS.place = {
       ground(0, 0, 200, 150, C.concrete);
       for (const z of [20, 40, 60]) { ibox(10, 0, 190, 10, z - 2, z, C.wood); for (let x = 14, k = 0; x < 186; x += 10, k++) ibox(x, 1, x + 7, 8, z, z + 8 + (k % 3) * 2, [CARDBOARD, C.white, C.red, C.car][(k + z) % 4]); }
       ibox(40, 50, 170, 70, 0, 22, C.bench, C.benchTop);
+      onLeft(0, 36, 164, 64, 78, C.white); frontSign(name, 36, 0, 128, 78, 14);   // the shop's sign on the back wall
       if (!shut) { const m = P(100, 40); man(m[0], m[1], 'stand', 2); }
       const y = P(100, 100); man(y[0], y[1], 'stand', 2);
       if (shut) { onLeft(0, 70, 130, 30, 50, C.ink); }
@@ -357,15 +357,15 @@ SCREENS.garage = {
     ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
     isoCar(40, 46, 1.25);
     ibox(82, 60, 92, 86, 1, 3, C.red);
-    { const m = P(110, 74); man(m[0], m[1], 'stand', 2); }
-    { const p = P(88, 74, 6); hotspot('UNDER THE CAR', p[0] + 30, p[1] + 10, 'under'); }
-    { const p = P(55, 100, 24); hotspot('BONNET', p[0] - 16, p[1] + 4, 'bonnet'); }
-    { const p = P(55, 75, 44); hotspot('DRIVER SEAT', p[0], p[1], 'dash'); }
-    { const p = P(137, 13, 62); hotspot('WORKBENCH', p[0], p[1], 'bench'); }
-    { const p = P(73, 9, 62); hotspot('TOOLBOX', p[0], p[1], 'toolbox'); }
-    { const p = P(5, 50, 74); hotspot('MANUALS', p[0], p[1], 'act:look:Manuals'); }
-    { const p = P(8, 118, 34); hotspot('PARTS BOXES', p[0], p[1], 'act:look:Parts boxes'); }
-    { const p = P(150, 140, 0); hotspot('OUT', p[0], p[1] + 14, 'home'); }
+    standingMan('garage');
+    spot('Toolbox', isoArea(60, 0, 86, 18, 0, 50), 'toolbox', [73, 26]);
+    spot('Workbench', isoArea(98, 0, 176, 26, 0, 40), 'bench', [132, 34]);
+    spot('Manuals', isoArea(0, 18, 14, 96, 50, 66), 'act:look:Manuals', [22, 56]);
+    spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'act:look:Parts boxes', [26, 118]);
+    spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
+    spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
+    spot('Under the car (creeper)', isoArea(80, 58, 94, 88, 0, 4), 'under', [96, 80]);
+    spot('Out', isoArea(130, 126, 178, 140, 0, 2), 'home', [150, 132]);
     hud();
   },
   actions() {
@@ -419,7 +419,7 @@ SCREENS.under = {
     line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);
     rect(436, 60, 12, 166, hex('#202020'));
     zoomZones([['Rear suspension', 62, 54, 66, 54, false, 'act:look:Rear suspension'], ['Fuel tank', 126, 166, 78, 58, false, 'act:look:Fuel tank'], ['Exhaust', 234, 118, 96, 44, false, 'act:look:Exhaust'], ['Brake lines', 206, 216, 120, 18, false, 'act:look:Brake lines'], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68, false, 'act:look:Engine']]);
-    tip('Under the car', 'Tap a box to look closer.', 1, 82);
+    tip('Under the car', 'Point at things to see what they are; tap to look closer.', 1, 82);
     hud();
   },
   actions() { return [{ label: 'Zoom in: gearbox', act: 'go:underZoom' }, { label: 'Get out from under', act: 'go:garage' }]; }
@@ -706,4 +706,13 @@ function drawerContents(d, x0, y) {
     pipe(x0 + 20, y + 70, x0 + 110, y + 60, 7, C.wood); rbox(x0 + 106, y + 50, 26, 16, 2, C.tool);     // hammer
     pipe(x0 + 150, y + 30, x0 + 220, y + 50, 5, C.steel); pipe(x0 + 220, y + 50, x0 + 240, y + 76, 5, C.steel);   // bent wheel brace
   }
+}
+
+// A shop's name written along a wall that faces down-left (at y = yf): it starts at world x, top at height z,
+// runs `len` along the wall and is `tall` pixels high. Real text, slanted to lie on the wall
+function frontSign(name, x, yf, len, z, tall) {
+  const [sx, sy] = P(x, yf, z);
+  if (sx > W || sx + len < 0 || sy > H || sy + len / 2 + tall < 0) return;
+  const fit = Math.min(tall * 0.8, len / (name.length * 0.56));          // shrink long names to fit the board
+  LABELS.push(`<div class="front" style="left:${sx / W * 100}%;top:${sy / H * 100}%;width:${len / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw">${esc(name)}</div>`);
 }

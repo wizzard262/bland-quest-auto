@@ -298,7 +298,7 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .lid, .scr, .back, .dlg').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .front, .lid, .scr, .back, .dlg').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (S.screen !== 'home') stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
@@ -345,7 +345,14 @@ function loop(nowMs) {
   const scr = SCREENS[S.screen];
   if (!scr.animate && !ANIM) return;
   drawFrame(nowMs);
-  if (ANIM && nowMs - ANIM.t0 >= ANIM.dur) { ANIM = null; render(); }
+  if (ANIM && nowMs - ANIM.t0 >= ANIM.dur) finishMoment();
+}
+// End the moment playing now; a walk then opens what was tapped
+function finishMoment() {
+  const done = ANIM;
+  ANIM = null;
+  if (done && done.then) done.then();
+  render();
 }
 requestAnimationFrame(loop);
 
@@ -357,7 +364,7 @@ let dragFrom = null, dragged = false;
 document.addEventListener('click', e => {
   if (dragged) { dragged = false; return; }                         // the end of a drag on the city map, not a tap
   if (e.target.closest('#stage button, #acts button, #stage [data-go], #stage [data-act], .lead')) { audioStart(); sfx('click'); }
-  if (ANIM) { ANIM = null; render(); return; }                       // a tap during a moment skips to its end
+  if (ANIM) { finishMoment(); return; }                               // a tap during a moment skips to its end
   const opt = e.target.closest('[data-opt]');
   if (opt) {                                                         // a dialog button
     const o = DIALOG.options[+opt.dataset.opt];
@@ -372,6 +379,10 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]');
   if (a) return act(a.dataset.act);
   const g = e.target.closest('[data-go]');
+  if (g && g.dataset.walk) {                                         // walk over there first, then go
+    const [x, y] = g.dataset.walk.split(',').map(Number);
+    return walkTo(x, y, () => goTo(g.dataset.go));
+  }
   if (g) return goTo(g.dataset.go);
   const app = e.target.closest('[data-app]');
   if (app) { S.app = app.dataset.app; render(); }
