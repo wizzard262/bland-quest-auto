@@ -24,15 +24,7 @@ function benchPart(b, lift, dx) {
 const ease = p => p * p * (3 - 2 * p);                               // smooth start and stop
 const lerp = (a, b, p) => a + (b - a) * p;
 // A car driving along x (down-right), for traffic; s = size
-function isoCarX(x, y, s, col) {
-  const X = a => x + a * s, Y = b => y + b * s, Z = c => c * s;
-  ibox(X(0), Y(0), X(46), Y(24), Z(4), Z(13), col);
-  ibox(X(12), Y(2), X(34), Y(22), Z(13), Z(21), col);
-  onRight(X(34), Y(3), Y(21), Z(14), Z(20), C.glass);
-  onLeft(Y(22), X(13), X(33), Z(14), Z(20), C.glass);
-  onRight(X(46), Y(2), Y(6), Z(7), Z(10), C.warm); onRight(X(46), Y(18), Y(22), Z(7), Z(10), C.warm);
-  for (const wx of [9, 37]) { const [a, b] = P(X(wx), Y(24), Z(4)); ellipse(a, b, Math.max(1, Math.round(4 * s)), Math.max(1, Math.round(3 * s)), C.tyre); }
-}
+function isoCarX(x, y, s, col) { isoCar(x, y, s, col, { alongX: true }); }   // the same car shape as everywhere else, turned along the street
 // A drip: a drop swells at x,y0, then falls to y1 and splashes; every `period` seconds
 function drip(t, x, y0, y1, period, col) {
   const q = (t % period) / period;

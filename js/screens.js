@@ -134,7 +134,7 @@ function building(lot) {
   const cat = lot.place[1], col = hex(CAT[cat][1]);
   ground(x0, y0, x1, y1, C.concrete);
   if (cat === 'yard') {                                    // breakers yard: wrecks, two stacked, a tyre pile
-    const paint = [C.car, C.red, C.warm, C.steel2, C.tree2];
+    const paint = [hex('#9a5ac8'), C.red, C.warm, C.steel2, C.tree2];   // no blue: blue is your car
     for (let n = 0; n < 6; n++) {
       const cx = x0 + 6 + (n % 3) * 21, cy = y0 + 6 + Math.floor(n / 3) * 32;
       isoCar(cx, cy, 0.45, shade(paint[n % 5], 0.8), { broken: true });

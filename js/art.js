@@ -186,7 +186,9 @@ function tree(x, y) {
 // Shape from the side, front at y = 46: sloping hatch at the back, roof, raked windscreen, bonnet sloping down to the nose
 function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const broken = !!opts.broken, dz = opts.dz || 0;
-  const Q = (a, b, c) => P(x + a * s, y + b * s, (broken ? c - 3 : c) * s + dz);
+  // opts.alongX: the same car turned to drive along x (for parking at the kerb and traffic)
+  const Q = opts.alongX ? (a, b, c) => P(x + b * s, y + a * s, (broken ? c - 3 : c) * s + dz)
+                        : (a, b, c) => P(x + a * s, y + b * s, (broken ? c - 3 : c) * s + dz);
   const F = pts => pts.map(([a, b, c]) => Q(a, b, c));
   const glass = broken ? C.ink : C.glass;
   if (!dz) poly(F([[-2, 2, 0], [26, 2, 0], [26, 48, 0], [-2, 48, 0]]), shade(C.floor, 0.6));          // shadow
@@ -209,7 +211,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   if (s >= 1) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }                            // the red light on the dash
   for (const wy of [9, 37]) {                                                                          // wheels
     const [wx, wz] = Q(24, wy, 4);
-    ellipse(wx, wz, Math.max(1, Math.round(3 * s)), Math.max(1, Math.round(4.5 * s)), C.tyre);
+    ellipse(wx, wz, Math.max(1, Math.round((opts.alongX ? 4 : 3) * s)), Math.max(1, Math.round((opts.alongX ? 4 : 4.5) * s)), C.tyre);
     if (s >= 0.8) ellipse(wx, wz, Math.round(1.5 * s), Math.round(2.2 * s), C.rim);
   }
 }
