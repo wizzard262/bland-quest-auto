@@ -1,5 +1,7 @@
 # The Thankless Task
 
+*Everyone's sure. Nobody's right.*
+
 A point-and-click pixel-art game about one simple car repair that never ends.
 
 ## Play
