@@ -72,6 +72,7 @@ function kickSomething() {
   const broken = ['the wheelie bin', 'the garage door', 'your toolbox', 'the recycling', 'your own foot'];
   const thing = broken[(S.day + S.mins) % broken.length];
   S.anger = 50;
+  moment('kick', 1300); sfx('kick');
   const id = 'kicked-' + now();
   job(id, 'Fix ' + thing + ' (you kicked it)', null);
   note(id, 'It broke. Of course it did.', 'x');
@@ -131,7 +132,7 @@ function topJob() {
 // =====================================================================
 // PHONE AND EMAIL
 // =====================================================================
-function textMsg(from, body) { S.msgs.unshift({ from, body, when: clockText(), read: false }); }
+function textMsg(from, body) { S.msgs.unshift({ from, body, when: clockText(), read: false }); sfx('buzz'); }
 function mail(from, subject) { S.mails.unshift({ from, subject, when: `${weekday()} ${hhmm(S.mins)}` }); }
 
 // =====================================================================
@@ -217,6 +218,7 @@ function visit(name) {
   S.place = name;
   if (S.screen !== 'place') S.history.push(S.screen);
   S.screen = 'place';
+  sfx('car'); sfx(closedReason(name) ? 'sad' : 'bell', 0.5);
   arriveAt(name);
   render();
 }
@@ -283,15 +285,18 @@ function hudInfo() {
   };
 }
 
+let BG = null;                          // the still picture of this screen; moving things are drawn on a copy of it
+
 function render() {
   const scr = SCREENS[S.screen];
-  // paint the picture
+  // paint the still picture, and keep a copy for the moving things to be drawn over
   [W, H] = scr.size || [480, 270];
   canvas.width = W; canvas.height = H;
   img = ctx.createImageData(W, H);
   LABELS = [];
   scr.paint();
-  ctx.putImageData(img, 0, 0);
+  BG = img.data.slice();
+  drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
   stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .lid, .scr, .back, .dlg').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
@@ -302,12 +307,47 @@ function render() {
   actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');
   // a dialog, if one is open
   if (!DIALOG && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
-  if (DIALOG) {
+  if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
     const opts = DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');
     stage.insertAdjacentHTML('beforeend', `<div class="dlg"><b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p><div>${opts}</div></div>`);
   }
   save();
 }
+
+// =====================================================================
+// MOVING PICTURES: life on every screen, and short animated moments
+// =====================================================================
+let ANIM = null;                        // the moment playing now: { kind, t0, dur }
+// Play a moment (an animation in MOMENTS, screens.js) for `dur` milliseconds; dialogs wait for it
+function moment(kind, dur) {
+  ANIM = { kind, t0: performance.now(), dur };
+  if (kind === 'kick') { stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
+}
+// Draw one frame: the still picture, then the screen's moving things, then the moment
+function drawFrame(nowMs) {
+  if (!BG) return;
+  const scr = SCREENS[S.screen];
+  img.data.set(BG);
+  const t = nowMs / 1000;
+  if (scr.animate) scr.animate(t);
+  if (ANIM) {
+    const p = Math.min(1, (nowMs - ANIM.t0) / ANIM.dur);
+    if (MOMENTS[ANIM.kind]) MOMENTS[ANIM.kind](p, t);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+// About 30 frames a second; when a moment ends, show what it was holding back (its dialog)
+let lastFrame = 0;
+function loop(nowMs) {
+  requestAnimationFrame(loop);
+  if (nowMs - lastFrame < 33) return;
+  lastFrame = nowMs;
+  const scr = SCREENS[S.screen];
+  if (!scr.animate && !ANIM) return;
+  drawFrame(nowMs);
+  if (ANIM && nowMs - ANIM.t0 >= ANIM.dur) { ANIM = null; render(); }
+}
+requestAnimationFrame(loop);
 
 // =====================================================================
 // TAPS AND CLICKS
@@ -316,6 +356,8 @@ let dragFrom = null, dragged = false;
 
 document.addEventListener('click', e => {
   if (dragged) { dragged = false; return; }                         // the end of a drag on the city map, not a tap
+  if (e.target.closest('#stage button, #acts button, #stage [data-go], #stage [data-act], .lead')) { audioStart(); sfx('click'); }
+  if (ANIM) { ANIM = null; render(); return; }                       // a tap during a moment skips to its end
   const opt = e.target.closest('[data-opt]');
   if (opt) {                                                         // a dialog button
     const o = DIALOG.options[+opt.dataset.opt];
@@ -354,6 +396,11 @@ stage.addEventListener('pointermove', e => {
 addEventListener('pointerup', () => { dragFrom = null; setTimeout(() => { dragged = false; }, 0); });
 
 document.getElementById('new').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) newGame(); });
+// Sound on and off (remembered in this browser)
+const muteBtn = document.getElementById('mute');
+const showMute = () => { muteBtn.textContent = MUTED ? 'Sound: off' : 'Sound: on'; };
+muteBtn.addEventListener('click', () => { audioStart(); setMuted(!MUTED); showMute(); });
+showMute();
 
 // =====================================================================
 // START

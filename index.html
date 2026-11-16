@@ -31,6 +31,12 @@
   .lid .note { font-style: italic; margin-top: .6em; }
   .scr { position: absolute; font: .85cqw/1.3 Consolas, monospace; color: var(--mint); overflow: hidden; padding: .2em; pointer-events: none; }
 
+  /* ---- kicking something shakes the picture ---- */
+  .shake { animation: shake .5s; }
+  @keyframes shake { 0%, 100% { transform: none; } 15% { transform: translate(-10px, 4px) rotate(-1deg); } 35% { transform: translate(9px, -5px) rotate(1deg); } 55% { transform: translate(-6px, 3px); } 75% { transform: translate(4px, -2px); } }
+  .blink { animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
   /* ---- the dialog box ---- */
   .dlg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; background: var(--ink); border: 3px solid var(--mint); padding: 1em 1.2em; font: 1.35cqw/1.45 Tahoma, 'Segoe UI', sans-serif; color: #f4f4f0; box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
   .dlg b { color: var(--mint); font-size: 1.1em; }
@@ -100,6 +106,7 @@
 <body>
 <header>
   <h1>THE THANKLESS TASK</h1>
+  <button id="mute">Sound: on</button>
   <button id="howto">How to play</button>
   <button id="new">New game</button>
 </header>
@@ -126,8 +133,10 @@
   </div>
 </div>
 
+<script src="js/sound.js"></script>
 <script src="js/art.js"></script>
 <script src="js/screens.js"></script>
+<script src="js/life.js"></script>
 <script src="js/story.js"></script>
 <script src="js/engine.js"></script>
 <script>

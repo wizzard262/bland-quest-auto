@@ -228,6 +228,7 @@ function buy(id, place) {
   if (item.none) { anger(5); return say(place, '"A 9? There\'s no such thing as a 9, mate."'); }
   if (!spend(item.price)) { anger(10); return say(place, 'Card declined.'); }
   S.inv[id] = true;
+  sfx('beep');
   if (id === 'extractor-cheap') closeLead('extractor', 'ok');
   if (id === 'extractor-good') closeLead('extractor2', 'ok');
   if (id === 'fuses') note('meaning', 'Bought fuses: all the wrong amps', 'x');
@@ -238,6 +239,12 @@ function buy(id, place) {
 // WHEN YOU OPEN CERTAIN SCREENS
 // =====================================================================
 const SCREEN_ENTER = {
+  home() {
+    const fresh = S.doorstep.filter(p => !p.seen);
+    if (!fresh.length) return;
+    fresh.forEach(p => { p.seen = true; });
+    moment('van', 2600); sfx('van'); sfx('thud', 1.2);
+  },
   underZoom() {
     // having found the codes, a look at the gearbox makes it the sensor (probably)
     if (!S.flags.codes || S.flags.sensorJob) return;
@@ -268,11 +275,12 @@ const ACTIONS = {
     S.cam.oy = 190 - (cx + cy) / 2;
   },
   // ----- home -----
-  tea() { pass(10); anger(-15); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
-  bed() { sleepUntilMorning(); say('Next morning', `It's ${weekday()} morning. You feel a bit better.`); },
+  tea() { pass(10); anger(-15); moment('tea', 1400); sfx('pour'); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
+  bed() { sfx('door'); sleepUntilMorning(); say('Next morning', `It's ${weekday()} morning. You feel a bit better.`); },
   parcel() {
     const p = S.doorstep.shift();
     if (!p) return say('The doorstep', 'Nothing there.');
+    sfx('pop');
     openParcel(p.item);
   },
   // ----- garage -----
@@ -282,23 +290,29 @@ const ACTIONS = {
     if (!S.flags.screwsSpilt) {
       S.flags.screwsSpilt = true;
       anger(10);
+      moment('screws', 1500); sfx('screws');
       return say('Under the workbench', 'You knock a box of hundreds of screws off the bench. They go everywhere. If the nut is here, it\'s somewhere in that lot now.');
     }
     S.flags.n3found = true;
+    moment('found', 900); sfx('ding', 0.3);
     finishJob('nut3', 'Found nut 3 (in the screws)');
     closeLead('bench-floor', 'ok');
     say('Under the workbench', 'Half an hour of sorting screws later: the nut! You put it somewhere safe.');
   },
   // ----- the toolbox -----
-  drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; },
-  find10() { pass(10); anger(5); say('The 10 mm', "It's not there. It's never there. There's a 10-shaped gap in the foam."); },
-  findspanner() { pass(15); anger(5); say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and not the one you need.'); },
-  meter() { pass(5); say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.'); },
+  drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; sfx('drawer'); },
+  find10() { pass(10); anger(5); sfx('clink'); sfx('clink', 0.3); say('The 10 mm', "It's not there. It's never there. There's a 10-shaped gap in the foam."); },
+  findspanner() { pass(15); anger(5); sfx('screws'); say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and not the one you need.'); },
+  meter() { pass(5); sfx('beep'); say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.'); },
   // ----- dashboard -----
   key(pos) {
     S.key = +pos;
+    S.flags.running = false;
     if (S.key === 3) {
       S.key = 2;
+      S.flags.running = true;
+      moment('start', 1800); sfx('start');
+      if (S.flags.fitted) { sfx('fanfare', 0.9); sfx('sad', 1.4); }
       if (S.flags.fitted) return finishBranch();
       return say('Start it', S.flags.codesCleared ? 'It starts. The red light stays off… for two seconds. Then it comes back on.' : 'It starts. The red light stays on.');
     }
@@ -307,6 +321,7 @@ const ACTIONS = {
   plug(which) {
     if (S.key < 2) return say('Code reader', 'Nothing. The key needs to be at II for the reader to wake up.');
     pass(10);
+    sfx('beep');
     if (which === 'old') {
       anger(10);
       closeLead('gaz-reader', 'x', "Gaz's reader: wrong plug (from 1994)");
@@ -321,16 +336,18 @@ const ACTIONS = {
     pass(5);
     S.flags.codesCleared = true;
     anger(5);
+    moment('clear', 1500); sfx('beep');
     say('Clear the codes', 'The red light goes out. Then you start the car, and it comes back on.');
   },
   think() { think(); },
   // ----- under the car: the gearbox -----
-  bolt1() { pass(10); S.flags.b1 = true; note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.'); },
+  bolt1() { pass(10); S.flags.b1 = true; moment('bolt1Out', 1200); sfx('ratchet'); sfx('clink', 0.9); note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.'); },
   bolt2() {
     pass(10);
     if (S.flags.b2round) return say('Bolt 2', 'Your spanner just spins on it. It\'s rounded off.');
     S.flags.b2round = true;
     anger(15);
+    moment('boltRound', 1200); sfx('ratchet'); sfx('slip', 0.65);
     job('bolt2', 'Get the rounded bolt out', 'sensor-off');
     lead('bolt2', 'extractor', 'Buy a bolt extractor', 'you', 'sure', 'place:Tool Shop');
     say('Bolt 2', 'The spanner slips. The bolt head is rounded off. Brilliant.');
@@ -339,6 +356,7 @@ const ACTIONS = {
     pass(10);
     S.flags.n3lost = true;
     anger(10);
+    moment('nutDrop', 1700); sfx('drop');
     job('nut3', 'Find nut 3', 'sensor-off');
     lead('nut3', 'bench-floor', 'Under the workbench?', 'you', 'hopeful', 'garage');
     say('Nut 3', 'It comes off, drops, bounces off your face and rolls away into the dark. You hear it go under the workbench. Probably.');
@@ -347,11 +365,13 @@ const ACTIONS = {
     pass(20);
     if (S.inv['extractor-good']) {
       S.flags.b2 = true;
+      moment('extractOk', 1400); sfx('creak'); sfx('pop', 1.0);
       finishJob('bolt2', 'The proper extractor got it out');
       return say('Bolt 2', 'The proper extractor bites… and the bolt turns. It\'s out!');
     }
     delete S.inv['extractor-cheap'];
     anger(20);
+    moment('extractSnap', 1300); sfx('creak'); sfx('snap', 0.75);
     note('bolt2', 'The cheap extractor snapped off inside the bolt', 'x');
     lead('bolt2', 'extractor2', 'A better extractor from the Hardware Shop', 'the man at the Tool Shop (who sold you the first)', 'very sure', 'place:Hardware Shop');
     say('Bolt 2', 'The cheap extractor snaps. Half of it is now stuck in the bolt as well.');
@@ -362,6 +382,7 @@ const ACTIONS = {
     pass(10);
     S.flags.sensorOut = true;
     S.inv['old-sensor'] = true;
+    moment('sensorPull', 1100); sfx('pop', 0.15);
     finishJob('sensor-off', 'The old sensor is out');
     job('new-sensor', 'Find a sensor that fits', 'light');
     note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
@@ -375,6 +396,7 @@ const ACTIONS = {
     if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
     pass(30);
     S.flags.fitted = true;
+    moment('sensorFit', 1300); sfx('clink', 0.8); sfx('ratchet', 0.95);
     closeLead('fit', 'ok', 'New sensor fitted and plugged in');
     lead('light', 'test', 'Start the car and see', 'you', 'hopeful', 'dash');
     say('Fit it', 'Bolt, bolt, nut. Plug the connector in (gently: the tab). Done.\n\nNow the moment of truth: start it.');
@@ -382,6 +404,7 @@ const ACTIONS = {
   // ----- under the bonnet -----
   fuses() {
     pass(15);
+    sfx('click'); sfx('click', 0.3); sfx('click', 0.6);
     closeLead('fuses', 'x', 'Checked every fuse: all fine');
     say('The fuses', 'You pull every fuse with your fingernails and hold each one up to the light. All fine. Every one.');
   },
@@ -394,13 +417,15 @@ const ACTIONS = {
     pass(5);
     if (b.part === 'part-mega') {
       anger(10);
+      moment('benchNo', 1000); sfx('thud', 0.35); sfx('thud', 0.6);
       closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
       return say('Push', 'It\'s hexagonal. The hole is round. It\'s not going in.');
     }
     if (b.state === 'stuck') return say('Push', 'It won\'t go any further.');
-    if (!b.rotated) { b.state = 'stuck'; anger(10); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
+    if (!b.rotated) { b.state = 'stuck'; anger(10); moment('benchStuck', 1100); sfx('creak'); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
     b.state = 'in';
     S.flags.fits = true;
+    moment('benchFit', 1000); sfx('clink', 0.65); sfx('ding', 0.8);
     finishJob('new-sensor', 'The Parts 4 Less sensor fits!');
     closeLead('try-p4l', 'ok');
     lead('light', 'fit', 'Fit the new sensor to the car', 'you', 'sure', 'underZoom');
@@ -410,11 +435,11 @@ const ACTIONS = {
     const b = S.bench;
     if (!b) return;
     pass(5);
-    if (b.state === 'stuck') { b.state = 'over'; anger(5); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
+    if (b.state === 'stuck') { b.state = 'over'; anger(5); moment('benchPull', 1000); sfx('creak'); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
     say('Pull', 'It\'s not in.');
   },
-  rotate() { const b = S.bench; if (!b) return; b.rotated = true; say('Rotate', 'You turn it until the pins line up with the slots.'); },
-  flip() { const b = S.bench; if (!b) return; b.rotated = false; say('Flip', 'You turn it the other way up. Now the pins don\'t line up at all.'); },
+  rotate() { const b = S.bench; if (!b) return; b.rotated = true; sfx('ratchet'); say('Rotate', 'You turn it until the pins line up with the slots.'); },
+  flip() { const b = S.bench; if (!b) return; b.rotated = false; sfx('thud'); say('Flip', 'You turn it the other way up. Now the pins don\'t line up at all.'); },
   // ----- the phone -----
   ring(who) {
     pass(5);

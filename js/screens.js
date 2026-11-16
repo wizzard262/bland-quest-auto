@@ -569,7 +569,7 @@ SCREENS.dash = {
       pipe(96, 230, 120, 262, 4, C.ink);
       LABELS.push(`<div class="scr" style="left:${27 / W * 100}%;top:${161 / H * 100}%;width:${60 / W * 100}%;height:${42 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
-    if (S.key >= 1) LABELS.push(`<div class="scr" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
+    if (S.key >= 1) LABELS.push(`<div class="scr blink" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
     tip("Driver's seat", ['Key out.', 'Key at I: radio on.', 'Key at II: dash lights on.', ''][S.key], 1, 8);
     hud();
   },
@@ -606,18 +606,9 @@ SCREENS.bench = {
     rect(h[0] - 23, h[1] - 1, 5, 3, C.ink); rect(h[0] + 19, h[1] - 1, 5, 3, C.ink);
     // the part being tried: held over the hole, stuck halfway, or in
     const b = S.bench;
-    if (b) {
-      const hex6 = b.part === 'part-mega', col = hex6 ? C.car : C.greyDark;
-      const lift = b.state === 'over' ? 56 : b.state === 'stuck' ? 30 : 12;
-      const top = P(100, 95, 40 + lift + 38), bot = P(100, 95, 40 + lift);
-      ellipse(bot[0], bot[1], 14, 7, shade(col, 0.7));
-      rect(bot[0] - 14, top[1], 29, bot[1] - top[1], col);
-      rect(bot[0] - 10, top[1] + 2, 3, bot[1] - top[1] - 2, C.winGlass);
-      ellipse(top[0], top[1], 14, 7, shade(col, 1.25));
-      if (hex6) { rect(bot[0] - 15, top[1], 2, bot[1] - top[1], C.carDark); rect(bot[0] + 13, top[1], 2, bot[1] - top[1], C.carDark); }
-      const py = b.rotated ? bot[1] - 10 : bot[1] - 18;
-      rect(bot[0] - 20, py, 6, 3, C.tool); rect(bot[0] + 15, py, 6, 3, C.tool);
-    }
+    const moving = ANIM && ANIM.kind.startsWith('bench');           // while a moment moves the part, it draws it
+    if (b && !moving) benchPart(b, LIFT[b.state], 0);
+    ISO.ox = 240; ISO.oy = 64;
     if (S.inv['old-sensor']) { ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink); }
     tip('Workbench', b ? ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '') : 'Pick a part to try.', 1, 8);
     hud();

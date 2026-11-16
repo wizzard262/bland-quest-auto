@@ -15,9 +15,13 @@ async function start(page, errors) {
   await page.reload();
   await page.click('#help-close');
 }
+// Wait for any animated moment to finish playing
+const idle = page => page.waitForFunction(() => !ANIM);
 // Click OK (or the first button) on every dialog until none are left
 async function ok(page) {
+  await idle(page);
   for (let i = 0; i < 6; i++) {
+    await idle(page);
     const dlg = page.locator('.dlg');
     if (!(await dlg.count())) return;
     await dlg.locator('button').first().click();
@@ -25,13 +29,15 @@ async function ok(page) {
 }
 // Click a dialog button by its words
 async function choose(page, words) {
+  await idle(page);
   await page.locator('.dlg button', { hasText: words }).first().click();
   await ok(page);
 }
 // The words in the dialog now showing
-const dialogText = page => page.locator('.dlg').innerText();
+const dialogText = async page => { await idle(page); return page.locator('.dlg').innerText(); };
 // Click a button under the picture
 async function act(page, label) {
+  await idle(page);
   await page.locator('.acts button', { hasText: label }).first().click();
 }
 // Go into town from wherever you are, then to a place on the map
@@ -197,4 +203,45 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   expect(await page.evaluate(() => findJob('light').status)).toBe('done');
   expect(await page.evaluate(() => !!findJob('abs'))).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test('the home screen keeps moving (traffic on the road)', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const grab = () => page.evaluate(() => Array.from(ctx.getImageData(0, 0, W, H).data.filter((v, i) => i % 97 === 0)).join(','));
+  const a = await grab();
+  await page.waitForTimeout(600);
+  const b = await grab();
+  expect(a).not.toEqual(b);
+  expect(errors).toEqual([]);
+});
+
+test('a big moment plays before its message: the nut drops and rolls away', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
+  await act(page, 'Undo nut 3');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutDrop');
+  expect(await page.locator('.dlg').count()).toBe(0);                  // the message waits…
+  await idle(page);
+  expect(await page.locator('.dlg').count()).toBe(1);                  // …until the nut has rolled away
+  expect(errors).toEqual([]);
+});
+
+test('kicking something at 100 anger shakes the screen and adds a job', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { anger(100); render(); });
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('kick');
+  await ok(page);
+  expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(true);
+});
+
+test('sound can be switched off and stays off', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.click('#mute');
+  await expect(page.locator('#mute')).toHaveText('Sound: off');
+  await page.reload();
+  await expect(page.locator('#mute')).toHaveText('Sound: off');
 });
