@@ -750,13 +750,14 @@ function frontSign(name, x, yf, len, z, tall) {
 
 // =====================================================================
 // HOOK THE NUT OUT: a little game. Move the stick under the tool chest; the stick only pushes,
-// so get its tip behind the nut and draw it towards you. The shaft pushes things too
+// so get its tip behind the nut and draw it towards you. Only the tip touches the floor
+// (the shaft rides over the nut; when it pushed too, the nut could never be drawn out)
 // =====================================================================
 const FISH = { nut: [300, 92], tip: [240, 250], won: false };
 const FISH_BASE = [240, 300];                                   // where your hand holds the stick (off the bottom of the picture)
 const FISH_BOX = [44, 70, 436, 236];                            // the gap under the chest: left, back, right, front (out)
 function fishStart() { FISH.nut = [300, 92]; FISH.tip = [240, 250]; FISH.won = false; }
-// The pointer moved to x, y (picture pixels): move the stick's tip there, pushing the nut out of the way
+// The pointer moved to x, y (picture pixels): move the stick's tip there; the tip pushes the nut out of its way
 function fishMove(x, y) {
   if (FISH.won) return;
   const [l, b, r] = FISH_BOX;
@@ -764,9 +765,7 @@ function fishMove(x, y) {
   const steps = Math.ceil(Math.hypot(tx - FISH.tip[0], ty - FISH.tip[1]) / 3) || 1;
   for (let k = 1; k <= steps; k++) {                            // move in small steps, so a fast flick can't jump through the nut
     const px0 = FISH.tip[0] + (tx - FISH.tip[0]) * k / steps, py0 = FISH.tip[1] + (ty - FISH.tip[1]) * k / steps;
-    pushNut(px0, py0, 12);                                      // the tip
-    const near = closestOnLine(FISH_BASE, [px0, py0], FISH.nut);
-    pushNut(near[0], near[1], 10);                              // the shaft
+    pushNut(px0, py0, 12);                                      // the tip pushes the nut
   }
   FISH.tip = [tx, ty];
   const [nl, nb, nr] = FISH_BOX;
@@ -779,11 +778,6 @@ function pushNut(x, y, reach) {
   if (d >= reach || d === 0) return;
   FISH.nut[0] += dx / d * (reach - d); FISH.nut[1] += dy / d * (reach - d);
   if (Math.random() < 0.05) sfx('plink');
-}
-function closestOnLine(a, b, p) {
-  const vx = b[0] - a[0], vy = b[1] - a[1], len = vx * vx + vy * vy || 1;
-  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / len));
-  return [a[0] + vx * t, a[1] + vy * t];
 }
 function fishWin() {
   FISH.won = true;

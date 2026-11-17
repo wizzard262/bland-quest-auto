@@ -83,6 +83,7 @@ async function hookNut(page) {
 async function garage(page, where) {
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await act(page, 'Garage');
+  await ok(page);                                                       // close anything that happens as you walk in (the nut escaping)
   if (where) await act(page, where);
 }
 const flag = (page, f) => page.evaluate(k => !!S.flags[k], f);
@@ -275,13 +276,17 @@ test('a big moment plays before its message: the nut drops and rolls away', asyn
   expect(errors).toEqual([]);
 });
 
-test('kicking something at 100 anger shakes the screen and adds a job', async ({ page }) => {
+test('losing it at 100 anger shakes the screen and adds a job; once the car is broken four ways, it is the wheelie bin', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('kick');
   await ok(page);
+  expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('broke-')))).toBe(true);
+  for (let i = 0; i < 4; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // three more car breaks, then the bin
+  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(4);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(true);
+  expect(errors).toEqual([]);
 });
 
 test('sound can be switched off and stays off', async ({ page }) => {
@@ -401,7 +406,8 @@ test('the nut bounces out and hides under the tool chest; you need a torch to se
   await act(page, 'Undo nut 3');
   expect(await dialogText(page)).toContain('bounces out');
   await ok(page);
-  await garage(page);
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await act(page, 'Garage');                                            // walk in: the nut escapes as you arrive
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutEscape');
   await ok(page);
   await act(page, 'Search under the tool chest');
@@ -431,5 +437,45 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await expect(page.locator('.book')).toContainText('torn out');
   await act(page, 'Put it back');
   await expect(page.locator('.book')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the fuses: the lid says see the manual, the manual pages are torn out, the diagram online says F23', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Check every fuse');
+  expect(await dialogText(page)).toContain('see owner');
+  await ok(page);
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });
+  await page.locator('.hs[data-go="act:book:7"]').click();               // the owner's handbook
+  await expect(page.locator('.book')).toContainText('torn out');
+  expect(await page.evaluate(() => leadOpen('fusediagram'))).toBe(true);
+  await page.evaluate(() => { S.screen = 'home'; render(); });
+  await act(page, 'Computer');
+  await page.click('[data-app="TechDocs"]');
+  await page.locator('button', { hasText: 'Note it down' }).click(); await ok(page);
+  expect(await flag(page, 'knowF23')).toBe(true);
+  await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Check every fuse');
+  expect(await dialogText(page)).toContain('F23');
+  expect(errors).toEqual([]);
+});
+
+test('a shop shelf, close up: the hammer they said they had not got is on the middle shelf', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('hammer', 'Find a hammer', null); S.flags.needHammer = true; S.mins = 10 * 60; });   // 10 o'clock: the shop is open
+  await goPlace(page, 'Hardware Shop'); await talk(page);
+  expect(await dialogText(page)).toContain('Not got any');
+  await ok(page);
+  await page.locator('.hs[data-go="act:shelfzoom:0"]').click(); await idle(page);
+  expect(await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').count()).toBe(0);   // not on the top shelf
+  await act(page, 'Step back');
+  await page.locator('.hs[data-go="act:shelfzoom:1"]').click(); await idle(page);
+  await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').click();
+  expect(await dialogText(page)).toContain("Didn't know we had one");
+  await ok(page);
+  expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);
   expect(errors).toEqual([]);
 });

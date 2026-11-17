@@ -84,7 +84,7 @@ SCREENS.shelf = {
       LABELS.push(`<div class="spine" style="left:${(x + 4) / W * 100}%;top:${(top + 16) / H * 100}%;width:${20 / W * 100}%;height:${(h - 34) / H * 100}%;color:${dark ? '#101018' : '#fff'}">${esc(title)}</div>`);
       spot(esc(title), [x, top, 28, h], 'act:book:' + i);
     });
-    tip('The manuals shelf', S.book != null ? 'Reading: ' + esc(BOOKS[S.book][0]) : 'Point at a book to read its spine. Tap to pull it down.', 1, 4);
+    tip('The manuals shelf', S.book != null ? 'Reading: ' + esc(BOOKS[S.book][0]) : 'Point at a book to read its spine. Tap to pull it down.', 1, 8);
     hud();
   },
   overlay() {
@@ -125,7 +125,7 @@ SCREENS.shelfzoom = {
       drawShelfItem(kind, x, 200, n);
       spot(esc(name), [x - 4, 120, 60, 84], 'act:shelfitem:' + name);
     });
-    tip(esc(S.place) + ': shelf ' + ((S.shelfz || 0) + 1), 'Point at things to see what they are.', 1, 4);
+    tip(esc(S.place) + ': shelf ' + ((S.shelfz || 0) + 1), 'Point at things to see what they are.', 1, 8);
     hud();
   },
   actions() { return [{ label: 'Step back', act: 'shelfback' }]; }
