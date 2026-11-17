@@ -7,7 +7,7 @@ module.exports = defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  timeout: 240000,
+  timeout: 600000,
   use: {
     headless: false,
     viewport: { width: 1200, height: 900 },

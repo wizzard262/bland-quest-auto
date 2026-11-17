@@ -68,6 +68,17 @@ async function tryDoor(page) {
   if (await page.locator('.dlg').count()) { await ok(page); return false; }
   return true;
 }
+// The little game: go round the side of the nut, get behind it, and draw it out towards you
+async function hookNut(page) {
+  const box = await page.locator('#stage canvas').boundingBox();
+  const at = (x, y) => page.mouse.move(box.x + x / 480 * box.width, box.y + y / 270 * box.height, { steps: 12 });
+  const nut = await page.evaluate(() => FISH.nut.slice());
+  await at(nut[0] + 40, 240);                 // up the side, well clear of the nut
+  await at(nut[0] + 40, nut[1] - 20);
+  await at(nut[0], nut[1] - 20);              // across, behind it
+  await at(nut[0], 262);                      // and pull it all the way out
+  await idle(page);
+}
 // Walk home, then into the garage, then somewhere in it
 async function garage(page, where) {
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
@@ -178,10 +189,21 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Pull the sensor out'); await ok(page);
   expect(await flag(page, 'sensorOut')).toBe(true);
 
-  // find nut 3 under the workbench (the screws go everywhere first)
+  // find nut 3: torch (flat) from the toolbox, batteries from the kitchen, see it under the chest, a stick, hook it out
+  await garage(page); await ok(page);
+  await act(page, 'Search under the car'); await ok(page);                         // too dark
+  await act(page, 'Toolbox'); await act(page, 'Open 5'); await act(page, 'Take the torch'); await ok(page);
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await act(page, 'Look for batteries'); await ok(page);
   await garage(page);
-  await act(page, 'Look under the workbench'); await ok(page);
-  await act(page, 'Look under the workbench'); await ok(page);
+  await act(page, 'Search under the tool chest'); await ok(page);
+  await page.evaluate(() => { S.screen = 'home'; render(); });
+  await act(page, 'Get a long stick'); await ok(page);
+  await garage(page);
+  await act(page, 'Search under the tool chest'); await choose(page, 'Hook it out');
+  expect(await page.evaluate(() => S.screen)).toBe('fish');
+  await hookNut(page);
+  await ok(page);
   expect(await flag(page, 'n3found')).toBe(true);
 
   // order the sensor, sleep on it, collect it from the other branch
@@ -205,6 +227,14 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Try the Parts 4 Less sensor');
   await act(page, 'Push'); await ok(page);
   expect(await page.evaluate(() => S.bench.state)).toBe('stuck');
+  await act(page, 'Pull'); await ok(page);                                 // jammed: needs a hammer
+  await act(page, 'Back to the garage'); await act(page, 'Toolbox'); await act(page, 'Open 6'); await act(page, 'Look for the hammer'); await ok(page);
+  await goPlace(page, 'Hardware Shop'); await talk(page); await ok(page);   // "not got any"
+  await page.locator('.hs[data-go="act:shelfzoom:1"]').click(); await idle(page);
+  await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').click(); await ok(page);
+  expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);
+  await garage(page, 'Workbench');
+  await act(page, 'Tap it with the hammer'); await ok(page);
   await act(page, 'Pull'); await ok(page);
   await act(page, 'Rotate'); await ok(page);
   await act(page, 'Push'); await ok(page);
@@ -361,5 +391,45 @@ test('the post office: ten in the queue and it never moves, unless you were outs
   await act(page, 'Wait until it opens'); await ok(page);
   await talk(page);
   expect(await dialogText(page)).toContain('first');
+  expect(errors).toEqual([]);
+});
+
+test('the nut bounces out and hides under the tool chest; you need a torch to see it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
+  await act(page, 'Undo nut 3');
+  expect(await dialogText(page)).toContain('bounces out');
+  await ok(page);
+  await garage(page);
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutEscape');
+  await ok(page);
+  await act(page, 'Search under the tool chest');
+  expect(await dialogText(page)).toContain('torch');
+  expect(errors).toEqual([]);
+});
+
+test('lose your temper and something on the car breaks; tap the anger bar to calm down', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { anger(100); render(); });
+  await ok(page);
+  expect(await page.evaluate(() => !!findJob('broke-mirror'))).toBe(true);
+  await page.click('.go[data-go="act:calm"]');
+  await choose(page, 'Ring Mum');
+  expect(await page.evaluate(() => S.anger)).toBeLessThan(40);
+  expect(errors).toEqual([]);
+});
+
+test('the manuals: each book has its title on the spine; pull one down and read it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await garage(page);
+  await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
+  expect(await page.locator('.spine').count()).toBe(14);
+  await page.locator('.hs[data-go="act:book:7"]').click();
+  await expect(page.locator('.book')).toContainText('torn out');
+  await act(page, 'Put it back');
+  await expect(page.locator('.book')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

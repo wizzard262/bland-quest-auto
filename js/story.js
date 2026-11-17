@@ -33,7 +33,7 @@ const HUNCHES = {
   codes() { lead('codes', 'dealer', 'The main dealer can read the codes', 'a hunch', 'vague', 'place:Main Dealer'); },
   meaning() { lead('meaning', 'sensor', 'Something on the gearbox?', 'a hunch', 'vague', 'underZoom'); },
   bolt2() { lead('bolt2', 'extractor2', 'A better extractor', 'a hunch', 'vague', 'place:Hardware Shop'); },
-  nut3() { lead('nut3', 'bench-floor', 'Under the workbench?', 'a hunch', 'vague', 'garage'); },
+  nut3() { lead('nut3', 'torch', 'A torch: there was one in the toolbox', 'a hunch', 'vague', 'toolbox'); },
   'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Motor Factors'); }
 };
 
@@ -194,7 +194,22 @@ const TALK = {
     say("Gaz's", '"Found it! It\'s the old type, mind."\n\nTry it in the car: the port is under the dash.');
   },
   'Tool Shop'() { shopCounter('Tool Shop', '"What are you after?"'); },
-  'Hardware Shop'() { shopCounter('Hardware Shop', '"Yes?"'); },
+  'Hardware Shop'() {
+    if (S.flags.needHammer && !S.inv.hammer && !S.flags.hammerAsked) {   // they say they haven't got one; they have
+      S.flags.hammerAsked = true;
+      closeLead('hammer-shop', 'x', 'Hardware Shop: "no hammers"');
+      lead('hammer', 'hammer-shelf', 'Look along their shelves yourself', 'you', 'hopeful', 'place:Hardware Shop');
+      return say('Hardware Shop', '"A hammer? Not got any, mate. Sold the last one Tuesday."');
+    }
+    shopCounter('Hardware Shop', '"Yes?"');
+  },
+  'Car Spares Direct'() {
+    if (!brokeOpen('lens')) return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
+    say('Car Spares Direct', '"Indicator lens? Got one in the back. £4."', [
+      { label: 'Pay £4', run() { if (!spend(4)) return say('Car Spares Direct', 'Card declined.'); finishJob('broke-lens', 'New indicator lens: £4'); closeLead('lens', 'ok'); say('Car Spares Direct', '"Mind how you go."'); } },
+      { label: 'Not now', run() {} }
+    ]);
+  },
   'Motor Factors'() {
     if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Motor Factors', '"It\'s at the other branch, like I said."');
     if (!findJob('new-sensor')) return say('Motor Factors', '"What part do you need? No part number, no part."');
@@ -219,6 +234,10 @@ const TALK = {
     ]);
   },
   'Breakers Yard'() {
+    if (brokeOpen('wiper')) {
+      finishJob('broke-wiper', 'A wiper arm from the Breakers Yard: £2'); closeLead('wiper', 'ok'); spend(2);
+      return say('Breakers Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
+    }
     if (!findJob('new-sensor')) return say('Breakers Yard', '"Got all sorts. What are you after?"');
     say('Breakers Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."', [
       { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
@@ -252,6 +271,12 @@ function buy(id, place) {
 // WHEN YOU OPEN CERTAIN SCREENS
 // =====================================================================
 const SCREEN_ENTER = {
+  garage() {
+    if (!S.flags.n3lost || S.flags.nutEscaped) return;
+    S.flags.nutEscaped = true;
+    moment('nutEscape', 2200); sfx('drop');
+    say('Nut 3', 'There it goes: out from under the car, bouncing across the floor… and gone. Somewhere.');
+  },
   home() {
     const fresh = S.doorstep.filter(p => !p.seen);
     if (!fresh.length) return;
@@ -310,21 +335,50 @@ const ACTIONS = {
     openParcel(p.item);
   },
   // ----- garage -----
-  'under-bench'() {
-    if (!S.flags.n3lost || S.flags.n3found) { pass(10); return say('Under the workbench', 'Dust, a spider and a 1996 calendar.'); }
-    pass(30);
-    if (!S.flags.screwsSpilt) {
-      S.flags.screwsSpilt = true;
-      anger(10);
-      moment('screws', 1500); sfx('screws');
-      return say('Under the workbench', 'You knock a box of hundreds of screws off the bench. They go everywhere. If the nut is here, it\'s somewhere in that lot now.');
+  // ----- finding nut 3: a torch to look under things, then a stick to hook it out -----
+  search(where) {
+    pass(10);
+    if (!S.flags.torchLit) {
+      lead('nut3', 'torch', 'A torch: there was one in the toolbox', 'you', 'fairly sure', 'toolbox');
+      return say('Under ' + where, 'Pitch black under there. You need a torch.');
     }
-    S.flags.n3found = true;
-    moment('found', 900); sfx('ding', 0.3);
-    finishJob('nut3', 'Found nut 3 (in the screws)');
-    closeLead('bench-floor', 'ok');
-    say('Under the workbench', 'Half an hour of sorting screws later: the nut! You put it somewhere safe.');
+    closeLead('search', 'ok');
+    if (where === 'the workbench' && !S.flags.screwsSpilt) {
+      S.flags.screwsSpilt = true; anger(10); moment('screws', 1500); sfx('screws');
+      return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere. No nut, though.');
+    }
+    if (where !== 'the tool chest') {
+      const found = { 'the car': 'A 1996 coin, a sweet wrapper and an oil stain shaped like France. No nut.', 'the parts boxes': 'Old parts, a dead spider and half a sandwich. No nut.', 'the shelves': 'Dust. A lot of dust. No nut.', 'the workbench': 'Screws, everywhere. Still no nut.' };
+      anger(3);
+      return say('Under ' + where, found[where] || 'No nut.');
+    }
+    S.flags.nutSeen = true;
+    if (!S.inv.stick) {
+      lead('nut3', 'stick', 'Something long and thin to hook it out', 'you', 'hopeful', 'home');
+      return say('Under the tool chest', 'THERE. A glint, right at the back under the tool chest. Your fingers don\'t reach. Not even close.');
+    }
+    say('Under the tool chest', 'You lie on the floor with the torch in your teeth and the stick in your hand…', [{ label: 'Hook it out', run() { fishStart(); show('fish'); } }]);
   },
+  takeTorch() {
+    if (S.inv.torch) return say('The torch', 'You\'ve got it.');
+    S.inv.torch = true; sfx('click');
+    closeLead('torch', 'ok');
+    lead('nut3', 'batteries', 'Batteries for the torch', 'you', 'sure', 'home');
+    say('The torch', 'You click it on. Nothing. You shake it. Nothing. Flat batteries.');
+  },
+  batteries() {
+    pass(15); S.flags.torchLit = true; sfx('click');
+    closeLead('batteries', 'ok', 'Batteries from the kitchen drawer: the torch works');
+    lead('nut3', 'search', 'Search the garage floor (with the torch)', 'you', 'hopeful', 'garage');
+    say('The kitchen drawer', 'Takeaway menus, string, a key to nothing, three dead batteries… and two good ones. The torch works!');
+  },
+  stick() {
+    pass(5); S.inv.stick = true; sfx('click');
+    closeLead('stick', 'ok', 'A long stick from the hedge');
+    lead('nut3', 'hook', 'Hook the nut out from under the tool chest', 'you', 'hopeful', 'garage');
+    say('A stick', 'You snap a long, thin stick off the hedge. Perfect. Probably.');
+  },
+  giveup() { anger(10); show('garage'); },
   // ----- in a shop -----
   enter() {
     const shut = closedReason(S.place);
@@ -411,8 +465,8 @@ const ACTIONS = {
     anger(10);
     moment('nutDrop', 1700); sfx('drop');
     job('nut3', 'Find nut 3', 'sensor-off');
-    lead('nut3', 'bench-floor', 'Under the workbench?', 'you', 'hopeful', 'garage');
-    say('Nut 3', 'It comes off, drops, bounces off your face and rolls away into the dark. You hear it go under the workbench. Probably.');
+    lead('nut3', 'search', 'Search the garage floor', 'you', 'hopeful', 'garage');
+    say('Nut 3', 'It comes off, drops, bounces off your face… and bounces out from under the car. You hear it skitter across the garage floor. Then nothing.');
   },
   extract() {
     pass(20);
@@ -456,10 +510,14 @@ const ACTIONS = {
   },
   // ----- under the bonnet -----
   fuses() {
-    pass(15);
-    sfx('click'); sfx('click', 0.3); sfx('click', 0.6);
-    closeLead('fuses', 'x', 'Checked every fuse: all fine');
-    say('The fuses', 'You pull every fuse with your fingernails and hold each one up to the light. All fine. Every one.');
+    pass(10);
+    sfx('click'); sfx('click', 0.3);
+    if (!S.flags.knowF23) {                                         // which one is it? the lid says see the manual; the manual's not much help
+      lead('meaning', 'fusebook', 'Note 7: the owner\'s manual on the shelf', 'the fuse box lid', 'sure', 'shelf');
+      return say('The fuses', 'Thirty fuses. Which one is the gearbox? The lid says F23 "Instr. (see note 7)". Note 7 says "see owner\'s manual".');
+    }
+    closeLead('fuses', 'x', 'Fuse F23 is fine'); closeLead('checkf23', 'x');
+    say('Fuse F23', 'You pull F23 and hold it up to the light. It\'s fine.');
   },
   look(what) { pass(5); say(what, LOOKS[what] || 'Looks fine. Probably.'); },
   // ----- the workbench -----
@@ -488,7 +546,16 @@ const ACTIONS = {
     const b = S.bench;
     if (!b) return;
     pass(5);
-    if (b.state === 'stuck') { b.state = 'over'; anger(5); moment('benchPull', 1000); sfx('creak'); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
+    if (b.state === 'stuck' && !S.flags.tapped) {                  // jammed: it needs a tap with a hammer first
+      anger(8); sfx('creak');
+      if (!S.flags.needHammer) {
+        S.flags.needHammer = true;
+        job('hammer', 'Find a hammer', 'new-sensor');
+        lead('hammer', 'hammer-box', 'The hammer in the toolbox (drawer 6)', 'you', 'sure', 'toolbox');
+      }
+      return say('Pull', 'It won\'t budge. It\'s jammed solid. A tap with a hammer might free it.');
+    }
+    if (b.state === 'stuck') { b.state = 'over'; S.flags.tapped = false; anger(5); moment('benchPull', 1000); sfx('creak'); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
     say('Pull', 'It\'s not in.');
   },
   rotate() { const b = S.bench; if (!b) return; b.rotated = true; sfx('ratchet'); say('Rotate', 'You turn it until the pins line up with the slots.'); },

@@ -124,6 +124,7 @@ function hud() {
   text('ANGER', W - 74 * s, 3 * s, C.dim, s);
   rect(W - 50 * s, 3 * s, 46 * s, 5 * s, C.grey);
   rect(W - 49 * s, 4 * s, Math.round(44 * s * info.anger / 100), 3 * s, info.anger > 75 ? C.red : C.warm);
+  link('act:calm', W - 76 * s, 0, 74 * s, 12 * s);                     // tap the anger bar: ways to calm down
   // phone in your pocket, with a red dot for unread texts
   const x = W - 18 * s, y = H - 23 * s;
   rect(x, y, 11 * s, 17 * s, C.ink); rect(x + s, y + s, 9 * s, 15 * s, C.ui); rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, C.glass);
