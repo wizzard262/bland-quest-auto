@@ -458,8 +458,49 @@ const ACTIONS = {
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
   horn() { sfx('hornnear'); moment('horn', 500); },                    // parp! (the horn works with the key off, like a real car)
   turnkey() {
-    if (S.flags.running) { S.flags.running = false; S.key = 0; sfx('click'); return; }
+    if (S.flags.running) {                                               // running: switch it all off
+      S.flags.running = false;
+      S.key = 0;
+      radioState().on = false;                                           // the key off turns the radio off too
+      sfx('click');
+      return;
+    }
     ACTIONS.key(String(S.key + 1));
+  },
+  // the accelerator: revs the engine if it's running; otherwise the pedal just goes down
+  pedal() {
+    if (S.flags.running) return ACTIONS.rev();
+    sfx('click');
+    moment('pedal', 400);
+  },
+  // the hatch under the steering wheel: open it; then the port behind it takes a code reader
+  hatch() {
+    if (!S.flags.hatch) {                                                // shut: pop it open
+      S.flags.hatch = true;
+      sfx('click');
+      return say('Under the steering wheel', 'You pop the little hatch off. Behind it: a flat socket with 16 pins. The diagnostic port.');
+    }
+    if (S.flags.readerIn) return say('Diagnostic port', 'Your code reader is plugged in.');
+    if (S.inv['reader-good']) return ACTIONS.plug('good');               // got a reader: plug it in
+    if (S.inv['reader-old']) return ACTIONS.plug('old');
+    S.flags.hatch = false;                                               // nothing to plug in: put the hatch back
+    sfx('click');
+  },
+  // the radio's three buttons: dir -1 = ◀, 0 = the middle one, 1 = ▶
+  radio(dir) {
+    if (S.key < 1) return say('Radio', 'Nothing. The radio needs the key at I.');
+    const R = radioState();
+    const d = +dir;
+    sfx('click');
+    if (!R.unlocked) {                                                   // locked: put the code in
+      if (d !== 0) { R.pos = (R.pos + d + 4) % 4; return; }              // ◀ ▶ pick a place
+      const now = R.digits[R.pos];
+      R.digits[R.pos] = now === null ? 0 : (now + 1) % 10;               // the middle one turns it 0, 1 … 9, 0
+      if (R.digits.join('') === RADIO_CODE) { R.unlocked = true; sfx('beep'); }   // the right code: it unlocks
+      return;
+    }
+    if (d === 0) { R.on = !R.on; return; }                               // unlocked: the middle one turns it on or off
+    if (R.on) R.station = (R.station + d + STATIONS.length) % STATIONS.length;   // on: ◀ ▶ change the station
   },
   // ----- the toolbox -----
   drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; sfx('drawer'); },
@@ -470,6 +511,7 @@ const ACTIONS = {
   key(pos) {
     S.key = +pos;
     S.flags.running = false;
+    if (S.key === 0) radioState().on = false;                            // the key off turns the radio off
     if (S.key === 3) {
       S.key = 2;
       S.flags.running = true;
@@ -481,6 +523,7 @@ const ACTIONS = {
     render();
   },
   plug(which) {
+    S.flags.hatch = true;                                                // the port is behind the hatch: open it
     if (S.key < 2) return say('Code reader', 'Nothing. The key needs to be at II for the reader to wake up.');
     pass(10);
     sfx('beep');

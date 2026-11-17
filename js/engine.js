@@ -41,6 +41,12 @@ let SPEAKER = null;                    // [x, y] picture position of whoever is 
 const now = () => (S.day - 1) * 1440 + S.mins;
 const hhmm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const weekday = () => DAYS[S.day % 7];
+// The car radio: the code typed so far, which place is picked, unlocked yet, on or off, which station
+const RADIO_CODE = '1234';
+function radioState() {
+  if (!S.radio) S.radio = { digits: [null, null, null, null], pos: 0, unlocked: false, on: false, station: 0 };   // older saves didn't have one
+  return S.radio;
+}
 function clockText() { return `${weekday()} ${hhmm(S.mins)}   DAY ${S.day}   £${Math.max(0, Math.floor(S.money))}`; }
 
 // Let time pass; fires any timed events and parcel deliveries on the way
@@ -313,7 +319,8 @@ function render() {
   stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
-  if (S.screen !== 'home') stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
+  const inShop = S.screen === 'place' && S.inside;                 // in a shop you leave by its door, not a Back button
+  if (S.screen !== 'home' && !inShop) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
   actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');

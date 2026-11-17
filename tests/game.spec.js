@@ -47,6 +47,15 @@ async function act(page, label) {
   await idle(page);
   await page.locator('.acts button', { hasText: label }).first().click();
 }
+// Tap a thing in the picture by where it goes (its data-go)
+async function tap(page, go) {
+  await idle(page);
+  await page.locator(`.hs[data-go="${go}"]`).click();
+}
+// In the driver's seat: tap the key until the engine starts
+async function startCar(page) {
+  for (let i = 0; i < 4 && !(await page.evaluate(() => S.flags.running)); i++) await tap(page, 'act:turnkey');
+}
 // Go into town from wherever you are, then to a place on the map
 async function goPlace(page, name) {
   const screen = await page.evaluate(() => S.screen);
@@ -294,7 +303,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
   await act(page, 'Fit the new sensor'); await ok(page);
   await garage(page, "Driver's seat");
-  await act(page, 'Start it');
+  await startCar(page);
   expect(await dialogText(page)).toContain('ABS');
   await ok(page);
   expect(await page.evaluate(() => findJob('light').status)).toBe('done');
@@ -394,6 +403,19 @@ test('in a shop you walk to the shopkeeper and they answer in a speech bubble wi
   expect(errors).toEqual([]);
 });
 
+test('in a shop there is no Back button: you leave by the wireframe door at the bottom', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goPlace(page, 'Spanner & Son');
+  await tap(page, 'act:enter');
+  await expect(page.locator('#stage .back')).toHaveCount(0);
+  await tap(page, 'act:leave');
+  await idle(page);
+  expect(await page.evaluate(() => S.inside)).toBe(false);
+  await expect(page.locator('#stage .back')).toHaveCount(1);           // outside, Back is there again
+  expect(errors).toEqual([]);
+});
+
 test('the breakers yard: look round the wrecks; your exact car has had the part taken', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -425,9 +447,75 @@ test('turn the key by tapping it: I, II, then start; running, only the red light
   await page.locator('.hs[data-go="act:turnkey"]').click();
   await ok(page);
   expect(await page.evaluate(() => S.flags.running)).toBe(true);
-  await expect(page.locator('.acts button', { hasText: 'Rev the engine' })).toBeVisible();
-  await act(page, 'Rev the engine');
+  await tap(page, 'act:pedal');                                        // the accelerator revs it
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rev');
+  for (const gone of ['Key: off', 'Key: I', 'Key: II', 'Start it', 'Rev the engine', 'Press the horn', 'Get out']) {
+    await expect(page.locator('.acts button', { hasText: gone })).toHaveCount(0);   // no buttons for what's in the picture
+  }
+  expect(errors).toEqual([]);
+});
+
+test('the accelerator does nothing with the engine off; the hatch under the wheel opens on the diagnostic port', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await tap(page, 'act:pedal');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('pedal');
+  await tap(page, 'act:hatch');
+  expect(await dialogText(page)).toContain('diagnostic port');
+  await ok(page);
+  expect(await flag(page, 'hatch')).toBe(true);
+  await tap(page, 'act:hatch');                                        // nothing to plug in: it goes back on
+  expect(await flag(page, 'hatch')).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('the radio: put the code in with the arrows and the middle button; 1234 unlocks it, then it plays three stations', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await tap(page, 'act:turnkey');                                      // key to I: the radio wakes up
+  const screen = page.locator('.scr.radio');
+  await expect(screen).toContainText('CODE');
+  await expect(screen).toContainText('_ _ _ _');
+  // for each place: press the middle button up to the number, then the right arrow
+  for (const digit of [1, 2, 3, 4]) {
+    for (let n = 0; n <= digit; n++) await tap(page, 'act:radio:0');   // _ , 0, 1 … up to the number
+    if (digit < 4) await tap(page, 'act:radio:1');
+  }
+  expect(await page.evaluate(() => radioState().unlocked)).toBe(true);
+  await expect(screen).toHaveText(/^\d\d:\d\d$/);                    // unlocked and off: the time
+  await tap(page, 'act:radio:0');                                      // the middle button turns it on
+  await expect(screen).toContainText('CHIP FM');
+  await tap(page, 'act:radio:1');
+  await expect(screen).toContainText('8BIT GOLD');
+  await tap(page, 'act:radio:-1'); await tap(page, 'act:radio:-1');    // left past the first goes round to the last
+  await expect(screen).toContainText('BLEEP 99');
+  // the key off turns the radio off
+  await tap(page, 'act:turnkey'); await ok(page);                      // II
+  await startCar(page); await ok(page);
+  await tap(page, 'act:turnkey');                                      // running: switch it all off
+  expect(await page.evaluate(() => [S.key, radioState().on])).toEqual([0, false]);
+  expect(errors).toEqual([]);
+});
+
+test('the wrong radio code does not unlock it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; S.key = 1; render(); });
+  for (let k = 0; k < 4; k++) { await tap(page, 'act:radio:0'); await tap(page, 'act:radio:1'); }   // 0 0 0 0
+  expect(await page.evaluate(() => radioState().digits.join(''))).toBe('0000');
+  expect(await page.evaluate(() => radioState().unlocked)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("the door handle in the driver's door gets you out", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await tap(page, 'garage');
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
   expect(errors).toEqual([]);
 });
 
@@ -437,9 +525,6 @@ test('the horn in the middle of the steering wheel goes PARP, with the key off o
   await page.evaluate(() => { S.screen = 'dash'; render(); });
   await idle(page);
   await page.locator('.hs[data-go="act:horn"]').click();
-  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('horn');
-  await idle(page);
-  await act(page, 'Press the horn');
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('horn');
   expect(errors).toEqual([]);
 });

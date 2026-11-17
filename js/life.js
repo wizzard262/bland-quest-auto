@@ -105,11 +105,54 @@ SCREENS.bench.animate = function (t) {
     px(x, y, C.light);
   }
 };
+// The street out of the windscreen: people walking by on the far pavement, cars both ways
+const PASSERS = [{ speed: 14, off: 0, shirt: C.shirt }, { speed: -11, off: 170, shirt: C.door }, { speed: 9, off: 320, shirt: C.warm }];
+const TRAFFIC = [{ speed: -45, off: 250, y: 96, col: C.white }, { speed: 60, off: 0, y: 100, col: C.red }, { speed: 75, off: 560, y: 100, col: C.tree2 }];
+function streetLife(t) {
+  const V = STREET_VIEW;
+  for (const p of PASSERS) {                                                                         // people, behind the traffic
+    const d = (Math.abs(p.speed) * t + p.off) % (V.x1 - V.x0 + 40);                                  // how far along they've walked
+    const x = p.speed > 0 ? V.x0 - 20 + d : V.x1 + 20 - d;                                           // which way they're going
+    passer(x, 87, t, p.shirt);
+  }
+  for (const c of TRAFFIC) {                                                                         // cars: the far lane first, then the near one
+    const d = (Math.abs(c.speed) * t + c.off) % (V.x1 - V.x0 + 400);                                 // with gaps between them
+    const x = c.speed > 0 ? V.x0 - 60 + d : V.x1 + 10 - d;
+    sideCar(x, c.y, c.speed > 0 ? 1 : -1, c.col);
+  }
+  keepInDoorway();
+}
+// A person walking, seen from the side; feet at y
+function passer(x, y, t, shirt) {
+  const step = Math.floor(t * 6 + x) % 2;                                                            // legs apart, then together
+  rect(x - step, y - 4, 1, 4, C.jeans); rect(x + 2 + step, y - 4, 1, 4, C.jeansDark);                // legs
+  rect(x - 1, y - 10, 5, 6, shirt);                                                                  // body
+  rect(x, y - 13, 3, 3, C.skin); rect(x, y - 14, 3, 1, C.hair);                                      // head and hair
+}
+// A car driving by, seen from the side; dir 1 = going right; base = where its wheels touch the road
+function sideCar(x, base, dir, col) {
+  const at = u => dir > 0 ? x + u : x + 46 - u;                                                       // measured from its back
+  rbox(Math.min(at(0), at(46)), base - 10, 46, 7, 2, col);                                           // the body
+  poly([[at(6), base - 10], [at(10), base - 16], [at(28), base - 16], [at(34), base - 10]], shade(col, 0.9));   // the cabin
+  poly([[at(9), base - 10], [at(12), base - 15], [at(26), base - 15], [at(31), base - 10]], C.glass);           // its windows
+  rect(Math.min(at(18), at(19)), base - 15, 1, 5, shade(col, 0.9));                                  // the door pillar
+  for (const u of [10, 36]) { disc(at(u), base - 3, 3, C.tyre); px(at(u), base - 3, C.rim); }        // wheels
+  rect(Math.min(at(44), at(46)), base - 8, 2, 2, C.warm);                                            // headlight
+  rect(Math.min(at(0), at(2)), base - 8, 2, 2, C.red);                                               // tail light
+}
+// Put back the garage walls either side of the doorway, so the street only shows through it
+function keepInDoorway() {
+  const V = STREET_VIEW;
+  for (let y = V.y0; y < V.y1; y++) {
+    const row = y * W * 4;
+    img.data.set(BG.subarray(row, row + V.x0 * 4), row);                                             // left of the doorway
+    img.data.set(BG.subarray(row + V.x1 * 4, row + W * 4), row + V.x1 * 4);                          // right of it
+  }
+}
 SCREENS.dash.animate = function (t) {
+  streetLife(t);
   if (!S.flags.running) return;
-  disc(264, 152, 27, hex('#0e0f11'));                                                                                  // engine ticking over:
-  const a = 3.05 + Math.sin(t * 23) * 0.03 + Math.sin(t * 5) * 0.02;                                                   // the rev needle trembles
-  line(264, 152, 264 + Math.cos(a) * 26, 152 + Math.sin(a) * 26, C.red); disc(264, 152, 3, C.steel2);
+  dialNeedle(DASH.rpm, 3.05 + Math.sin(t * 23) * 0.03 + Math.sin(t * 5) * 0.02);                    // engine ticking over: the rev needle trembles
 };
 
 // =====================================================================
@@ -270,23 +313,21 @@ const MOMENTS = {
   },
   start(p) {                                                          // crank, catch, rev; then the lights
     const rev = p < 0.3 ? Math.sin(p * 60) * 0.1 : p < 0.55 ? lerp(0, 1.6, (p - 0.3) / 0.25) : lerp(1.6, 0.55, ease((p - 0.55) / 0.45));
-    disc(264, 152, 27, hex('#0e0f11'));
-    line(264, 152, 264 + Math.cos(2.5 + rev) * 26, 152 + Math.sin(2.5 + rev) * 26, C.red); disc(264, 152, 3, C.steel2);
+    dialNeedle(DASH.rpm, 2.5 + rev);
     if (S.flags.fitted) {
-      warnLight(209, 126, 'gear', C.red, p < 0.45);                                                                    // the red light goes OFF…
-      warnLight(209, 184, 'abs', C.warm, p > 0.62 && (p > 0.9 || Math.floor(p * 30) % 2 === 0));                       // …and the ABS light flicks ON
+      warnLight(...DASH.gear, 'gear', C.red, p < 0.45);                                                                  // the red light goes OFF…
+      warnLight(...DASH.abs, 'abs', C.warm, p > 0.62 && (p > 0.9 || Math.floor(p * 30) % 2 === 0));                     // …and the ABS light flicks ON
     }
   },
-  clear(p) { warnLight(209, 126, 'gear', C.red, p > 0.78); },
-  rev(p) {                                                            // a blip of the accelerator: the rev needle jumps and falls back
+  clear(p) { warnLight(...DASH.gear, 'gear', C.red, p > 0.78); },
+  rev(p) {                                                            // the accelerator pressed: the rev needle jumps and falls back
     const up = p < 0.22 ? p / 0.22 : Math.max(0, 1 - (p - 0.22) / 0.78);
-    disc(264, 152, 27, hex('#0e0f11'));
-    const a = 3.05 + up * 2.2;
-    line(264, 152, 264 + Math.cos(a) * 26, 152 + Math.sin(a) * 26, C.red); disc(264, 152, 3, C.steel2);
-
+    accelPedal(p < 0.5);
+    dialNeedle(DASH.rpm, 3.05 + up * 2.2);
   },
+  pedal() { accelPedal(true); },                                      // pressed with the engine off: nothing happens
   horn(p) {                                                           // the middle of the wheel pressed in, and PARP!
-    rbox(186, 232, 46, 30, 8, hex('#121316'));
-    if (p < 0.8) text('PARP!', 186, 214, C.warm, 2);
+    rbox(...HORN, 8, hex('#121316'));
+    if (p < 0.8) text('PARP!', HORN[0], HORN[1] - 18, C.warm, 2);
   }        // the light goes out… then comes back
 };

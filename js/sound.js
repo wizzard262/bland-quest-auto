@@ -120,6 +120,69 @@ function chatter(n, pitch = 140) {
   } catch (e) { /* never stop the game for a sound */ }
 }
 
+// A real car horn: two buzzing notes a third apart (about 410 and 510 Hz), held, then let go.
+// The buzz comes from clipping the waves hard (like the horn's metal disc slapping); then a filter takes the edge off.
+function carHorn(at, len, vol, bright) {
+  const shaper = AC.createWaveShaper(), f = AC.createBiquadFilter(), body = AC.createBiquadFilter(), g = AC.createGain();
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 6); }         // hard clipping: the buzz
+  shaper.curve = curve;
+  f.type = 'lowpass'; f.frequency.value = bright;                                                  // how bright it sounds (duller far away)
+  body.type = 'peaking'; body.frequency.value = 1100; body.Q.value = 2; body.gain.value = 8;     // the horn's honky middle
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(vol, at + 0.02);                                           // it comes on fast…
+  g.gain.setValueAtTime(vol, at + len);                                                          // …holds…
+  g.gain.exponentialRampToValueAtTime(0.0001, at + len + 0.08);                                  // …and stops when you let go
+  shaper.connect(f); f.connect(body); body.connect(g); g.connect(MASTER);
+  for (const [freq, level] of [[410, 0.6], [512, 0.5]]) {                                        // the two horns
+    const o = AC.createOscillator(), og = AC.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(freq * 0.96, at);                                                  // a tiny swoop up as the disc gets going
+    o.frequency.linearRampToValueAtTime(freq, at + 0.04);
+    og.gain.value = level;
+    o.connect(og); og.connect(shaper);
+    o.start(at); o.stop(at + len + 0.12);
+  }
+}
+
+// ---------- the car radio: three stations of chiptunes, made up here ----------
+// Each tune: beats per minute, then a lead and a bass line, one note per half beat (MIDI note numbers; 0 = a rest)
+const STATIONS = [
+  { name: 'CHIP FM', bpm: 132,
+    lead: [72, 0, 76, 79, 76, 0, 72, 74, 76, 0, 74, 72, 69, 0, 67, 0, 72, 0, 76, 79, 81, 0, 79, 76, 74, 0, 76, 74, 72, 0, 0, 0],
+    bass: [48, 0, 60, 0, 48, 0, 60, 0, 45, 0, 57, 0, 45, 0, 57, 0, 41, 0, 53, 0, 41, 0, 53, 0, 43, 0, 55, 0, 43, 0, 55, 0] },
+  { name: '8BIT GOLD', bpm: 108,
+    lead: [69, 72, 76, 72, 74, 0, 72, 71, 69, 0, 64, 0, 67, 69, 71, 0, 72, 71, 69, 67, 65, 0, 64, 0, 62, 64, 65, 67, 64, 0, 0, 0],
+    bass: [45, 0, 45, 52, 45, 0, 45, 52, 41, 0, 41, 48, 41, 0, 41, 48, 38, 0, 38, 45, 38, 0, 38, 45, 40, 0, 40, 47, 40, 0, 44, 0] },
+  { name: 'BLEEP 99', bpm: 156,
+    lead: [67, 71, 74, 79, 74, 71, 67, 71, 69, 72, 76, 81, 76, 72, 69, 72, 66, 69, 74, 78, 74, 69, 66, 69, 67, 71, 74, 79, 83, 0, 79, 0],
+    bass: [43, 43, 0, 43, 43, 0, 43, 0, 45, 45, 0, 45, 45, 0, 45, 0, 38, 38, 0, 38, 38, 0, 38, 0, 43, 43, 0, 43, 43, 0, 50, 0] }
+];
+let RADIO_PLAYING = { station: -1, timer: null, step: 0, next: 0 };
+const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
+// Start a station playing (keeps going until radioOff); a little ahead of time, so it never stutters
+function radioOn(k) {
+  if (RADIO_PLAYING.station === k) return;
+  radioOff();
+  const st = STATIONS[k], half = 60 / st.bpm / 2;
+  RADIO_PLAYING = { station: k, timer: null, step: 0, next: AC.currentTime + 0.05 };
+  const R = RADIO_PLAYING;
+  R.timer = setInterval(() => {
+    while (R.next < AC.currentTime + 0.3) {                                                     // queue up the next 0.3 seconds
+      const n = R.step % st.lead.length;
+      if (st.lead[n]) tone(R.next, midiHz(st.lead[n]), half * 0.9, 0.035, 'square');
+      if (st.bass[n]) tone(R.next, midiHz(st.bass[n]), half * 0.95, 0.07, 'triangle');
+      if (n % 4 === 0) hiss(R.next, 6000, 0.03, 0.02, 'highpass');                               // a tick of hi-hat on the beat
+      R.next += half;
+      R.step++;
+    }
+  }, 80);
+}
+function radioOff() {
+  if (RADIO_PLAYING.timer) clearInterval(RADIO_PLAYING.timer);
+  RADIO_PLAYING = { station: -1, timer: null, step: 0, next: 0 };
+}
+
 // ---------- background sound for each screen, and the engine ----------
 let AMB = { name: null, nodes: [], timers: [] };
 let ENGINE = null;                       // the running engine: { oscs, filter, gain }
@@ -161,7 +224,10 @@ const AMBIENCE = {
 };
 // Called after every repaint: the right background, and the engine running or not
 function soundScene(screen, engineRunning) {
-  if (!AC || AC.state !== 'running' || MUTED) { stopAmbience(); engineOff(); return; }
+  if (!AC || AC.state !== 'running' || MUTED) { stopAmbience(); engineOff(); radioOff(); return; }
+  // the radio: only heard sitting in the car, with the key at I or more
+  const radio = typeof S !== 'undefined' && S.radio;
+  if (radio && radio.on && S.key >= 1 && screen === 'dash') radioOn(radio.station); else radioOff();
   if (AMB.name !== screen) { stopAmbience(); AMB.name = screen; if (AMBIENCE[screen]) AMBIENCE[screen](); }
   const near = ['dash', 'garage', 'bonnet', 'under', 'underZoom', 'toolbox', 'bench'].includes(screen);
   if (engineRunning && near) engineOn(screen === 'dash' ? 0.22 : 0.1); else engineOff();
@@ -195,8 +261,8 @@ function engineRev() {
 }
 // More one-off sounds for the backgrounds
 SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };
-SOUNDS.hornnear = t => { tone(t, 330, 0.45, 0.16, 'square'); tone(t, 415, 0.45, 0.13, 'square'); };   // our own horn, right here
-SOUNDS.horn = t => { tone(t, 330, 0.35, 0.025, 'square'); tone(t, 415, 0.35, 0.02, 'square'); };
+SOUNDS.hornnear = t => carHorn(t, 0.5, 0.22, 3200);                // our own horn, right here
+SOUNDS.horn = t => carHorn(t, 0.35, 0.03, 1400);                     // someone else's, down the street (duller)
 SOUNDS.bark = t => { for (let i = 0; i < 2; i++) { tone(t + i * 0.22, [420, 260], 0.12, 0.12, 'sawtooth'); hiss(t + i * 0.22, 900, 0.1, 0.1); } };
 SOUNDS.carpass = t => { hiss(t, [180, 700], 0.9, 0.12, 'lowpass'); hiss(t + 0.9, [700, 150], 0.9, 0.12, 'lowpass'); tone(t, [55, 75], 0.9, 0.05, 'sawtooth'); tone(t + 0.9, [75, 48], 0.9, 0.05, 'sawtooth'); };
 SOUNDS.plink = t => { tone(t, [1900, 1300], 0.09, 0.06); };

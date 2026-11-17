@@ -190,6 +190,24 @@ function minimap() {
 // =====================================================================
 // A PLACE IN TOWN: inside the shop (or on the doorstep), talking at the counter
 // =====================================================================
+// The door out of a shop: in the near wall (the one you can't see), so it's drawn as a wireframe
+const EXIT_DOOR = [88, 122, 52];                                    // from x, to x, height
+function exitDoor() {
+  const [x0, x1, h] = EXIT_DOOR, y = 150;
+  const edges = [[P(x0, y, 0), P(x0, y, h)], [P(x0, y, h), P(x1, y, h)], [P(x1, y, h), P(x1, y, 0)]];   // the frame: both sides and the top
+  for (const [a, b] of edges) dashedLine(a, b, C.mint);
+  const k = P(x1 - 5, y, h * 0.45);                                 // the handle
+  rect(k[0] - 2, k[1], 4, 2, C.mint);
+}
+// A dashed line from a to b (3 pixels on, 2 off)
+function dashedLine(a, b, col) {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  for (let d = 0; d < len; d++) {
+    if (d % 5 >= 3) continue;                                       // the gaps
+    px(a[0] + (b[0] - a[0]) * d / len, a[1] + (b[1] - a[1]) * d / len, col);
+  }
+}
+
 SCREENS.place = {
   size: [480, 270],
   paint() {
@@ -213,7 +231,8 @@ SCREENS.place = {
       else spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
       spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
     }
-    spot('Leave', isoArea(80, 138, 130, 150, 0, 6), style === 'house' ? 'city' : 'act:leave', [105, 146]);
+    exitDoor();                                                    // the way out: a see-through door in the near wall
+    spot('Door: leave', isoArea(EXIT_DOOR[0], 146, EXIT_DOOR[1], 150, 0, EXIT_DOOR[2]), style === 'house' ? 'city' : 'act:leave', [105, 140]);
     tip(name, shut ? esc(shut) : 'Tap the ' + (style === 'house' ? 'door' : 'shopkeeper') + ' to talk. Walk round and look at things.', 1, 8);
     hud();
   },
@@ -557,62 +576,189 @@ SCREENS.fuseZoom = {
 // =====================================================================
 // THE DASHBOARD: the driver's seat
 // =====================================================================
+// Where things are on the dashboard (it's a right-hand drive car: the driver's door is on the right)
+//   the two dials (centre height, x of each, radius) and the warning lights between them
+const DASH = { y: 150, mph: 123, rpm: 215, r: 29, gear: [169, 126], engine: [169, 141], abs: [169, 157], battery: [161, 173], oil: [179, 173] };
+const WHEEL = [169, 262];                                  // the middle of the steering wheel
+const HORN = [146, 232, 46, 30];                           // the horn pad in the middle of the wheel
+const IGNITION = [290, 200];                               // the key
+const RADIO_BUTTONS = [330, 358, 386];                     // x of the radio's three buttons: ◀, the middle one, ▶
+const DOOR_HANDLE = [434, 136, 38, 18];                    // the handle inside the driver's door
+const STREET_VIEW = { x0: 58, x1: 400, y0: 42, y1: 108 };  // the open garage doorway, seen through the windscreen
+
+// A dial's needle at angle a (its face is wiped first, so it can be redrawn as it moves), and its label
+function dialNeedle(cx, a) {
+  disc(cx, DASH.y, Math.round(DASH.r * 0.75), hex('#0e0f11'));                                     // wipe the face inside the marks
+  text(cx === DASH.mph ? 'MPH' : 'RPM', cx - 6, DASH.y + 12, C.dim);                                // its label
+  const len = DASH.r * 0.72;                                                                         // the needle reaches nearly to the marks
+  line(cx, DASH.y, cx + Math.cos(a) * len, DASH.y + Math.sin(a) * len, C.red);                      // the needle
+  disc(cx, DASH.y, 3, C.steel2);                                                                     // its middle
+}
+
+// The hatch under the steering wheel: shut, or open on the diagnostic port
+function obdHatch(open) {
+  if (!open) {
+    rbox(58, 220, 36, 30, 3, hex('#34363b'));                                                       // the panel
+    rect(60, 221, 32, 1, hex('#44464c'));                                                           // its top edge catches the light
+    rect(72, 245, 8, 2, hex('#1a1b1e'));                                                            // a notch to pull it off by
+    return;
+  }
+  rect(58, 220, 36, 30, hex('#0c0c0e'));                                                            // the hole behind it
+  rect(58, 250, 36, 5, hex('#34363b'));                                                             // the panel, hanging down
+  poly([[64, 229], [88, 229], [85, 241], [67, 241]], hex('#26272b'));                               // the port: a flat D shape
+  for (let k = 0; k < 8; k++) {
+    px(67 + k * 2.6, 232, C.steel);                                                                  // its top row of pins
+    px(68.5 + k * 2.2, 237, C.steel);                                                                // and its bottom row (16 in all)
+  }
+}
+
+// The accelerator pedal in its footwell; down = being pressed
+function accelPedal(down) {
+  const d = down ? 4 : 0;                                                                            // pressed: it moves down a little
+  rbox(246, 220, 40, 50, 6, hex('#1a1b1e'));                                                        // the footwell
+  pipe(266, 220, 265, 236 + d, 3, C.steel2);                                                        // the pedal's arm
+  rbox(254, 234 + d, 24, 30, 4, hex('#3a3c40'));                                                    // the pedal
+  for (let y = 238 + d; y < 262 + d; y += 4) rect(257, y, 18, 1, hex('#26272b'));                   // its rubber ridges
+}
+
+// The driver's door, on the right: its window (the garage wall outside), the handle, the armrest, a speaker
+function driverDoor() {
+  poly([[404, 18], [428, 18], [440, 106], [420, 106]], hex('#2a2c30'));                             // the pillar between windscreen and door
+  for (let k = 0; k < 3; k++) line(452 + k * 10, 24, 444 + k * 10, 98, shade(C.concrete, 0.72));   // streaks of light on the window
+  rect(432, 98, 48, 8, hex('#1c1d20'));                                                             // the bottom of the window frame
+  rect(420, 106, 60, H - 106, hex('#26282c'));                                                      // the door's trim panel
+  grime(421, 106, 59, H - 106, hex('#26282c'), 0.1, 56);
+  rect(420, 106, 1, H - 106, hex('#101012'));                                                       // the gap where the door shuts
+  rbox(426, 110, 50, 12, 4, hex('#303236'));                                                        // the top of the door, under the window
+  const [hx, hy, hw, hh] = DOOR_HANDLE;
+  rbox(hx, hy, hw, hh, 5, hex('#141518'));                                                          // the handle's recess
+  rbox(hx + 4, hy + 5, hw - 10, 7, 3, C.steel2);                                                    // the handle
+  rect(hx + 6, hy + 6, hw - 14, 1, C.steel);                                                        // its shine
+  rbox(424, 174, 56, 12, 4, hex('#333539'));                                                        // the armrest
+  for (let y = 204; y < 246; y += 4) for (let x = 434; x < 472; x += 4) px(x, y, hex('#141518'));   // the speaker grille
+  rect(424, 252, 56, 14, hex('#1e1f22'));                                                           // the door pocket
+}
+
+// The radio's screen
+//   locked:   CODE, and under it the four places of the code (the one picked with ◀ ▶ lit up)
+//   unlocked: the time (24 hour), or the station playing
+function radioScreenHtml() {
+  const R = radioState();
+  if (!R.unlocked) {
+    const places = R.digits.map((d, k) => {
+      const shown = d === null ? '_' : String(d);                                                    // a place not set yet shows _
+      if (k === R.pos) return `<span class="hi">${shown}</span>`;                                    // light up the picked one
+      return shown;
+    });
+    return `<div class="top">CODE</div><div class="big">${places.join(' ')}</div>`;
+  }
+  if (!R.on) return `<div class="big">${hhmm(S.mins)}</div>`;                                        // off: just the clock
+  const st = STATIONS[R.station];                                                                    // on: the station playing
+  return `<div class="top">FM ${R.station + 1} ♪</div><div class="big">${st.name}</div>`;
+}
+
+// Out of the windscreen: the garage door is up, so you see the street (cars and people go by in life.js)
+function dashStreet() {
+  const V = STREET_VIEW;
+  rect(0, 18, W, 92, hex('#b8c8d8'));                                                               // the sky
+  for (let k = 0; k < 7; k++) {                                                                      // the terraced houses over the road
+    const hx = V.x0 - 30 + k * 58;
+    rect(hx + 44, 44, 6, 6, C.brickLine);                                                            // chimney
+    poly([[hx, 58], [hx + 58, 58], [hx + 50, 48], [hx + 8, 48]], k % 2 ? C.roof : C.roofLine);      // slate roof
+    rect(hx, 58, 58, 26, k % 2 ? C.brick : shade(C.brick, 0.9));                                     // brick front
+    for (const wx of [6, 40]) { rect(hx + wx, 62, 12, 9, C.white); rect(hx + wx + 1, 63, 10, 7, C.winGlass); }   // windows
+    rect(hx + 24, 69, 10, 15, [C.door, C.redDim, C.tree2][k % 3]);                                   // front door
+  }
+  rect(0, 84, W, 4, C.drive);                                                                        // the pavement over the road
+  rect(0, 88, W, 1, C.steel2);                                                                       // its kerb
+  rect(0, 89, W, 13, C.road);                                                                        // the road
+  for (let x = 0; x < W; x += 16) rect(x, 95, 8, 1, C.white);                                        // the white line down the middle
+  rect(0, 102, W, 8, C.drive);                                                                       // this side's pavement and the drive
+  // inside the garage, either side of the doorway; the door rolled up into its drum at the top
+  grime(0, 18, V.x0, 92, shade(C.concrete, 0.55), 0.12, 54);
+  grime(V.x1, 18, W - V.x1, 92, shade(C.concrete, 0.55), 0.12, 55);
+  rect(V.x0 - 3, V.y0, 3, V.y1 - V.y0, hex('#5a5c62')); rect(V.x1, V.y0, 3, V.y1 - V.y0, hex('#5a5c62'));   // the doorway's edges
+  rect(0, 32, W, 10, hex('#4a4c52'));                                                                // the rolled-up door
+  for (let x = 0; x < W; x += 6) rect(x, 33, 1, 8, hex('#3a3c42'));                                  // its slats
+}
+
 SCREENS.dash = {
   size: [480, 270],
   paint() {
-    grime(0, 18, W, 90, C.concrete, 0.1, 51); for (let y = 24; y < 108; y += 7) rect(0, y, W, 1, C.concreteDark);
-    rect(0, 18, 14, 100, hex('#2a2c30')); rect(466, 18, 14, 100, hex('#2a2c30'));
+    dashStreet();                                                                            // out of the windscreen: the open garage, the street
+    // the car's roof lining and the left windscreen pillar (it leans in at the top)
+    grime(0, 18, W, 14, hex('#3a3c40'), 0.1, 53);
+    poly([[0, 18], [46, 18], [18, 106], [0, 106]], hex('#2a2c30'));
+    // the rear-view mirror, hanging from the roof
+    rect(198, 32, 4, 5, hex('#1c1d20')); rbox(174, 36, 52, 13, 4, hex('#1c1d20')); rect(178, 39, 44, 7, hex('#5a6878'));
+    // the dashboard
     for (let x = 0; x < W; x++) { const top = 100 + Math.round(10 * Math.cos((x - 240) / 160)); rect(x, top, 1, H - top, hex('#2c2e33')); }
     grime(0, 112, W, 158, hex('#2c2e33'), 0.12, 52);
-    rbox(104, 108, 210, 92, 20, hex('#18191c'));
-    for (const cx of [154, 264]) {
-      disc(cx, 152, 36, hex('#0e0f11')); ring(cx, 152, 36, C.steel2);
-      for (let a = 2.4; a < 7.1; a += 0.39) line(cx + Math.cos(a) * 30, 152 + Math.sin(a) * 30, cx + Math.cos(a) * 34, 152 + Math.sin(a) * 34, S.key >= 1 ? C.ui : C.dim);
-      line(cx, 152, cx + Math.cos(2.5) * 26, 152 + Math.sin(2.5) * 26, C.red); disc(cx, 152, 3, C.steel2);
+    // the instruments: two dials, the warning lights between them
+    rbox(76, 112, 186, 78, 16, hex('#18191c'));
+    for (const cx of [DASH.mph, DASH.rpm]) {
+      disc(cx, DASH.y, DASH.r, hex('#0e0f11')); ring(cx, DASH.y, DASH.r, C.steel2);
+      for (let a = 2.4; a < 7.1; a += 0.39) line(cx + Math.cos(a) * DASH.r * 0.83, DASH.y + Math.sin(a) * DASH.r * 0.83, cx + Math.cos(a) * DASH.r * 0.94, DASH.y + Math.sin(a) * DASH.r * 0.94, S.key >= 1 ? C.ui : C.dim);
+      dialNeedle(cx, 2.5);
     }
-    text('MPH', 148, 168, C.dim); text('RPM', 258, 168, C.dim);
     const on = S.key >= 2;
     const check = on && !S.flags.running;                            // key at II: every bulb lights to show it works; running: they go out
-    warnLight(209, 126, 'gear', C.red, on && !S.flags.fitted);       // …except the red one
-    warnLight(209, 146, 'engine', C.warm, check);
-    warnLight(196, 166, 'battery', C.red, check); warnLight(222, 166, 'oil', C.red, check);
-    warnLight(209, 184, 'abs', C.warm, on && !!S.flags.fitted);
-    for (let r = 64; r < 74; r++) ring(209, 262, r, r < 66 || r > 71 ? hex('#121214') : hex('#1c1d20'));
-    pipe(150, 252, 268, 252, 10, hex('#1c1d20')); rbox(186, 232, 46, 30, 8, hex('#1c1d20')); disc(209, 246, 6, C.steel2);
-    // the horn: a little trumpet on the middle of the steering wheel
-    poly([[200, 243], [206, 243], [216, 238], [216, 254], [206, 249], [200, 249]], C.dim);
+    warnLight(...DASH.gear, 'gear', C.red, on && !S.flags.fitted);   // …except the red one
+    warnLight(...DASH.engine, 'engine', C.warm, check);
+    warnLight(...DASH.battery, 'battery', C.red, check); warnLight(...DASH.oil, 'oil', C.red, check);
+    warnLight(...DASH.abs, 'abs', C.warm, on && !!S.flags.fitted);
+    // the steering wheel, the horn (a little trumpet) in the middle
+    const [wx, wy] = WHEEL;
+    for (let r = 64; r < 74; r++) ring(wx, wy, r, r < 66 || r > 71 ? hex('#121214') : hex('#1c1d20'));
+    pipe(wx - 59, 252, wx + 59, 252, 10, hex('#1c1d20')); rbox(...HORN, 8, hex('#1c1d20')); disc(wx, 246, 6, C.steel2);
+    poly([[wx - 9, 243], [wx - 3, 243], [wx + 7, 238], [wx + 7, 254], [wx - 3, 249], [wx - 9, 249]], C.dim);
+    // the hatch under the steering wheel: shut, or open on the diagnostic port
+    obdHatch(!!S.flags.hatch);
+    // the accelerator pedal, down in the footwell
+    accelPedal(false);
     // the key turned to its position
-    disc(330, 200, 10, C.steel2); disc(330, 200, 6, hex('#18191c')); ring(330, 200, 13, C.dim);
+    const [kx, ky] = IGNITION;
+    disc(kx, ky, 10, C.steel2); disc(kx, ky, 6, hex('#18191c')); ring(kx, ky, 13, C.dim);
     const ang = [-1.57, -0.9, -0.3, 0.2][S.key];
-    pipe(330, 200, 330 + Math.cos(ang + 1.57) * 22, 200 + Math.sin(ang + 1.57) * 22, 3, C.steel);
-    text('0 I II III', 312, 182, C.dim);
-    rbox(372, 116, 96, 60, 6, hex('#18191c')); rect(380, 124, 80, 22, hex('#0a2a20'));
-    for (const x of [384, 412, 440]) disc(x + 6, 160, 6, C.steel2);
-    rbox(404, 184, 34, 22, 4, hex('#18191c')); poly([[421, 188], [430, 202], [412, 202]], C.red); poly([[421, 193], [426, 200], [416, 200]], hex('#18191c'));
-    for (const x of [390, 420, 450]) { disc(x, 232, 11, hex('#18191c')); ring(x, 232, 11, C.steel2); line(x, 232, x + 5, 224, C.white); }
+    pipe(kx, ky, kx + Math.cos(ang + 1.57) * 22, ky + Math.sin(ang + 1.57) * 22, 3, C.steel);
+    text('0 I II III', kx - 18, ky - 18, C.dim);
+    // the radio: its screen, and three buttons (the outside two are arrows)
+    rbox(312, 114, 96, 62, 6, hex('#18191c')); rect(320, 120, 80, 30, hex('#0a2a20'));
+    for (const x of RADIO_BUTTONS) disc(x, 160, 6, C.steel2);
+    const [bl, bm, br] = RADIO_BUTTONS;
+    poly([[bl - 4, 160], [bl + 3, 156], [bl + 3, 164]], hex('#18191c'));                    // ◀
+    poly([[br + 4, 160], [br - 3, 156], [br - 3, 164]], hex('#18191c'));                    // ▶
+    // the hazard lights switch, and the heater knobs
+    rbox(344, 184, 34, 22, 4, hex('#18191c')); poly([[361, 188], [370, 202], [352, 202]], C.red); poly([[361, 193], [366, 200], [356, 200]], hex('#18191c'));
+    for (const x of [330, 360, 390]) { disc(x, 232, 11, hex('#18191c')); ring(x, 232, 11, C.steel2); line(x, 232, x + 5, 224, C.white); }
+    // the driver's door, on the right
+    driverDoor();
+    // the code reader, when it's plugged in: on its lead from the port
     if (S.flags.readerIn) {
-      rbox(18, 150, 78, 110, 8, hex('#d0a020')); rect(26, 160, 62, 44, hex('#0a2a20'));
-      for (const [x, y] of [[30, 214], [56, 214], [30, 232], [56, 232]]) rbox(x, y, 22, 12, 3, hex('#3a3a3a'));
-      pipe(96, 230, 120, 262, 4, C.ink);
-      LABELS.push(`<div class="scr" style="left:${27 / W * 100}%;top:${161 / H * 100}%;width:${60 / W * 100}%;height:${42 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
+      rbox(2, 160, 54, 96, 8, hex('#d0a020')); rect(7, 168, 44, 40, hex('#0a2a20'));
+      for (const [x, y] of [[8, 216], [30, 216], [8, 234], [30, 234]]) rbox(x, y, 18, 12, 3, hex('#3a3a3a'));
+      pipe(56, 226, 76, 236, 4, C.ink);                                                     // its lead, into the port
+      LABELS.push(`<div class="scr" style="left:${8 / W * 100}%;top:${169 / H * 100}%;width:${42 / W * 100}%;height:${38 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
-    if (S.key >= 1) LABELS.push(`<div class="scr blink" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
-    spot('Horn', [186, 232, 46, 30], 'act:horn');
-    spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [314, 184, 36, 32], 'act:turnkey');
+    if (S.key >= 1) LABELS.push(`<div class="scr radio" style="left:${321 / W * 100}%;top:${121 / H * 100}%;width:${78 / W * 100}%;height:${28 / H * 100}%">${radioScreenHtml()}</div>`);
+    // what you can tap
+    spot('Horn', HORN, 'act:horn');
+    spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [kx - 16, ky - 16, 36, 32], 'act:turnkey');
+    spot('Accelerator', [248, 222, 36, 46], 'act:pedal');
+    spot(S.flags.hatch ? 'Diagnostic port' : 'Hatch under the wheel', [58, 220, 36, 30], 'act:hatch');
+    spot('Radio: left', [bl - 7, 153, 14, 14], 'act:radio:-1');
+    spot(radioState().unlocked ? 'Radio: on / off' : 'Radio: change the number', [bm - 7, 153, 14, 14], 'act:radio:0');
+    spot('Radio: right', [br - 7, 153, 14, 14], 'act:radio:1');
+    spot('Door handle: get out', DOOR_HANDLE, 'garage');
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
   },
   actions() {
-    const a = [
-      { label: 'Key: off', act: 'key:0' }, { label: 'Key: I', act: 'key:1' }, { label: 'Key: II', act: 'key:2' }, { label: 'Start it', act: 'key:3' }
-    ];
+    const a = [];
     if (S.inv['reader-good']) a.push({ label: 'Plug in your code reader', act: 'plug:good' });
     if (S.inv['reader-old']) a.push({ label: "Plug in Gaz's reader", act: 'plug:old' });
-    if (S.flags.running) a.push({ label: 'Rev the engine', act: 'rev' });
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
-    a.push({ label: 'Press the horn', act: 'horn' });
     a.push({ label: 'Sit and think (1 hour)', act: 'think' });
-    a.push({ label: 'Get out', act: 'go:garage' });
     return a;
   }
 };
