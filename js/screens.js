@@ -82,6 +82,8 @@ SCREENS.home = {
       { label: 'Computer', act: 'go:pc' },
       { label: 'Garage', act: 'go:garage' },
       { label: 'Make a cup of tea', act: 'tea' },
+      ...(S.inv.torch && !S.flags.torchLit ? [{ label: 'Look for batteries in the kitchen drawer', act: 'batteries' }] : []),
+      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : []),
       { label: 'Go to bed', act: 'bed' }
     ].concat(S.doorstep.length ? [{ label: 'Open the parcel', act: 'parcel' }] : []);
   }
@@ -207,7 +209,8 @@ SCREENS.place = {
       spot('Talk to ' + esc(person), [hx - 12, hy - 2, 26, 44], 'act:talk', style === 'house' ? [80, 70] : [104, 80]);
     }
     if (style !== 'house') {
-      spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
+      if (['tools', 'parts', 'aisles'].includes(style)) [16, 34, 52].forEach((z, k) => spot('Shelf ' + (k + 1) + ': look closer', isoArea(10, 0, 190, 12, z - 2, z + 14), 'act:shelfzoom:' + k, [184, 82]));
+      else spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
       spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
     }
     spot('Leave', isoArea(80, 138, 130, 150, 0, 6), style === 'house' ? 'city' : 'act:leave', [105, 146]);
@@ -284,7 +287,13 @@ function appHTML(app) {
     <h2>SB-0471/09 Rev C — TCM DTC P0705/P0706 sporadic, MY 03–05, see note 4</h2>
     <p><b>1.</b> With KL15 ON and KL50 OFF, measure resistance between X12/3 (BK/WH) and X12/7 (BU/RD). Specified value: 4.7 kΩ ± 12% (see table 9, not included).</p>
     <p><b>2.</b> If value is within specification, continue at step 4. If not, continue at step 2.</p><p><b>3.</b> Step deleted.</p>
-    <p class="red">Diagram 12 of 12 failed to load.</p><p><button data-act="readdocs">Try to make sense of it (20 min)</button></p></div>`;
+    <p class="red">Diagram 12 of 12 failed to load.</p><p><button data-act="readdocs">Try to make sense of it (20 min)</button></p>
+    ${leadExists('fusediagram') ? `<h2>Fuse box (engine bay) — allocation, MY 03–05</h2><table>
+      <tr><td>F21</td><td>Infotainment / ICM (KL30)</td></tr><tr><td>F22</td><td>B+ ECM/PCM (see table 4-2)</td></tr>
+      <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
+      <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
+      <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
+      <p><button data-act="fusenote">Note it down (20 min)</button></p>` : ''}</div>`;
 }
 
 // =====================================================================
@@ -374,7 +383,7 @@ SCREENS.garage = {
     standingMan('garage');
     spot('Toolbox', isoArea(60, 0, 86, 18, 0, 50), 'toolbox', [73, 26]);
     spot('Workbench', isoArea(98, 0, 176, 26, 0, 40), 'bench', [132, 34]);
-    spot('Manuals', isoArea(0, 18, 14, 96, 50, 66), 'act:look:Manuals', [22, 56]);
+    spot('Manuals', isoArea(0, 18, 14, 96, 50, 66), 'shelf', [22, 56]);
     spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'act:look:Parts boxes', [26, 118]);
     spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
     spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
@@ -386,7 +395,8 @@ SCREENS.garage = {
     return [
       { label: 'Under the car', act: 'go:under' }, { label: 'Under the bonnet', act: 'go:bonnet' },
       { label: 'Driver\'s seat', act: 'go:dash' }, { label: 'Workbench', act: 'go:bench' },
-      { label: 'Toolbox', act: 'go:toolbox' }, { label: 'Look under the workbench', act: 'under-bench' }, { label: 'Out', act: 'go:home' }
+      { label: 'Toolbox', act: 'go:toolbox' }, { label: 'Out', act: 'go:home' },
+      ...(S.flags.n3lost && !S.flags.n3found ? ['the car', 'the workbench', 'the tool chest', 'the parts boxes', 'the shelves'].map(w => ({ label: 'Search under ' + w, act: 'search:' + w })) : [])
     ];
   }
 };
@@ -635,6 +645,8 @@ SCREENS.bench = {
     if (S.inv['part-p4l']) a.push({ label: 'Try the Parts 4 Less sensor', act: 'pick:part-p4l' });
     if (S.inv['part-mega']) a.push({ label: 'Try the MegaMart sensor', act: 'pick:part-mega' });
     if (S.bench && S.bench.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
+    if (S.bench && S.bench.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
+    if (brokeOpen('stay')) a.push({ label: 'Straighten the bonnet stay in the vice', act: 'straighten' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
   }
@@ -650,7 +662,7 @@ const DRAWER_NOTES = [
   'Flat, cross, Torx, a Torx with a hole in it, and one that has been used as a chisel.',
   'Pliers, cable ties, tape, a sweet wrapper from 1996 and a key to nothing.',
   'A multimeter, a crimping tool, loose fuses and a test lamp.',
-  'Hammer, breaker bar, a bent wheel brace and the jack handle.'
+  'A breaker bar, a bent wheel brace, the jack handle, and a hammer-shaped gap.'
 ];
 SCREENS.toolbox = {
   size: [480, 270],
@@ -685,7 +697,9 @@ SCREENS.toolbox = {
     const a = DRAWERS.map((name, i) => ({ label: (S.drawer === i + 1 ? 'Close ' : 'Open ') + `${i + 1}: ${name}`, act: 'drawer:' + (i + 1) }));
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
     if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
-    if (S.drawer === 5) a.push({ label: 'Test the multimeter', act: 'meter' });
+    if (S.drawer === 5) a.push({ label: 'Test the multimeter', act: 'meter' }, { label: 'Take the torch', act: 'takeTorch' });
+    if (S.drawer === 4 && brokeOpen('mirror')) a.push({ label: 'Tape the wing mirror back on', act: 'tapemirror' });
+    if (S.drawer === 6 && leadOpen('hammer-box')) a.push({ label: 'Look for the hammer', act: 'hammerbox' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
   }
@@ -720,7 +734,7 @@ function drawerContents(d, x0, y) {
   }
   if (d === 6) {                                               // big stuff
     pipe(x0 - 10, y + 40, x0 + 120, y + 30, 6, C.tool); rbox(x0 + 116, y + 22, 18, 18, 3, C.steel2);    // breaker bar
-    pipe(x0 + 20, y + 70, x0 + 110, y + 60, 7, C.wood); rbox(x0 + 106, y + 50, 26, 16, 2, C.tool);     // hammer
+    for (let k = 0; k < 20; k += 4) line(x0 + 20 + k * 4, y + 66 - k / 2, x0 + 30 + k * 4, y + 66 - k / 2, C.dim);   // the hammer-shaped gap (dotted)
     pipe(x0 + 150, y + 30, x0 + 220, y + 50, 5, C.steel); pipe(x0 + 220, y + 50, x0 + 240, y + 76, 5, C.steel);   // bent wheel brace
   }
 }
@@ -733,3 +747,68 @@ function frontSign(name, x, yf, len, z, tall) {
   const fit = Math.min(tall * 0.8, len / (name.length * 0.56));          // shrink long names to fit the board
   LABELS.push(`<div class="front" style="left:${sx / W * 100}%;top:${sy / H * 100}%;width:${len / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw">${esc(name)}</div>`);
 }
+
+// =====================================================================
+// HOOK THE NUT OUT: a little game. Move the stick under the tool chest; the stick only pushes,
+// so get its tip behind the nut and draw it towards you. Only the tip touches the floor
+// (the shaft rides over the nut; when it pushed too, the nut could never be drawn out)
+// =====================================================================
+const FISH = { nut: [300, 92], tip: [240, 250], won: false };
+const FISH_BASE = [240, 300];                                   // where your hand holds the stick (off the bottom of the picture)
+const FISH_BOX = [44, 70, 436, 236];                            // the gap under the chest: left, back, right, front (out)
+function fishStart() { FISH.nut = [300, 92]; FISH.tip = [240, 250]; FISH.won = false; }
+// The pointer moved to x, y (picture pixels): move the stick's tip there; the tip pushes the nut out of its way
+function fishMove(x, y) {
+  if (FISH.won) return;
+  const [l, b, r] = FISH_BOX;
+  const tx = Math.max(l, Math.min(r, x)), ty = Math.max(b, Math.min(262, y));
+  const steps = Math.ceil(Math.hypot(tx - FISH.tip[0], ty - FISH.tip[1]) / 3) || 1;
+  for (let k = 1; k <= steps; k++) {                            // move in small steps, so a fast flick can't jump through the nut
+    const px0 = FISH.tip[0] + (tx - FISH.tip[0]) * k / steps, py0 = FISH.tip[1] + (ty - FISH.tip[1]) * k / steps;
+    pushNut(px0, py0, 12);                                      // the tip pushes the nut
+  }
+  FISH.tip = [tx, ty];
+  const [nl, nb, nr] = FISH_BOX;
+  FISH.nut[0] = Math.max(nl + 8, Math.min(nr - 8, FISH.nut[0]));
+  FISH.nut[1] = Math.max(nb + 8, FISH.nut[1]);
+  if (FISH.nut[1] > FISH_BOX[3]) fishWin();
+}
+function pushNut(x, y, reach) {
+  const dx = FISH.nut[0] - x, dy = FISH.nut[1] - y, d = Math.hypot(dx, dy);
+  if (d >= reach || d === 0) return;
+  FISH.nut[0] += dx / d * (reach - d); FISH.nut[1] += dy / d * (reach - d);
+  if (Math.random() < 0.05) sfx('plink');
+}
+function fishWin() {
+  FISH.won = true;
+  S.flags.n3found = true;
+  closeLead('hook', 'ok');
+  finishJob('nut3', 'Hooked nut 3 out from under the tool chest');
+  sfx('ding');
+  say('Got it!', 'The nut rolls out into the light. You grab it before it can go anywhere else, and put it somewhere safe.', [{ label: 'Back to the garage', run() { show('garage'); } }]);
+}
+SCREENS.fish = {
+  size: [480, 270],
+  paint() {
+    rect(0, 0, W, H, hex('#141210'));
+    // the floor under the chest, lit by the torch
+    for (let y = FISH_BOX[1]; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = Math.hypot(x - 240, (y - 170) * 1.6), lit = Math.max(0.18, 1 - d / 260);
+      px(x, y, shade(C.floor, lit * (0.9 + hash(x, y) * 0.2)));
+    }
+    rect(0, FISH_BOX[3], W, 2, shade(C.floor, 1.3));                                 // the front edge of the chest: get it past here
+    rect(0, 0, W, FISH_BOX[1], C.red); rect(0, FISH_BOX[1] - 6, W, 6, C.redDim);     // the bottom of the tool chest
+    for (const x of [30, 450]) { rect(x - 10, FISH_BOX[1] - 4, 20, 14, C.greyDark); disc(x, FISH_BOX[1] + 12, 8, C.tyre); }   // its wheels
+    for (let n = 0; n < 7; n++) { const x = 70 + hash(n, 4) * 340, y = 90 + hash(4, n) * 120; disc(x, y, 3 + (n % 3), shade(C.floor, 0.55)); }   // dust bunnies
+    disc(380, 110, 4, C.warm);                                                         // a coin, not your nut
+    tip('Under the tool chest', 'Move the stick. It only pushes: get behind the nut and draw it towards you, past the edge.', 1, 82);
+    hud();
+  },
+  animate() {
+    pipe(FISH_BASE[0], FISH_BASE[1], FISH.tip[0], FISH.tip[1], 5, hex('#7a5634'));      // the stick
+    disc(FISH.tip[0], FISH.tip[1], 3, hex('#5a3c20'));
+    nutAt(FISH.nut[0], FISH.nut[1], 8, 0.4, C.steel);
+    ring(FISH.nut[0], FISH.nut[1], 10, C.light);
+  },
+  actions() { return [{ label: 'Give up for now', act: 'giveup' }]; }
+};

@@ -70,6 +70,7 @@ function anger(n) {
   if (S.anger >= 100) kickSomething();
 }
 function kickSomething() {
+  if (typeof breakSomething === 'function') return breakSomething();   // you break something on the car (extras.js)
   const broken = ['the wheelie bin', 'the garage door', 'your toolbox', 'the recycling', 'your own foot'];
   const thing = broken[(S.day + S.mins) % broken.length];
   S.anger = 50;
@@ -302,7 +303,7 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .lid, .scr, .back, .dlg').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (S.screen !== 'home') stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
@@ -401,6 +402,12 @@ document.addEventListener('click', e => {
   if (app) { S.app = app.dataset.app; render(); }
 });
 
+// Under the tool chest: the pointer moves the stick
+stage.addEventListener('pointermove', e => {
+  if (S.screen !== 'fish' || DIALOG) return;
+  const r = canvas.getBoundingClientRect();
+  fishMove((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H);
+});
 // Drag the city map to look round town
 stage.addEventListener('pointerdown', e => {
   if (S.screen !== 'city' || DIALOG) return;

@@ -159,12 +159,20 @@ const MOMENTS = {
     spanner(298, 164, -2.6 + Math.min(p, 0.55) * 1.4 + slip, 90);
     if (p > 0.55 && p < 0.8) sparks(298, 164, 14, (p - 0.55) / 0.25, 3);
   },
-  nutDrop(p) {                                                        // the nut drops, bounces and rolls away
-    let x = 194, y = 162;
-    if (p < 0.3) y = 162 + ease(p / 0.3) * 70;
-    else if (p < 0.45) y = 232 - Math.sin((p - 0.3) / 0.15 * Math.PI) * 18;
-    else { y = 232; x = 194 + ease((p - 0.45) / 0.55) * 320; }
+  nutDrop(p) {                                                        // the nut drops, then bounces out from under the car
+    const x = 194 + p * 340;
+    const hop = [[0, 0.25, 70], [0.25, 0.5, 46], [0.5, 0.7, 28], [0.7, 0.85, 16], [0.85, 1, 8]].find(([a, b]) => p >= a && p <= b) || [0, 1, 0];
+    const q = (p - hop[0]) / (hop[1] - hop[0]);
+    const y = 232 - Math.sin(q * Math.PI) * hop[2] - (p < 0.25 ? (1 - q) * 70 : 0);
     nutAt(x, y, 7, p * 30);
+  },
+  nutEscape(p) {                                                      // in the garage: out from under the car, bouncing, and gone under the tool chest
+    ISO.ox = 230; ISO.oy = 106;
+    if (p > 0.9) return;
+    const q = p / 0.9, wx = lerp(80, 74, q), wy = lerp(86, 10, q);
+    const bounce = Math.abs(Math.sin(q * Math.PI * 5)) * 14 * (1 - q);
+    const m = P(wx, wy, bounce);
+    nutAt(m[0], m[1], 3, p * 25, C.white);
   },
   extractSnap(p) {                                                    // the cheap extractor twists… and snaps
     if (p < 0.6) {
