@@ -183,37 +183,120 @@ function tree(x, y) {
 
 // ---------- the car, isometric, nose pointing down-left (towards +y) ----------
 // x, y = the back-left corner of where it stands; s = size (1 = full size); col = paint
-// opts.broken: a wreck for the breakers yard (no wheels, no glass, rust, bonnet gone); opts.dz: lifts it (to stack wrecks)
-// Shape from the side, front at y = 46: sloping hatch at the back, roof, raked windscreen, bonnet sloping down to the nose
+// Each body shape is its side view, from the back (y = 0) to the nose (y = L), as heights:
+//   tz = top of the back, hy = end of the back deck, ry0..ry1 = the roof (at height rz),
+//   sy, sz = the bottom of the windscreen, nz = the top of the nose; inset = how much narrower the cabin is
+// rearGlass: the slope at the back is a window (a saloon's), not a solid hatch; win: the side window's own outline
+const CAR_SHAPES = {
+  zafira:    { L: 46, tz: 14, hy: 1, ry0: 9,  rz: 22, ry1: 28, sy: 36, sz: 15, nz: 11 },            // ours (the 2005 shape)
+  zafiraOld: { L: 44, tz: 15, hy: 1, ry0: 5,  rz: 23, ry1: 27, sy: 34, sz: 15.5, nz: 12 },          // 1999: upright and boxy
+  zafiraNew: { L: 48, tz: 13, hy: 2, ry0: 13, rz: 21, ry1: 27, sy: 38, sz: 14, nz: 10 },            // 2006: sleeker, more raked
+  astra:     { L: 40, tz: 13, hy: 1, ry0: 8,  rz: 19, ry1: 22, sy: 30, sz: 13, nz: 10 },            // a small hatchback
+  saloon:    { L: 48, tz: 14, hy: 9, ry0: 16, rz: 20, ry1: 28, sy: 35, sz: 14, nz: 11, rearGlass: true },
+  city:      { L: 34, tz: 13, hy: 1, ry0: 5,  rz: 20, ry1: 19, sy: 25, sz: 13, nz: 10 },            // tiny
+  van:       { L: 52, tz: 30, hy: 0, ry0: 0,  rz: 30, ry1: 39, sy: 44, sz: 17, nz: 13, inset: 0, win: [[38, 18], [38, 28], [40, 28], [43, 18]] }
+};
+// opts.shape: one of CAR_SHAPES (ours if not given); opts.alongX: turned to drive along x (parking at the kerb, traffic)
+// opts.broken: a wreck (rust, dark empty windows, a smashed headlight); opts.noWheels: down on its axles;
+// opts.noBonnet: the bonnet's gone (you see the engine bay); opts.flat: flat tyres; opts.dz: lifts it (to stack wrecks)
 function isoCar(x, y, s = 1, col = C.car, opts = {}) {
+  const K = CAR_SHAPES[opts.shape] || CAR_SHAPES.zafira;
   const broken = !!opts.broken, dz = opts.dz || 0;
-  // opts.alongX: the same car turned to drive along x (for parking at the kerb and traffic)
-  const Q = opts.alongX ? (a, b, c) => P(x + b * s, y + a * s, (broken ? c - 3 : c) * s + dz)
-                        : (a, b, c) => P(x + a * s, y + b * s, (broken ? c - 3 : c) * s + dz);
+  const sink = opts.noWheels ? 3 : 0;                                                    // no wheels: it sits lower
+  const Q = opts.alongX ? (a, b, c) => P(x + b * s, y + a * s, (c - sink) * s + dz)
+                        : (a, b, c) => P(x + a * s, y + b * s, (c - sink) * s + dz);
   const F = pts => pts.map(([a, b, c]) => Q(a, b, c));
+  const side = pts => F(pts.map(([b, c]) => [24, b, c]));                                // a shape on the side we see
+  const nose = pts => F(pts.map(([a, c]) => [a, K.L, c]));                               // a shape on the front
+  const i0 = K.inset === undefined ? 2 : K.inset;                                        // the cabin is a little narrower than the body
+  const i1 = 24 - i0;
+  const L = K.L;
   const glass = broken ? C.ink : C.glass;
-  if (!dz) poly(F([[-2, 2, 0], [26, 2, 0], [26, 48, 0], [-2, 48, 0]]), shade(C.floor, 0.6));          // shadow
-  poly(F([[2, 1, 14], [22, 1, 14], [22, 9, 22], [2, 9, 22]]), shade(col, 0.7));                       // back hatch
-  poly(F([[24, 0, 4], [24, 0, 14], [24, 36, 15], [24, 46, 11], [24, 46, 4]]), col);                   // side
-  poly(F([[24, 0, 4], [24, 46, 4], [24, 46, 6], [24, 0, 6]]), shade(col, 0.7));                       // sill
-  poly(F([[22, 1, 14], [22, 9, 22], [22, 28, 22], [22, 36, 15]]), col);                              // side above the doors
-  poly(F([[22, 3, 15], [22, 10, 21], [22, 27, 21], [22, 34, 15.5]]), glass);                         // side windows
-  if (!broken) poly(F([[22, 18, 15], [22, 18, 21], [22, 19.5, 21], [22, 19.5, 15]]), col);           // door pillar
-  poly(F([[0, 46, 4], [24, 46, 4], [24, 46, 11], [0, 46, 11]]), shade(col, 0.8));                     // nose
-  poly(F([[0, 36, 15], [24, 36, 15], [24, 46, 11], [0, 46, 11]]), broken ? C.greyDark : shade(col, 1.15));   // bonnet (gone on a wreck)
-  poly(F([[0, 0, 14], [24, 0, 14], [24, 1, 14], [0, 1, 14]]), shade(col, 1.15));
-  poly(F([[2, 9, 22], [22, 9, 22], [22, 28, 22], [2, 28, 22]]), shade(col, 1.2));                     // roof
-  poly(F([[2, 28, 22], [22, 28, 22], [24, 36, 15], [0, 36, 15]]), glass);                             // windscreen
-  if (broken) {                                                                                         // rust patches
-    for (let n = 0; n < 7; n++) { const p = Q(24, 4 + hash(n, x) * 38, 6 + hash(x, n) * 8); rect(p[0], p[1], 2 + (n % 2), 2, C.rust); }
+  if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
+  // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
+  poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass ? glass : shade(col, 0.7));
+  poly(F([[0, 0, K.tz], [24, 0, K.tz], [24, Math.max(1, K.hy), K.tz], [0, Math.max(1, K.hy), K.tz]]), shade(col, 1.15));
+  // the side: below the windows, the sill, then the cabin above
+  poly(side([[0, 4], [0, K.tz], [K.sy, K.sz], [L, K.nz], [L, 4]]), col);
+  poly(side([[0, 4], [L, 4], [L, 6], [0, 6]]), shade(col, 0.7));
+  poly(F([[i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i1, K.ry1, K.rz], [i1, K.sy, K.sz]]), col);
+  const win = K.win || [[K.hy + 2, K.tz + 1], [K.ry0 + 1, K.rz - 1], [K.ry1 - 1, K.rz - 1], [K.sy - 2, K.sz + 0.5]];
+  poly(F(win.map(([b, c]) => [i1, b, c])), glass);                                                                 // side windows
+  const pillar = (K.ry0 + K.ry1) / 2;
+  if (!K.win) poly(F([[i1, pillar - 0.5, K.sz], [i1, pillar - 0.5, K.rz], [i1, pillar + 1, K.rz], [i1, pillar + 1, K.sz]]), col);   // door pillar
+  // the front: nose, bonnet (or the engine bay), roof, windscreen
+  poly(nose([[0, 4], [24, 4], [24, K.nz], [0, K.nz]]), shade(col, 0.8));
+  if (opts.noBonnet) {
+    poly(F([[0, K.sy, K.sz - 3], [24, K.sy, K.sz - 3], [24, L, K.nz - 3], [0, L, K.nz - 3]]), C.greyDark);
+    poly(F([[6, K.sy + 2, K.sz - 2], [18, K.sy + 2, K.sz - 2], [18, L - 3, K.nz - 2], [6, L - 3, K.nz - 2]]), C.steel2);   // what's left of the engine
+  } else {
+    poly(F([[0, K.sy, K.sz], [24, K.sy, K.sz], [24, L, K.nz], [0, L, K.nz]]), shade(col, 1.15));
+  }
+  poly(F([[0, 0, K.tz], [24, 0, K.tz], [24, 1, K.tz], [0, 1, K.tz]]), shade(col, 1.15));
+  poly(F([[i0, K.ry0, K.rz], [i1, K.ry0, K.rz], [i1, K.ry1, K.rz], [i0, K.ry1, K.rz]]), shade(col, 1.2));         // roof
+  poly(F([[i0, K.ry1, K.rz], [i1, K.ry1, K.rz], [24, K.sy, K.sz], [0, K.sy, K.sz]]), glass);                       // windscreen
+  // small (on the map, in traffic): just lights and wheels
+  if (s < 0.8) {
+    if (!broken) {
+      poly(nose([[2, 7], [6, 7], [6, 10], [2, 10]]), C.warm);
+      poly(nose([[18, 7], [22, 7], [22, 10], [18, 10]]), C.warm);
+    }
+    if (!opts.noWheels) {
+      for (const wy of [0.2, 0.8]) {
+        const [wx, wz] = Q(24, wy * L, 4);
+        ellipse(wx, wz, Math.max(1, Math.round((opts.alongX ? 4 : 3) * s)), Math.max(1, Math.round((opts.alongX ? 4 : 4.5) * s)), C.tyre);
+      }
+    }
+    if (broken) rustOn(Q, L, x);
     return;
   }
-  poly(F([[2, 46, 7], [6, 46, 7], [6, 46, 10], [2, 46, 10]]), C.warm); poly(F([[18, 46, 7], [22, 46, 7], [22, 46, 10], [18, 46, 10]]), C.warm);   // headlights
-  if (s >= 1) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }                            // the red light on the dash
-  for (const wy of [9, 37]) {                                                                          // wheels
-    const [wx, wz] = Q(24, wy, 4);
-    ellipse(wx, wz, Math.max(1, Math.round((opts.alongX ? 4 : 3) * s)), Math.max(1, Math.round((opts.alongX ? 4 : 4.5) * s)), C.tyre);
-    if (s >= 0.8) ellipse(wx, wz, Math.round(1.5 * s), Math.round(2.2 * s), C.rim);
+  carDetails(K, Q, side, nose, col, broken, pillar, i1);
+  if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
+  carWheels(K, Q, side, col, broken, opts);
+  if (broken) rustOn(Q, L, x);
+}
+// Bumpers, grille, number plate, lights (one smashed on a wreck), door handles, mirror
+function carDetails(K, Q, side, nose, col, broken, pillar, i1) {
+  const L = K.L;
+  poly(nose([[0, 4], [24, 4], [24, 6], [0, 6]]), shade(col, 0.55));                                                 // front bumper
+  poly(nose([[8, 7], [16, 7], [16, 9.5], [8, 9.5]]), C.ink);                                                          // grille
+  poly(nose([[9, 4.4], [15, 4.4], [15, 5.8], [9, 5.8]]), C.white);                                                    // number plate
+  const lamp = broken ? shade(C.warm, 0.55) : C.warm;
+  poly(nose([[1, 7], [6, 7], [6, K.nz - 1], [1, K.nz - 1]]), broken ? C.ink : lamp);                                  // left headlight (smashed on a wreck)
+  if (broken) { const c = Q(3, L, 8.5); px(c[0], c[1], C.white); px(c[0] + 1, c[1] - 1, C.white); }                  // its crack
+  poly(nose([[18, 7], [23, 7], [23, K.nz - 1], [18, K.nz - 1]]), lamp);                                               // right headlight
+  poly(side([[L - 1.5, 7.5], [L, 7.5], [L, K.nz - 1], [L - 1.5, K.nz - 1]]), hex('#f0901c'));                        // indicator, round the corner
+  const tl = Math.max(8, K.tz - 5);
+  poly(side([[0, tl], [2, tl], [2, K.tz - 1], [0, K.tz - 1]]), broken ? C.redDim : C.red);                            // tail light, round the corner
+  poly(side([[0, 4], [3, 4], [3, 6], [0, 6]]), shade(col, 0.55));                                                     // back bumper
+  const handles = K.win ? [K.ry1 + 1] : [pillar - 4, (pillar + K.sy) / 2];
+  for (const hy of handles) poly(side([[hy, K.tz - 2.5], [hy + 2.5, K.tz - 2.5], [hy + 2.5, K.tz - 1.8], [hy, K.tz - 1.8]]), C.ink);   // door handles
+  const m = K.sy - 1;
+  poly([Q(i1, m, K.sz), Q(i1 + 3, m + 1, K.sz), Q(i1 + 3, m + 1, K.sz + 2), Q(i1, m, K.sz + 2)], shade(col, 0.7));   // door mirror
+}
+// Wheel arches, then the wheels in them (or empty arches on a car down on its axles)
+function carWheels(K, Q, side, col, broken, opts) {
+  const L = K.L;
+  const circle = (wc, r, zc, floor) => side(Array.from({ length: 16 }, (_, k) => {
+    const a = k / 16 * 6.283;
+    return [wc + r * Math.cos(a), Math.max(floor, zc + r * Math.sin(a))];
+  }));
+  for (const wy of [0.2, 0.8]) {
+    const wc = wy * L;
+    poly(circle(wc, 5.4, 4, 4), shade(col, 0.4));                                                                     // the arch (dark, above the sill)
+    if (opts.noWheels) { poly(side([[wc - 1, 0], [wc + 1, 0], [wc + 1, 4], [wc - 1, 4]]), C.rust); continue; }       // just a rusty hub
+    const zc = opts.flat ? 3.4 : 4;
+    poly(circle(wc, 4.2, zc, opts.flat ? 0.3 : -9), C.tyre);                                                          // tyre (squashed if flat)
+    poly(circle(wc, 2.2, zc + 0.3, -9), broken ? shade(C.rim, 0.6) : C.rim);                                         // rim
+    const h = Q(24, wc, zc + 0.3);
+    px(h[0], h[1], C.ink);                                                                                             // wheel nut
+  }
+}
+// Rust patches down a wreck's side
+function rustOn(Q, L, seed) {
+  for (let n = 0; n < 9; n++) {
+    const p = Q(24, 2 + hash(n, seed) * (L - 4), 5 + hash(seed, n) * 7);
+    rect(p[0], p[1], 2 + (n % 2), 2, C.rust);
   }
 }
 

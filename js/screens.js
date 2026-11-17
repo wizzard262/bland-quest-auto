@@ -139,8 +139,8 @@ function building(lot) {
     const paint = [hex('#9a5ac8'), C.red, C.warm, C.steel2, C.tree2];   // no blue: blue is your car
     for (let n = 0; n < 6; n++) {
       const cx = x0 + 6 + (n % 3) * 21, cy = y0 + 6 + Math.floor(n / 3) * 32;
-      isoCar(cx, cy, 0.45, shade(paint[n % 5], 0.8), { broken: true });
-      if (n === 1 || n === 3) isoCar(cx + 1, cy + 2, 0.45, shade(paint[(n + 2) % 5], 0.75), { broken: true, dz: 6 });
+      isoCar(cx, cy, 0.45, shade(paint[n % 5], 0.8), { broken: true, noWheels: true, noBonnet: true });
+      if (n === 1 || n === 3) isoCar(cx + 1, cy + 2, 0.45, shade(paint[(n + 2) % 5], 0.75), { broken: true, noWheels: true, noBonnet: true, dz: 6 });
     }
     ibox(x0 + 60, y0 + 4, x0 + 66, y0 + 10, 0, 4, C.tyre); ibox(x0 + 60, y0 + 4, x0 + 66, y0 + 10, 4, 8, C.tyre);
     line(...P(x0, y1), ...P(x1, y1), C.wood); line(...P(x1, y0), ...P(x1, y1), C.wood);

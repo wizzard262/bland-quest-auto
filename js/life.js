@@ -121,6 +121,14 @@ const VIEW = { home: [250, 96], garage: [230, 106], place: [230, 96], outside: [
 // A place in town has two views: outside (the shop front) and inside
 function spotKey(screen) { return screen === 'place' ? (S.inside ? 'place' : 'outside') : screen; }
 function manSpot(screen) { const k = spotKey(screen); return (S.spot && S.spot[k]) || SPOT_HOME[k]; }
+// Where his head is on screen (for the arrow of his own speech bubble)
+function meHead() {
+  const k = spotKey(S.screen);
+  if (!VIEW[k]) return null;                                         // a screen he isn't drawn on: a box along the bottom instead
+  ISO.ox = VIEW[k][0]; ISO.oy = VIEW[k][1];
+  const [x, y] = manSpot(S.screen), p = P(x, y);
+  return [p[0], p[1] - 44];
+}
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
   if (ANIM && ANIM.kind === 'walk') return;

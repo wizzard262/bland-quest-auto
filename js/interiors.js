@@ -148,7 +148,8 @@ const STOCK = {
     for (let k = 0; k < 4; k++) line(...P(0, 20 + k * 6, 70), ...P(0, 50 + k * 6, 30), C.steel);     // exhaust pipes on the side wall
   },
   garage() {
-    onLeft(0, 140, 190, 0, 50, C.ink); isoCar(150, -46, 1.1, C.red);                                      // the workshop door, a car on the ramp
+    onLeft(0, 140, 190, 0, 50, C.ink);                                                                  // the workshop door
+    isoCar(150, -46, 1.1, S.place === 'MOT Test Centre' ? C.car : C.red);                                // a car on the ramp (at the MOT, it's yours)
     ground(140, 0, 190, 1, C.greyDark);
     onLeft(0, 20, 60, 30, 56, C.peg); for (let k = 0; k < 18; k++) px(...P(24 + (k % 6) * 6, 0, 34 + Math.floor(k / 6) * 7), C.warm);   // the key board
     onLeft(0, 70, 92, 30, 56, C.white); onLeft(0, 72, 90, 44, 54, C.car);                          // a calendar
@@ -195,14 +196,19 @@ const FLOOR = {
 // THE BREAKERS YARD: walk round the wrecks and look at each one
 // =====================================================================
 const WRECKS = [
-  // [world x, y, paint, stacked?, what you find]
-  [20, 20, C.red, false, '1999 Zafira, the old shape. Different sensor, different plug.'],
-  [70, 18, hex('#9a5ac8'), true, '2006 Zafira, the new shape. The sensor looks right… but its plug has 4 pins. Yours has 3.'],
-  [120, 22, C.steel2, false, 'Zafira 1.6… with a manual gearbox. Manual gearboxes don\'t have the sensor at all.'],
-  [24, 92, hex('#40a060'), false, 'Zafira diesel. A different gearbox altogether.'],
-  [76, 96, C.ink, false, 'YOUR EXACT CAR. Same year, same engine, automatic… and the sensor has gone. Two neat holes and a cut wire. Someone got here first.'],
-  [130, 92, C.warm, true, 'Not a Zafira: an Astra. The man shouts "same gearbox, mate". It isn\'t. Its sensor is square.']
+  // [world x, y, paint, stacked?, what you find, body shape, how wrecked]
+  // The first six might be yours (look at all six and the lead is done); the rest are just other wrecks
+  [20, 20, C.red, false, '1999 Zafira, the old shape. Different sensor, different plug.', 'zafiraOld', { noWheels: true, noBonnet: true }],
+  [70, 18, hex('#9a5ac8'), true, '2006 Zafira, the new shape. The sensor looks right… but its plug has 4 pins. Yours has 3.', 'zafiraNew', { noWheels: true }],
+  [120, 22, C.steel2, false, 'Zafira 1.6… with a manual gearbox. Manual gearboxes don\'t have the sensor at all.', 'zafira', { flat: true }],
+  [24, 92, hex('#40a060'), false, 'Zafira diesel. A different gearbox altogether.', 'zafira', { noBonnet: true }],
+  [76, 96, C.ink, false, 'YOUR EXACT CAR. Same year, same engine, automatic… and the sensor has gone. Two neat holes and a cut wire. Someone got here first.', 'zafira', {}],
+  [130, 92, C.warm, true, 'Not a Zafira: an Astra. The man shouts "same gearbox, mate". It isn\'t. Its sensor is square.', 'astra', { noWheels: true }],
+  [176, 30, C.white, false, 'A white van. No sensor, no engine, no seats. Someone has written CLEAN ME in the dirt. Then, under it, ALSO WASH ME.', 'van', { noWheels: true }],
+  [24, 150, hex('#c87830'), false, 'A Vectra. Same badge on the front, nothing else the same. The dog is asleep on the back seat.', 'saloon', { flat: true }],
+  [180, 100, hex('#e070a0'), false, 'A tiny pink Corsa with no engine at all. Somebody\'s had that too.', 'city', { noBonnet: true, noWheels: true }]
 ];
+const MAYBE_YOURS = 6;                                   // the first six are the ones that might be yours
 const YARD_VIEW = [240, 70];
 SCREENS.yard = {
   size: [480, 270],
@@ -216,15 +222,18 @@ SCREENS.yard = {
     ibox(170, -50, 214, -20, 0, 34, hex('#e0e0d0'), C.steel); winLeft(-20, 178, 194, 14, 26); onLeft(-20, 200, 210, 0, 24, C.door);   // the office
     for (let n = 0; n < 4; n++) { const p = P(-40, 140, 3 + n * 6); ellipse(p[0], p[1], 12, 6, C.tyre); ellipse(p[0], p[1], 5, 2, hex('#5a4a38')); }   // tyres
     for (let n = 0; n < 3; n++) { const p = P(-30, 40 + n * 20, 3); ellipse(p[0], p[1], 10, 5, C.tyre); }
-    WRECKS.forEach(([x, y, col, stacked], i) => {
-      if (stacked) isoCar(x + 2, y - 4, 1, shade([C.steel2, C.redDim][i % 2], 0.8), { broken: true });
-      isoCar(x, y, 1, shade(col, 0.85), { broken: true, dz: stacked ? 12 : 0 });
+    WRECKS.forEach(([x, y, col, stacked, , shape, how], i) => {
+      if (stacked) isoCar(x + 2, y - 4, 1, shade([C.steel2, C.redDim][i % 2], 0.8), { broken: true, noWheels: true, shape: 'zafiraOld' });   // the wreck underneath
+      isoCar(x, y, 1, shade(col, 0.85), Object.assign({ broken: true, shape, dz: stacked ? 12 : 0 }, how));
     });
     const d = P(190, 0); rect(d[0] - 10, d[1] - 7, 18, 7, hex('#8a6a4a')); rect(d[0] + 6, d[1] - 11, 5, 5, hex('#8a6a4a'));   // the dog
     if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
-    WRECKS.forEach(([x, y, , stacked], i) => spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + 46, 0, stacked ? 34 : 22), 'act:wreck:' + i, [x + 30, y + 30]));
+    WRECKS.forEach(([x, y, , stacked, , shape], i) => {
+      const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
+      spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + k.L, 0, k.rz + (stacked ? 12 : 0)), 'act:wreck:' + i, [x + 30, y + 30]);
+    });
     spot('Back to the office', isoArea(170, -50, 214, -20, 0, 34), 'place:Breakers Yard', [190, 0]);
-    tip('Breakers Yard', 'Six of them that might be yours. Look at each.', 1, 8);
+    tip('Breakers Yard', 'Six of them might be yours. Look at each.', 1, 8);
     hud();
   },
   actions() { return [{ label: 'Back to the map', act: 'go:city' }]; }

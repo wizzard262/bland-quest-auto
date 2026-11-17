@@ -7,24 +7,31 @@ const { pathToFileURL } = require('url');
 const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 
 // ---------- helpers: each one is a thing a player does ----------
-// Start a brand-new game and close How to play
-async function start(page, errors) {
+// Start a brand-new game, close How to play, and play the opening (the MOT verdict, then drive home)
+// skipOpening: stay in the MOT Test Centre, where the game starts
+async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
   await page.click('#help-close');
+  if (skipOpening) return;
+  await talk(page);
+  await page.locator('.dlg').click();                    // his verdict: tap to carry on
+  await choose(page, 'Drive home');
 }
 // Wait for any animated moment to finish playing
 const idle = page => page.waitForFunction(() => !ANIM);
-// Click OK (or the first button) on every dialog until none are left
+// Carry on past every dialog until none are left: tap a plain one, or click the first button of a choice
 async function ok(page) {
   await idle(page);
   for (let i = 0; i < 6; i++) {
     await idle(page);
     const dlg = page.locator('.dlg');
     if (!(await dlg.count())) return;
-    await dlg.locator('button').first().click();
+    const buttons = dlg.locator('button');
+    if (await buttons.count()) await buttons.first().click();
+    else await dlg.click();
   }
 }
 // Click a dialog button by its words
@@ -89,6 +96,48 @@ async function garage(page, where) {
 const flag = (page, f) => page.evaluate(k => !!S.flags[k], f);
 
 // ---------- the tests ----------
+test('the game starts at the MOT Test Centre: lovely car, but the red light is a fail; ask him anything and it is no idea, mate', async ({ page }) => {
+  const errors = [];
+  await start(page, errors, true);
+  expect(await page.evaluate(() => [S.screen, S.place, S.inside])).toEqual(['place', 'MOT Test Centre', true]);
+  await talk(page);
+  const verdict = await dialogText(page);
+  expect(verdict).toContain('red light on the dashboard');
+  expect(verdict).toContain('fail');
+  expect(await page.evaluate(() => [findJob('pickup').status, !!findJob('codes'), !!S.inv['mot-sheet']])).toEqual(['done', true, true]);
+  expect(await page.locator('.dlg button').count()).toBe(0);           // nothing to choose yet: tap to carry on
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('Anything else');
+  // you ask in your own speech bubble; a tap anywhere carries on to his answer
+  await page.locator('.dlg button', { hasText: 'Can you fix it' }).click();
+  expect(await page.evaluate(() => [DIALOG.title, !!DIALOG.at])).toEqual(['You', true]);
+  expect(await page.locator('.dlg.bubble button').count()).toBe(0);
+  await page.mouse.click(600, 300);
+  expect(await dialogText(page)).toContain('only test them');
+  // every other question: no idea, mate
+  for (const q of ['What does the red light mean', 'Who should I take it to']) {
+    await page.locator('.dlg button', { hasText: q }).click();
+    await page.locator('.dlg').click();
+    expect(await dialogText(page)).toContain('No idea, mate');
+  }
+  await page.locator('.dlg button', { hasText: 'Drive home' }).click();
+  expect(await page.evaluate(() => S.screen)).toBe('home');
+  expect(errors).toEqual([]);
+});
+
+test('a message with nothing to choose has no OK button: a tap anywhere carries on; tapping away from a choice closes it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => say('Test', 'Just a message.'));
+  expect(await page.locator('.dlg button').count()).toBe(0);
+  await page.mouse.click(300, 300);
+  expect(await page.locator('.dlg').count()).toBe(0);
+  await page.evaluate(() => say('Test', 'Pick one.', [{ label: 'One', run() {} }, { label: 'Two', run() {} }]));
+  await page.mouse.click(1100, 850);
+  expect(await page.locator('.dlg').count()).toBe(0);
+  expect(errors).toEqual([]);
+});
+
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -353,11 +402,14 @@ test('the breakers yard: look round the wrecks; your exact car has had the part 
   await talk(page);
   await choose(page, 'Look round the yard');
   expect(await page.evaluate(() => S.screen)).toBe('yard');
-  for (let i = 0; i < 6; i++) {
+  const wrecks = await page.evaluate(() => WRECKS.length);
+  expect(wrecks).toBeGreaterThan(6);                                  // six that might be yours, and some that aren't
+  for (let i = 0; i < wrecks; i++) {
     await idle(page);
     await page.locator(`.hs[data-go="act:wreck:${i}"]`).click();
     await idle(page);
     if (i === 4) expect(await dialogText(page)).toContain('gone');
+    if (i === 5) expect(await dialogText(page)).toContain('all six');   // the lead is done once the six are seen
     await ok(page);
   }
   expect(await page.evaluate(() => leadOpen('breakers'))).toBe(false);

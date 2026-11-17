@@ -7,11 +7,49 @@
 // THE START
 // =====================================================================
 function STORY_START() {
+  job('pickup', 'Pick up the car from the MOT Test Centre', null);
+  // you start inside the MOT Test Centre, where your car has just been tested
+  S.screen = 'place';
+  S.place = 'MOT Test Centre';
+  arriveAt(S.place);
+  S.inside = true;
+  lead('pickup', 'tester', 'Talk to the tester', 'you', 'obviously', 'place:MOT Test Centre');
+}
+// The tester gives the verdict: great car, but the red light is a fail. Then the real job starts
+function motVerdict() {
+  S.flags.motDone = true;
+  S.inv['mot-sheet'] = 1;                                           // the failure sheet
+  finishJob('pickup', 'Picked up the car. It FAILED: a red light on the dash');
   job('light', 'Get the red light off the dash', null);
   note('light', 'The car failed its test: a red light on the dash.', 'info');
+  note('light', 'The tester only tests cars. He has no idea what the problem is.', 'x');
   job('codes', 'Find out what the red light means', 'light');
-  lead('codes', 'ask-mech', 'Ask a mechanic', 'you', 'obviously', 'city');
-  textMsg('MOT Test Centre', 'Your vehicle has FAILED its test. Reason: warning lamp illuminated (red). Please rebook.');
+  lead('codes', 'ask-mech', 'Ask a mechanic', 'the tester (sort of)', 'obviously', 'city');
+}
+// Everything you can ask the MOT tester, and his answers (nearly always the same one)
+const TESTER_QUESTIONS = [
+  ['Can you fix it?', '"Me? I don\'t fix cars, mate. I only test them. No idea what\'s wrong with it."'],
+  ['What does the red light mean?', '"No idea, mate."'],
+  ['Who should I take it to?', '"No idea, mate."'],
+  ['Is it safe to drive?', '"No idea, mate. It passed the brakes."'],
+  ['Could it just be a bulb?', '"No idea, mate."'],
+  ['Have you seen one like it before?', '"Every day, mate. No idea what it is, though."'],
+  ['Can I rebook for tomorrow?', '"No idea, mate. You\'ll have to ring."']
+];
+// The questions you haven't asked yet, then Drive home. Each one: you say it, then he answers
+function testerQuestions() {
+  S.flags.asked = S.flags.asked || {};
+  const left = TESTER_QUESTIONS.filter(([q]) => !S.flags.asked[q]).slice(0, 3);     // three at a time, so the bubble stays small
+  const options = left.map(([q, answer]) => ({ label: q, run() {
+    S.flags.asked[q] = true;
+    anger(2);
+    sayMe(q, () => {                                                  // you ask, in your own bubble…
+      SPEAKER = keeperHead();                                         // …and he answers in his
+      say('MOT Test Centre', answer, testerQuestions());
+    });
+  } }));
+  options.push({ label: 'Drive home', run() { show('home'); } });
+  return options;
 }
 
 // =====================================================================
@@ -69,12 +107,14 @@ const PLACE_INFO = {
   'Motor Factors': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
   'Parts 4 Less': { open: [9 * 60, 16 * 60 + 30], person: 'a woman on the phone' },
   'Breakers Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog' },
+  'MOT Test Centre': { open: [8 * 60, 17 * 60 + 30], person: 'the tester' },
   'Trusty Autos': { gone: true },
   "Dave's Garage": { holiday: true },
   'Clutch & Co': { closedDays: ['TUE', 'WED'] }
 };
 // Things you can buy: price, what it is, and where it goes
 const ITEMS = {
+  'mot-sheet': { name: 'MOT failure sheet', price: 0, none: true },
   'extractor-cheap': { name: 'Bolt extractor (cheap)', price: 8.99 },
   'extractor-good': { name: 'Bolt extractor (proper one)', price: 14.5 },
   'socket-9': { name: '9 mm socket', price: 0, none: true },
@@ -125,6 +165,19 @@ function talk(name) {
   say(name, lines[i]);
 }
 const TALK = {
+  'MOT Test Centre'() {
+    // the first time: his verdict, and he hands over the failure sheet
+    if (!S.flags.motDone) {
+      closeLead('tester', 'ok');
+      motVerdict();                                                   // the real job starts here
+      return say('MOT Test Centre', '"Lovely car, this. Brakes are good, tyres are good, lights are good. Not a spot of rust."\n\n"But there\'s a red light on the dashboard. That\'s a fail."\n\nHe hands you the failure sheet.', [{ label: 'OK', run() {
+        SPEAKER = keeperHead();                                       // tap to carry on: then he waits for your questions
+        say('MOT Test Centre', '"Anything else, mate?"', testerQuestions());
+      } }]);
+    }
+    // after that: ask him whatever you like
+    say('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
+  },
   'Post Office'() {
     if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
     anger(5);
@@ -396,9 +449,10 @@ const ACTIONS = {
     pass(10);
     S.flags['wreck' + i] = true;
     if (i === 4) { anger(10); sfx('sad'); } else { anger(3); sfx('clink'); }
-    const seen = WRECKS.filter((w, k) => S.flags['wreck' + k]).length;
-    if (seen === WRECKS.length) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
-    say('A wreck', WRECKS[i][4] + (seen === WRECKS.length ? '\n\nThat\'s all of them.' : ''));
+    const seen = WRECKS.slice(0, MAYBE_YOURS).filter((w, k) => S.flags['wreck' + k]).length;   // only the six that might be yours count
+    const allSeen = i < MAYBE_YOURS && seen === MAYBE_YOURS;
+    if (allSeen) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
+    say('A wreck', WRECKS[i][4] + (allSeen ? '\n\nThat\'s all six that might have been yours.' : ''));
   },
   // ----- the dashboard: tap the key to turn it one click -----
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },

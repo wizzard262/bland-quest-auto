@@ -236,6 +236,13 @@ function say(title, body, options) {
   if (at) chatter(Math.min(28, 4 + Math.round(body.length / 7)), 95 + hash(title.length, title.charCodeAt(0)) * 120);   // muffled chatter in their voice
   render();
 }
+// Something you say: a speech bubble from your own head; tap anywhere to carry on, then `then` runs (their answer)
+function sayMe(line, then) {
+  DIALOG = { title: 'You', body: line, at: meHead(), options: [{ label: 'OK', run: then || (() => {}) }] };
+  render();
+}
+// A dialog with nothing to choose (just OK) carries on with a tap anywhere: no OK button needed
+const justCarryOn = d => d.options.length === 1 && d.options[0].label === 'OK';
 // A dialog to show after the current one (e.g. kicking something)
 const QUEUE = [];
 function queueDialog(title, body) { QUEUE.push({ title, body }); }
@@ -313,7 +320,9 @@ function render() {
   // a dialog, if one is open
   if (!DIALOG && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
   if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
-    const opts = DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');
+    const opts = justCarryOn(DIALOG)
+      ? '<span class="more">tap to carry on ▸</span>'                // nothing to choose: tap anywhere
+      : DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');
     const body = `<b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p><div>${opts}</div>`;
     if (DIALOG.at) {                                                 // a speech bubble above the speaker, its arrow pointing at them
       const [x, y] = DIALOG.at, cx = x / W * 100, left = Math.max(22, Math.min(78, cx));
@@ -379,16 +388,10 @@ document.addEventListener('click', e => {
   if (e.target.closest('#stage button, #acts button, #stage [data-go], #stage [data-act], .lead')) { audioStart(); sfx('click'); }
   if (ANIM) { finishMoment(); return; }                               // a tap during a moment skips to its end
   const opt = e.target.closest('[data-opt]');
-  if (opt) {                                                         // a dialog button
-    const o = DIALOG.options[+opt.dataset.opt];
-    if (DIALOG.at) SPEAKER = DIALOG.at;                               // their answer comes from them too
-    DIALOG = null;
-    o.run();
-    save();
-    render();
-    return;
-  }
-  if (DIALOG) return;                                                // finish the dialog first
+  if (opt) return pickOption(+opt.dataset.opt);                      // a dialog button
+  if (DIALOG && justCarryOn(DIALOG)) return pickOption(0);            // nothing to choose: a tap anywhere carries on
+  if (DIALOG && !e.target.closest('.dlg')) { DIALOG = null; render(); return; }   // a choice: tapping away from it walks off
+  if (DIALOG) return;                                                // a tap inside a choice (not on a button): nothing
   if (e.target.closest('[data-back]')) return back();
   const a = e.target.closest('[data-act]');
   if (a) return act(a.dataset.act);
@@ -401,6 +404,16 @@ document.addEventListener('click', e => {
   const app = e.target.closest('[data-app]');
   if (app) { S.app = app.dataset.app; render(); }
 });
+
+// Run a dialog's option (its button, or a tap to carry on)
+function pickOption(i) {
+  const o = DIALOG.options[i];
+  if (DIALOG.at && DIALOG.title !== 'You') SPEAKER = DIALOG.at;      // their next line comes from them too
+  DIALOG = null;
+  o.run();
+  save();
+  render();
+}
 
 // Under the tool chest: the pointer moves the stick
 stage.addEventListener('pointermove', e => {
