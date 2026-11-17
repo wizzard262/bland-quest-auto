@@ -402,6 +402,7 @@ const ACTIONS = {
   },
   // ----- the dashboard: tap the key to turn it one click -----
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
+  horn() { sfx('hornnear'); moment('horn', 500); },                    // parp! (the horn works with the key off, like a real car)
   turnkey() {
     if (S.flags.running) { S.flags.running = false; S.key = 0; sfx('click'); return; }
     ACTIONS.key(String(S.key + 1));

@@ -579,6 +579,8 @@ SCREENS.dash = {
     warnLight(209, 184, 'abs', C.warm, on && !!S.flags.fitted);
     for (let r = 64; r < 74; r++) ring(209, 262, r, r < 66 || r > 71 ? hex('#121214') : hex('#1c1d20'));
     pipe(150, 252, 268, 252, 10, hex('#1c1d20')); rbox(186, 232, 46, 30, 8, hex('#1c1d20')); disc(209, 246, 6, C.steel2);
+    // the horn: a little trumpet on the middle of the steering wheel
+    poly([[200, 243], [206, 243], [216, 238], [216, 254], [206, 249], [200, 249]], C.dim);
     // the key turned to its position
     disc(330, 200, 10, C.steel2); disc(330, 200, 6, hex('#18191c')); ring(330, 200, 13, C.dim);
     const ang = [-1.57, -0.9, -0.3, 0.2][S.key];
@@ -595,6 +597,7 @@ SCREENS.dash = {
       LABELS.push(`<div class="scr" style="left:${27 / W * 100}%;top:${161 / H * 100}%;width:${60 / W * 100}%;height:${42 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
     if (S.key >= 1) LABELS.push(`<div class="scr blink" style="left:${381 / W * 100}%;top:${125 / H * 100}%;width:${78 / W * 100}%;height:${20 / H * 100}%;text-align:center">CODE - - - -</div>`);
+    spot('Horn', [186, 232, 46, 30], 'act:horn');
     spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [314, 184, 36, 32], 'act:turnkey');
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
@@ -607,6 +610,7 @@ SCREENS.dash = {
     if (S.inv['reader-old']) a.push({ label: "Plug in Gaz's reader", act: 'plug:old' });
     if (S.flags.running) a.push({ label: 'Rev the engine', act: 'rev' });
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
+    a.push({ label: 'Press the horn', act: 'horn' });
     a.push({ label: 'Sit and think (1 hour)', act: 'think' });
     a.push({ label: 'Get out', act: 'go:garage' });
     return a;

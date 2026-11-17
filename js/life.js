@@ -275,5 +275,10 @@ const MOMENTS = {
     disc(264, 152, 27, hex('#0e0f11'));
     const a = 3.05 + up * 2.2;
     line(264, 152, 264 + Math.cos(a) * 26, 152 + Math.sin(a) * 26, C.red); disc(264, 152, 3, C.steel2);
+
+  },
+  horn(p) {                                                           // the middle of the wheel pressed in, and PARP!
+    rbox(186, 232, 46, 30, 8, hex('#121316'));
+    if (p < 0.8) text('PARP!', 186, 214, C.warm, 2);
   }        // the light goes out… then comes back
 };

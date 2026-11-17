@@ -195,6 +195,7 @@ function engineRev() {
 }
 // More one-off sounds for the backgrounds
 SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };
+SOUNDS.hornnear = t => { tone(t, 330, 0.45, 0.16, 'square'); tone(t, 415, 0.45, 0.13, 'square'); };   // our own horn, right here
 SOUNDS.horn = t => { tone(t, 330, 0.35, 0.025, 'square'); tone(t, 415, 0.35, 0.02, 'square'); };
 SOUNDS.bark = t => { for (let i = 0; i < 2; i++) { tone(t + i * 0.22, [420, 260], 0.12, 0.12, 'sawtooth'); hiss(t + i * 0.22, 900, 0.1, 0.1); } };
 SOUNDS.carpass = t => { hiss(t, [180, 700], 0.9, 0.12, 'lowpass'); hiss(t + 0.9, [700, 150], 0.9, 0.12, 'lowpass'); tone(t, [55, 75], 0.9, 0.05, 'sawtooth'); tone(t + 0.9, [75, 48], 0.9, 0.05, 'sawtooth'); };

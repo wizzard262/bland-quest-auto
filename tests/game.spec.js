@@ -379,6 +379,19 @@ test('turn the key by tapping it: I, II, then start; running, only the red light
   expect(errors).toEqual([]);
 });
 
+test('the horn in the middle of the steering wheel goes PARP, with the key off or on', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await idle(page);
+  await page.locator('.hs[data-go="act:horn"]').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('horn');
+  await idle(page);
+  await act(page, 'Press the horn');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('horn');
+  expect(errors).toEqual([]);
+});
+
 test('the post office: ten in the queue and it never moves, unless you were outside when it opened at 9', async ({ page }) => {
   const errors = [];
   await start(page, errors);
