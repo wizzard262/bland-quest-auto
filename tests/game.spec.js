@@ -248,6 +248,29 @@ test('the parts boxes: look down into them and rummage with the mouse', async ({
   for (let k = 1; k <= 20; k++) await page.mouse.move(...at(80 + k * 6, 80 + k * 7));
   await page.mouse.up();
   expect(await page.evaluate(() => PILE.map(j => j.x + ',' + j.y).join(' '))).not.toBe(before);
+  const kinds = () => page.evaluate(() => PILE.map(j => j.k).join(','));
+  const today = await kinds();
+  await page.evaluate(() => { S.day += 1; render(); });                 // the next day: a fresh, different heap
+  expect(await kinds()).not.toBe(today);
+  expect(errors).toEqual([]);
+});
+
+test('look under the garage things any time: black without a light, lit with the phone torch', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  for (const where of ['the shelves', 'the tool chest', 'the workbench', 'the car', 'the parts boxes']) await expect(page.locator(`.hs[data-go="act:search:${where}"]`)).toHaveCount(1);
+  await tap(page, 'act:search:the car');
+  expect(await dialogText(page)).toContain('Pitch black');
+  await ok(page);
+  await act(page, 'Get up');
+  await page.evaluate(() => { S.flags.phoneTorch = true; render(); });
+  await tap(page, 'act:search:the tool chest');
+  const said = await dialogText(page);
+  expect(said).toContain('Dust');                                       // nut 3 isn't lost yet: nothing to find…
+  expect(said).not.toContain('nut');                                    // …and no talk of a nut
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('lookunder');
   expect(errors).toEqual([]);
 });
 

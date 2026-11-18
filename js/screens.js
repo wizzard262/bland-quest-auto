@@ -680,13 +680,12 @@ SCREENS.garage = {
     exitDoor(140, [136, 168, 52]);                                    // the way out: a see-through door in the near wall
     spot('Door: leave', isoArea(136, 136, 168, 140, 0, 52), 'home', [150, 128]);
     if (wifeInGarage()) spot('Talk to the wife', isoArea(WIFE_IN_GARAGE[0] - 4, WIFE_IN_GARAGE[1] - 4, WIFE_IN_GARAGE[0] + 4, WIFE_IN_GARAGE[1] + 4, 0, 40), 'act:wife', [160, 48]);
-    if (S.flags.n3lost && !S.flags.n3found) {                        // the lost nut: look under things
-      spot('Look under the shelves', isoArea(2, 0, 56, 12, 0, 6), 'act:search:the shelves', [30, 24]);
-      spot('Look under the tool chest', isoArea(60, 0, 86, 20, 0, 6), 'act:search:the tool chest', [73, 28]);
-      spot('Look under the workbench', isoArea(98, 0, 176, 28, 0, 6), 'act:search:the workbench', [132, 36]);
-      spot('Look under the car', isoArea(40, 50, 70, 100, 0, 4), 'act:search:the car', [34, 70]);
-      spot('Look under the parts boxes', isoArea(0, 104, 18, 138, 0, 4), 'act:search:the parts boxes', [26, 118]);
-    }
+    // look under things (any time, not just while the nut is lost): dark, unless you've a light
+    spot('Look under the shelves', isoArea(2, 0, 56, 12, 0, 6), 'act:search:the shelves', [30, 24]);
+    spot('Look under the tool chest', isoArea(60, 0, 86, 20, 0, 6), 'act:search:the tool chest', [73, 28]);
+    spot('Look under the workbench', isoArea(98, 0, 176, 28, 0, 6), 'act:search:the workbench', [132, 36]);
+    spot('Look under the car', isoArea(40, 50, 70, 100, 0, 4), 'act:search:the car', [34, 70]);
+    spot('Look under the parts boxes', isoArea(18, 104, 23, 138, 0, 3), 'act:search:the parts boxes', [26, 118]);   // the floor along their front, so the boxes themselves still open
     hud();
   },
   actions() {
@@ -1174,7 +1173,7 @@ SCREENS.lookunder = {
 };
 // One thing on the floor under there
 function underFind(k, x, y) {
-  if (k === 'nut') { if (S.flags.n3found) return; nutAt(x, y, 6, 0.3, C.steel2); disc(x, y, 2, C.ink); px(x - 3, y - 4, C.white); px(x - 2, y - 5, C.white); return; }   // a glint
+  if (k === 'nut') { if (!S.flags.n3lost || S.flags.n3found) return; nutAt(x, y, 6, 0.3, C.steel2); disc(x, y, 2, C.ink); px(x - 3, y - 4, C.white); px(x - 2, y - 5, C.white); return; }   // a glint
   if (k === 'coin') { ellipse(x, y, 5, 3, C.warm); return; }
   if (k === 'wrapper') { rect(x - 6, y - 3, 12, 6, C.red); rect(x - 2, y - 2, 4, 4, C.white); return; }
   if (k === 'stain') { ellipse(x, y, 18, 6, hex('#2a2620')); return; }

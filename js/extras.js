@@ -176,14 +176,17 @@ const JUNK = [['A bolt', 'bolt'], ['A nut', 'nut'], ['A washer', 'washer'], ['A 
   ['A fuse (10 amp)', 'fuse'], ['A spark plug', 'plug'], ['A gasket', 'gasket'], ['A circuit board from something', 'board'], ['An old sensor (not yours)', 'sensor'],
   ['Half a sandwich', 'sandwich'], ['A dead spider', 'spider'], ['A receipt (faded)', 'receipt'], ['A jubilee clip', 'washer'], ['A bracket', 'bolt']];
 let PILE = null;                                                             // the parts, bottom first: { x, y, a, k, box }
+let PILE_DAY = null;                                                         // the day the heap was last shuffled
 let RUMMAGE = null;                                                          // a drag going on: { x, y, moved }
-// Fill both boxes with a heap of junk (the same heap every time you look)
+// Fill both boxes with a heap of junk: a new random heap each day (the same all day, so what you moved stays moved)
 function makePile() {
   PILE = [];
+  PILE_DAY = S.day;
+  const seed = S.day * 97;                                                   // a different shuffle for each day
   for (let n = 0; n < 70; n++) {
     const box = n % 2, [bx, by, bw, bh] = PART_BOXES[box];
-    const x = bx + 14 + hash(n, 41) * (bw - 28), y = by + 14 + hash(41, n) * (bh - 28);
-    PILE.push({ x, y, a: hash(n, 7) * 6.28, k: Math.floor(hash(n, 13) * JUNK.length), box });
+    const x = bx + 14 + hash(n + seed, 41) * (bw - 28), y = by + 14 + hash(41, n + seed) * (bh - 28);
+    PILE.push({ x, y, a: hash(n + seed, 7) * 6.28, k: Math.floor(hash(n + seed, 13) * JUNK.length), box });
   }
 }
 // One bit of junk at x, y, turned by a
@@ -209,7 +212,7 @@ function drawJunk(j) {
 SCREENS.partsbox = {
   size: [480, 270],
   paint() {
-    if (!PILE) makePile();
+    if (!PILE || PILE_DAY !== S.day) makePile();                     // a new day: someone's been in them (a fresh heap)
     rect(0, 0, W, H, C.floor); grime(0, 0, W, H, C.floor, 0.12, 61);
     for (const [x, y, w, h] of PART_BOXES) {
       poly([[x - 14, y - 22], [x + w + 14, y - 22], [x + w, y], [x, y]], shade(CARDBOARD, 1.08));          // the flaps, folded back

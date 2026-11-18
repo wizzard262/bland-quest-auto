@@ -518,23 +518,26 @@ const ACTIONS = {
   },
   // ----- garage -----
   // ----- finding nut 3: a torch to look under things, then a stick to hook it out -----
+  // look under something in the garage (any time); while nut 3 is lost, it's a hunt for it
   search(where) {
     pass(10);
     S.under = where;
     show('lookunder');                                                  // down on the floor, looking under it
-    if (!S.flags.torchLit && !S.flags.phoneTorch) {
-      lead('nut3', 'torch', 'A torch: there was one in the toolbox (or your phone has one)', 'you', 'fairly sure', 'toolbox');
+    const hunting = S.flags.n3lost && !S.flags.n3found;                // is nut 3 lost somewhere down here?
+    if (!S.flags.torchLit && !S.flags.phoneTorch) {                    // no light: black
+      if (hunting) lead('nut3', 'torch', 'A torch: there was one in the toolbox (or your phone has one)', 'you', 'fairly sure', 'toolbox');
       return say('Under ' + where, 'Pitch black under there. You need a light. Your phone has a torch.');
     }
-    closeLead('search', 'ok');
+    if (hunting) closeLead('search', 'ok');
+    const noNut = hunting ? ' No nut.' : '';                           // only say "no nut" when you're looking for it
     if (where === 'the workbench' && !S.flags.screwsSpilt) {
       S.flags.screwsSpilt = true; anger(10); moment('screws', 1500); sfx('screws');
-      return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere. No nut, though.');
+      return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere.' + noNut);
     }
-    if (where !== 'the tool chest') {
-      const found = { 'the car': 'A 1996 coin, a sweet wrapper and an oil stain shaped like France. No nut.', 'the parts boxes': 'Old parts, a dead spider and half a sandwich. No nut.', 'the shelves': 'Dust. A lot of dust. No nut.', 'the workbench': 'Screws, everywhere. Still no nut.' };
-      anger(3);
-      return say('Under ' + where, found[where] || 'No nut.');
+    if (where !== 'the tool chest' || !hunting) {                      // nothing much down there
+      const found = { 'the car': 'A 1996 coin, a sweet wrapper and an oil stain shaped like France.', 'the parts boxes': 'Old parts, a dead spider and half a sandwich.', 'the shelves': 'Dust. A lot of dust.', 'the workbench': 'Screws, everywhere.', 'the tool chest': 'Dust, and a lot more of it than you\'d like.' };
+      if (hunting) anger(3);
+      return say('Under ' + where, (found[where] || 'Nothing.') + noNut);
     }
     S.flags.nutSeen = true;
     if (!S.inv.stick) {
