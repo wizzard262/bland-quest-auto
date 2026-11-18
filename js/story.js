@@ -128,6 +128,17 @@ const ITEMS = {
   'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 }
 };
 
+// The headlights you've kicked in: which side you still need a new one for ('left', 'right' or null)
+function needHeadlight() {
+  if (brokeOpen('headlight') && !S.inv.headlight) return 'left';
+  if (brokeOpen('headlight2') && !S.inv['headlight-r']) return 'right';
+  return null;
+}
+// You've got a new headlight: it's for whichever side you still need (the left one first)
+function gotHeadlight() {
+  if (needHeadlight() === 'right') S.inv['headlight-r'] = true;
+  else S.inv.headlight = true;
+}
 // Which night it is (after midnight still counts as the evening before)
 const nightOf = () => S.mins < 7 * 60 ? S.day - 1 : S.day;
 // Late, and you're in the garage: she comes in, in her nightie, and wants you in bed (once a night)
@@ -268,13 +279,7 @@ const TALK = {
   'Post Office'() {
     if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
     anger(5);
-    say('Post Office', 'You join the back of the queue. Ten people. Nobody moves.', [
-      { label: 'Wait in the queue (30 minutes)', run() {
-        pass(30); anger(5);
-        say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside when it opens at 9:00.`);
-      } },
-      { label: 'Give up', run() {} }
-    ]);
+    say('Post Office', 'You join the back of the queue. Ten people. Nobody moves.');   // waiting in it: the watch
   },
   'Spanner & Son'() {
     if (S.flags.spanner) return say('Spanner & Son', '"Still three months, mate."');
@@ -459,10 +464,12 @@ const ACTIONS = {
   // the phone's torch: on (so you can see under things) or off; then put the phone away
   // fit the new headlight (under the bonnet)
   fitlight() {
-    if (!S.inv.headlight) return;
+    const left = S.inv.headlight && brokeOpen('headlight');            // a left one, and the left one is smashed
+    const right = S.inv['headlight-r'] && brokeOpen('headlight2');     // a right one, and the right one is smashed
+    if (!left && !right) return;
     pass(30); sfx('ratchet');
-    delete S.inv.headlight;
-    finishJob('broke-headlight', 'New headlight fitted');
+    if (left) { delete S.inv.headlight; finishJob('broke-headlight', 'New headlight fitted'); }
+    else { delete S.inv['headlight-r']; finishJob('broke-headlight2', 'New right headlight fitted'); }
     say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.');
   },
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
@@ -478,21 +485,17 @@ const ACTIONS = {
     SPEAKER = wifeHead();                                              // in person: a speech bubble from her
     say('The wife', wifeLine());
   },
-  // wait outside until it opens (you're there, ready, when the door unlocks)
-  waitopen() {
-    const [from] = (PLACE_INFO[S.place] || {}).open || [9 * 60];
-    if (S.mins >= from) return;
-    if (S.place === 'Post Office') S.flags.poEarly = S.day;
-    anger(Math.min(15, 4 + Math.round((from - S.mins) / 10)));         // standing about waiting winds you up (the longer, the worse)
-    pass(from - S.mins);
-    say('You wait', `You wait on the pavement. At ${hhmm(S.mins)} the door unlocks.`);
-  },
+  // the watch (bottom left, on every screen): wait an hour, wherever you are
   wait() {
-    const early = S.place === 'Post Office' && S.mins < 9 * 60;
+    const outsidePO = S.screen === 'place' && S.place === 'Post Office' && !S.inside;
+    if (outsidePO && S.mins < 9 * 60) S.flags.poEarly = S.day;        // outside the post office before it opens: you'll be at the front
     anger(5);                                                           // waiting about: it winds you up
-    pass(30);
-    if (early && !S.inside) S.flags.poEarly = S.day;                  // still outside when it opens
-    say('You wait', `Half an hour${S.inside ? '' : ' on the pavement'}. It's ${hhmm(S.mins)}.`);
+    pass(60);
+    if (S.screen === 'place' && S.place === 'Post Office' && S.inside && !postFirst()) {   // in the queue: it doesn't move
+      return say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside when it opens at 9:00.`);
+    }
+    const where = S.screen === 'place' && !S.inside ? ' on the pavement' : '';
+    say('You wait', `An hour goes by${where}. It's ${hhmm(S.mins)}.`);
   },
   // look at another part of town on the map (centre it on that block)
   cam(arg) {
@@ -571,7 +574,7 @@ const ACTIONS = {
     const shut = closedReason(S.place);
     if (shut) { sfx('door'); anger(3); return say(S.place, shut); }
     // the post office: if you were outside before it opened and you go in by 9:10, you're first in the queue
-    if (S.place === 'Post Office' && S.flags.poEarly === S.day && S.mins <= 9 * 60 + 10) S.flags.poFirst = S.day;
+    if (S.place === 'Post Office' && S.flags.poEarly === S.day && S.mins <= 10 * 60) S.flags.poFirst = S.day;   // you were outside when it opened (and went in within the hour)
     S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
   },
   leave() {
@@ -593,9 +596,10 @@ const ACTIONS = {
     const allSeen = i < MAYBE_YOURS && seen === MAYBE_YOURS;
     if (allSeen) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
     const text = WRECKS[i][4] + (allSeen ? '\n\nThat\'s all six that might have been yours.' : '');
-    if (i === 2 && brokeOpen('headlight') && !S.inv.headlight) {      // a Zafira just like yours: its left headlight is fine
-      return say('A wreck', text + '\n\nIts left headlight is perfect, though.', [
-        { label: 'Take its headlight (£10 to the man)', run() { if (!spend(10)) return say('The yard', '"Cash only, mate." You haven\'t got it.'); S.inv.headlight = true; sfx('ratchet'); say('The headlight', 'Ten minutes with a screwdriver and it\'s yours. A bit scratched.'); } },
+    const side = needHeadlight();                                     // which headlight you still need (if any)
+    if (i === 2 && side) {                                            // a Zafira just like yours: its headlights are fine
+      return say('A wreck', text + `\n\nIts ${side} headlight is perfect, though.`, [
+        { label: 'Take its headlight (£10 to the man)', run() { if (!spend(10)) return say('The yard', '"Cash only, mate." You haven\'t got it.'); gotHeadlight(); sfx('ratchet'); say('The headlight', 'Ten minutes with a screwdriver and it\'s yours. A bit scratched.'); } },
         { label: 'Leave it', run() {} }
       ]);
     }
@@ -926,12 +930,16 @@ function openParcel(item) {
     lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');
     return say('A parcel', 'The MegaMart sensor. It\'s blue. The old one was black. Does that matter?');
   }
-  if (item === 'headlight-bay') {                                      // posted: the wrong side
+  if (item === 'headlight-bay') {                                      // posted: a right one
+    if (brokeOpen('headlight2') && !S.inv['headlight-r']) {             // you kicked the right one in too: for once, it's the side you need
+      S.inv['headlight-r'] = true;
+      return say('A parcel', 'A headlight. A right one. Which, since you kicked that one in as well, is exactly right.\n\nFit it under the bonnet.');
+    }
     anger(10);
     note('broke-headlight', 'TheeBay headlight: the wrong side (it\'s a right one; yours is the left)', 'x');
     return say('A parcel', 'A headlight! …for the other side. Yours is the left one. This is a right one.');
   }
-  if (item === 'headlight-zam') { S.inv.headlight = true; return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
+  if (item === 'headlight-zam') { gotHeadlight(); return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
   say('A parcel', 'Something you didn\'t order.');
 }
 // Looking at things under the car and the bonnet

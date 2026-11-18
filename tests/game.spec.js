@@ -390,7 +390,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
       if (await pay.count()) { await pay.click(); await ok(page); continue; }
       await ok(page);
     }
-    await act(page, 'Wait 30 minutes'); await ok(page);
+    await tap(page, 'act:wait'); await ok(page);                                  // the watch: wait an hour
   }
   expect(await page.evaluate(() => !!S.inv['part-p4l'])).toBe(true);
 
@@ -450,15 +450,15 @@ test('a big moment plays before its message: the nut drops and rolls away', asyn
   expect(errors).toEqual([]);
 });
 
-test('losing it at 100 anger shakes the screen and adds a job; once the car is broken four ways, it is the wheelie bin', async ({ page }) => {
+test('losing it at 100 anger shakes the screen and adds a job; once the car is broken six ways, it is the wheelie bin', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rage');
   await ok(page);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('broke-')))).toBe(true);
-  for (let i = 0; i < 5; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // four more car breaks, then the bin
-  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(5);
+  for (let i = 0; i < 6; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // five more car breaks, then the bin
+  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(6);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -805,6 +805,57 @@ test('after kicking the headlight it stays smashed: the TheeBay one is the wrong
   expect(errors).toEqual([]);
 });
 
+test('kick both headlights in: each shows cracked wherever you see the car, and flickers on its own when the lights are on; a third kick breaks no more headlights', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const lampsOn = screen => page.evaluate(sc => { S.screen = sc; S.place = null; render(); return OUR_LAMPS.length; }, screen);
+  await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the first kick: the left one
+  expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: false });
+  expect(await lampsOn('home')).toBe(1);
+  expect(await lampsOn('garage')).toBe(1);
+  await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the second: the right one too
+  expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: true });
+  expect(await lampsOn('home')).toBe(2);
+  expect(await lampsOn('garage')).toBe(2);
+  await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the third: just the two broken headlights still
+  expect(await page.evaluate(() => [kickedLamps(), S.jobs.filter(j => j.id.startsWith('broke-headlight')).length])).toEqual([{ left: true, right: true }, 2]);
+  // at night the lights are on: each cracked lamp flickers, and not in step with the other
+  const states = await page.evaluate(() => {
+    S.mins = 22 * 60; S.screen = 'home'; render();
+    const out = [];
+    for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => { const k = l.seed * 7.3; return Math.sin(t * 17 + k) + Math.sin(t * 5.1 + k * 2) + Math.sin(t * 31 + k * 3) > 0.4; }).join(','));
+    return out;
+  });
+  expect(new Set(states).size).toBeGreaterThan(2);                       // on, off, and one without the other
+  expect(states).toContain('true,false');
+  // the TheeBay headlight is a right one: now that's the one you need
+  await page.evaluate(() => { openParcel('headlight-bay'); render(); });
+  expect(await dialogText(page)).toContain('exactly right');
+  await ok(page);
+  expect(await page.evaluate(() => !!S.inv['headlight-r'])).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the watch, bottom left: point at it for Wait 1 hour; tap it and an hour goes by; no other waiting buttons', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  for (const screen of ['home', 'garage', 'room']) {
+    await page.evaluate(sc => { S.screen = sc; S.place = null; render(); }, screen);
+    await expect(page.locator('.hs[data-go="act:wait"]')).toHaveCount(1);
+  }
+  await page.locator('.hs[data-go="act:wait"]').hover();
+  await expect(page.locator('.lab', { hasText: 'Wait 1 hour' })).toBeVisible();
+  const before = await page.evaluate(() => S.mins);
+  await tap(page, 'act:wait');
+  expect(await dialogText(page)).toContain('An hour goes by');
+  await ok(page);
+  expect(await page.evaluate(() => S.mins)).toBe(before + 60);
+  await page.evaluate(() => { S.mins = 8 * 60; });
+  await goPlace(page, 'Post Office'); await idle(page);
+  await expect(page.locator('.acts button', { hasText: 'Wait' })).toHaveCount(0);   // no waiting buttons: just the watch
+  expect(errors).toEqual([]);
+});
+
 test('in a shop there is no Back button: you leave by the wireframe door at the bottom', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -939,13 +990,16 @@ test('the post office: ten in the queue and it never moves, unless you were outs
   await goPlace(page, 'Post Office');
   await talk(page);
   expect(await dialogText(page)).toContain('Ten people');
-  await choose(page, 'Wait in the queue');
+  await ok(page);
+  await tap(page, 'act:wait');                                          // wait an hour in the queue (the watch)
+  expect(await dialogText(page)).toContain("hasn't moved");
+  await ok(page);
   expect(await page.evaluate(() => S.flags.poFirst)).toBeFalsy();
   // next morning: get there before nine, wait outside, go in when it opens: first
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await sleep(page); await ok(page);
   await goPlace(page, 'Post Office');
-  await act(page, 'Wait until it opens'); await ok(page);
+  while (await page.evaluate(() => S.mins < 9 * 60)) { await tap(page, 'act:wait'); await ok(page); }   // wait outside until it's open
   await talk(page);
   expect(await dialogText(page)).toContain('first');
   expect(errors).toEqual([]);

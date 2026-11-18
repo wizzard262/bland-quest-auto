@@ -468,14 +468,7 @@ SCREENS.place = {
     tip(name, shut ? esc(shut) : 'Tap the ' + (style === 'house' ? 'door' : 'shopkeeper') + ' to talk. Walk round and look at things.', 1, 8);
     hud();
   },
-  actions() {
-    const info = PLACE_INFO[S.place] || {}, [from] = info.open || [9 * 60, 0];
-    const opensLater = !S.inside && !info.gone && !info.holiday && S.mins < from;
-    return [
-      ...(opensLater ? [{ label: 'Wait until it opens (' + hhmm(from) + ')', act: 'waitopen' }] : []),
-      { label: 'Wait 30 minutes', act: 'wait' }
-    ];
-  }
+  actions() { return []; }                                         // to wait, tap the watch (bottom left)
 };
 
 // =====================================================================
@@ -539,12 +532,12 @@ function appHTML(app) {
     <div class="meta">dash_light.jpg · IMG_0042.jpg · part_number_blurry.jpg · thumb.jpg</div></div>`;
   if (app === 'MegaMart') return `<div class="top">${APP_ICON.MegaMart}<b class="logo">zamanon</b><span class="search">car code reader</span><span class="sbtn">🔍</span></div><div class="body"><table>
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
-    ${brokeOpen('headlight') ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
+    ${(brokeOpen('headlight') || brokeOpen('headlight2')) ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i><i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
-    ${brokeOpen('headlight') ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
+    ${(brokeOpen('headlight') || brokeOpen('headlight2')) ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
     <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Collection only, Aberdeen</span></td><td>£0.99</td><td class="red">Collection only</td></tr>
     <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr></table></div>`;
   return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
@@ -831,7 +824,7 @@ SCREENS.bonnet = {
   },
   actions() {
     const a = [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }];
-    if (S.inv.headlight && brokeOpen('headlight')) a.push({ label: 'Fit the new headlight', act: 'fitlight' });
+    if ((S.inv.headlight && brokeOpen('headlight')) || (S.inv['headlight-r'] && brokeOpen('headlight2'))) a.push({ label: 'Fit the new headlight', act: 'fitlight' });
     a.push({ label: 'Close the bonnet', act: 'go:garage' });
     return a;
   }

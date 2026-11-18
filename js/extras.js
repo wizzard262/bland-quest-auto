@@ -11,6 +11,8 @@
 const CAR_BREAKS = [
   { id: 'headlight', title: 'Replace the smashed headlight (you kicked it)', what: 'You run at the car and kick the headlight in. Glass everywhere.',
     lead: ['headlight', 'A new headlight: the parts shop (dear), online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
+  { id: 'headlight2', title: 'Replace the other smashed headlight (the right one: you kicked that too)', what: 'You run at the car and kick the other headlight in. Now they match.',
+    lead: ['headlight2', 'A right-hand headlight: online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
   { id: 'mirror', title: 'Fix the wing mirror (you knocked it off)', what: 'You slam the car door so hard the wing mirror falls off.',
     lead: ['tape', 'Tape it back on: there\'s tape in drawer 4 of the toolbox', 'you', 'fairly sure', 'toolbox'] },
   { id: 'lens', title: 'Replace the cracked indicator lens (you kicked it)', what: 'You kick the front of the car. The indicator lens cracks.',
@@ -45,7 +47,7 @@ SCREENS.rage = {
     grime(0, 0, W, 214, C.concrete, 0.08, 91);                                         // a plain wall: it's all about him and the car
     for (let y = 8; y < 214; y += 9) rect(0, y, W, 1, C.concreteDark);
     rect(0, 214, W, H - 214, C.floor); rect(0, 214, W, 1, C.steel2);
-    rageCar(RAGE.done);                                                                // once he's kicked it, it stays smashed
+    rageCar(RAGE.done || RAGE.already);                                                // once he's kicked it, it stays smashed
     if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
   },
   actions() { return []; }
@@ -54,6 +56,8 @@ SCREENS.rage = {
 function rageCutscene() {
   RAGE.from = S.screen === 'rage' ? RAGE.from : S.screen;
   RAGE.shook = false; RAGE.done = false;
+  const k = kickedLamps();
+  RAGE.already = k.left && k.right;                                      // both kicked in already: this kick has nothing left to break
   S.screen = 'rage';
   sfx('kick', 1.45); sfx('glass', 1.5);
   moment('rage', 2400);
@@ -530,7 +534,7 @@ Object.assign(ACTIONS, {
     S.basket = S.basket.filter(b => b.place !== S.place);
     const names = items.map(b => b.name).join(', ');
     const hammer = items.some(b => b.name === 'Claw hammer') ? boughtHammer() : '';
-    if (items.some(b => b.name.startsWith('Headlight'))) S.inv.headlight = true;   // a new headlight: fit it under the bonnet
+    if (items.some(b => b.name.startsWith('Headlight'))) gotHeadlight();          // a new headlight (for whichever side is smashed): fit it under the bonnet
     say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}`);
   },
   // the garage shelves: what each thing is

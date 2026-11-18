@@ -141,6 +141,22 @@ function hud() {
   rect(nx, y + s, 12 * s, 15 * s, C.ink); rect(nx + s, y + 2 * s, 10 * s, 13 * s, C.warm); rect(nx + s, y + 2 * s, 2 * s, 13 * s, C.redDim);
   for (let k = 0; k < 4; k++) rect(nx + 4 * s, y + (5 + k * 3) * s, 6 * s, s, C.bench);
   link('notebook', nx - s, y, 14 * s, 18 * s);
+  watchFace(s, y);                                         // the watch, bottom left: the only way to wait
+}
+// The watch: a round face showing the game's time; point at it for "Wait 1 hour", tap it to wait
+function watchFace(s, y) {
+  const r = 8 * s, cx = 4 * s + r, cy = y + r;                    // where it sits: bottom left
+  rect(cx - 3 * s, cy - r - 3 * s, 6 * s, 3 * s, C.ink); rect(cx - 3 * s, cy + r, 6 * s, 3 * s, C.ink);   // the strap, top and bottom
+  disc(cx, cy, r, C.ink); disc(cx, cy, r - s, C.white);          // the case and the face
+  for (let h = 0; h < 12; h += 3) {                                // marks at 12, 3, 6 and 9
+    const a = h / 12 * 6.283;
+    px(cx + Math.sin(a) * (r - 2 * s), cy - Math.cos(a) * (r - 2 * s), C.ink);
+  }
+  const mins = typeof S === 'object' ? S.mins : 0;                 // the game's clock
+  const hourA = ((mins / 60) % 12) / 12 * 6.283, minA = (mins % 60) / 60 * 6.283;
+  line(cx, cy, cx + Math.sin(hourA) * (r - 4 * s), cy - Math.cos(hourA) * (r - 4 * s), C.ink);   // the hour hand
+  line(cx, cy, cx + Math.sin(minA) * (r - 2 * s), cy - Math.cos(minA) * (r - 2 * s), C.red);     // the minute hand
+  spot('Wait 1 hour', [cx - r - s, cy - r - 3 * s, 2 * r + 2 * s, 2 * r + 6 * s], 'act:wait');
 }
 
 // ---------- isometric drawing ----------
@@ -222,7 +238,8 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const i1 = 24 - i0;
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
-  const smashed = !broken && !opts.shape && col === C.car && typeof brokeOpen === 'function' && brokeOpen('headlight');   // your car, after you kicked it: one headlight smashed
+  const ours = !broken && !opts.shape && col === C.car;                                  // your car (the only blue one)
+  const kicked = ours ? kickedLamps() : { left: false, right: false };                   // which of its headlights you've kicked in
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
   poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass || rev ? glass : shade(col, 0.7));
@@ -250,8 +267,8 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   // small (on the map, in traffic): just lights and wheels
   if (s < 0.8) {
     if (!broken) {
-      poly(nose([[2, 7], [6, 7], [6, 10], [2, 10]]), smashed ? C.ink : C.warm);
-      poly(nose([[18, 7], [22, 7], [22, 10], [18, 10]]), C.warm);
+      headlamp(nose([[2, 7], [6, 7], [6, 10], [2, 10]]), kicked.left, 1, null);         // small: just the lamp, cracked or not
+      headlamp(nose([[18, 7], [22, 7], [22, 10], [18, 10]]), kicked.right, 2, null);
     }
     if (!opts.noWheels) {
       for (const wy of [0.2, 0.8]) {
@@ -262,7 +279,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
     if (broken) rustOn(Q, L, x);
     return;
   }
-  carDetails(K, Q, side, nose, col, broken, pillar, i1, smashed);
+  carDetails(K, Q, side, nose, col, broken, pillar, i1, kicked);
   if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
   carWheels(K, Q, side, col, broken, opts);
   if (broken) rustOn(Q, L, x);
@@ -276,16 +293,48 @@ function carBack(K, tail, col, broken) {
   poly(tail([[1, tl], [5, tl], [5, K.tz - 1], [1, K.tz - 1]]), red);                         // rear lights
   poly(tail([[19, tl], [23, tl], [23, K.tz - 1], [19, K.tz - 1]]), red);
 }
+// ---------- your car's headlights: kicked in when you lose it; cracked in every view; flickering when the lights are on ----------
+let OUR_LAMPS = [];                                                   // where your car's cracked headlights are on this screen: { pts, seed } (render empties it)
+// Which of your headlights you've kicked in (and not replaced yet)
+function kickedLamps() {
+  const known = typeof brokeOpen === 'function';                      // (the anger code is loaded after the drawing kit)
+  return { left: known && brokeOpen('headlight'), right: known && brokeOpen('headlight2') };
+}
+// One headlight: whole (yellow), or cracked (dim, with a white crack across it); seed: so each flickers on its own
+function headlamp(pts, cracked, seed, crack) {
+  if (!pts.length) return;                                            // facing away: no front to see
+  if (!cracked) { poly(pts, C.warm); return; }
+  poly(pts, shade(C.warm, 0.45));                                     // the dull, broken lens
+  if (crack) { line(...crack[0], ...crack[1], C.white); line(...crack[1], ...crack[2], C.white); }   // the crack, zig-zag
+  OUR_LAMPS.push({ pts, seed });
+}
+// Are the car's lights on? When it's getting dark
+const lightsOn = () => typeof darkness === 'function' && darkness() > 0.15;
+// Each frame: a cracked headlight flickers (on its own, not in step with the other) while the lights are on
+function flickerLamps(t) {
+  if (!lightsOn()) return;
+  for (const l of OUR_LAMPS) {
+    const k = l.seed * 7.3;
+    const on = Math.sin(t * 17 + k) + Math.sin(t * 5.1 + k * 2) + Math.sin(t * 31 + k * 3) > 0.4;   // a jumpy on-off, different for each lamp
+    if (on) poly(l.pts, C.warm);
+  }
+}
 // Bumpers, grille, number plate, lights (one smashed on a wreck), door handles, mirror
-function carDetails(K, Q, side, nose, col, broken, pillar, i1, smashed) {
+function carDetails(K, Q, side, nose, col, broken, pillar, i1, kicked) {
   const L = K.L;
   poly(nose([[0, 4], [24, 4], [24, 6], [0, 6]]), shade(col, 0.55));                                                 // front bumper
   poly(nose([[8, 7], [16, 7], [16, 9.5], [8, 9.5]]), C.ink);                                                          // grille
   poly(nose([[9, 4.4], [15, 4.4], [15, 5.8], [9, 5.8]]), C.white);                                                    // number plate
   const lamp = broken ? shade(C.warm, 0.55) : C.warm;
-  poly(nose([[1, 7], [6, 7], [6, K.nz - 1], [1, K.nz - 1]]), broken || smashed ? C.ink : lamp);                                  // left headlight (smashed on a wreck)
-  if (broken || smashed) { const c = Q(3, L, 8.5); px(c[0], c[1], C.white); px(c[0] + 1, c[1] - 1, C.white); }                  // its crack
-  poly(nose([[18, 7], [23, 7], [23, K.nz - 1], [18, K.nz - 1]]), lamp);                                               // right headlight
+  const leftLamp = nose([[1, 7], [6, 7], [6, K.nz - 1], [1, K.nz - 1]]);                                           // left headlight
+  const rightLamp = nose([[18, 7], [23, 7], [23, K.nz - 1], [18, K.nz - 1]]);                                        // right headlight
+  if (broken) {                                                                                                        // a wreck: the left one smashed, the right one dull
+    poly(leftLamp, C.ink); const c = Q(3, L, 8.5); px(c[0], c[1], C.white); px(c[0] + 1, c[1] - 1, C.white);
+    poly(rightLamp, lamp);
+  } else {
+    headlamp(leftLamp, kicked.left, 1, [Q(1.5, L, K.nz - 1.5), Q(3.5, L, 8.5), Q(5.5, L, 7.5)]);                        // cracked if you kicked it
+    headlamp(rightLamp, kicked.right, 2, [Q(18.5, L, 7.5), Q(20.5, L, 8.8), Q(22.5, L, K.nz - 1.5)]);
+  }
   poly(side([[L - 1.5, 7.5], [L, 7.5], [L, K.nz - 1], [L - 1.5, K.nz - 1]]), hex('#f0901c'));                        // indicator, round the corner
   const tl = Math.max(8, K.tz - 5);
   poly(side([[0, tl], [2, tl], [2, K.tz - 1], [0, K.tz - 1]]), broken ? C.redDim : C.red);                            // tail light, round the corner

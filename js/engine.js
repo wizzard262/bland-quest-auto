@@ -356,6 +356,7 @@ function render() {
   canvas.width = W; canvas.height = H;
   img = ctx.createImageData(W, H);
   LABELS = [];
+  OUR_LAMPS = [];                                                   // the car's cracked headlights on this screen (the paint finds them)
   scr.paint();
   BG = img.data.slice();
   drawFrame(performance.now());
@@ -412,6 +413,7 @@ function drawFrame(nowMs) {
   }
   const dark = darkness();
   if (dark > 0 && scr.night) scr.night(dark);                     // evening: outside gets dark and the lights come on
+  flickerLamps(t);                                                // a kicked headlight flickers while the lights are on
   ctx.putImageData(img, 0, 0);
 }
 // About 30 frames a second; when a moment ends, show what it was holding back (its dialog)
