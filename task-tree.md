@@ -244,6 +244,10 @@ The game picks from these at random, so the same task goes differently each time
       - A box of hundreds of screws tips over; the nut is now somewhere in the pile ⏳⏳ 😡
       - It's in the far corner, behind the tool chest ✅
       - Or it's never found → buy one 📍 City › Hardware Shop: "nobody has ever heard of that size" ✖
+- **The sensor comes off in its box** (built): the sensor is fixed into a box, so the bolts free the whole box, sensor and all. 📍 Under the car › zoom: Gearbox
+  - **Unscrew the sensor from the box**. 📍 Workbench: 3 screws; the first two come out, the last one **shears** 😡, leaving its stub in the box
+  - Lift the old sensor out; now parts can be tried in the box's hole → **Find the part**
+  - The one that fits goes in with two screws (the third hole has the stub in it); then the box goes back on the car
 - The sensor is loose but **won't come out: the wheel is in the way**
   - Take the wheel off
     - Needs the **Locking wheel nut key**

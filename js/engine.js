@@ -232,6 +232,7 @@ function show(screen) {
   if (S.history.length > 30) S.history.shift();
   if (screen === 'city' && S.screen !== 'city') travelFrom();
   if (screen === 'home' && S.place) { pass(20); S.place = null; }
+  if (['city', 'room', 'garage'].includes(screen)) delete S.flags.wifeOut;   // she only follows him round the front of the house
   S.screen = screen;
   if (SCREEN_ENTER[screen]) SCREEN_ENTER[screen]();
   render();
@@ -299,7 +300,11 @@ function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } cat
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { S = Object.assign(freshState(), JSON.parse(raw)); return true; }
+    if (raw) {
+      S = Object.assign(freshState(), JSON.parse(raw));
+      if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
+      return true;
+    }
   } catch (e) { /* nothing saved or storage blocked */ }
   return false;
 }

@@ -82,6 +82,10 @@ SCREENS.home = {
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
     spot(S.doorstep.length ? 'Mailbox: a parcel!' : 'Mailbox (empty)', isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), S.doorstep.length ? 'act:parcel' : 'act:look:Mailbox', [MAILBOX[0] + 4, MAILBOX[1] - 8]);
+    if (wifeFollowing()) {                                             // late: she's followed him out (drawn in life.js); last, so she's on top of the garage when she stands by it
+      const [fx, fy] = FOLLOW.pos || followTarget();
+      spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 12, fy + 10]);
+    }
     hud();
   },
   actions() {
@@ -575,7 +579,7 @@ SCREENS.phone = {
   overlay() {
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
-      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
+      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div><div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
 };
@@ -728,7 +732,7 @@ SCREENS.under = {
     grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
     grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
     bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
-    if (!S.flags.sensorOut || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? C.car : C.ink); px(351, 96, C.white); }
+    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? C.car : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
     line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);
     rect(436, 60, 12, 166, hex('#202020'));
     zoomZones([['Rear suspension', 62, 54, 66, 54, false, 'act:look:Rear suspension'], ['Fuel tank', 126, 166, 78, 58, false, 'act:look:Fuel tank'], ['Exhaust', 234, 118, 96, 44, false, 'act:look:Exhaust'], ['Brake lines', 206, 216, 120, 18, false, 'act:look:Brake lines'], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68, false, 'act:look:Engine']]);
@@ -751,34 +755,43 @@ SCREENS.underZoom = {
     for (let k = 0; k < 7; k++) { const x = 70 + k * 46; line(x, 50, x + 30, 240, shade(ALLOY, 1.25)); line(x + 2, 50, x + 32, 240, shade(ALLOY, 0.7)); }
     for (const [x, y] of [[52, 52], [140, 44], [230, 40], [320, 36], [410, 60], [436, 140], [424, 228], [300, 250], [180, 254], [80, 246], [36, 150]]) bolt(x, y, 7);
     for (let n = 0; n < 400; n++) px(230 + hash(n, 3) * 60 - 30, 160 + hash(3, n) * 80, shade(ALLOY, 0.45));
-    rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));
     const f = S.flags;
-    if (!f.sensorOut || f.fitted) { disc(246, 140, 30, f.fitted ? C.car : BLACKPART); ring(246, 140, 30, C.greyDark); ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5)); }
-    else { disc(246, 140, 22, C.ink); ring(246, 140, 22, C.greyDark); }                  // the empty hole
+    const boxOn = !f.boxOff || f.fitted;                                                   // the box the sensor sits in: on the car, or on the workbench
+    if (boxOn) {
+      rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));                                      // the box
+      rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
+      disc(246, 140, 30, f.fitted ? C.car : BLACKPART); ring(246, 140, 30, C.greyDark); ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
+    } else {
+      rbox(176, 104, 140, 72, 18, shade(ALLOY, 1.08));                                     // a clean patch where the box sat
+      grime(176, 104, 140, 4, shade(ALLOY, 0.5), 0.35, 23); grime(176, 172, 140, 4, shade(ALLOY, 0.5), 0.35, 24);   // a line of muck round its edge
+      disc(246, 140, 9, C.ink); ring(246, 140, 9, C.greyDark);                              // the hole the sensor's nose went into
+    }
     const hole = (x, y) => { disc(x, y, 7, C.ink); ring(x, y, 7, C.greyDark); ring(x, y, 4, shade(C.greyDark, 1.3)); };
     if (!f.b1 || f.fitted) bolt(194, 120, 8); else hole(194, 120);
     if (f.fitted || !f.b2) bolt(298, 164, 8, f.b2round && !f.fitted); else hole(298, 164);
     if (f.fitted || !f.n3lost) bolt(194, 162, 7); else hole(194, 162);
-    if (!f.sensorOut || f.fitted) { rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm); }
+    if (boxOn) { rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm); }   // the connector, plugged in
+    else rbox(322, 130, 14, 18, 3, hex('#30302c'));                                        // unplugged: just the end of the loom
     for (const [k, col] of [[0, C.red], [1, C.warm], [2, hex('#40a060')]]) pipe(328, 134 + k * 6, 470, 112 + k * 6, 4, col);
     for (const x of [360, 400, 440]) pipe(x, 122 + (440 - x) * 0.05, x + 8, 120 + (440 - x) * 0.05, 22, hex('#1c1c1c'));
     for (let y = 18; y < H; y++) for (let x = 0; x < W; x++) {
       const d = Math.hypot(x - 250, (y - 140) * 1.2), k = d < 110 ? 1.12 : Math.max(0.45, 1.12 - (d - 110) / 220);
       const i = (y * W + x) * 4; img.data[i] *= k; img.data[i + 1] *= k; img.data[i + 2] *= k;
     }
-    tip('Under the car › Gearbox', S.flags.sensorJob ? 'The sensor: 2 bolts and a nut.' : 'The gearbox. Lots of bolts. Which bit matters?', 1, 8);
+    const zoomTip = !f.sensorJob ? 'The gearbox. Lots of bolts. Which bit matters?' : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
+    tip('Under the car › Gearbox', zoomTip, 1, 8);
     hud();
   },
   actions() {
     const f = S.flags, a = [];
-    if (f.sensorJob && !f.sensorOut) {
+    if (f.sensorJob && !f.boxOff) {                                    // the box (sensor and all) is still on the car
       if (!f.b1) a.push({ label: 'Undo bolt 1', act: 'bolt1' });
       if (!f.b2) a.push({ label: f.b2round ? 'Try bolt 2 again' : 'Undo bolt 2', act: 'bolt2' });
       if (f.b2round && !f.b2 && (S.inv['extractor-cheap'] || S.inv['extractor-good'])) a.push({ label: 'Use the extractor on bolt 2', act: 'extract' });
       if (!f.n3lost) a.push({ label: 'Undo nut 3', act: 'nut3' });
-      a.push({ label: 'Pull the sensor out', act: 'pull' });
+      a.push({ label: 'Take the box off (sensor and all)', act: 'pull' });
     }
-    if (f.sensorOut && !f.fitted) a.push({ label: 'Fit the new sensor', act: 'fit' });
+    if (f.boxOff && !f.fitted) a.push({ label: 'Fit the box back on', act: 'fit' });
     if (leadOpen('loom')) a.push({ label: 'Check the wiring', act: 'wiring' });
     a.push({ label: 'Zoom out', act: 'go:under' });
     return a;
@@ -1042,6 +1055,36 @@ SCREENS.dash = {
 // =====================================================================
 // THE WORKBENCH: try the new part in the hole
 // =====================================================================
+// The 3 screws holding the old sensor in the box: where each sits on the box's top (iso x, y)
+const BOX_SCREWS = { 1: [130, 118], 2: [128, 70], 3: [68, 122] };
+// Is the box on the workbench? Only once it's off the car, and until it goes back on
+const boxOnBench = () => !!S.flags.boxOff && !S.flags.fitted;
+// Draw the box's screws: in (a slotted head, tap to undo), out (an empty hole) or snapped (a bright stub)
+function benchScrews(f) {
+  const out = f.screws || [];                                          // the screws undone so far
+  for (const n of [1, 2, 3]) {
+    const [x, y] = BOX_SCREWS[n];
+    const c = P(x, y, 40);                                             // on the box's top face
+    if (f.sheared === n) {                                             // snapped off: the stub, shiny where it broke
+      disc(c[0], c[1], 2, C.white); ring(c[0], c[1], 3, C.greyDark);
+      continue;
+    }
+    if (out.includes(n)) {                                             // out: just its hole
+      disc(c[0], c[1], 2, C.ink);
+      continue;
+    }
+    disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark);    // in: a screw head with its slot
+    line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark);
+    if (!f.sensorOut) spot(`Screw ${n}`, isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), `act:screw:${n}`);
+  }
+}
+// The hint at the top of the workbench: what's on it and what state it's in
+function benchTip(f, boxHere, b) {
+  if (!boxHere) return f.fitted ? 'Nothing to work on. The box is back on the car.' : 'Nothing to work on yet. The sensor is still on the car, in its box.';
+  if (!f.sensorOut) return f.sheared ? 'Two screws out, one snapped off. Lift the old sensor out.' : 'The box, with the old sensor screwed into it. 3 screws.';
+  if (!b) return 'The empty box. Pick a part to try in its hole.';
+  return ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '');
+}
 SCREENS.bench = {
   size: [480, 270],
   paint() {
@@ -1052,30 +1095,46 @@ SCREENS.bench = {
     for (let a = 6; a < 230; a += 8) for (let z = 6; z < 90; z += 8) { const p = P(a, 0, z); px(p[0], p[1], C.pegHole); if (a < 170) { const q = P(0, a, z); px(q[0], q[1], C.pegHole); } }
     ibox(0, 0, 230, 170, -30, 0, C.bench, C.benchTop);
     for (let x = 30; x < 230; x += 40) line(...P(x, 0), ...P(x, 170), C.wood);
-    // the bracket the old sensor came out of, with its round hole
-    ibox(60, 60, 140, 130, 0, 40, C.steel2, C.steel);
-    const h = P(100, 95, 40);
-    ellipse(h[0], h[1], 20, 10, C.greyDark); ellipse(h[0], h[1] + 2, 17, 7, C.ink);
-    rect(h[0] - 23, h[1] - 1, 5, 3, C.ink); rect(h[0] + 19, h[1] - 1, 5, 3, C.ink);
-    // the part being tried: held over the hole, stuck halfway, or in
-    const b = S.bench;
-    const moving = ANIM && ANIM.kind.startsWith('bench');           // while a moment moves the part, it draws it
-    if (b && !moving) benchPart(b, LIFT[b.state], 0);
-    ISO.ox = 240; ISO.oy = 64;
+    const f = S.flags;
+    const boxHere = boxOnBench();                                      // the box is only here once it's off the car (and until it goes back on)
+    const b = boxHere ? S.bench : null;                                // the part being tried in the box's hole
+    if (boxHere) {
+      // the box the sensor sits in, with its round hole
+      ibox(60, 60, 140, 130, 0, 40, C.steel2, C.steel);
+      const h = P(100, 95, 40);
+      ellipse(h[0], h[1], 20, 10, C.greyDark); ellipse(h[0], h[1] + 2, 17, 7, C.ink);
+      rect(h[0] - 23, h[1] - 1, 5, 3, C.ink); rect(h[0] + 19, h[1] - 1, 5, 3, C.ink);
+      benchScrews(f);                                                  // its 3 screws: in, out, or snapped off
+      const lifting = ANIM && ANIM.kind === 'benchLift';               // the old sensor being lifted out draws itself
+      if (!f.sensorOut && !lifting) benchPart({ part: 'old-sensor', rotated: true }, LIFT.in, 0);   // the old sensor, still screwed in
+      if (!f.sensorOut) spot('The old sensor: lift it out', isoArea(86, 82, 114, 108, 40, 90), 'act:boxout');
+      // the part being tried: held over the hole, stuck halfway, or in
+      const moving = ANIM && ANIM.kind.startsWith('bench');            // while a moment moves the part, it draws it
+      if (b && !moving) benchPart(b, LIFT[b.state], 0);
+      ISO.ox = 240; ISO.oy = 64;
+    }
     if (S.inv['old-sensor']) {                                         // the old sensor, on the bench: tap it to try it in the hole
       ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink);
-      spot('The old sensor: try it', isoArea(170, 30, 210, 44, 0, 12), 'act:pick:old-sensor');
+      if (boxHere) spot('The old sensor: try it', isoArea(170, 30, 210, 44, 0, 12), 'act:pick:old-sensor');
     }
-    tip('Workbench', b ? ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '') : 'Pick a part to try.', 1, 8);
+    tip('Workbench', benchTip(f, boxHere, b), 1, 8);
     hud();
   },
   actions() {
-    const a = [];
-    if (S.inv['old-sensor']) a.push({ label: 'Try the old sensor', act: 'pick:old-sensor' });
-    if (S.inv['part-p4l']) a.push({ label: 'Try the Parts 4 Less sensor', act: 'pick:part-p4l' });
-    if (S.inv['part-mega']) a.push({ label: 'Try the MegaMart sensor', act: 'pick:part-mega' });
-    if (S.bench && S.bench.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
-    if (S.bench && S.bench.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
+    const f = S.flags, a = [];
+    const boxHere = boxOnBench();
+    if (boxHere && !f.sensorOut) {                                     // the old sensor is still screwed into the box
+      for (const n of [1, 2, 3]) if (!(f.screws || []).includes(n)) a.push({ label: `Undo screw ${n}`, act: `screw:${n}` });
+      a.push({ label: 'Lift the old sensor out', act: 'boxout' });
+    }
+    if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole
+      if (S.inv['old-sensor']) a.push({ label: 'Try the old sensor', act: 'pick:old-sensor' });
+      if (S.inv['part-p4l']) a.push({ label: 'Try the Parts 4 Less sensor', act: 'pick:part-p4l' });
+      if (S.inv['part-mega']) a.push({ label: 'Try the MegaMart sensor', act: 'pick:part-mega' });
+    }
+    const b = boxHere ? S.bench : null;
+    if (b && b.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
+    if (b && b.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
     if (brokeOpen('stay')) a.push({ label: 'Straighten the bonnet stay in the vice', act: 'straighten' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;

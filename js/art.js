@@ -498,6 +498,11 @@ function wifeTop(K, x, y, facing, hip, sitting, ph) {
 }
 // Where her head is on screen (for her speech bubble's arrow)
 function wifeHead() {
+  if (S.screen === 'home' && FOLLOW.pos) {                             // she's followed him outside
+    [ISO.ox, ISO.oy] = VIEW.home;
+    const q = P(...FOLLOW.pos);
+    return [q[0] + 2, q[1] - 42];
+  }
   const inGarage = S.screen === 'garage';                              // she comes to the garage at night
   [ISO.ox, ISO.oy] = inGarage ? VIEW.garage : VIEW.room;
   const p = P(...(inGarage ? WIFE_IN_GARAGE : WIFE.pos));

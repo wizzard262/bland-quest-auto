@@ -323,7 +323,17 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
   await act(page, 'Use the extractor'); await ok(page);
   expect(await flag(page, 'b2')).toBe(true);
-  await act(page, 'Pull the sensor out'); await ok(page);
+  await act(page, 'Take the box off'); await ok(page);                     // the sensor comes off in its box
+  expect(await flag(page, 'boxOff')).toBe(true);
+  expect(await flag(page, 'sensorOut')).toBe(false);
+
+  // on the workbench: undo the box's 3 screws (the last one shears), then lift the old sensor out
+  await garage(page, 'Workbench');
+  await act(page, 'Undo screw 1'); await ok(page);
+  await act(page, 'Undo screw 2'); await ok(page);
+  await act(page, 'Undo screw 3'); await ok(page);
+  expect(await page.evaluate(() => S.flags.sheared)).toBe(3);
+  await act(page, 'Lift the old sensor out'); await ok(page);
   expect(await flag(page, 'sensorOut')).toBe(true);
 
   // find nut 3: torch (flat) from the toolbox, batteries from the kitchen, see it under the chest, a stick, hook it out
@@ -384,7 +394,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // fit it and start the car: the red light goes off… and the ABS light comes on
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
-  await act(page, 'Fit the new sensor'); await ok(page);
+  await act(page, 'Fit the box back on'); await ok(page);
   await garage(page, "Driver's seat");
   await startCar(page);
   expect(await dialogText(page)).toContain('ABS');
@@ -661,6 +671,77 @@ test('late at night the wife comes into the garage in her nightie: come to bed, 
   expect(await dialogText(page)).toContain('Come to bed, Husband');
   await choose(page, 'Go to bed');
   await page.waitForFunction(() => S.mins < 12 * 60 && S.screen === 'room');
+  expect(errors).toEqual([]);
+});
+
+test('late at night, leave the garage after the wife came in and she follows you outside', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; S.screen = 'home'; S.place = null; render(); });
+  await tap(page, 'garage');
+  await choose(page, 'Five more minutes');                              // stay a bit: she waits in the garage
+  await tap(page, 'home');                                              // leave by the door
+  await idle(page);
+  expect(await page.evaluate(() => [S.screen, wifeFollowing()])).toEqual(['home', true]);
+  const start1 = await page.evaluate(() => FOLLOW.pos.slice());
+  expect(Math.hypot(start1[0] - 115, start1[1] - 62)).toBeLessThan(8);  // she comes out of the garage door…
+  await page.waitForTimeout(1500);
+  const gap = await page.evaluate(() => { const t = followTarget(); return Math.hypot(FOLLOW.pos[0] - t[0], FOLLOW.pos[1] - t[1]); });
+  const gap0 = await page.evaluate(s => { const t = followTarget(); return Math.hypot(s[0] - t[0], s[1] - t[1]); }, start1);
+  expect(gap).toBeLessThan(gap0);                                       // …and walks after him
+  await tap(page, 'act:wife');
+  expect(await dialogText(page)).toContain('bed');
+  await ok(page);
+  await tap(page, 'city'); await idle(page);                           // drive off: she doesn't come too
+  expect(await page.evaluate(() => wifeFollowing())).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('ring the wife on the phone: she says what she would say in person', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 11 * 60; S.screen = 'garage'; render(); });
+  const said = [];
+  const ringWife = async () => {                                        // take the phone out (if it isn't already) and ring her
+    if (await page.evaluate(() => S.screen !== 'phone')) { await page.click('.go[data-go="phone"]'); await idle(page); }
+    await page.locator('[data-act="ring:Wife"]').click();
+  };
+  for (let k = 0; k < 3; k++) { await ringWife(); said.push(await dialogText(page)); await ok(page); }
+  expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);               // the same as in person: scrap it…
+  expect(said[2]).toMatch(/codes|hammer|fuses|1234|tea/);              // …and every third time something useful
+  await page.evaluate(() => { S.mins = 22 * 60; });
+  await ringWife();
+  expect(await dialogText(page)).toContain('bed');                      // late: come to bed
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
+test('the sensor comes off in its box; on the workbench a screw shears, then parts are tried in the box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await garageTap(page, 'Workbench');
+  expect(await page.locator('.acts button', { hasText: 'Undo screw' }).count()).toBe(0);   // nothing on the bench yet
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.flags.b1 = S.flags.b2 = S.flags.n3lost = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
+  await act(page, 'Take the box off'); await ok(page);
+  expect(await page.evaluate(() => findJob('sensor-out').status)).not.toBe('done');
+  await act(page, 'Zoom out'); await act(page, 'Get out from under'); await ok(page);
+  await garageTap(page, 'Workbench');
+  await act(page, 'Lift the old sensor out'); await ok(page);           // still screwed in
+  expect(await flag(page, 'sensorOut')).toBe(false);
+  await tap(page, 'act:screw:2'); await ok(page);                       // the screws can be tapped in the picture too
+  await act(page, 'Undo screw 3'); await ok(page);
+  await act(page, 'Undo screw 1');
+  expect(await dialogText(page)).toContain('SNAP');                     // the last one always shears
+  await ok(page);
+  expect(await page.evaluate(() => S.flags.sheared)).toBe(1);
+  expect(await page.locator('.acts button', { hasText: 'Try the old sensor' }).count()).toBe(0);
+  await tap(page, 'act:boxout'); await ok(page);
+  expect(await page.evaluate(() => [S.flags.sensorOut, !!S.inv['old-sensor'], findJob('sensor-out').status, !!findJob('new-sensor')])).toEqual([true, true, 'done', true]);
+  await act(page, 'Try the old sensor');                                // now parts can be tried in the box's hole
+  await act(page, 'Rotate'); await ok(page);
+  await act(page, 'Push'); await ok(page);
+  expect(await page.evaluate(() => S.bench.state)).toBe('in');
   expect(errors).toEqual([]);
 });
 

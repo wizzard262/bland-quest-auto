@@ -54,6 +54,11 @@ function nutAt(x, y, r, a, col = C.steel2) {
 function sparks(x, y, n, p, seed) {
   for (let k = 0; k < n; k++) { const a = hash(k, seed) * 6.28, d = p * (10 + hash(seed, k) * 30); px(x + Math.cos(a) * d, y + Math.sin(a) * d, k % 2 ? C.warm : C.white); }
 }
+// The screw on the workbench box that was undone last (the one a moment is showing)
+function lastScrew() {
+  const out = S.flags.screws || [];
+  return out[out.length - 1];
+}
 // A ring spanner on a bolt, handle at angle a
 function spanner(x, y, a, len = 90) {
   pipe(x, y, x + Math.cos(a) * len, y + Math.sin(a) * len, 8, C.steel);
@@ -76,6 +81,8 @@ SCREENS.home.animate = function (t) {
     PASSED[k] = x;
   }
   if (GARAGE_OPENING && S.screen === 'home') garageDoorDraw();                                                         // the garage door going up as he walks over
+  if (wifeFollowing()) followDraw(t);                                                                                  // late: she's followed him out of the garage
+  ISO.ox = 250; ISO.oy = 96;
   for (let k = 0; k < 2; k++) {                                                                                        // two birds
     const x = ((t * 22 + k * 260) % 560) - 40, y = 34 + k * 14 + Math.sin(t * 2 + k) * 3, w = Math.floor(t * 6 + k) % 2 ? 2 : 1;
     px(x - 2, y - w, C.ink); px(x - 1, y, C.ink); px(x, y + 1, C.ink); px(x + 1, y, C.ink); px(x + 2, y - w, C.ink);
@@ -132,15 +139,68 @@ SCREENS.room.animate = function (t) {
   ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
   const bedtime = isBedtime() || (ANIM && ANIM.kind === 'night' && S.flags.bedLate);   // from 7 in the evening (and all through the night) she's in her nightie
   wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
-  const tapArea = stage.querySelector('.hs[data-go="act:wife"]');    // move the tap area with her
-  if (tapArea) {
-    const [l, tp, w, h] = isoArea(WIFE.pos[0] - 4, WIFE.pos[1] - 4, WIFE.pos[0] + 4, WIFE.pos[1] + 4, 0, 40);
-    tapArea.style.left = l / W * 100 + '%'; tapArea.style.top = tp / H * 100 + '%';
-    tapArea.dataset.walk = Math.round(WIFE.pos[0] - 18) + ',' + Math.round(WIFE.pos[1] + 14);
-    const label = tapArea.nextElementSibling;
-    if (label) { label.style.left = (l + w / 2) / W * 100 + '%'; label.style.top = tp / H * 100 + '%'; }
-  }
+  moveWifeTap(WIFE.pos, [-18, 14]);
 };
+// Move the "Talk to the wife" tap area (and its name) to where she is now; walkBy = where he walks to, beside her
+function moveWifeTap(pos, walkBy) {
+  const tapArea = stage.querySelector('.hs[data-go="act:wife"]');
+  if (!tapArea) return;
+  const [l, tp, w] = isoArea(pos[0] - 4, pos[1] - 4, pos[0] + 4, pos[1] + 4, 0, 40);
+  tapArea.style.left = l / W * 100 + '%'; tapArea.style.top = tp / H * 100 + '%';
+  tapArea.dataset.walk = Math.round(pos[0] + walkBy[0]) + ',' + Math.round(pos[1] + walkBy[1]);
+  const label = tapArea.nextElementSibling;
+  if (label) { label.style.left = (l + w / 2) / W * 100 + '%'; label.style.top = tp / H * 100 + '%'; }
+}
+
+// Late at night she came to fetch you from the garage; walk out and she follows you outside
+const FOLLOW = { pos: null, last: 0, walk: undefined, facing: 'front' };
+const FOLLOW_FROM = [115, 62];                                        // the garage door, on the home screen
+const FOLLOW_GAP = [10, -8];                                          // where she stops: just behind him, towards the house
+const FOLLOW_SPEED = 22;                                              // how fast she walks after him
+const wifeFollowing = () => isBedtime() && S.flags.wifeOut === nightOf();
+// Where he is on the home screen right now (part way across if he's walking)
+function manNowHome() {
+  if (ANIM && ANIM.kind === 'walk' && ANIM.screen === 'home') {
+    const p = Math.min(1, (performance.now() - ANIM.t0) / ANIM.dur);
+    return [lerp(ANIM.from[0], ANIM.to[0], p), lerp(ANIM.from[1], ANIM.to[1], p)];
+  }
+  return manSpot('home');
+}
+// Where she's heading: just behind him
+function followTarget() {
+  const [mx, my] = manNowHome();
+  return [mx + FOLLOW_GAP[0], my + FOLLOW_GAP[1]];
+}
+// Each frame: she walks towards him, and stops when she's caught up
+function followMove(t) {
+  const target = followTarget();
+  if (!FOLLOW.pos) FOLLOW.pos = target.slice();                       // reloaded the game: she's already beside him
+  const dt = Math.min(0.1, t - FOLLOW.last);
+  FOLLOW.last = t;
+  const dx = target[0] - FOLLOW.pos[0], dy = target[1] - FOLLOW.pos[1];
+  const d = Math.hypot(dx, dy);
+  if (d < 1) {                                                        // caught up: she stands and waits, facing you
+    FOLLOW.walk = undefined;
+    FOLLOW.facing = 'front';
+    return;
+  }
+  const step = Math.min(d, FOLLOW_SPEED * dt);
+  FOLLOW.facing = facingFor(FOLLOW.pos, target);                      // turned the way she's walking
+  FOLLOW.pos = [FOLLOW.pos[0] + dx / d * step, FOLLOW.pos[1] + dy / d * step];
+  FOLLOW.walk = t * 9;
+}
+// She comes out of the garage after him (called as he leaves the garage)
+function wifeFollowsOut() {
+  S.flags.wifeOut = nightOf();
+  FOLLOW.pos = FOLLOW_FROM.slice();
+}
+// Draw her following him round the front of the house
+function followDraw(t) {
+  followMove(t);
+  ISO.ox = VIEW.home[0]; ISO.oy = VIEW.home[1];
+  wife(FOLLOW.pos[0], FOLLOW.pos[1], 'nightie', { walk: FOLLOW.walk, facing: FOLLOW.facing, hip: !FOLLOW.walk });
+  moveWifeTap(FOLLOW.pos, [-12, 10]);
+}
 SCREENS.city.night = d => SCREENS.city_night(d);
 SCREENS.place.night = function (d) { if (!S.inside) nightShade(0, 18, W, H, d); };
 SCREENS.city.animate = function (t) {
@@ -363,6 +423,35 @@ const MOMENTS = {
     const pt = P(150, 40), r = Math.round(4 + p * 10);
     line(pt[0] - r, pt[1], pt[0] + r, pt[1], C.white); line(pt[0], pt[1] - r, pt[0], pt[1] + r, C.white);
     nutAt(pt[0], pt[1], 4, p * 6, C.steel);
+  },
+  screwOut(p) {                                                       // a screwdriver turns a screw, and it rises out of the box
+    ISO.ox = 240; ISO.oy = 64;
+    const n = lastScrew(); if (!n) return;
+    const [x, y] = BOX_SCREWS[n], rise = ease(p) * 14;               // how far it's come up
+    const c = P(x, y, 40 + rise);
+    disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark);
+    const a = p * 12;                                                 // the slot turning
+    line(c[0] - Math.cos(a) * 3, c[1] - Math.sin(a) * 1.5, c[0] + Math.cos(a) * 3, c[1] + Math.sin(a) * 1.5, C.greyDark);
+    pipe(c[0], c[1] - 2, c[0] + 10, c[1] - 30, 3, C.steel2); pipe(c[0] + 10, c[1] - 30, c[0] + 16, c[1] - 44, 6, C.red);   // the screwdriver
+  },
+  screwShear(p) {                                                     // it turns, stiffens… and the head snaps off and flies away
+    ISO.ox = 240; ISO.oy = 64;
+    const n = lastScrew(); if (!n) return;
+    const [x, y] = BOX_SCREWS[n], c = P(x, y, 40);
+    if (p < 0.55) {                                                   // straining: the screwdriver shakes
+      const shake = Math.round(Math.sin(p * 120) * (p * 3));
+      disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark);
+      pipe(c[0] + shake, c[1] - 2, c[0] + 10 + shake, c[1] - 30, 3, C.steel2); pipe(c[0] + 10 + shake, c[1] - 30, c[0] + 16 + shake, c[1] - 44, 6, C.red);
+      return;
+    }
+    const q = (p - 0.55) / 0.45;                                      // SNAP: the head flies off
+    const hx = c[0] + q * 120, hy = c[1] - Math.sin(q * Math.PI) * 50 + q * 40;
+    disc(Math.round(hx), Math.round(hy), 4, C.steel);
+    sparks(c[0], c[1], 14, q, 11);
+  },
+  benchLift(p) {                                                      // the old sensor lifts out of the box and off to the side
+    const q = ease(p);
+    benchPart({ part: 'old-sensor', rotated: true }, lerp(LIFT.in, LIFT.over + 30, q), Math.round(q * 90));
   },
   benchStuck(p) {                                                     // it goes in halfway, then judders
     const b = S.bench; if (!b) return;

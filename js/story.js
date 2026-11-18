@@ -175,6 +175,16 @@ const WIFE_SCRAP = [
   '"Is it fixed yet, Husband? No? Scrap it."',
   '"I\'ve found a lovely little Micra. One owner. A vicar."'
 ];
+// What she says, in person or on the phone (the same either way)
+//   late: come to bed; otherwise mostly "scrap it", and every third time something useful
+function wifeLine() {
+  S.wifeTalks = (S.wifeTalks || 0) + 1;
+  if (isBedtime()) return S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."';   // in her nightie: bed
+  const useful = S.wifeTalks % 3 === 0;
+  if (useful) return wifeTip();
+  anger(5);                                                            // "scrap it" again: that winds you up
+  return WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length];
+}
 // …and now and then, something that actually helps (whatever you're stuck on)
 function wifeTip() {
   if (!S.flags.codes) return '"Can\'t you plug something into it? Gaz had a gadget that reads the codes."';
@@ -409,6 +419,8 @@ const SCREEN_ENTER = {
     say('Nut 3', 'There it goes: out from under the car, bouncing across the floor… and gone. Somewhere.');
   },
   home() {
+    const cameFrom = S.history[S.history.length - 1];                 // the screen he's just left
+    if (cameFrom === 'garage' && wifeInGarage()) wifeFollowsOut();    // she came to fetch him: she follows him out
     const fresh = S.doorstep.filter(p => !p.seen);
     if (!fresh.length) return;
     fresh.forEach(p => { p.seen = true; });
@@ -422,7 +434,7 @@ const SCREEN_ENTER = {
     closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
     finishJob('meaning', 'Probably the gearbox sensor');
     job('sensor-off', 'Get the old sensor off', 'light');
-    note('sensor-off', '2 bolts and a nut hold it on.', 'info');
+    note('sensor-off', 'It\'s fixed into a box. 2 bolts and a nut hold the box on.', 'info');
   },
   pc() { pass(5); },
   phone() { for (const m of S.msgs) m.read = true; }
@@ -462,13 +474,9 @@ const ACTIONS = {
   },
   // your wife: she wants the car scrapped; every third time, something useful
   wife() {
-    S.wifeTalks = (S.wifeTalks || 0) + 1;
     pass(5);
-    SPEAKER = wifeHead();
-    const useful = S.wifeTalks % 3 === 0;
-    if (isBedtime()) return say('The wife', S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."');   // in her nightie: bed
-    if (!useful) anger(5);                                             // "scrap it" again: that winds you up
-    say('The wife', useful ? wifeTip() : WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length]);
+    SPEAKER = wifeHead();                                              // in person: a speech bubble from her
+    say('The wife', wifeLine());
   },
   // wait outside until it opens (you're there, ready, when the door unlocks)
   waitopen() {
@@ -731,29 +739,27 @@ const ACTIONS = {
     say('Bolt 2', 'The cheap extractor snaps. Half of it is now stuck in the bolt as well.');
   },
   wiring() { pass(15); closeLead('loom', 'x', 'The wiring looks fine (as far as you can tell)'); say('The wiring', 'You follow the wires. They look fine. As far as you can tell.'); },
+  // take the box off the car: the sensor is fixed into it, so the whole box comes off, sensor and all
   pull() {
-    if (!(S.flags.b1 && S.flags.b2 && S.flags.n3lost)) return say('Pull the sensor', 'It won\'t budge. Something\'s still holding it.');
+    if (!(S.flags.b1 && S.flags.b2 && S.flags.n3lost)) return say('Take the box off', 'It won\'t budge. Something\'s still holding it.');
     pass(10);
-    S.flags.sensorOut = true;
-    S.inv['old-sensor'] = true;
+    S.flags.boxOff = true;                                             // the box is on the workbench now, the old sensor still in it
     moment('sensorPull', 1100); sfx('pop', 0.15);
-    finishJob('sensor-off', 'The old sensor is out');
-    job('new-sensor', 'Find a sensor that fits', 'light');
-    note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
-    lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
-    lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
-    lead('new-sensor', 'breakers', 'The Breakers Yard has a Zafira', 'Gaz', 'maybe', 'place:Breakers Yard');
-    say('The sensor', 'With a twist and a pull, the old sensor comes out. There\'s a hole where it was.\n\nNow you need one that fits.');
+    finishJob('sensor-off', 'The box is off, with the old sensor still in it');
+    job('sensor-out', 'Get the old sensor out of the box', 'light');   // the next job: on the workbench
+    note('sensor-out', '3 screws hold the sensor in the box.', 'info');
+    lead('sensor-out', 'box-bench', 'Unscrew it on the workbench', 'you', 'sure', 'bench');
+    say('The box', 'You pull, and the sensor won\'t come out on its own: it\'s fixed into a box. With a twist and a heave, the whole box comes off, sensor and all.\n\nOff to the workbench with it.');
   },
   fit() {
-    if (!S.flags.fits) return say('Fit it', 'You haven\'t got one that fits yet.');
+    if (!S.flags.fits) return say('Fit it', S.flags.boxOff ? 'The box is on the workbench, and there\'s no sensor in it that fits yet.' : 'You haven\'t got one that fits yet.');
     if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
     pass(30);
     S.flags.fitted = true;
     moment('sensorFit', 1300); sfx('clink', 0.8); sfx('ratchet', 0.95);
     closeLead('fit', 'ok', 'New sensor fitted and plugged in');
     lead('light', 'test', 'Start the car and see', 'you', 'hopeful', 'dash');
-    say('Fit it', 'Bolt, bolt, nut. Plug the connector in (gently: the tab). Done.\n\nNow the moment of truth: start it.');
+    say('Fit it', 'The box goes back on: bolt, bolt, nut. Plug the connector in (gently: the tab). Done.\n\nNow the moment of truth: start it.');
   },
   // ----- under the bonnet -----
   fuses() {
@@ -768,6 +774,40 @@ const ACTIONS = {
   },
   look(what) { pass(5); say(what, LOOKS[what] || 'Looks fine. Probably.'); },
   // ----- the workbench -----
+  // a screw holding the old sensor in the box: the first two come out; the last one always shears off
+  screw(n) {
+    const f = S.flags;
+    f.screws = f.screws || [];                                         // the screws out so far (1, 2, 3)
+    if (f.screws.includes(+n)) return;                                 // already out
+    pass(5);
+    f.screws.push(+n);
+    if (f.screws.length < 3) {                                         // not the last one: out it comes
+      moment('screwOut', 900); sfx('ratchet');
+      note('sensor-out', `Screw ${n} out`, 'ok');
+      return say(`Screw ${n}`, f.screws.length === 1 ? 'It comes out. Nice and easy.' : 'That one too. This is going well. Suspiciously well.');
+    }
+    f.sheared = +n;                                                    // the last one: the head snaps off, the stub stays in the box
+    anger(15);
+    moment('screwShear', 1100); sfx('creak'); sfx('snap', 0.6);
+    note('sensor-out', `Screw ${n} sheared off: its stub is stuck in the box`, 'x');
+    say(`Screw ${n}`, 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
+  },
+  // lift the old sensor out of the box (once all three screws are out, or snapped)
+  boxout() {
+    if ((S.flags.screws || []).length < 3) return say('The old sensor', 'It won\'t come out. There are still screws holding it in.');
+    pass(5);
+    S.flags.sensorOut = true;                                          // the box is empty: parts can be tried in its hole
+    S.inv['old-sensor'] = true;
+    moment('benchLift', 1000); sfx('pop', 0.3);
+    closeLead('box-bench', 'ok');
+    finishJob('sensor-out', 'The old sensor is out of the box');
+    job('new-sensor', 'Find a sensor that fits', 'light');
+    note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
+    lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
+    lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
+    lead('new-sensor', 'breakers', 'The Breakers Yard has a Zafira', 'Gaz', 'maybe', 'place:Breakers Yard');
+    say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
+  },
   pick(id) { S.bench = { part: id, rotated: false, state: 'over' }; },
   push() {
     const b = S.bench;
@@ -792,8 +832,8 @@ const ACTIONS = {
     moment('benchFit', 1000); sfx('clink', 0.65); sfx('ding', 0.8);
     finishJob('new-sensor', 'The Parts 4 Less sensor fits!');
     closeLead('try-p4l', 'ok');
-    lead('light', 'fit', 'Fit the new sensor to the car', 'you', 'sure', 'underZoom');
-    say('Push', 'Click. It fits. It actually fits.\n\nNow fit it to the car.');
+    lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
+    say('Push', 'Click. It fits. It actually fits.\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it, so two will have to do.\n\nNow fit the box back on the car.');
   },
   pullpart() {
     const b = S.bench;
@@ -816,6 +856,7 @@ const ACTIONS = {
   // ----- the phone -----
   ring(who) {
     pass(5);
+    if (who === 'Wife') return say('Ringing the wife', wifeLine());   // she says just what she'd say to your face
     const lines = {
       Gaz: S.flags.gazTried ? '"Still looking for it, mate."' : '"Come round, I\'ll have a look for that reader."',
       Mum: '"Are you still coming Sunday? Bring the car."',
