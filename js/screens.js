@@ -732,7 +732,7 @@ SCREENS.under = {
     grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
     grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
     bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
-    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? C.car : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
+    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? SENSOR_COLOUR['part-p4l'] : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
     line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);
     rect(436, 60, 12, 166, hex('#202020'));
     zoomZones([['Rear suspension', 62, 54, 66, 54, false, 'act:look:Rear suspension'], ['Fuel tank', 126, 166, 78, 58, false, 'act:look:Fuel tank'], ['Exhaust', 234, 118, 96, 44, false, 'act:look:Exhaust'], ['Brake lines', 206, 216, 120, 18, false, 'act:look:Brake lines'], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68, false, 'act:look:Engine']]);
@@ -760,7 +760,7 @@ SCREENS.underZoom = {
     if (boxOn) {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));                                      // the box
       rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
-      disc(246, 140, 30, f.fitted ? C.car : BLACKPART); ring(246, 140, 30, C.greyDark); ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
+      disc(246, 140, 30, SENSOR_COLOUR[f.fitted ? 'part-p4l' : 'old-sensor']); ring(246, 140, 30, C.greyDark);   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
     } else {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 1.08));                                     // a clean patch where the box sat
       grime(176, 104, 140, 4, shade(ALLOY, 0.5), 0.35, 23); grime(176, 172, 140, 4, shade(ALLOY, 0.5), 0.35, 24);   // a line of muck round its edge
@@ -772,7 +772,7 @@ SCREENS.underZoom = {
     if (f.fitted || !f.n3lost) bolt(194, 162, 7); else hole(194, 162);
     if (boxOn) { rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm); }   // the connector, plugged in
     else rbox(322, 130, 14, 18, 3, hex('#30302c'));                                        // unplugged: just the end of the loom
-    for (const [k, col] of [[0, C.red], [1, C.warm], [2, hex('#40a060')]]) pipe(328, 134 + k * 6, 470, 112 + k * 6, 4, col);
+    SENSOR_WIRES.forEach((col, k) => pipe(328, 134 + k * 6, 470, 112 + k * 6, 4, col));   // the loom: red, yellow, green
     for (const x of [360, 400, 440]) pipe(x, 122 + (440 - x) * 0.05, x + 8, 120 + (440 - x) * 0.05, 22, hex('#1c1c1c'));
     for (let y = 18; y < H; y++) for (let x = 0; x < W; x++) {
       const d = Math.hypot(x - 250, (y - 140) * 1.2), k = d < 110 ? 1.12 : Math.max(0.45, 1.12 - (d - 110) / 220);
@@ -1113,9 +1113,11 @@ SCREENS.bench = {
       if (b && !moving) benchPart(b, LIFT[b.state], 0);
       ISO.ox = 240; ISO.oy = 64;
     }
-    if (S.inv['old-sensor']) {                                         // the old sensor, on the bench: tap it to try it in the hole
-      ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink);
-      if (boxHere) spot('The old sensor: try it', isoArea(170, 30, 210, 44, 0, 12), 'act:pick:old-sensor');
+    const holdingOld = b && b.part === 'old-sensor';                   // it's in your hand, over the box
+    if (S.inv['old-sensor'] && !holdingOld) {                          // the old sensor, standing on the bench (just as it looked under the car): tap it to try it in the hole
+      ISO.ox = 240; ISO.oy = 64;
+      sensorUnit({ part: 'old-sensor', rotated: true }, P(190, 30, 0), 0);
+      if (boxHere) spot('The old sensor: try it', isoArea(180, 20, 200, 40, 0, 44), 'act:pick:old-sensor');
     }
     tip('Workbench', benchTip(f, boxHere, b), 1, 8);
     hud();

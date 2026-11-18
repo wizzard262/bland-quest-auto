@@ -8,16 +8,34 @@ const LIFT = { over: 56, stuck: 30, in: 12 };
 // The part being tried on the workbench: lift = height above the hole, dx = a sideways judder
 function benchPart(b, lift, dx) {
   ISO.ox = 240; ISO.oy = 64;
-  const hex6 = b.part === 'part-mega', col = hex6 ? C.car : b.part === 'old-sensor' ? hex('#6a5a48') : C.greyDark;   // the old one: grimy brown
-  const top = P(100, 95, 40 + lift + 38), bot = P(100, 95, 40 + lift);
+  sensorUnit(b, P(100, 95, 40 + lift), dx);                           // over the box's hole (40 is the box's top)
+}
+// A gearbox sensor standing with its bottom at bot (screen), nudged sideways by dx: body, face, pins, plug and wires
+function sensorUnit(b, bot, dx) {
+  const hex6 = b.part === 'part-mega';
+  const col = SENSOR_COLOUR[b.part] || C.greyDark;                   // the same colour as it is under the car
+  const top = [bot[0], bot[1] - 38];                                  // 38 tall
   const x = bot[0] + dx;
   ellipse(x, bot[1], 14, 7, shade(col, 0.7));
   rect(x - 14, top[1], 29, bot[1] - top[1], col);
-  rect(x - 10, top[1] + 2, 3, bot[1] - top[1] - 2, C.winGlass);
-  ellipse(x, top[1], 14, 7, shade(col, 1.25));
+  rect(x - 10, top[1] + 2, 3, bot[1] - top[1] - 2, shade(col, 1.6));  // a shine down its side
+  ellipse(x, top[1], 14, 7, col);                                     // its face, as seen under the car: a lighter ring and a dot
+  ellipse(x, top[1], 10, 5, shade(col, 1.6)); ellipse(x, top[1], 8, 4, col);
+  rect(x - 4, top[1] - 2, 3, 2, shade(col, 1.5));
   if (hex6) { rect(x - 15, top[1], 2, bot[1] - top[1], C.carDark); rect(x + 13, top[1], 2, bot[1] - top[1], C.carDark); }
   const py = b.rotated ? bot[1] - 10 : bot[1] - 18;
   rect(x - 20, py, 6, 3, C.tool); rect(x + 15, py, 6, 3, C.tool);
+  sensorPlug(x + 10, top[1] + 4);                                     // its plug and coloured wires, like under the car
+}
+// A sensor's plug (dark, with a yellow tab) and its three coloured wires trailing off to the right
+function sensorPlug(x, y) {
+  rect(x, y - 4, 16, 9, hex('#30302c'));                              // the plug
+  rect(x + 3, y - 7, 9, 3, C.warm);                                   // its tab
+  SENSOR_WIRES.forEach((wire, k) => {
+    const wy = y - 2 + k * 3;                                         // the three wires side by side
+    pipe(x + 16, wy, x + 34, wy + 6, 2, wire);                        // out of the plug…
+    pipe(x + 34, wy + 6, x + 46, wy + 22, 2, wire);                   // …and drooping down
+  });
 }
 
 // ---------- helpers ----------
@@ -550,9 +568,10 @@ const MOMENTS_MORE = {
 };
 MOMENTS.rage = function (p) {                                        // he runs at the car, kicks the headlight, glass flies
   const ground = RAGE_CAR[1], hit = 0.62;
-  if (p < 0.55) man(lerp(20, 214, ease(p / 0.55)), ground, 'walk', 3, p * 60);            // running at it
-  else if (p < 0.78) man(214, ground, 'kick', 3);                                          // the kick
-  else man(206, ground, 'stand', 3);                                                       // stood there, breathing hard
+  const { size, kickX, standX } = RAGE_MAN;
+  if (p < 0.55) man(lerp(20, kickX, ease(p / 0.55)), ground, 'walk', size, p * 60);      // running at it
+  else if (p < 0.78) man(kickX, ground, 'kick', size);                                     // the kick
+  else man(standX, ground, 'stand', size);                                                 // stood there, breathing hard
   if (p < hit) return;
   rageCar(true);                                                                           // the headlight's gone
   if (!RAGE.shook) { RAGE.shook = true; stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }

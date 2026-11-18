@@ -706,7 +706,15 @@ test('ring the wife on the phone: she says what she would say in person', async 
     if (await page.evaluate(() => S.screen !== 'phone')) { await page.click('.go[data-go="phone"]'); await idle(page); }
     await page.locator('[data-act="ring:Wife"]').click();
   };
+  await page.evaluate(() => { window.PITCHES = []; chatter = (n, pitch) => PITCHES.push(pitch); });   // listen for the garbled speech
   for (let k = 0; k < 3; k++) { await ringWife(); said.push(await dialogText(page)); await ok(page); }
+  const pitches = await page.evaluate(() => PITCHES);
+  expect(pitches.length).toBe(3);                                       // her voice down the phone, every time…
+  expect(Math.min(...pitches)).toBeGreaterThan(215);                    // …higher than anyone else's
+  await page.evaluate(() => { S.screen = 'room'; render(); });
+  await tap(page, 'act:wife');                                          // in the house: the same voice
+  expect(await page.evaluate(() => PITCHES[PITCHES.length - 1])).toBe(pitches[0]);
+  await ok(page);
   expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);               // the same as in person: scrap it…
   expect(said[2]).toMatch(/codes|hammer|fuses|1234|tea/);              // …and every third time something useful
   await page.evaluate(() => { S.mins = 22 * 60; });

@@ -24,6 +24,7 @@ const CAR_BREAKS = [
 const RAGE = { from: 'home', shook: false, done: false };
 const RAGE_CAR = [250, 214];                                  // the car's back end on the ground (it faces left, towards him)
 const RAGE_LAMP = [RAGE_CAR[0] + 4, RAGE_CAR[1] - 38];        // its headlight, at the front (left) end
+const RAGE_MAN = { size: 5, kickX: 222, standX: 210 };          // him in the cutscene: man-sized next to the car (19 x 5 = 95 tall); where he kicks from (his foot on the headlight) and stands after
 // The car side on, facing left: body, cabin and windows, wheels, the headlight (smashed once he's kicked it)
 function rageCar(smashed) {
   const [x, y] = RAGE_CAR, col = C.car;
@@ -45,7 +46,7 @@ SCREENS.rage = {
     for (let y = 8; y < 214; y += 9) rect(0, y, W, 1, C.concreteDark);
     rect(0, 214, W, H - 214, C.floor); rect(0, 214, W, 1, C.steel2);
     rageCar(RAGE.done);                                                                // once he's kicked it, it stays smashed
-    if (RAGE.done) man(206, RAGE_CAR[1], 'stand', 3);                                 // and there he stands
+    if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
   },
   actions() { return []; }
 };

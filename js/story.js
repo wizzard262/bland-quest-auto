@@ -856,7 +856,11 @@ const ACTIONS = {
   // ----- the phone -----
   ring(who) {
     pass(5);
-    if (who === 'Wife') return say('Ringing the wife', wifeLine());   // she says just what she'd say to your face
+    if (who === 'Wife') {                                              // she says just what she'd say to your face
+      const line = wifeLine();
+      speakChatter('The wife', line);                                  // in her own (higher) voice, down the phone
+      return say('Ringing the wife', line);
+    }
     const lines = {
       Gaz: S.flags.gazTried ? '"Still looking for it, mate."' : '"Come round, I\'ll have a look for that reader."',
       Mum: '"Are you still coming Sunday? Bring the car."',

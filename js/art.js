@@ -611,6 +611,10 @@ function zoomZones(zones) {
   for (const [name, x, y, w, h, hot, go] of zones) spot('🔍 ' + name, [x, y, w, h], go || 'act:look:' + name);
 }
 const UNDERSIDE = hex('#4a4540'), BLACKPART = hex('#24221f'), ALLOY = hex('#a4a6a0'), RUSTPIPE = hex('#7a6656');
+// Each gearbox sensor's colour: the same on the workbench as under the car
+const SENSOR_COLOUR = { 'old-sensor': BLACKPART, 'part-p4l': hex('#3c4c64'), 'part-mega': C.car };
+// The sensor's wires (the same three colours as the loom under the car)
+const SENSOR_WIRES = [C.red, C.warm, hex('#40a060')];
 const CARDBOARD = hex('#c09060');
 const FUSECOLS = [[C.red, '10A'], [C.car, '15A'], [C.warm, '20A'], [hex('#e8e8e0'), '25A'], [hex('#40a060'), '30A']];
 

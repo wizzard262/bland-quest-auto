@@ -265,8 +265,20 @@ function say(title, body, options) {
   SPEAKER_FOR = null;
   SPEAKER = null;
   DIALOG = { title, body, at, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
-  if (at) chatter(Math.min(28, 4 + Math.round(body.length / 7)), 95 + hash(title.length, title.charCodeAt(0)) * 120);   // muffled chatter in their voice
+  if (at) speakChatter(title, body);                                   // muffled chatter in their voice
   render();
+}
+// Voices that aren't picked from the name: the wife's is higher than everyone else's
+const VOICES = { 'The wife': 300 };
+// How high someone's voice is (everyone else: somewhere from 95 to 215, fixed by their name)
+function voicePitch(who) {
+  if (VOICES[who]) return VOICES[who];
+  return 95 + hash(who.length, who.charCodeAt(0)) * 120;
+}
+// The garbled speech sound for someone saying `body` (longer speeches chatter longer)
+function speakChatter(who, body) {
+  const syllables = Math.min(28, 4 + Math.round(body.length / 7));
+  chatter(syllables, voicePitch(who));
 }
 // Something you say: a speech bubble from your own head; tap anywhere to carry on, then `then` runs (their answer)
 function sayMe(line, then) {
