@@ -160,12 +160,12 @@ SCREENS.room = {
     // the way out: a see-through door in the near wall
     exitDoor(ROOM.d);
     standingMan('room');
-    const [fx, fy] = WIFE.pos;                                         // she walks round (drawn in life.js); the tap area follows her
-    spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 18, fy + 14]);
     spot('Computer', isoArea(66, 0, 94, 17, 0, 36), 'pc', [80, 46]);
     spot('Bed: go to sleep', isoArea(0, 80, 59, 130, 0, 22), 'act:bed', [70, 104]);
     spot('Kettle: make a cup of tea', isoArea(KETTLE[0] - 6, 0, KETTLE[0] + 14, 18, 26, 42), 'act:tea', [150, 32]);
     spot('Door: outside', isoArea(EXIT_DOOR[0], ROOM.d - 4, EXIT_DOOR[1], ROOM.d, 0, EXIT_DOOR[2]), 'home', [105, 130]);
+    const [fx, fy] = WIFE.pos;                                         // she walks round (drawn in life.js); the tap area follows her
+    spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 18, fy + 14]);   // last: on top, even when she's in bed
     hud();
   },
   actions() {
@@ -532,12 +532,12 @@ function appHTML(app) {
     <div class="meta">dash_light.jpg · IMG_0042.jpg · part_number_blurry.jpg · thumb.jpg</div></div>`;
   if (app === 'MegaMart') return `<div class="top">${APP_ICON.MegaMart}<b class="logo">zamanon</b><span class="search">car code reader</span><span class="sbtn">🔍</span></div><div class="body"><table>
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
-    ${(brokeOpen('headlight') || brokeOpen('headlight2')) ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
+    ${true ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i><i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
-    ${(brokeOpen('headlight') || brokeOpen('headlight2')) ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
+    ${true ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
     <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Collection only, Aberdeen</span></td><td>£0.99</td><td class="red">Collection only</td></tr>
     <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr></table></div>`;
   return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
@@ -824,7 +824,8 @@ SCREENS.bonnet = {
   },
   actions() {
     const a = [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }];
-    if ((S.inv.headlight && brokeOpen('headlight')) || (S.inv['headlight-r'] && brokeOpen('headlight2'))) a.push({ label: 'Fit the new headlight', act: 'fitlight' });
+    const spares = spareLamps(), smashed = brokeOpen('headlight') || brokeOpen('headlight2');
+    if (smashed && (spares.left || spares.right)) a.push({ label: 'Fit a new headlight', act: 'fitlight' });   // from the shelf (it might be the wrong side)
     a.push({ label: 'Close the bonnet', act: 'go:garage' });
     return a;
   }

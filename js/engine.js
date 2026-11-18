@@ -315,6 +315,8 @@ function load() {
     if (raw) {
       S = Object.assign(freshState(), JSON.parse(raw));
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
+      if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
+      if (S.inv['headlight-r']) { addLamp('right'); delete S.inv['headlight-r']; }
       return true;
     }
   } catch (e) { /* nothing saved or storage blocked */ }
@@ -357,6 +359,7 @@ function render() {
   img = ctx.createImageData(W, H);
   LABELS = [];
   OUR_LAMPS = [];                                                   // the car's cracked headlights on this screen (the paint finds them)
+  canvas.style.transform = S.screen === 'rage' && RAGE.mirror ? 'scaleX(-1)' : '';   // kicking the right headlight: the whole scene mirrored
   scr.paint();
   BG = img.data.slice();
   drawFrame(performance.now());

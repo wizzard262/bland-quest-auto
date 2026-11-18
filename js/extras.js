@@ -7,12 +7,16 @@
 // =====================================================================
 // ANGER
 // =====================================================================
-// What breaks on the car when you lose your temper, one at a time; each is a small job to fix
+// Your headlights: every time you lose it you kick one in, the left, then the right, then the left again…
+// A smashed one is a job until you fit a new one (and then it can be kicked in again)
+const LAMP_BREAKS = {
+  left: { id: 'headlight', title: 'Replace the smashed left headlight (you kicked it)', what: 'You run at the car and kick the left headlight in. Glass everywhere.',
+    lead: ['headlight', 'A new left headlight: the parts shop (dear), online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
+  right: { id: 'headlight2', title: 'Replace the smashed right headlight (you kicked it)', what: 'You run round the other side and kick the right headlight in. Now they match.',
+    lead: ['headlight2', 'A new right headlight: online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] }
+};
+// When a headlight's already smashed, losing it breaks something else instead, one at a time; each is a small job to fix
 const CAR_BREAKS = [
-  { id: 'headlight', title: 'Replace the smashed headlight (you kicked it)', what: 'You run at the car and kick the headlight in. Glass everywhere.',
-    lead: ['headlight', 'A new headlight: the parts shop (dear), online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
-  { id: 'headlight2', title: 'Replace the other smashed headlight (the right one: you kicked that too)', what: 'You run at the car and kick the other headlight in. Now they match.',
-    lead: ['headlight2', 'A right-hand headlight: online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
   { id: 'mirror', title: 'Fix the wing mirror (you knocked it off)', what: 'You slam the car door so hard the wing mirror falls off.',
     lead: ['tape', 'Tape it back on: there\'s tape in drawer 4 of the toolbox', 'you', 'fairly sure', 'toolbox'] },
   { id: 'lens', title: 'Replace the cracked indicator lens (you kicked it)', what: 'You kick the front of the car. The indicator lens cracks.',
@@ -53,26 +57,32 @@ SCREENS.rage = {
   actions() { return []; }
 };
 // Start the cutscene from wherever you are; when it's over (and he's sworn), you're back where you were
-function rageCutscene() {
+// side: the headlight he kicks; the right one is the whole scene mirrored (he runs in from the other side)
+function rageCutscene(side) {
   RAGE.from = S.screen === 'rage' ? RAGE.from : S.screen;
   RAGE.shook = false; RAGE.done = false;
-  const k = kickedLamps();
-  RAGE.already = k.left && k.right;                                      // both kicked in already: this kick has nothing left to break
+  RAGE.mirror = side === 'right';
+  RAGE.already = kickedLamps()[side];                                    // that one's smashed already: it's broken before he gets there
   S.screen = 'rage';
   sfx('kick', 1.45); sfx('glass', 1.5);
   moment('rage', 2400);
   ANIM.then = () => {
     RAGE.done = true;
-    DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at: [207, 150], options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
+    const at = RAGE.mirror ? [W - 207, 150] : [207, 150];               // his head (on the other side when the scene's mirrored)
+    DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at, options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
   };
   render();
 }
 
-// Lose your temper: something on the car breaks (once each), then it's the wheelie bin
+// Lose your temper: he kicks a headlight (left, right, left…); if that one's already smashed, something else breaks
 function breakSomething() {
-  const b = CAR_BREAKS.find(x => !S.flags['broke-' + x.id]);
   S.anger = 40;
-  rageCutscene();                                                        // wherever you are: he runs at the car and kicks the headlight
+  S.kicks = (S.kicks || 0) + 1;
+  const side = S.kicks % 2 ? 'left' : 'right';                          // kicks 1, 3, 5… the left; 2, 4, 6… the right
+  const wasWhole = !kickedLamps()[side];
+  rageCutscene(side);                                                    // wherever you are: he runs at the car and kicks it
+  if (wasWhole) return breakLamp(side);
+  const b = CAR_BREAKS.find(x => !S.flags['broke-' + x.id]);
   if (!b) {
     job('kicked-' + now(), 'Fix the wheelie bin (you kicked it)', null);
     return queueDialog('You lose it', 'You kick the wheelie bin. It breaks. Of course it does.\n\nThat\'s a new job in the notebook.');
@@ -83,6 +93,14 @@ function breakSomething() {
   queueDialog('You lose it', b.what + '\n\nYou feel better. For a second. That\'s a new job in the notebook.');
 }
 const brokeOpen = id => { const j = findJob('broke-' + id); return !!j && j.status === 'open'; };
+// A headlight kicked in: a job to replace it (the same job again if you'd replaced it before)
+function breakLamp(side) {
+  const b = LAMP_BREAKS[side], id = 'broke-' + b.id;
+  const old = findJob(id);
+  if (old) { old.status = 'open'; note(id, 'Kicked in again', 'x'); }  // fixed once, smashed again
+  else { job(id, b.title, null); lead(id, ...b.lead); }
+  queueDialog('You lose it', b.what + '\n\nYou feel better. For a second. That\'s a new job in the notebook.');
+}
 // Ways to calm down (tap the anger bar)
 function calmMenu() {
   const opts = [
@@ -275,7 +293,7 @@ const SHOP_STOCK = {
     ['Tape measure', 3.99, 'tape'], ['Drill', 39.99, 'box'], ['Socket set', 24.99, 'box'], ['Torch', 4.99, 'can'],
     ['WD-40', 3.49, 'can'], ['Gaffer tape', 2.99, 'tape'], ['Cable ties', 1.99, 'box'], ['Work gloves', 3.49, 'box']],
   parts: [['Brake pads', 24.99, 'box'], ['Oil filter', 6.99, 'can'], ['Wiper blades', 12.99, 'box'], ['Bulbs', 4.99, 'box'],
-    ['Spark plugs', 9.99, 'box'], ['Air freshener', 1.49, 'can'], ['Fuses', 2.99, 'box'], ['"Universal" sensor', 19.99, 'box'],
+    ['Spark plugs', 9.99, 'box'], ['Headlight (Zafira, right)', 64.99, 'box'], ['Fuses', 2.99, 'box'], ['"Universal" sensor', 19.99, 'box'],
     ['Engine oil', 29.99, 'can'], ['Screen wash', 2.49, 'can'], ['Jump leads', 14.99, 'box'], ['Headlight (Zafira, left)', 64.99, 'box']],
   aisles: [['Air freshener', 1.49, 'can'], ['Fluffy dice', 3.99, 'box'], ['Screen wash', 2.49, 'can'], ['Torch', 4.99, 'can'],
     ['Batteries', 3.99, 'box'], ['Gaffer tape', 2.99, 'tape'], ['Crisps', 1.25, 'box'], ['Energy drink', 1.79, 'can'],
@@ -398,6 +416,9 @@ function storeList() {
     list.push([it.name, ITEM_KIND[id] || 'box', 1]);
   }
   if (S.inv.hammer && !(S.bought && S.bought['Claw hammer'])) list.push(['Claw hammer', 'hammer', 1]);   // bought before there was a basket
+  const lamps = spareLamps();                                                       // spare headlights, waiting for a side to break
+  if (lamps.left) list.push(['Headlight (Zafira, left)', 'box', lamps.left]);
+  if (lamps.right) list.push(['Headlight (Zafira, right)', 'box', lamps.right]);
   return list;
 }
 const GRID = { x: 78, y: 70, cell: 36, cols: 9 };             // the grid of slots: top-left, size of each, slots across
@@ -528,13 +549,13 @@ Object.assign(ACTIONS, {
     sfx('beep');
     S.bought = S.bought || {};
     for (const b of items) {
+      if (b.name.startsWith('Headlight')) { addLamp(b.name.includes('right') ? 'right' : 'left'); continue; }   // a headlight: a spare, on the shelf
       const had = S.bought[b.name];
       S.bought[b.name] = { kind: b.kind, n: (had ? had.n : 0) + 1 };                   // onto your garage shelves
     }
     S.basket = S.basket.filter(b => b.place !== S.place);
     const names = items.map(b => b.name).join(', ');
     const hammer = items.some(b => b.name === 'Claw hammer') ? boughtHammer() : '';
-    if (items.some(b => b.name.startsWith('Headlight'))) gotHeadlight();          // a new headlight (for whichever side is smashed): fit it under the bonnet
     say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}`);
   },
   // the garage shelves: what each thing is

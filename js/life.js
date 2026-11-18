@@ -112,6 +112,8 @@ const WIFE = { k: 0, t0: null, last: 0, pos: [128, 38], walk: undefined, facing:
 const WIFE_WAIT = 4, WIFE_SPEED = 14;                                // seconds at each place; how fast she walks
 const BEDSIDE = [64, 92];                                             // where she goes when you both go to bed
 const isBedtime = () => S.mins >= 19 * 60 || S.mins < 7 * 60;        // 7 in the evening till 7 in the morning
+const isAsleep = () => S.mins >= 23 * 60 || S.mins < 7 * 60;         // 11 at night: she takes herself to bed, and sleeps till morning
+const SLEEPING_HEAD = [10, 95];                                       // her head on the pillow (her side of the bed)
 // Which way she faces, walking from a to b (world): towards you, away, or side on
 function facingFor(a, b) {
   const sx = (b[0] - a[0]) - (b[1] - a[1]), sy = ((b[0] - a[0]) + (b[1] - a[1])) / 2;   // the move on screen
@@ -153,12 +155,47 @@ function wifeMove(t) {
   WIFE.k = (WIFE.k + 1) % WIFE_ROUTE.length; WIFE.t0 = t; WIFE.pos = [to[0], to[1]]; WIFE.walk = undefined;
 }
 SCREENS.room.animate = function (t) {
-  wifeMove(t);
   ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
+  const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed: she's beside you as before
+  if (isAsleep() && !goingToBed) {                                    // late: she's in bed, fast asleep
+    sleepingWife(t);
+    moveWifeTap([SLEEPING_HEAD[0] + 8, SLEEPING_HEAD[1]], [60, 10]);
+    return;
+  }
+  wifeMove(t);
   const bedtime = isBedtime() || (ANIM && ANIM.kind === 'night' && S.flags.bedLate);   // from 7 in the evening (and all through the night) she's in her nightie
   wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
   moveWifeTap(WIFE.pos, [-18, 14]);
 };
+// Her asleep in bed: her head on the pillow, a lump under the duvet, and Zs rising off her
+function sleepingWife(t) {
+  const [hx, hy] = SLEEPING_HEAD;
+  ibox(18, hy - 7, 50, hy + 7, 20, 23, shade(C.door, 1.12));         // her, under the duvet
+  const head = P(hx, hy, 24);
+  disc(head[0], head[1], 3, C.skin);                                  // her face, on the pillow
+  rect(head[0] - 4, head[1] - 4, 8, 3, hex('#5a3a22'));               // her hair, spread on the pillow
+  sleepZs(t, head[0] + 4, head[1] - 6);
+}
+// Zs rising from her: small z, then bigger and bigger, up and to the right at 45 degrees; each grows and fades away
+const Z_COUNT = 4, Z_LIFE = 3.2;                                      // no more than 4 at once; how long each one lasts (seconds)
+function sleepZs(t, x0, y0) {
+  for (let k = 0; k < Z_COUNT; k++) {
+    const age = (t + k * Z_LIFE / Z_COUNT) % Z_LIFE;                  // how far through its rise this one is
+    const q = age / Z_LIFE;
+    const size = 1 + Math.floor(q * 3);                               // small, medium, big
+    const rise = q * 34;                                              // up and right, at 45 degrees
+    drawZ(x0 + rise, y0 - rise - size * 4, size, hex('#3a5a9a'), q, k);
+  }
+}
+// One Z, `size` pixels per dot (3 dots wide and tall, plus the diagonal); fade 0 = solid, 1 = gone (dots drop out)
+function drawZ(x, y, size, col, fade, seed) {
+  const dots = [[0, 0], [1, 0], [2, 0], [3, 0], [2, 1], [1, 2], [0, 3], [1, 3], [2, 3], [3, 3]];   // the Z: top, diagonal, bottom
+  const gone = Math.max(0, (fade - 0.5) * 2);                         // it starts fading halfway up
+  dots.forEach(([dx, dy], n) => {
+    if (hash(n + seed * 17, Math.floor(fade * 20)) < gone) return;   // this dot has faded
+    rect(Math.round(x + dx * size), Math.round(y + dy * size), size, size, col);
+  });
+}
 // Move the "Talk to the wife" tap area (and its name) to where she is now; walkBy = where he walks to, beside her
 function moveWifeTap(pos, walkBy) {
   const tapArea = stage.querySelector('.hs[data-go="act:wife"]');
@@ -175,7 +212,7 @@ const FOLLOW = { pos: null, last: 0, walk: undefined, facing: 'front' };
 const FOLLOW_FROM = [115, 62];                                        // the garage door, on the home screen
 const FOLLOW_GAP = [10, -8];                                          // where she stops: just behind him, towards the house
 const FOLLOW_SPEED = 22;                                              // how fast she walks after him
-const wifeFollowing = () => isBedtime() && S.flags.wifeOut === nightOf();
+const wifeFollowing = () => isBedtime() && !isAsleep() && S.flags.wifeOut === nightOf();
 // Where he is on the home screen right now (part way across if he's walking)
 function manNowHome() {
   if (ANIM && ANIM.kind === 'walk' && ANIM.screen === 'home') {
@@ -247,7 +284,7 @@ SCREENS.garage.animate = function (t) {
   drip(t, a[0], a[1], b[1], 3.1, C.ink); dripSound(t, 3.1, 'garage');                                                 // oil dripping from the car
   if (wifeInGarage()) wife(WIFE_IN_GARAGE[0], WIFE_IN_GARAGE[1], 'nightie', { hip: true });                                          // late: she's come to fetch you
 };
-const wifeInGarage = () => isBedtime() && S.flags.wifeCalled === nightOf();
+const wifeInGarage = () => isBedtime() && !isAsleep() && S.flags.wifeCalled === nightOf();
 SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); dripSound(t, 2.7, 'under'); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
 SCREENS.underZoom.animate = function (t) { drip(t, 250, 176, 262, 2.9, hex('#2a2010')); };
 SCREENS.bench.animate = function (t) {

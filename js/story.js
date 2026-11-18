@@ -128,17 +128,21 @@ const ITEMS = {
   'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 }
 };
 
-// The headlights you've kicked in: which side you still need a new one for ('left', 'right' or null)
+// Spare headlights you own (on the garage shelf): how many left ones and right ones
+function spareLamps() {
+  S.lamps = S.lamps || { left: 0, right: 0 };
+  return S.lamps;
+}
+function addLamp(side) { spareLamps()[side] += 1; }
+// The headlight you still need: a smashed side you haven't got a spare for ('left', 'right' or null)
 function needHeadlight() {
-  if (brokeOpen('headlight') && !S.inv.headlight) return 'left';
-  if (brokeOpen('headlight2') && !S.inv['headlight-r']) return 'right';
+  const have = spareLamps();
+  if (brokeOpen('headlight') && !have.left) return 'left';
+  if (brokeOpen('headlight2') && !have.right) return 'right';
   return null;
 }
-// You've got a new headlight: it's for whichever side you still need (the left one first)
-function gotHeadlight() {
-  if (needHeadlight() === 'right') S.inv['headlight-r'] = true;
-  else S.inv.headlight = true;
-}
+// From the Breakers Yard: one for the side you need (or a left one, if nothing's smashed)
+function gotHeadlight() { addLamp(needHeadlight() || 'left'); }
 // Which night it is (after midnight still counts as the evening before)
 const nightOf = () => S.mins < 7 * 60 ? S.day - 1 : S.day;
 // Late, and you're in the garage: she comes in, in her nightie, and wants you in bed (once a night)
@@ -417,7 +421,7 @@ function buy(id, place) {
 // =====================================================================
 const SCREEN_ENTER = {
   garage() {
-    if (isBedtime() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
+    if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
     if (!S.flags.n3lost || S.flags.nutEscaped) return;
     S.flags.nutEscaped = true;
     moment('nutEscape', 2200); sfx('drop');
@@ -464,12 +468,18 @@ const ACTIONS = {
   // the phone's torch: on (so you can see under things) or off; then put the phone away
   // fit the new headlight (under the bonnet)
   fitlight() {
-    const left = S.inv.headlight && brokeOpen('headlight');            // a left one, and the left one is smashed
-    const right = S.inv['headlight-r'] && brokeOpen('headlight2');     // a right one, and the right one is smashed
-    if (!left && !right) return;
-    pass(30); sfx('ratchet');
-    if (left) { delete S.inv.headlight; finishJob('broke-headlight', 'New headlight fitted'); }
-    else { delete S.inv['headlight-r']; finishJob('broke-headlight2', 'New right headlight fitted'); }
+    const have = spareLamps();
+    const left = brokeOpen('headlight') && have.left > 0;               // a left spare, and the left one is smashed
+    const right = brokeOpen('headlight2') && have.right > 0;            // a right spare, and the right one is smashed
+    pass(15);
+    if (!left && !right) {                                              // the wrong side: it doesn't fit
+      anger(10);
+      const got = have.left ? 'a left one' : 'a right one', need = brokeOpen('headlight') ? 'left' : 'right';
+      return say('The headlight', `You try it. It doesn't go. It's ${got}, and the smashed one is the ${need}.\n\nIt goes back on the shelf. One day that side will need it.`);
+    }
+    pass(15); sfx('ratchet');
+    if (left) { have.left -= 1; finishJob('broke-headlight', 'New left headlight fitted'); }
+    else { have.right -= 1; finishJob('broke-headlight2', 'New right headlight fitted'); }
     say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.');
   },
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
@@ -481,6 +491,7 @@ const ACTIONS = {
   },
   // your wife: she wants the car scrapped; every third time, something useful
   wife() {
+    if (isAsleep()) return say('The wife', 'Zzzz… She\'s fast asleep. Best not.');   // in bed: she doesn't wake
     pass(5);
     SPEAKER = wifeHead();                                              // in person: a speech bubble from her
     say('The wife', wifeLine());
@@ -864,6 +875,7 @@ const ACTIONS = {
   ring(who) {
     pass(5);
     if (who === 'Wife') {                                              // she says just what she'd say to your face
+      if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();
       speakChatter('The wife', line);                                  // in her own (higher) voice, down the phone
       return say('Ringing the wife', line);
@@ -930,16 +942,16 @@ function openParcel(item) {
     lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');
     return say('A parcel', 'The MegaMart sensor. It\'s blue. The old one was black. Does that matter?');
   }
-  if (item === 'headlight-bay') {                                      // posted: a right one
-    if (brokeOpen('headlight2') && !S.inv['headlight-r']) {             // you kicked the right one in too: for once, it's the side you need
-      S.inv['headlight-r'] = true;
-      return say('A parcel', 'A headlight. A right one. Which, since you kicked that one in as well, is exactly right.\n\nFit it under the bonnet.');
-    }
+  if (item === 'headlight-bay') {                                      // posted: always a right one
+    addLamp('right');                                                   // on the shelf, whatever happens
+    delete S.flags['ordered-headlight-bay'];                            // you can order another
+    if (brokeOpen('headlight2')) return say('A parcel', 'A headlight. A right one. Which, since you kicked that one in, is exactly right.\n\nFit it under the bonnet.');
+    if (!brokeOpen('headlight')) return say('A parcel', 'A headlight. A right one. Nothing\'s smashed just now. It goes on the shelf in the garage, just in case.');
     anger(10);
     note('broke-headlight', 'TheeBay headlight: the wrong side (it\'s a right one; yours is the left)', 'x');
     return say('A parcel', 'A headlight! …for the other side. Yours is the left one. This is a right one.');
   }
-  if (item === 'headlight-zam') { gotHeadlight(); return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
+  if (item === 'headlight-zam') { addLamp('left'); delete S.flags['ordered-headlight-zam']; return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
   say('A parcel', 'Something you didn\'t order.');
 }
 // Looking at things under the car and the bonnet
