@@ -344,6 +344,7 @@ SOUNDS.rollerdoor = t => {                                          // a roller 
   for (let i = 0; i < 16; i++) hiss(t + i * 0.07, 1400 + i * 40, 0.045, 0.07, 'bandpass', 4);
   tone(t, [60, 85], 1.15, 0.05, 'sawtooth'); tone(t + 1.1, 120, 0.08, 0.08, 'square');   // …and a clunk at the top
 };
+SOUNDS.glass = t => { hiss(t, 5000, 0.25, 0.2, 'highpass'); for (let i = 0; i < 9; i++) tone(t + 0.03 + i * 0.045 + Math.random() * 0.04, 2400 + Math.random() * 2600, 0.06, 0.035); };   // breaking glass, and bits tinkling down
 SOUNDS.angerup = t => { tone(t, [260, 620], 0.28, 0.05, 'sawtooth'); tone(t, [130, 310], 0.28, 0.04, 'square'); };   // anger rising
 SOUNDS.msgtone = t => { tone(t, 2093, 0.08, 0.07, 'square'); tone(t + 0.13, 2093, 0.08, 0.07, 'square'); };   // a text message: beep beep
 SOUNDS.plink = t => { tone(t, [1900, 1300], 0.09, 0.06); };

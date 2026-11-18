@@ -222,6 +222,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const i1 = 24 - i0;
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
+  const smashed = !broken && !opts.shape && col === C.car && typeof brokeOpen === 'function' && brokeOpen('headlight');   // your car, after you kicked it: one headlight smashed
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
   poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass || rev ? glass : shade(col, 0.7));
@@ -249,7 +250,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   // small (on the map, in traffic): just lights and wheels
   if (s < 0.8) {
     if (!broken) {
-      poly(nose([[2, 7], [6, 7], [6, 10], [2, 10]]), C.warm);
+      poly(nose([[2, 7], [6, 7], [6, 10], [2, 10]]), smashed ? C.ink : C.warm);
       poly(nose([[18, 7], [22, 7], [22, 10], [18, 10]]), C.warm);
     }
     if (!opts.noWheels) {
@@ -261,7 +262,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
     if (broken) rustOn(Q, L, x);
     return;
   }
-  carDetails(K, Q, side, nose, col, broken, pillar, i1);
+  carDetails(K, Q, side, nose, col, broken, pillar, i1, smashed);
   if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
   carWheels(K, Q, side, col, broken, opts);
   if (broken) rustOn(Q, L, x);
@@ -276,14 +277,14 @@ function carBack(K, tail, col, broken) {
   poly(tail([[19, tl], [23, tl], [23, K.tz - 1], [19, K.tz - 1]]), red);
 }
 // Bumpers, grille, number plate, lights (one smashed on a wreck), door handles, mirror
-function carDetails(K, Q, side, nose, col, broken, pillar, i1) {
+function carDetails(K, Q, side, nose, col, broken, pillar, i1, smashed) {
   const L = K.L;
   poly(nose([[0, 4], [24, 4], [24, 6], [0, 6]]), shade(col, 0.55));                                                 // front bumper
   poly(nose([[8, 7], [16, 7], [16, 9.5], [8, 9.5]]), C.ink);                                                          // grille
   poly(nose([[9, 4.4], [15, 4.4], [15, 5.8], [9, 5.8]]), C.white);                                                    // number plate
   const lamp = broken ? shade(C.warm, 0.55) : C.warm;
-  poly(nose([[1, 7], [6, 7], [6, K.nz - 1], [1, K.nz - 1]]), broken ? C.ink : lamp);                                  // left headlight (smashed on a wreck)
-  if (broken) { const c = Q(3, L, 8.5); px(c[0], c[1], C.white); px(c[0] + 1, c[1] - 1, C.white); }                  // its crack
+  poly(nose([[1, 7], [6, 7], [6, K.nz - 1], [1, K.nz - 1]]), broken || smashed ? C.ink : lamp);                                  // left headlight (smashed on a wreck)
+  if (broken || smashed) { const c = Q(3, L, 8.5); px(c[0], c[1], C.white); px(c[0] + 1, c[1] - 1, C.white); }                  // its crack
   poly(nose([[18, 7], [23, 7], [23, K.nz - 1], [18, K.nz - 1]]), lamp);                                               // right headlight
   poly(side([[L - 1.5, 7.5], [L, 7.5], [L, K.nz - 1], [L - 1.5, K.nz - 1]]), hex('#f0901c'));                        // indicator, round the corner
   const tl = Math.max(8, K.tz - 5);
@@ -339,8 +340,16 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     L(10, -2, 14, -6, K.jeans); L(14, -6, 18, -2, K.jeans);
     L(6, -4, 7, -9, K.shirt); D(7, -10, K.skin); return;
   }
+  if (pose === 'kick') {                                 // a flying kick: one leg out straight in front (to the right), arms flung back
+    R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin); if (K.beard) R(0, -17, 2, 2, K.beard);   // a beard
+    R(0, -15, 2, 5, K.shirt); D(0, -10, K.jeans);
+    L(0, -9, -1, -1, K.jeansDark);
+    L(1, -9, 6, -8, K.jeans);
+    L(0, -14, -3, -12, K.shirtDark); L(1, -14, -2, -16, K.shirt);
+    return;
+  }
   if (pose === 'sit') {                                  // on a stool: knees bent, feet on the rung (hips where his feet would be, 9 up)
-    R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin);
+    R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin); if (K.beard) R(0, -17, 2, 2, K.beard);   // a beard
     R(0, -15, 2, 5, K.shirt); D(0, -10, K.jeans);
     L(0, -9, -1, -7, K.jeansDark); L(-1, -7, -1, -4, K.jeansDark);
     L(1, -9, 2, -7, K.jeans); L(2, -7, 2, -4, K.jeans);
@@ -358,7 +367,7 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     L(1, Y(-14), 2 - sw, Y(-9), K.shirt); D(2 - sw, Y(-8), K.skin);
     return;
   }
-  R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin);
+  R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin); if (K.beard) R(0, -17, 2, 2, K.beard);   // a beard
   R(0, -15, 2, 5, K.shirt); D(0, -10, K.jeans);
   L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);
   L(0, -14, -1, -9, K.shirtDark); D(-1, -8, K.skin);
@@ -391,73 +400,101 @@ const WIFE_LOOKS = {
 };
 // One row of pixels, centred on cx (w wide; an odd width sits one pixel to the right)
 function rowAt(cx, y, w, col) { rect(Math.round(cx - w / 2), y, w, 1, col); }
-// step: 0 standing, or 1 / -1 mid-stride (walking round the house)
-// sit: sitting down (on the sofa): she's lower, with her knees bent towards you
-function wife(wx, wy, lookId, step = 0, sit = false) {
+// How she's moving: { walk: the stride's phase (or leave it out to stand), facing: 'front', 'back', 'left' or 'right',
+//   sit: sitting on the sofa (its seat 10 up), hip: a hand on her hip }
+function wife(wx, wy, lookId, motion = {}) {
   const K = WIFE_LOOKS[lookId] || WIFE_LOOKS.pinup;
-  const [fx, fy] = P(wx, wy), x = Math.round(fx), floor = Math.round(fy), y = floor + (sit ? 7 : 0);
-  const skin = C.skin, skinDark = shade(C.skin, 0.85), dress = K.dress, dressDark = shade(K.dress, 0.75);
-  const lean = step ? 1 : 0;
-  // legs and heels (a little apart; one forward when she walks)
-  const legL = x - 2 - (step > 0 ? 1 : 0), legR = x + 1 + (step < 0 ? 1 : 0);
-  for (const lx of [legL, legR]) {
-    if (sit) { rect(lx, y - 18, 2, floor - (y - 18) - 1, skin); rect(lx - 1, floor - 1, 3, 1, K.barefoot ? skin : K.shoes); continue; }   // knees up, feet on the floor
-    rect(lx, y - 18, 2, 14, skin); rect(lx, y - 4, 1, 3, skin);          // thigh to calf (the dress covers the top), then a slim ankle
-    rect(lx + 1, y - 9, 1, 3, skinDark);                                  // a touch of shadow down the calf
-    if (K.barefoot) rect(lx - 1, y - 1, 3, 1, C.skin);                    // bare feet
-    else if (K.slippers) rect(lx - 1, y - 1, 3, 2, K.shoes);              // fluffy slippers
-    else { rect(lx - 1, y - 1, 3, 1, K.shoes); rect(lx + 1, y - 2, 1, 1, K.shoes); rect(lx - 1, y, 1, 1, K.shoes); }   // a heel
+  const facing = motion.facing || 'front', side = facing === 'left' || facing === 'right', dir = facing === 'left' ? -1 : 1;
+  const skin = C.skin, dress = K.dress, dressDark = shade(K.dress, 0.75);
+  const covers = ['full', 'gown', 'wiggle', 'trousers'].includes(K.cut);  // does the dress come down over her thighs?
+  if (motion.sit) {                                                        // sitting: hips on the seat, thighs forward, shins down to the floor
+    const hip = P(wx, wy, 10), knee = P(wx + 9, wy, 10), foot = P(wx + 10, wy, 0);
+    for (const o of [-2, 1]) {
+      pipe(hip[0] + o, hip[1] - 1, knee[0] + o, knee[1] - 1, 2, covers ? dress : skin);   // thigh
+      pipe(knee[0] + o, knee[1] - 1, foot[0] + o, foot[1] - 1, 2, skin);                  // shin
+      rect(foot[0] + o - 1, foot[1] - 1, 3, 1, K.barefoot ? skin : K.shoes);               // foot
+    }
+    return wifeTop(K, Math.round(hip[0]), Math.round(hip[1]) + 21, 'front', motion.hip, true);
   }
-  // the dress, from the hips down
-  if (K.cut === 'full') {                                                 // a full, swirling skirt to the knee
+  const [fx, fy] = P(wx, wy), x = Math.round(fx), y = Math.round(fy);
+  // legs: a proper stride when she walks (knees bend, a foot lifts and swings through), together when she stands
+  const ph = motion.walk;
+  for (const sgn of [1, -1]) {
+    const swing = ph === undefined ? 0 : Math.sin(ph) * sgn;               // -1 back … 1 forward
+    const lift = ph === undefined ? 0 : Math.max(0, Math.cos(ph) * sgn) * 2;   // the leg coming through lifts its foot
+    let hx, fxp;
+    if (side) { hx = x - (sgn > 0 ? 1 : 0); fxp = x + Math.round(dir * swing * 3) - (sgn > 0 ? 1 : 0); }   // side on: legs scissor
+    else { hx = sgn > 0 ? x - 2 : x + 1; fxp = hx + Math.round(swing * 0.6); }                              // front or back: a smaller shuffle
+    const footY = y - 1 - Math.round(lift);
+    const kx = Math.round((hx + fxp) / 2 + (side ? dir * lift * 0.8 : 0)), ky = Math.round((y - 18 + footY) / 2) - Math.round(lift / 2);
+    pipe(hx + 0.5, y - 18, kx + 0.5, ky, 2, skin);                          // thigh to knee
+    pipe(kx + 0.5, ky, fxp + 0.5, footY - 1, 2, skin);                      // knee to ankle
+    if (K.barefoot) rect(fxp - (side && dir < 0 ? 1 : 0), footY, 2 + (side ? 1 : 0), 1, skin);
+    else if (K.slippers) rect(fxp - 1, footY - 1, 3, 2, K.shoes);
+    else { rect(fxp - 1, footY, 3, 1, K.shoes); rect(fxp + (side ? -dir : 1), footY - 1, 1, 1, K.shoes); }   // a heel
+    if (K.cut === 'trousers') { pipe(hx + 0.5, y - 19, kx + 0.5, ky, 2, dress); pipe(kx + 0.5, ky, fxp + 0.5, footY - 2, 2, dress); }
+  }
+  // the skirt, from the hips down
+  if (K.cut === 'full') {
     for (let k = 0; k < 10; k++) rowAt(x, y - 22 + k, 8 + Math.round(k * 1.1), k === 9 ? dressDark : dress);
-    if (K.dots) for (const [dx, dy] of [[-4, -19], [1, -20], [4, -16], [-2, -15], [-6, -14], [3, -13], [0, -17], [6, -14]]) rect(x + dx, y + dy, 1, 1, K.dots);
+    if (K.dots && facing !== 'back') for (const [dx, dy] of [[-4, -19], [1, -20], [4, -16], [-2, -15], [-6, -14], [3, -13], [0, -17], [6, -14]]) rect(x + dx, y + dy, 1, 1, K.dots);
   }
-  if (K.cut === 'gown') {                                                 // to the floor, with a slit up one side
-    for (let k = 0; k < 22; k++) rowAt(x, y - 22 + k, 9 + Math.floor(k / 5), k % 6 === 3 ? dressDark : dress);
-    rect(legR, y - 12, 2, 11, skin); rect(legR + 1, y - 9, 1, 3, skinDark);   // the leg through the slit
-    rect(legR - 1, y - 1, 3, 1, K.shoes);
-  }
-  if (K.cut === 'short') {                                                // above the knee, fitted
-    for (let k = 0; k < 8; k++) rowAt(x, y - 22 + k, 10 - (k > 5 ? 1 : 0), k === 7 ? dressDark : dress);
-    if (K.dots) for (let k = 0; k < 8; k += 2) rowAt(x, y - 21 + k, 9, K.dots);   // rows of fringe
-  }
-  if (K.cut === 'baby') { for (let k = 0; k < 5; k++) rowAt(x, y - 22 + k, 10 + (k > 2 ? 1 : 0), k === 4 ? K.dots : dress); }   // a short babydoll nightie, frilled hem
-  if (K.cut === 'shorts') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); for (const lx of [legL, legR]) rect(lx, y - 20, 2, 4, dress); }   // short pyjama shorts
-  if (K.cut === 'trousers') {                                             // trousers or jeans, to the ankle (flared for the jumpsuit)
-    rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); rowAt(x, y - 20, 7, dress);
-    for (const lx of [legL, legR]) { rect(lx, y - 19, 2, 17, dress); rect(lx + 1, y - 15, 1, 6, dressDark); if (K.flare) rect(lx - 1, y - 4, 4, 2, dress); }
-  }
-  if (K.cut === 'wiggle') { for (let k = 0; k < 11; k++) rowAt(x, y - 22 + k, 10 - Math.floor(k / 4), k === 10 ? dressDark : dress); }   // hugging, to just below the knee
-  // the waist (cinched), the bodice, the shoulders and arms
-  const top = K.top || dress;
+  if (K.cut === 'gown') for (let k = 0; k < 22; k++) rowAt(x, y - 22 + k, 9 + Math.floor(k / 5), k % 6 === 3 ? dressDark : dress);
+  if (K.cut === 'short') { for (let k = 0; k < 8; k++) rowAt(x, y - 22 + k, 10 - (k > 5 ? 1 : 0), k === 7 ? dressDark : dress); if (K.dots) for (let k = 0; k < 8; k += 2) rowAt(x, y - 21 + k, 9, K.dots); }
+  if (K.cut === 'baby') for (let k = 0; k < 5; k++) rowAt(x, y - 22 + k, 10 + (k > 2 ? 1 : 0), k === 4 ? K.dots : dress);
+  if (K.cut === 'shorts') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); rowAt(x, y - 20, 7, dress); }
+  if (K.cut === 'trousers') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); }
+  if (K.cut === 'wiggle') for (let k = 0; k < 11; k++) rowAt(x, y - 22 + k, (side ? 8 : 10) - Math.floor(k / 4), k === 10 ? dressDark : dress);
+  wifeTop(K, x, y, facing, motion.hip, false, ph);
+}
+// Her top half, standing at x, y (her waist is 23 up): the bodice, arms, head and hair, turned the way she's facing
+function wifeTop(K, x, y, facing, hip, sitting, ph) {
+  const skin = C.skin, dress = K.dress, top = K.top || dress, side = facing === 'left' || facing === 'right', back = facing === 'back', dir = facing === 'left' ? -1 : 1;
+  if (sitting) for (let k = 0; k < 3; k++) rowAt(x, y - 22 + k, 10, dress);   // her lap
   rowAt(x, y - 23, 6, K.crop ? skin : top); rowAt(x, y - 24, 6, K.crop ? skin : top); rowAt(x, y - 25, 7, top);
-  if (K.cut === 'full') rowAt(x, y - 24, 6, C.ink);                       // a thin belt
+  if (K.cut === 'full') rowAt(x, y - 24, 6, C.ink);
   if (K.belt) rowAt(x, y - 24, 6, K.belt);
-  for (const [dy, w] of [[-26, 8], [-27, 9], [-28, 9], [-29, 8]]) rowAt(x, y + dy, w, top);   // the bust
-  rowAt(x, y - 28, 9, shade(top, 0.75)); rowAt(x, y - 29, 7, top);       // the line of the neckline
-  if (K.halter) { rect(x - 2, y - 32, 1, 3, dress); rect(x + 1, y - 32, 1, 3, dress); }   // halter straps
-  for (const [dy, w] of [[-30, 9], [-31, 8]]) rowAt(x, y + dy, w, skin);  // bare shoulders
-  if (K.halter) { rect(x - 2, y - 31, 1, 2, dress); rect(x + 1, y - 31, 1, 2, dress); }
-  if (K.tee) for (const sx of [x - 6, x + 4]) rect(sx, y - 30, 2, 4, dress);   // baggy T-shirt sleeves
-  for (const sx of [x - 5, x + 4]) { rect(sx, y - 30, 1, 7, skin); rect(sx + (sx < x ? 1 : -1) * lean, y - 23, 1, 4, skin); }   // arms, hands by her hips
-  if (K.pearls) { for (let k = -2; k <= 1; k++) rect(x + k, y - 30 + (k === -2 || k === 1 ? 0 : 1), 1, 1, C.white); }
-  // neck and face
+  for (const [dy, w] of [[-26, 8], [-27, 9], [-28, 9], [-29, 8]]) rowAt(x + (side ? dir : 0), y + dy, side ? w - 2 : w, top);   // the bust (narrower side on)
+  if (!back) { rowAt(x, y - 28, side ? 7 : 9, shade(top, 0.75)); }
+  rowAt(x, y - 29, 7, top);
+  if (K.halter) { rect(x - 2, y - 32, 1, 3, dress); rect(x + 1, y - 32, 1, 3, dress); }
+  for (const [dy, w] of [[-30, side ? 7 : 9], [-31, side ? 6 : 8]]) rowAt(x, y + dy, w, skin);   // shoulders
+  if (K.tee) for (const sx of [x - 6, x + 4]) rect(sx, y - 30, 2, 4, dress);
+  // arms: swinging as she walks; one hand on her hip now and then
+  const swing = ph === undefined ? 0 : Math.round(Math.sin(ph) * 2);
+  const arm = (sx, s, onHip) => {
+    if (onHip) { rect(sx, y - 30, 1, 3, skin); rect(sx + s, y - 28, 1, 3, skin); rect(sx, y - 25, 1, 1, skin); rect(sx - s, y - 24, 1, 1, skin); return; }   // elbow out, hand on hip
+    line(sx, y - 30, sx + (side ? swing * s * dir : 0), y - 20, skin);   // a straight arm, swinging as she walks
+  };
+  if (side) arm(x + (dir > 0 ? 1 : -2), 1, false);                          // side on: the near arm
+  else { arm(x - 5, -1, false); arm(x + 4, 1, !!hip); }
+  if (K.pearls && !back) for (let k = -2; k <= 1; k++) rect(x + k, y - 30 + (k === -2 || k === 1 ? 0 : 1), 1, 1, C.white);
+  // neck and face (turned; from behind you see her hair)
   rect(x - 1, y - 33, 2, 2, skin);
   for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5], [-39, 4]]) rowAt(x, y + dy, w, skin);
-  rect(x - 2, y - 37, 1, 1, C.ink); rect(x + 1, y - 37, 1, 1, C.ink);    // eyes
-  rect(x - 1, y - 35, 2, 1, C.red);                                       // red lips
+  if (!back) {
+    if (side) { rect(x + dir * 1, y - 37, 1, 1, C.ink); rect(x + dir * 1, y - 35, 1, 1, C.red); rect(x + dir * 3, y - 36, 1, 1, skin); }   // profile: one eye, lips, nose
+    else { rect(x - 2, y - 37, 1, 1, C.ink); rect(x + 1, y - 37, 1, 1, C.ink); rect(x - 1, y - 35, 2, 1, C.red); }
+  }
   // hair
-  const h = K.hair, hd = shade(K.hair, 0.8);
-  if (K.style === 'curls') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) { rect(sx, y - 39, 2, 6, h); rect(sx, y - 35, 1, 1, hd); } rect(x - 3, y - 39, 2, 2, h); }
-  if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); rect(x + 4, y - 28, 1, 4, hd); rect(x - 4, y - 32, 1, 3, hd); rect(x - 3, y - 39, 2, 2, h); }
-  if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); rowAt(x, y - 39, 6, h); }
-  if (K.style === 'ponytail') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); rect(x - 4, y - 39, 1, 4, h); rect(x + 3, y - 39, 1, 3, h); rect(x + 4, y - 40, 2, 2, h); rect(x + 5, y - 38, 2, 7, h); rect(x + 6, y - 32, 1, 2, hd); }
-  if (K.style === 'updo') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 5, h); rowAt(x, y - 42, 3, h); rect(x - 3, y - 39, 1, 3, h); rect(x + 2, y - 39, 1, 3, h); }
-  if (K.style === 'perm') { for (const [dy, w] of [[-42, 6], [-41, 9], [-40, 10], [-39, 10], [-38, 10]]) rowAt(x, y + dy, w, h); for (const sx of [x - 5, x + 4]) rect(sx, y - 37, 2, 5, h); rowAt(x, y - 39, 5, skin); rowAt(x, y - 38, 5, skin); }
+  const h = K.hair, hd = shade(K.hair, 0.8), bx = side ? x - dir * 2 : x;  // side on, her hair sits towards the back of her head
+  if (back) for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5]]) rowAt(x, y + dy, w, h);   // the back of her head
+  if (K.style === 'curls') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) { rect(sx, y - 39, 2, 6, h); rect(sx, y - 35, 1, 1, hd); } }
+  if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); if (side) rect(bx - 1, y - 39, 3, 14, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); if (back) rowAt(x, y - 30, 6, h), rowAt(x, y - 28, 6, h); }
+  if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); if (side) rect(bx - 1, y - 39, 3, 6, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); }
+  if (K.style === 'ponytail') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); rect(bx + (side ? -dir * 2 : 4), y - 39, 2, 7, h); rect(bx + (side ? -dir * 2 : 5), y - 32, 1, 2, hd); }
+  if (K.style === 'updo') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 5, h); rowAt(bx, y - 42, 3, h); if (!side) { rect(x - 3, y - 39, 1, 3, h); rect(x + 2, y - 39, 1, 3, h); } else rect(bx - dir, y - 39, 2, 4, h); }
+  if (K.style === 'perm') { for (const [dy, w] of [[-42, 6], [-41, 9], [-40, 10], [-39, 10], [-38, 10]]) rowAt(x, y + dy, w, h); for (const sx of [x - 5, x + 4]) rect(sx, y - 37, 2, 5, h); if (!back) { rowAt(x, y - 39, 5, skin); rowAt(x, y - 38, 5, skin); } }
+  if (side) {                                                            // side on: her hair covers the back half of her head, down to the nape
+    const backX = dir > 0 ? x - 3 : x;
+    for (let dy = -41; dy <= -33; dy++) rect(backX, y + dy, 3, 1, h);
+    rect(dir > 0 ? x - 3 : x + 2, y - 38, 1, 5, hd);                     // a little shading at the back
+    rect(x - 1 + dir, y - 41, 3, 1, h);                                  // over the top, to her forehead
+    if (K.style === 'updo') { rect(dir > 0 ? x - 6 : x + 3, y - 42, 3, 4, h); rect(dir > 0 ? x - 5 : x + 3, y - 43, 2, 1, h); }   // the bun at the back
+  }
   if (K.band) rowAt(x, y - 39, 6, K.band);
   if (K.scarf) rowAt(x, y - 40, 6, K.scarf);
-  if (K.earrings) { rect(x - 3, y - 35, 1, 1, K.earrings); rect(x + 2, y - 35, 1, 1, K.earrings); }
+  if (K.earrings && !back) { if (side) rect(x - dir, y - 35, 1, 1, K.earrings); else { rect(x - 3, y - 35, 1, 1, K.earrings); rect(x + 2, y - 35, 1, 1, K.earrings); } }
 }
 // Where her head is on screen (for her speech bubble's arrow)
 function wifeHead() {

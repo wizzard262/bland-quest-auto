@@ -49,7 +49,7 @@
   /* ---- the manuals: a title down each spine, and an open book ---- */
   .spine { position: absolute; writing-mode: vertical-rl; font: bold 1.05cqw 'Segoe UI', Tahoma, sans-serif; text-rendering: geometricPrecision; text-align: center; overflow: hidden; pointer-events: none; }
   .book { left: 14%; top: 19%; width: 72%; height: 66%; display: flex; gap: 2%; font: 1.3cqw/1.5 Georgia, serif; color: #2a2418; }
-  .bookoff { inset: 0; cursor: pointer; }
+  .bookoff, .phoneoff { inset: 0; cursor: pointer; }
   .book { animation: bookopen .25s ease-out; }
   @keyframes bookopen { from { transform: scaleX(.06); opacity: .5; } to { transform: none; opacity: 1; } }
   .book .pg { display: flex; flex-direction: column; }

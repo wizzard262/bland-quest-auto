@@ -421,11 +421,11 @@ test('losing it at 100 anger shakes the screen and adds a job; once the car is b
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
-  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('kick');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rage');
   await ok(page);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('broke-')))).toBe(true);
-  for (let i = 0; i < 4; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // three more car breaks, then the bin
-  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(4);
+  for (let i = 0; i < 5; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // four more car breaks, then the bin
+  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(5);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -551,7 +551,7 @@ test('the pub: open in the evening; sit at the bar, pick a beer; the two regular
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.mins = 21 * 60; });
-  await goPlace(page, 'The Rusty Spanner');
+  await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
   const [money, anger] = await page.evaluate(() => [S.money, S.anger]);
   await tap(page, 'act:talk');
@@ -563,7 +563,7 @@ test('the pub: open in the evening; sit at the bar, pick a beer; the two regular
   expect(await dialogText(page)).toContain('Old Ron');
   await ok(page);
   await tap(page, 'act:punter:1');
-  expect(await dialogText(page)).toContain('Sue');
+  expect(await dialogText(page)).toContain('Dodgy Dave');
   await ok(page);
   expect(errors).toEqual([]);
 });
@@ -585,6 +585,10 @@ test('the phone shows over the screen you were on; its torch lights up under the
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.flags.n3lost = true; S.screen = 'garage'; render(); });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await expect(page.locator('#stage .back')).toHaveCount(0);           // no Back button…
+  await page.locator('.phoneoff').click({ position: { x: 10, y: 200 } });   // …tap off the phone to put it away
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
   await page.click('.go[data-go="phone"]'); await idle(page);
   await page.locator('[data-act="phonetorch"]').click();
   expect(await page.evaluate(() => [S.flags.phoneTorch, S.screen])).toEqual([true, 'garage']);
@@ -641,7 +645,7 @@ test('at night the wife wears her nightie, asks you to bed and follows you there
   expect(after).toBeLessThan(before);
   await ok(page);
   await page.evaluate(() => { S.mins = 22 * 60 + 10; });
-  await goPlace(page, 'The Rusty Spanner');
+  await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
   await tap(page, 'act:talk');
   await choose(page, 'Lager');
@@ -665,9 +669,27 @@ test('going into the garage: the roller door rolls up first', async ({ page }) =
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await page.locator('.hs[data-go="garage"]').click();
-  await page.waitForFunction(() => ANIM && ANIM.kind === 'garagedoor');
+  expect(await page.evaluate(() => GARAGE_OPENING !== null)).toBe(true);   // the door starts up as soon as you tap
   await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('garage');
+  expect(errors).toEqual([]);
+});
+
+test('after kicking the headlight it stays smashed: the TheeBay one is the wrong side; the Breakers Yard has one; fit it under the bonnet', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { anger(100); render(); });
+  await ok(page);
+  expect(await page.evaluate(() => brokeOpen('headlight'))).toBe(true);
+  await page.evaluate(() => { openParcel('headlight-bay'); render(); });
+  expect(await dialogText(page)).toContain('other side');
+  await ok(page);
+  await page.evaluate(() => { S.screen = 'yard'; S.place = 'Breakers Yard'; render(); ACTIONS.wreck('2'); render(); });
+  await choose(page, 'Take its headlight');
+  expect(await page.evaluate(() => !!S.inv.headlight)).toBe(true);
+  await page.evaluate(() => { S.screen = 'bonnet'; render(); });
+  await act(page, 'Fit the new headlight'); await ok(page);
+  expect(await page.evaluate(() => brokeOpen('headlight'))).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -838,9 +860,12 @@ test('lose your temper and something on the car breaks; the anger bar goes red a
   await start(page, errors);
   await page.evaluate(() => { S.anger = 0; anger(55); render(); });
   await expect(page.locator('.anger.cross.shaking')).toHaveCount(1);     // over half: orange, shaking
-  await page.evaluate(() => { anger(50); render(); });
+  await page.evaluate(() => { anger(50); render(); });                 // full: a cutscene, wherever you are
+  expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['rage', 'rage']);
+  expect(await dialogText(page)).toContain('$%$£$%^%^');                // he swears (in symbols)
   await ok(page);
-  expect(await page.evaluate(() => !!findJob('broke-mirror'))).toBe(true);
+  expect(await page.evaluate(() => S.screen)).toBe('home');             // back where you were
+  expect(await page.evaluate(() => !!findJob('broke-headlight'))).toBe(true);
   await expect(page.locator('.go[data-go="act:calm"]')).toHaveCount(0);  // no calm-down menu on the bar
   expect(errors).toEqual([]);
 });

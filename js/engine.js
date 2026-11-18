@@ -32,6 +32,7 @@ function freshState() {
 }
 let S = freshState();
 let DIALOG = null;                     // the dialog box on screen (not saved)
+let SPEAKER_FOR = null;               // whose next line SPEAKER is for (null: whoever says the next thing)
 let SPEAKER = null;                    // [x, y] picture position of whoever is talking: the next dialog is their speech bubble
 
 // =====================================================================
@@ -215,10 +216,15 @@ function goTo(target) {
   show(target);
 }
 // The garage's roller door rattles up, then you're inside
+let GARAGE_OPENING = null;                                         // when the garage door started going up (performance.now())
+function garageDoorStart() { if (!GARAGE_OPENING) { GARAGE_OPENING = performance.now(); sfx('rollerdoor'); } }
 function garageDoorUp() {
-  sfx('rollerdoor');
-  moment('garagedoor', 1300);
-  ANIM.then = () => show('garage');
+  garageDoorStart();
+  const left = 1150 - (performance.now() - GARAGE_OPENING);         // it started as you tapped; you go in once it's up
+  const goIn = () => { GARAGE_OPENING = null; show('garage'); };
+  if (left < 40) return goIn();
+  moment('garagedoor', left);
+  ANIM.then = goIn;
 }
 // Show a screen, remembering where you came from
 function show(screen) {
@@ -254,7 +260,8 @@ function visit(name) {
 // =====================================================================
 // Show a dialog: options = [{ label, run }]; with no options there's an OK button
 function say(title, body, options) {
-  const at = SPEAKER;                                             // a speech bubble from the person you're talking to (whoever, wherever)
+  const at = SPEAKER && (!SPEAKER_FOR || SPEAKER_FOR === title) ? SPEAKER : null;   // a speech bubble from the person talking (not for narration)
+  SPEAKER_FOR = null;
   SPEAKER = null;
   DIALOG = { title, body, at, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
   if (at) chatter(Math.min(28, 4 + Math.round(body.length / 7)), 95 + hash(title.length, title.charCodeAt(0)) * 120);   // muffled chatter in their voice
@@ -340,13 +347,13 @@ function render() {
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
-  const atPlace = ['place', 'room', 'garage'].includes(S.screen); // at a shop, in the house or the garage: you leave by the door; no Back button
+  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone'].includes(S.screen);   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
   if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
   actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');
   // a dialog, if one is open
-  if (!DIALOG && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
+  if (!DIALOG && !ANIM && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
   if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
     const opts = justCarryOn(DIALOG)
       ? '<span class="more">tap to carry on ▸</span>'                // nothing to choose: tap anywhere
@@ -428,6 +435,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]');
   if (a) return act(a.dataset.act);
   const g = e.target.closest('[data-go]');
+  if (g && g.dataset.go === 'garage' && S.screen === 'home') garageDoorStart();   // the garage door starts up as soon as you tap it
   if (g && g.dataset.walk) {                                         // walk over there first, then go
     const [x, y] = g.dataset.walk.split(',').map(Number);
     return walkTo(x, y, () => goTo(g.dataset.go));
@@ -440,9 +448,10 @@ document.addEventListener('click', e => {
 // Run a dialog's option (its button, or a tap to carry on)
 function pickOption(i) {
   const o = DIALOG.options[i];
-  if (DIALOG.at && DIALOG.title !== 'You') SPEAKER = DIALOG.at;      // their next line comes from them too
+  if (DIALOG.at && DIALOG.title !== 'You') { SPEAKER = DIALOG.at; SPEAKER_FOR = DIALOG.title; }   // their next line comes from them too (only theirs)
   DIALOG = null;
   o.run();
+  if (!DIALOG) { SPEAKER = null; SPEAKER_FOR = null; }              // nobody spoke next: don't keep their bubble for later
   save();
   render();
 }

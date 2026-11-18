@@ -75,6 +75,7 @@ SCREENS.home.animate = function (t) {
     if (PASSED[k] !== undefined && (PASSED[k] + 60) * (x + 60) <= 0 && Math.abs(PASSED[k] - x) < 100) sfx('carpass');   // whoosh as it goes by
     PASSED[k] = x;
   }
+  if (GARAGE_OPENING && S.screen === 'home') garageDoorDraw();                                                         // the garage door going up as he walks over
   for (let k = 0; k < 2; k++) {                                                                                        // two birds
     const x = ((t * 22 + k * 260) % 560) - 40, y = 34 + k * 14 + Math.sin(t * 2 + k) * 3, w = Math.floor(t * 6 + k) % 2 ? 2 : 1;
     px(x - 2, y - w, C.ink); px(x - 1, y, C.ink); px(x, y + 1, C.ink); px(x + 1, y, C.ink); px(x + 2, y - w, C.ink);
@@ -82,21 +83,28 @@ SCREENS.home.animate = function (t) {
 };
 // The wife walks round the house: from place to place, stopping a while at each; she stops to talk to you
 const WIFE_ROUTE = [[128, 38], [150, 64], [104, 66], [60, 64], [11, 32, 'sit'], [52, 44], [104, 44]];   // 'sit': she sits on the sofa there
-const WIFE = { k: 0, t0: null, last: 0, pos: [128, 38], step: 0 };
+const WIFE = { k: 0, t0: null, last: 0, pos: [128, 38], walk: undefined, facing: 'front', sit: false, hip: false };
 const WIFE_WAIT = 4, WIFE_SPEED = 14;                                // seconds at each place; how fast she walks
 const BEDSIDE = [64, 92];                                             // where she goes when you both go to bed
 const isBedtime = () => S.mins >= 19 * 60 || S.mins < 7 * 60;        // 7 in the evening till 7 in the morning
+// Which way she faces, walking from a to b (world): towards you, away, or side on
+function facingFor(a, b) {
+  const sx = (b[0] - a[0]) - (b[1] - a[1]), sy = ((b[0] - a[0]) + (b[1] - a[1])) / 2;   // the move on screen
+  if (Math.abs(sx) > Math.abs(sy) * 1.5) return sx > 0 ? 'right' : 'left';
+  return sy > 0 ? 'front' : 'back';
+}
 function wifeMove(t) {
   if (WIFE.t0 === null) WIFE.t0 = t;
   const toBed = ANIM && ((ANIM.kind === 'night' && S.flags.bedLate) || (isBedtime() && ANIM.kind === 'walk' && ANIM.to && ANIM.to[0] === 70 && ANIM.to[1] === 104));
   if (toBed) {                                                       // late, in her nightie, and you're off to bed: she follows you
-    WIFE.sit = false;
+    WIFE.sit = false; WIFE.hip = false;
     const dt = Math.min(0.1, t - WIFE.last), dx = BEDSIDE[0] - WIFE.pos[0], dy = BEDSIDE[1] - WIFE.pos[1], d = Math.hypot(dx, dy);
     WIFE.last = t;
-    if (d < 0.5) { WIFE.step = 0; return; }
+    if (d < 0.5) { WIFE.walk = undefined; WIFE.facing = 'front'; return; }
     const go = Math.min(d, 22 * dt);
+    WIFE.facing = facingFor(WIFE.pos, BEDSIDE);
     WIFE.pos = [WIFE.pos[0] + dx / d * go, WIFE.pos[1] + dy / d * go];
-    WIFE.step = Math.floor(t * 5) % 2 ? 1 : -1;
+    WIFE.walk = t * 9;
     return;
   }
   if (DIALOG || ANIM) WIFE.t0 += t - WIFE.last;                      // talking (or you walking over): she waits
@@ -104,21 +112,26 @@ function wifeMove(t) {
   const from = WIFE_ROUTE[WIFE.k], to = WIFE_ROUTE[(WIFE.k + 1) % WIFE_ROUTE.length];
   const wait = WIFE_WAIT * (from[2] ? 2.5 : 1);
   const walkT = Math.hypot(to[0] - from[0], to[1] - from[1]) / WIFE_SPEED, e = t - WIFE.t0;
-  if (e < WIFE_WAIT * (from[2] ? 2.5 : 1)) { WIFE.pos = [from[0], from[1]]; WIFE.step = 0; WIFE.sit = !!from[2]; return; }   // a longer sit on the sofa
-  WIFE.sit = false;
-  if (e < wait + walkT) {
-    const p = ease((e - wait) / walkT);
-    WIFE.pos = [lerp(from[0], to[0], p), lerp(from[1], to[1], p)];
-    WIFE.step = Math.floor(t * 5) % 2 ? 1 : -1;
+  if (e < wait) {                                                    // stopped: facing you; a longer sit on the sofa; now and then a hand on her hip
+    WIFE.pos = [from[0], from[1]]; WIFE.walk = undefined; WIFE.facing = 'front'; WIFE.sit = !!from[2];
+    WIFE.hip = !WIFE.sit && WIFE.k % 2 === 1 && e > 1 && e < wait - 0.8;
     return;
   }
-  WIFE.k = (WIFE.k + 1) % WIFE_ROUTE.length; WIFE.t0 = t; WIFE.pos = [to[0], to[1]]; WIFE.step = 0;
+  WIFE.sit = false; WIFE.hip = false;
+  if (e < wait + walkT) {                                            // walking: turned the way she's going, a proper stride
+    const p = (e - wait) / walkT;
+    WIFE.pos = [lerp(from[0], to[0], p), lerp(from[1], to[1], p)];
+    WIFE.facing = facingFor(from, to);
+    WIFE.walk = t * 9;
+    return;
+  }
+  WIFE.k = (WIFE.k + 1) % WIFE_ROUTE.length; WIFE.t0 = t; WIFE.pos = [to[0], to[1]]; WIFE.walk = undefined;
 }
 SCREENS.room.animate = function (t) {
   wifeMove(t);
   ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
   const bedtime = isBedtime() || (ANIM && ANIM.kind === 'night' && S.flags.bedLate);   // from 7 in the evening (and all through the night) she's in her nightie
-  wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), WIFE.step, WIFE.sit);
+  wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
   const tapArea = stage.querySelector('.hs[data-go="act:wife"]');    // move the tap area with her
   if (tapArea) {
     const [l, tp, w, h] = isoArea(WIFE.pos[0] - 4, WIFE.pos[1] - 4, WIFE.pos[0] + 4, WIFE.pos[1] + 4, 0, 40);
@@ -138,6 +151,7 @@ SCREENS.city.animate = function (t) {
     if (k % 2) isoCarX(along - 20, (k % 7) * BLOCK + 6, 0.42, cols[k % 5]);
     else isoCar((k % 8) * BLOCK + 6, (along % (6 * BLOCK + STREET)) - 20, 0.42, cols[k % 5]);
   }
+  keepHud(36);                                                                                                        // cars never drive over the top bar
 };
 SCREENS.place.animate = function (t) {
   if (S.inside && placeStyle(S.place) === 'pub') {                   // the pub: the fruit machine's lights
@@ -153,7 +167,7 @@ SCREENS.garage.animate = function (t) {
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
   const a = P(62, 86, 5), b = P(62, 86, 0);
   drip(t, a[0], a[1], b[1], 3.1, C.ink); dripSound(t, 3.1, 'garage');                                                 // oil dripping from the car
-  if (wifeInGarage()) wife(WIFE_IN_GARAGE[0], WIFE_IN_GARAGE[1], 'nightie');                                          // late: she's come to fetch you
+  if (wifeInGarage()) wife(WIFE_IN_GARAGE[0], WIFE_IN_GARAGE[1], 'nightie', { hip: true });                                          // late: she's come to fetch you
 };
 const wifeInGarage = () => isBedtime() && S.flags.wifeCalled === nightOf();
 SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); dripSound(t, 2.7, 'under'); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
@@ -244,8 +258,22 @@ function standingMan(screen) {
   man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
 }
 // Walk from where he is to a spot, then do `then` (open the screen he walked to)
+// In the house: keep him on the floor (not on the sofa or the bed) and walk round the bed, not over it
+const BED_AREA = [-2, 76, 62, 134];                                   // x0, y0, x1, y1 (with a little room round it)
+function crossesBed(a, b) {
+  for (let k = 1; k < 20; k++) {
+    const x = lerp(a[0], b[0], k / 20), y = lerp(a[1], b[1], k / 20);
+    if (x > BED_AREA[0] && x < BED_AREA[2] && y > BED_AREA[1] && y < BED_AREA[3]) return true;
+  }
+  return false;
+}
 function walkTo(x, y, then) {
   const screen = S.screen, key = spotKey(screen), from = manSpot(screen);
+  if (key === 'room') {
+    x = Math.max(22, Math.min(176, x)); y = Math.max(26, Math.min(136, y));   // on the floor
+    if (x < BED_AREA[2] && y > BED_AREA[1] && y < BED_AREA[3]) x = BED_AREA[2];   // beside the bed, not on it
+    if (crossesBed(from, [x, y])) return walkTo(66, 70, () => walkTo(x, y, then));   // round the end of the bed
+  }
   const dist = Math.hypot(x - from[0], y - from[1]);
   if (dist < 3) return then();
   ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], screen: key, then() {
@@ -394,13 +422,19 @@ const MOMENTS = {
     dialNeedle(DASH.rpm, 3.05 + up * 2.2);
   },
   pedal() { accelPedal(true); },
-  garagedoor(p) {                                                     // the garage's roller door rolling up
-    ISO.ox = 250; ISO.oy = 96;
-    const up = 28 * ease(Math.min(1, p / 0.85));                      // how far up it has gone
-    onLeft(60, 96, 134, 0, 28, hex('#1a1a20'));                        // dark inside
-    onLeft(60, 96, 134, up, 28, C.steel);                              // what's left of the door, rolling into its drum
-    for (let z = up + 3; z < 28; z += 3) line(...P(96, 60, z), ...P(134, 60, z), C.steel2);
-  },
+  garagedoor() { garageDoorDraw(); },                                 // the garage's roller door rolling up
+};
+// The roller door, part way up (from when you tapped the garage)
+function garageDoorDraw() {
+  if (!GARAGE_OPENING) return;
+  ISO.ox = 250; ISO.oy = 96;
+  const up = 28 * ease(Math.min(1, (performance.now() - GARAGE_OPENING) / 1100));   // how far up it has gone
+  onLeft(60, 96, 134, 0, 28, hex('#1a1a20'));                          // dark inside
+  onLeft(60, 96, 134, up, 28, C.steel);                                // what's left of the door, rolling into its drum
+  for (let z = up + 3; z < 28; z += 3) line(...P(96, 60, z), ...P(134, 60, z), C.steel2);
+  standingMan('home');                                                 // he's in front of the door: draw him again over it
+}
+const MOMENTS_MORE = {
   book(p) {                                                           // a book lifted off the shelf (or slid back on)
     if (!BOOK_MOVE) return;
     const e = ease(p);
@@ -425,3 +459,19 @@ const MOMENTS = {
     if (p < 0.8) text('PARP!', HORN[0], HORN[1] - 18, C.warm, 2);
   }        // the light goes out… then comes back
 };
+MOMENTS.rage = function (p) {                                        // he runs at the car, kicks the headlight, glass flies
+  const ground = RAGE_CAR[1], hit = 0.62;
+  if (p < 0.55) man(lerp(20, 214, ease(p / 0.55)), ground, 'walk', 3, p * 60);            // running at it
+  else if (p < 0.78) man(214, ground, 'kick', 3);                                          // the kick
+  else man(206, ground, 'stand', 3);                                                       // stood there, breathing hard
+  if (p < hit) return;
+  rageCar(true);                                                                           // the headlight's gone
+  if (!RAGE.shook) { RAGE.shook = true; stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
+  const tt = (p - hit) * 2.4;                                                              // seconds since the kick
+  for (let k = 0; k < 18; k++) {                                                           // bits of glass flying out
+    const vx = -30 - hash(k, 5) * 90, vy = -50 - hash(5, k) * 70;
+    const x = RAGE_LAMP[0] + vx * tt, y = Math.min(ground - 1, RAGE_LAMP[1] + vy * tt + 160 * tt * tt);
+    rect(x, y, 2, 1 + (k % 2), k % 3 ? hex('#c8e0f0') : C.white);
+  }
+};
+Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments

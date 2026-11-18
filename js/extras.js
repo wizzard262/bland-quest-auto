@@ -9,6 +9,8 @@
 // =====================================================================
 // What breaks on the car when you lose your temper, one at a time; each is a small job to fix
 const CAR_BREAKS = [
+  { id: 'headlight', title: 'Replace the smashed headlight (you kicked it)', what: 'You run at the car and kick the headlight in. Glass everywhere.',
+    lead: ['headlight', 'A new headlight: the parts shop (dear), online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
   { id: 'mirror', title: 'Fix the wing mirror (you knocked it off)', what: 'You slam the car door so hard the wing mirror falls off.',
     lead: ['tape', 'Tape it back on: there\'s tape in drawer 4 of the toolbox', 'you', 'fairly sure', 'toolbox'] },
   { id: 'lens', title: 'Replace the cracked indicator lens (you kicked it)', what: 'You kick the front of the car. The indicator lens cracks.',
@@ -18,11 +20,54 @@ const CAR_BREAKS = [
   { id: 'wiper', title: 'Fix the wiper (you thumped the windscreen)', what: 'You thump the windscreen. A wiper arm snaps off.',
     lead: ['wiper', 'Any old wiper arm will do: the Breakers Yard', 'you', 'fairly sure', 'place:Breakers Yard'] }
 ];
+// =====================================================================
+const RAGE = { from: 'home', shook: false, done: false };
+const RAGE_CAR = [250, 214];                                  // the car's back end on the ground (it faces left, towards him)
+const RAGE_LAMP = [RAGE_CAR[0] + 4, RAGE_CAR[1] - 38];        // its headlight, at the front (left) end
+// The car side on, facing left: body, cabin and windows, wheels, the headlight (smashed once he's kicked it)
+function rageCar(smashed) {
+  const [x, y] = RAGE_CAR, col = C.car;
+  rbox(x, y - 48, 210, 34, 8, col);                                                   // the body
+  poly([[x + 52, y - 48], [x + 78, y - 86], [x + 186, y - 88], [x + 206, y - 48]], col);   // the cabin, the windscreen raked back
+  poly([[x + 60, y - 50], [x + 82, y - 82], [x + 124, y - 82], [x + 124, y - 50]], C.glass);   // front window
+  poly([[x + 130, y - 50], [x + 130, y - 82], [x + 182, y - 83], [x + 198, y - 50]], C.glass); // back window
+  rect(x, y - 22, 210, 6, shade(col, 0.7));                                           // the sill
+  rect(x + 98, y - 40, 10, 2, C.ink); rect(x + 158, y - 40, 10, 2, C.ink);            // door handles
+  for (const wx of [x + 46, x + 168]) { disc(wx, y - 14, 15, C.tyre); disc(wx, y - 14, 7, C.rim); }   // wheels
+  if (!smashed) { rect(RAGE_LAMP[0], RAGE_LAMP[1], 10, 9, C.warm); return; }          // the headlight
+  rect(RAGE_LAMP[0], RAGE_LAMP[1], 10, 9, C.ink);                                     // …smashed: a dark hole with a few jagged bits
+  for (const [dx, dy] of [[1, 1], [8, 2], [3, 7], [7, 6]]) px(RAGE_LAMP[0] + dx, RAGE_LAMP[1] + dy, C.white);
+}
+SCREENS.rage = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, 214, C.concrete, 0.08, 91);                                         // a plain wall: it's all about him and the car
+    for (let y = 8; y < 214; y += 9) rect(0, y, W, 1, C.concreteDark);
+    rect(0, 214, W, H - 214, C.floor); rect(0, 214, W, 1, C.steel2);
+    rageCar(RAGE.done);                                                                // once he's kicked it, it stays smashed
+    if (RAGE.done) man(206, RAGE_CAR[1], 'stand', 3);                                 // and there he stands
+  },
+  actions() { return []; }
+};
+// Start the cutscene from wherever you are; when it's over (and he's sworn), you're back where you were
+function rageCutscene() {
+  RAGE.from = S.screen === 'rage' ? RAGE.from : S.screen;
+  RAGE.shook = false; RAGE.done = false;
+  S.screen = 'rage';
+  sfx('kick', 1.45); sfx('glass', 1.5);
+  moment('rage', 2400);
+  ANIM.then = () => {
+    RAGE.done = true;
+    DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at: [207, 150], options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
+  };
+  render();
+}
+
 // Lose your temper: something on the car breaks (once each), then it's the wheelie bin
 function breakSomething() {
   const b = CAR_BREAKS.find(x => !S.flags['broke-' + x.id]);
   S.anger = 40;
-  moment('kick', 1300); sfx('kick');
+  rageCutscene();                                                        // wherever you are: he runs at the car and kicks the headlight
   if (!b) {
     job('kicked-' + now(), 'Fix the wheelie bin (you kicked it)', null);
     return queueDialog('You lose it', 'You kick the wheelie bin. It breaks. Of course it does.\n\nThat\'s a new job in the notebook.');
@@ -223,7 +268,7 @@ const SHOP_STOCK = {
     ['WD-40', 3.49, 'can'], ['Gaffer tape', 2.99, 'tape'], ['Cable ties', 1.99, 'box'], ['Work gloves', 3.49, 'box']],
   parts: [['Brake pads', 24.99, 'box'], ['Oil filter', 6.99, 'can'], ['Wiper blades', 12.99, 'box'], ['Bulbs', 4.99, 'box'],
     ['Spark plugs', 9.99, 'box'], ['Air freshener', 1.49, 'can'], ['Fuses', 2.99, 'box'], ['"Universal" sensor', 19.99, 'box'],
-    ['Engine oil', 29.99, 'can'], ['Screen wash', 2.49, 'can'], ['Jump leads', 14.99, 'box'], ['Fluffy dice', 3.99, 'box']],
+    ['Engine oil', 29.99, 'can'], ['Screen wash', 2.49, 'can'], ['Jump leads', 14.99, 'box'], ['Headlight (Zafira, left)', 64.99, 'box']],
   aisles: [['Air freshener', 1.49, 'can'], ['Fluffy dice', 3.99, 'box'], ['Screen wash', 2.49, 'can'], ['Torch', 4.99, 'can'],
     ['Batteries', 3.99, 'box'], ['Gaffer tape', 2.99, 'tape'], ['Crisps', 1.25, 'box'], ['Energy drink', 1.79, 'can'],
     ['Biscuits', 1.1, 'box'], ['Car sponge', 1.99, 'box'], ['Ice scraper', 1.49, 'box'], ['Phone charger', 6.99, 'box']]
@@ -481,6 +526,7 @@ Object.assign(ACTIONS, {
     S.basket = S.basket.filter(b => b.place !== S.place);
     const names = items.map(b => b.name).join(', ');
     const hammer = items.some(b => b.name === 'Claw hammer') ? boughtHammer() : '';
+    if (items.some(b => b.name.startsWith('Headlight'))) S.inv.headlight = true;   // a new headlight: fit it under the bonnet
     say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}`);
   },
   // the garage shelves: what each thing is

@@ -7,7 +7,7 @@ const STYLE_BY_NAME = {
   'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Library (free Wi-Fi)': 'books', 'Café': 'cafe',
   'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Tyre Place': 'tyres', 'MOT Test Centre': 'garage',
   'Machine Shop (lathe)': 'workshop', 'Makerspace (3D printer)': 'workshop', 'Bank': 'bank',
-  'The Rusty Spanner': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
+  'The Hesketh Tavern': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
 };
 function placeStyle(name) {
   const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other';
@@ -73,8 +73,8 @@ function keeperHead() {
 }
 
 // ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
-const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [120, 300, 350] };   // the bar's top, the floor, the barman, the stools (yours first)
-const PUB_SEAT_Y = 214;                                       // where someone sat on a stool is drawn from (their hips on the seat)
+const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [250, 300, 350], size: 3 };   // people drawn 3x here, to suit the stools   // the bar's top, the floor, the barman, the stools (yours first)
+const PUB_SEAT_Y = 223;                                       // where someone sat on a stool is drawn from (their hips on the seat)
 function pubScene(shut) {
   // the back wall: dark wood panels, a big mirror, shelves of drinks
   rect(0, 18, W, PUB.floor - 18, hex('#4a2e20'));
@@ -89,6 +89,7 @@ function pubScene(shut) {
       rect(bx, sy - tall, 5, tall, bottle[(n + sy) % 6]); rect(bx + 1, sy - tall - 4, 3, 4, bottle[(n + sy) % 6]);
     }
   }
+  rect(196, 20, 208, 34, hex('#2a1a12')); rect(198, 22, 204, 30, hex('#e8dcbc'));   // the pub's name board
   LABELS.push(`<div class="front" style="left:${200 / W * 100}%;top:${22 / H * 100}%;width:${200 / W * 100}%;height:${30 / H * 100}%;font-size:${16 / W * 100}cqw;line-height:${30 / W * 100}cqw;text-align:center;transform:none">${esc(S.place)}</div>`);
   // a poster, and the fruit machine
   rect(20, 70, 64, 44, C.white); rect(22, 72, 60, 40, C.warm);
@@ -96,7 +97,7 @@ function pubScene(shut) {
   rect(400, 110, 50, PUB.floor - 110, hex('#7a2a8a')); rect(408, 120, 34, 22, hex('#202030'));
   for (const rx of [411, 422, 433]) rect(rx, 124, 7, 14, C.white);                      // its reels
   // the barman, behind the bar (it hides his legs)
-  if (!shut) man(PUB.keeper, PUB.barTop + 8, 'stand', 2, 0, KEEPER.pub);
+  if (!shut) man(PUB.keeper, PUB.barTop + 8, 'stand', PUB.size, 0, KEEPER.pub);
   // the bar: its top, the front panels, a brass foot rail; the pumps on top; your pint
   rect(80, PUB.barTop, 320, 6, hex('#b88a58'));
   rect(84, PUB.barTop + 6, 312, PUB.floor - PUB.barTop - 6, hex('#7a5634'));
@@ -112,9 +113,9 @@ function pubScene(shut) {
     rect(sx - 8, 196, 18, 4, C.redDim); rect(sx, 200, 2, PUB.floor - 200, C.steel2);
     rect(sx - 4, 216, 10, 1, C.steel2); rect(sx - 6, PUB.floor - 2, 14, 2, C.steel2);
   }
-  PUNTERS.forEach((p, k) => man(PUB.stools[k + 1], PUB_SEAT_Y, 'sit', 2, 0, p.look));
-  if (S.flags.pubSat) man(PUB.stools[0], PUB_SEAT_Y, 'sit', 2);
-  else man(64, PUB.floor + 6, 'stand', 2);
+  PUNTERS.forEach((p, k) => man(PUB.stools[k + 1], PUB_SEAT_Y, 'sit', PUB.size, 0, p.look));
+  if (S.flags.pubSat) man(PUB.stools[0], PUB_SEAT_Y, 'sit', PUB.size);
+  else man(80, PUB.floor + 6, 'stand', PUB.size);
   // the way out: a see-through door on the left
   const d = [[16, 140], [56, 140]];
   dashedLine([16, PUB.floor], d[0], C.mint); dashedLine(d[0], d[1], C.mint); dashedLine(d[1], [56, PUB.floor], C.mint);
@@ -122,18 +123,18 @@ function pubScene(shut) {
 }
 // What you can tap in the pub
 function pubSpots(shut) {
-  if (!shut) spot('Talk to the barman', [PUB.keeper - 14, PUB.barTop - 46, 30, 54], 'act:talk');
-  PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 10, 160, 22, 60], 'act:punter:' + k));
+  if (!shut) spot('Talk to the barman', [PUB.keeper - 16, PUB.barTop - 58, 36, 64], 'act:talk');
+  PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 12, 150, 28, 76], 'act:punter:' + k));
   spot('Door: leave', [14, 138, 44, PUB.floor - 138], 'act:leave');
 }
 // Where the pub people's heads are (for their speech bubbles)
-const pubKeeperHead = () => [PUB.keeper + 2, PUB.barTop + 8 - 40];
-const pubPunterHead = k => [PUB.stools[k + 1] + 2, PUB_SEAT_Y - 40];
+const pubKeeperHead = () => [PUB.keeper + 3, PUB.barTop + 8 - 60];
+const pubPunterHead = k => [PUB.stools[k + 1] + 3, PUB_SEAT_Y - 60];
 // The two regulars at the bar
 const PUNTERS = [
   { name: 'Old Ron', look: { shirt: hex('#7a6040'), shirtDark: hex('#5a4428'), jeans: hex('#4a4a50'), jeansDark: hex('#3a3a40'), hair: C.steel },
     lines: ['"In my day you could fix a car with a hammer and a pair of tights."', '"It\'s the timing belt. It\'s always the timing belt."', '"Never trust a car with a computer in it. Or a man with a code reader."'] },
-  { name: 'Sue', look: { shirt: hex('#8a4ab0'), shirtDark: hex('#6a3090'), jeans: C.jeans, jeansDark: C.jeansDark, hair: hex('#c04020') },
+  { name: 'Dodgy Dave', look: { shirt: hex('#5a6a3a'), shirtDark: hex('#3a4a28'), jeans: C.jeans, jeansDark: C.jeansDark, hair: hex('#3a2418'), beard: hex('#3a2418') },
     lines: ['"Put it through the car wash. Dries the electrics out."', '"Give the dashboard a good bang. Worked on my telly."', '"My ex had a Zafira. Look how that turned out."'] }
 ];
 function punterHead(k) { return pubPunterHead(k); }
@@ -328,9 +329,34 @@ SCREENS.yard = {
 // OUTSIDE A PLACE: the shop front, from the pavement. You see this first; go in through the door
 // =====================================================================
 const OUTSIDE_VIEW = [250, 70];
+// The petrol station from outside: the forecourt, a pump island with your car parked at a pump, the canopy, the kiosk
+function petrolFront(name, shut) {
+  ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
+  ground(-400, 104, 600, 160, C.road);                                                    // the road, beyond the forecourt
+  for (let x = -400; x < 600; x += 24) line(...P(x, 132), ...P(x + 12, 132), C.white);
+  ground(-40, 40, 240, 104, C.concreteDark);                                              // the forecourt
+  for (let x = -40; x < 240; x += 20) line(...P(x, 40), ...P(x, 104), shade(C.concreteDark, 0.92));
+  // the kiosk: white with a red band, its window and door
+  ibox(0, 0, 200, 40, 0, 60, C.white, C.steel);
+  onLeft(40, 0, 200, 46, 58, C.red); frontSign(name, 6, 40, 188, 57, 11);
+  onLeft(40, 10, 136, 8, 40, C.glass);
+  for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 9, 14 + (k % 3) * 4, [C.red, C.warm, C.car, C.white][k % 4]);   // snacks in the window
+  onLeft(40, 148, 176, 0, 46, C.white); onLeft(40, 150, 174, 0, 44, shut ? C.greyDark : C.glass);   // the door
+  // the pump island, and two pumps on it
+  ibox(30, 62, 96, 68, 0, 2, C.concrete);
+  for (const px0 of [42, 74]) { ibox(px0, 63, px0 + 8, 67, 2, 22, C.red, C.white); onLeft(67, px0 + 1, px0 + 7, 12, 19, C.ink); onLeft(67, px0 + 2, px0 + 6, 14, 17, hex('#40c070')); }
+  // the canopy over the pumps, on four posts
+  for (const [cx, cy] of [[20, 50], [104, 50], [20, 100], [104, 100]]) ibox(cx, cy, cx + 3, cy + 3, 0, 70, C.steel2);
+  // your car, parked at a pump
+  isoCarX(40, 72, 1, C.car);
+  ibox(14, 46, 112, 104, 70, 76, C.red, C.white);                                        // the canopy roof
+  if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+}
 function shopExterior(name, shut) {
-  const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = hex(CAT[cat][1]);
-  const info = PLACE_INFO[name] || {}, style = placeStyle(name);
+  if (name === 'Petrol Station') return petrolFront(name, shut);
+  const info = PLACE_INFO[name] || {}, style = placeStyle(name), pub = style === 'pub';
+  const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = pub ? C.cream : hex(CAT[cat][1]);   // the pub: cream, with black timbers
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
   // the road, the kerb and the pavement
@@ -345,7 +371,11 @@ function shopExterior(name, shut) {
   ibox(0, 0, 200, 40, 0, 84, col, C.steel);
   onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, shade(col, 1.15));
   frontSign(name, 6, 40, 188, 77, 16);
-  for (let x = 0; x < 140; x += 10) onLeft(40, x, x + 5, 50, 58, (x / 10) % 2 ? C.white : shade(col, 0.8));        // the striped awning
+  if (pub) {                                                                                                         // the pub: timbers, a hanging sign, no awning
+    for (let x = 0; x <= 196; x += 22) onLeft(40, x, x + 4, 0, 60, hex('#2a1a12'));
+    onLeft(40, 0, 200, 46, 49, hex('#2a1a12'));
+    ibox(196, 40, 200, 58, 74, 76, hex('#2a1a12')); onLeft(58, 190, 204, 50, 72, hex('#7a2a20')); onLeft(58, 192, 202, 52, 70, hex('#a04a30'));
+  } else for (let x = 0; x < 140; x += 10) onLeft(40, x, x + 5, 50, 58, (x / 10) % 2 ? C.white : shade(col, 0.8));        // the striped awning
   onLeft(40, 10, 136, 8, 46, C.white); onLeft(40, 12, 134, 10, 44, C.glass);                                         // the shop window
   for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 11, 16 + (k % 3) * 5, [CARDBOARD, C.red, C.car, C.warm, C.white][(k + i) % 5]);   // stock in the window
   onLeft(40, 72, 74, 10, 44, C.white);

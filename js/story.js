@@ -94,7 +94,7 @@ function readCodes(how) {
 // =====================================================================
 // open = [from, to] in minutes; closedDays = days it's shut; shop = things for sale
 const PLACE_INFO = {
-  'The Rusty Spanner': { open: [11 * 60, 24 * 60], person: 'the barman' },      // the pub: open late, shuts at midnight
+  'The Hesketh Tavern': { open: [11 * 60, 24 * 60], person: 'the barman' },      // the pub: open late, shuts at midnight
   'Spanner & Son': { open: [8 * 60, 17 * 60 + 30], person: 'Mr Spanner' },
   'Post Office': { open: [9 * 60, 17 * 60 + 30], person: 'the woman behind the glass' },
   'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
@@ -123,7 +123,9 @@ const ITEMS = {
   'reader-cheap': { name: 'Code reader, "fits all cars*"', price: 12.99 },
   'reader-good': { name: 'Handheld code reader (used)', price: 15 },
   'part-mega': { name: 'Gearbox sensor, "fits all models*"', price: 17.49 },
-  'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 }
+  'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 },
+  'headlight-bay': { name: 'Zafira headlight (used)', price: 18 },
+  'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 }
 };
 
 // Which night it is (after midnight still counts as the evening before)
@@ -223,8 +225,8 @@ function talk(name) {
 }
 const TALK = {
   // the pub: the barman takes your order (or gives you advice you didn't need)
-  'The Rusty Spanner'() {
-    const name = 'The Rusty Spanner';
+  'The Hesketh Tavern'() {
+    const name = 'The Hesketh Tavern';
     const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
       SPEAKER = keeperHead();
       if (!spend(price)) return say(name, '"Card machine says no, mate."');
@@ -443,7 +445,16 @@ const ACTIONS = {
     say(p.name, line);
   },
   // the phone's torch: on (so you can see under things) or off; then put the phone away
+  // fit the new headlight (under the bonnet)
+  fitlight() {
+    if (!S.inv.headlight) return;
+    pass(30); sfx('ratchet');
+    delete S.inv.headlight;
+    finishJob('broke-headlight', 'New headlight fitted');
+    say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.');
+  },
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
+  phoneaway() { back(); },                                              // tap off the phone: put it away
   phonetorch() {
     S.flags.phoneTorch = !S.flags.phoneTorch;
     sfx('click');
@@ -570,7 +581,14 @@ const ACTIONS = {
     const seen = WRECKS.slice(0, MAYBE_YOURS).filter((w, k) => S.flags['wreck' + k]).length;   // only the six that might be yours count
     const allSeen = i < MAYBE_YOURS && seen === MAYBE_YOURS;
     if (allSeen) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
-    say('A wreck', WRECKS[i][4] + (allSeen ? '\n\nThat\'s all six that might have been yours.' : ''));
+    const text = WRECKS[i][4] + (allSeen ? '\n\nThat\'s all six that might have been yours.' : '');
+    if (i === 2 && brokeOpen('headlight') && !S.inv.headlight) {      // a Zafira just like yours: its left headlight is fine
+      return say('A wreck', text + '\n\nIts left headlight is perfect, though.', [
+        { label: 'Take its headlight (£10 to the man)', run() { if (!spend(10)) return say('The yard', '"Cash only, mate." You haven\'t got it.'); S.inv.headlight = true; sfx('ratchet'); say('The headlight', 'Ten minutes with a screwdriver and it\'s yours. A bit scratched.'); } },
+        { label: 'Leave it', run() {} }
+      ]);
+    }
+    say('A wreck', text);
   },
   // ----- the dashboard: tap the key to turn it one click -----
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
@@ -811,8 +829,8 @@ const ACTIONS = {
     if (S.flags['ordered-' + id]) return say('Already ordered', 'It\'s on its way.');
     if (!spend(item.price)) { anger(10); return say('Payment', 'Card declined.'); }
     S.flags['ordered-' + id] = true;
-    const shop = id === 'reader-good' ? 'eBuy' : 'MegaMart';
-    order(id, id === 'reader-good' ? 2 : 1, shop);
+    const fromBay = id === 'reader-good' || id === 'headlight-bay';       // TheeBay: used, 2 days; Zamanon: next day
+    order(id, fromBay ? 2 : 1, fromBay ? 'eBuy' : 'MegaMart');
     if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from MegaMart (due tomorrow)');
     if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on eBuy (2 days)');
     if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the MegaMart sensor (due tomorrow)'); }
@@ -860,6 +878,12 @@ function openParcel(item) {
     lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');
     return say('A parcel', 'The MegaMart sensor. It\'s blue. The old one was black. Does that matter?');
   }
+  if (item === 'headlight-bay') {                                      // posted: the wrong side
+    anger(10);
+    note('broke-headlight', 'TheeBay headlight: the wrong side (it\'s a right one; yours is the left)', 'x');
+    return say('A parcel', 'A headlight! …for the other side. Yours is the left one. This is a right one.');
+  }
+  if (item === 'headlight-zam') { S.inv.headlight = true; return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
   say('A parcel', 'Something you didn\'t order.');
 }
 // Looking at things under the car and the bonnet

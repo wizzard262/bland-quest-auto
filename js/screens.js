@@ -217,7 +217,7 @@ function kerbMailbox(full) {
 const PLACES = [
   // [name, category]  (one per lot, 7 across x 6 down)
   ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Library (free Wi-Fi)', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
-  ['The Rusty Spanner', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
+  ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
   ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Breakers Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Makerspace (3D printer)', 'other'], ['Café', 'other'],
@@ -276,6 +276,20 @@ function building(lot) {
     line(...P(x0, y1), ...P(x1, y1), C.wood); line(...P(x1, y0), ...P(x1, y1), C.wood);
     return 12;
   }
+  if (placeStyle(lot.place[0]) === 'pub') {               // the pub: black and white timbers, a tiled roof, a hanging sign, benches outside
+    ground(x0 + 4, y0 + 4, x1 - 4, y1 - 4, C.grassLine);
+    ibox(x0 + 12, y0 + 14, x1 - 12, y1 - 18, 0, 18, C.cream);
+    for (let x = x0 + 14; x < x1 - 12; x += 7) onLeft(y1 - 18, x, x + 1, 0, 18, hex('#2a1a12'));   // the timbers
+    onLeft(y1 - 18, x0 + 12, x1 - 12, 8, 9, hex('#2a1a12'));
+    gableRoof(x0 + 10, y0 + 12, x1 - 10, y1 - 16, 18, 12, C.cream, hex('#7a3a2a'));
+    onLeft(y1 - 18, x0 + 32, x0 + 38, 0, 9, hex('#4a2a18'));                 // the door
+    winLeft(y1 - 18, x0 + 18, x0 + 26, 4, 7); winLeft(y1 - 18, x0 + 44, x0 + 52, 4, 7);
+    ibox(x1 - 14, y1 - 18, x1 - 13, y1 - 10, 14, 15, hex('#2a1a12'));        // the sign's bracket…
+    onLeft(y1 - 11, x1 - 15, x1 - 9, 6, 13, hex('#7a2a20'));                 // …and the sign hanging off it
+    for (const bx of [x0 + 16, x0 + 40]) ibox(bx, y1 - 12, bx + 12, y1 - 8, 0, 3, C.wood);   // benches outside
+    frontSign(lot.place[0], x0 + 12, y1 - 18, x1 - x0 - 24, 17, 6);
+    return 30;
+  }
   if (cat === 'home' || cat === 'people') {                // a house on a lawn
     ground(x0 + 4, y0 + 4, x1 - 4, y1 - 4, C.grassLine);
     ibox(x0 + 14, y0 + 16, x1 - 14, y1 - 16, 0, 16, col);
@@ -284,15 +298,86 @@ function building(lot) {
     winLeft(y1 - 16, x0 + 18, x0 + 25, 6, 12); winLeft(y1 - 16, x0 + 44, x0 + 51, 6, 12);
     return 30;
   }
-  const big = cat === 'big', h = big ? 22 : 14 + Math.floor(hash(lot.bi, lot.bj) * 10);
-  const a = big ? 4 : 10;
+  const name = lot.place[0];
+  if (name === 'Library (free Wi-Fi)') return library(x0, y0, x1, y1);
+  if (name === 'Café') return cafe(x0, y0, x1, y1);
+  if (name === 'Petrol Station') return petrolStation(x0, y0, x1, y1);
+  if (MOTOR_CATS.includes(cat) || MOTOR_NAMES.includes(name)) return motorUnit(lot, x0, y0, x1, y1, col);
+  return shopUnit(lot, x0, y0, x1, y1, col, cat === 'big');
+}
+// Which places are for cars (they all look like a works unit); the rest are shops (they all look like a shop)
+const MOTOR_CATS = ['parts', 'mech', 'elec', 'trans'];
+const MOTOR_NAMES = ['MOT Test Centre', 'Tyre Place', 'Petrol Station', 'Machine Shop (lathe)'];
+// A motor place: a works unit with a sawtooth roof, a big roller door, a small office door and window
+function motorUnit(lot, x0, y0, x1, y1, col) {
+  const a = 8, h = 20;
   ibox(x0 + a, y0 + a, x1 - a, y1 - a, 0, h, col, C.steel);
-  onLeft(y1 - a, x0 + a, x1 - a, h - 10, h - 2, C.white);                                 // the sign board along the shop front
-  frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 2, 8);
-  onLeft(y1 - a, x0 + a + 6, x0 + 30, 3, h - 9, C.glass);
-  onLeft(y1 - a, x0 + 38, x0 + 46, 0, h - 9, C.ink);
+  for (let x = x0 + a; x < x1 - a - 6; x += 12) {                                         // the sawtooth roof: slopes, and windows facing the light
+    poly([P(x, y0 + a, h), P(x, y1 - a, h), P(x + 6, y1 - a, h + 6), P(x + 6, y0 + a, h + 6)], shade(C.steel, 0.72));
+    poly([P(x + 6, y0 + a, h), P(x + 6, y1 - a, h), P(x + 6, y1 - a, h + 6), P(x + 6, y0 + a, h + 6)], C.glass);
+  }
+  onLeft(y1 - a, x0 + a, x1 - a, h - 8, h - 1, C.white);                                  // the sign board
+  frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 1, 7);
+  onLeft(y1 - a, x0 + a + 4, x0 + a + 30, 0, h - 9, C.steel);                            // the roller door
+  for (let z = 2; z < h - 9; z += 2) line(...P(x0 + a + 4, y1 - a, z), ...P(x0 + a + 30, y1 - a, z), C.steel2);
+  onLeft(y1 - a, x0 + 44, x0 + 50, 0, h - 10, C.ink);                                     // the office door
+  onLeft(y1 - a, x0 + 52, x1 - a - 3, 4, h - 11, C.glass);                                // the office window
+  return h + 6;
+}
+// A shop: a flat roof with a parapet, a striped awning over a big window, the door
+function shopUnit(lot, x0, y0, x1, y1, col, big) {
+  const a = big ? 4 : 10, h = big ? 22 : 18;
+  ibox(x0 + a, y0 + a, x1 - a, y1 - a, 0, h, col, C.steel);
+  onLeft(y1 - a, x0 + a, x1 - a, h, h + 2, shade(col, 0.8));                              // the parapet
+  onLeft(y1 - a, x0 + a, x1 - a, h - 9, h - 1, C.white);                                  // the sign board
+  frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 1, 8);
+  for (let x = x0 + a + 4; x < x0 + 40; x += 4) ibox(x, y1 - a, x + 2, y1 - a + 4, h - 12, h - 11, (x / 4) % 2 ? C.white : shade(col, 0.75));   // the striped awning
+  onLeft(y1 - a, x0 + a + 4, x0 + 40, 2, h - 12, C.glass);                                // the shop window
+  onLeft(y1 - a, x0 + 44, x0 + 50, 0, h - 10, C.ink);                                     // the door
   for (let y = y0 + a + 8; y < y1 - a - 6; y += 12) winRight(x1 - a, y, y + 6, h - 12, h - 7);
-  return h;
+  return h + 2;
+}
+// The library: stone, steps up to a row of columns, a triangle of roof over them
+function library(x0, y0, x1, y1) {
+  const stone = hex('#d8d0b8'), h = 22;
+  ground(x0 + 4, y0 + 4, x1 - 4, y1 - 4, C.grassLine);
+  ibox(x0 + 10, y0 + 10, x1 - 10, y1 - 22, 0, h, stone, hex('#c0b8a0'));                  // the main hall
+  for (let k = 0; k < 3; k++) ibox(x0 + 12, y1 - 22 + k * 3, x1 - 12, y1 - 19 + k * 3, 0, 4 - k * 1.3, shade(stone, 0.92 - k * 0.04));   // the steps
+  for (let x = x0 + 16; x < x1 - 14; x += 8) ibox(x, y1 - 24, x + 3, y1 - 21, 3, h - 2, C.white);   // the columns
+  ibox(x0 + 12, y1 - 26, x1 - 12, y1 - 21, h - 2, h, stone);                              // the beam across the top
+  poly([P(x0 + 12, y1 - 21, h), P(x1 - 12, y1 - 21, h), P((x0 + x1) / 2, y1 - 21, h + 9)], shade(stone, 0.95));   // the pediment
+  onLeft(y1 - 22, x0 + 32, x0 + 38, 3, 14, C.ink);                                        // the big door
+  frontSign('LIBRARY', x0 + 12, y1 - 21, x1 - x0 - 24, h - 3, 5);
+  return h + 9;
+}
+// The petrol station: a forecourt with pumps under a canopy, the kiosk at the back, a price sign by the road
+function petrolStation(x0, y0, x1, y1) {
+  ground(x0 + 2, y0 + 2, x1 - 2, y1 - 2, C.concreteDark);                                 // the forecourt
+  ibox(x0 + 40, y0 + 6, x1 - 6, y0 + 30, 0, 12, C.white, C.steel);                        // the kiosk
+  onLeft(y0 + 30, x0 + 40, x1 - 6, 9, 12, C.red);                                         // its red band
+  onLeft(y0 + 30, x0 + 44, x0 + 56, 1, 8, C.glass); onLeft(y0 + 30, x0 + 58, x0 + 63, 0, 8, C.ink);
+  for (const [px, py] of [[x0 + 18, y0 + 40], [x0 + 32, y0 + 40]]) { ibox(px - 3, py - 6, px + 3, py + 6, 0, 1, C.concrete); ibox(px - 1, py - 2, px + 1, py + 2, 1, 8, C.red, C.white); }   // pump islands
+  for (const [cx, cy] of [[x0 + 10, y0 + 26], [x0 + 40, y0 + 26], [x0 + 10, y0 + 56], [x0 + 40, y0 + 56]]) ibox(cx, cy, cx + 1, cy + 1, 0, 16, C.steel2);   // canopy posts
+  ibox(x0 + 6, y0 + 22, x0 + 44, y0 + 60, 16, 19, C.red, C.white);                         // the canopy
+  ibox(x1 - 10, y1 - 10, x1 - 9, y1 - 9, 0, 18, C.steel2); onLeft(y1 - 9, x1 - 14, x1 - 5, 14, 24, C.ink);   // the price sign
+  frontSign('PETROL', x0 + 6, y0 + 60, 38, 19, 3);
+  return 22;
+}
+// The café: small and bright, a striped awning, tables and umbrellas outside
+function cafe(x0, y0, x1, y1) {
+  const wall = hex('#f4e8c8'), h = 14;
+  ground(x0 + 4, y1 - 22, x1 - 4, y1 - 4, hex('#d8c8a8'));                                // the terrace
+  ibox(x0 + 14, y0 + 12, x1 - 14, y1 - 24, 0, h, wall, hex('#b05a3a'));                    // the café, a terracotta roof
+  for (let x = x0 + 14; x < x1 - 14; x += 6) ibox(x, y1 - 24, x + 3, y1 - 18, h - 4, h - 3, (x / 6) % 2 ? C.white : C.red);   // the striped awning
+  onLeft(y1 - 24, x0 + 18, x0 + 40, 2, h - 5, C.glass);                                   // the window
+  onLeft(y1 - 24, x0 + 44, x0 + 50, 0, h - 5, hex('#2a6a3a'));                            // a green door
+  for (const [tx, ty] of [[x0 + 16, y1 - 14], [x0 + 34, y1 - 12], [x0 + 52, y1 - 14]]) {
+    ibox(tx, ty, tx + 6, ty + 6, 4, 5, C.white);                                          // a table
+    ibox(tx + 2.5, ty + 2.5, tx + 3.5, ty + 3.5, 5, 12, C.steel2);                        // its umbrella pole…
+    poly([P(tx - 3, ty + 3, 12), P(tx + 3, ty - 3, 12), P(tx + 9, ty + 3, 12), P(tx + 3, ty + 9, 12), P(tx + 3, ty + 3, 15)].slice(0, 4), [C.red, C.warm, hex('#2a8a5a')][(tx + ty) % 3]);   // …and its umbrella
+  }
+  frontSign('CAFÉ', x0 + 14, y1 - 24, x1 - x0 - 28, h - 1, 5);
+  return h + 4;
 }
 // The name over each building: tap it (or the building) to go there
 function sign(lot) {
@@ -450,10 +535,12 @@ function appHTML(app) {
     <div class="meta">dash_light.jpg · IMG_0042.jpg · part_number_blurry.jpg · thumb.jpg</div></div>`;
   if (app === 'MegaMart') return `<div class="top">${APP_ICON.MegaMart}<b class="logo">zamanon</b><span class="search">car code reader</span><span class="sbtn">🔍</span></div><div class="body"><table>
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
+    ${brokeOpen('headlight') ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i><i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
+    ${brokeOpen('headlight') ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
     <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Collection only, Aberdeen</span></td><td>£0.99</td><td class="red">Collection only</td></tr>
     <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr></table></div>`;
   return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
@@ -487,7 +574,7 @@ SCREENS.phone = {
   },
   overlay() {
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
-    return `<div class="ov ph"><div class="msgs">${msgs}</div>
+    return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
       <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
@@ -730,7 +817,12 @@ SCREENS.bonnet = {
     zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 94, 72, 52, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 40, 36, false, 'act:look:Brake fluid']]);
     hud();
   },
-  actions() { return [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }, { label: 'Close the bonnet', act: 'go:garage' }]; }
+  actions() {
+    const a = [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }];
+    if (S.inv.headlight && brokeOpen('headlight')) a.push({ label: 'Fit the new headlight', act: 'fitlight' });
+    a.push({ label: 'Close the bonnet', act: 'go:garage' });
+    return a;
+  }
 };
 
 SCREENS.fuseZoom = {
