@@ -42,13 +42,21 @@ SCREENS.home = {
     for (let y = 64; y < 136; y += 8) line(...P(42, y), ...P(56, y), shade(C.concreteDark, 0.9));
     tree(-40, 10); tree(150, -30); tree(-80, 90);
     // the front garden: a low hedge along the pavement (gaps for the path and the drive), flower beds, a fence to next door
-    ibox(-60, 130, 40, 136, 0, 8, C.tree2, C.tree1); ibox(58, 130, 90, 136, 0, 8, C.tree2, C.tree1); ibox(140, 130, 176, 136, 0, 8, C.tree2, C.tree1);
+    ibox(-50, 130, 40, 136, 0, 8, C.tree2, C.tree1); ibox(58, 130, 90, 136, 0, 8, C.tree2, C.tree1); ibox(140, 130, 176, 136, 0, 8, C.tree2, C.tree1);
     for (let k = 0; k < 40; k++) { const f = P(2 + (k % 10) * 3.6, 64 + Math.floor(k / 10) * 4, 1); px(f[0], f[1], [C.red, C.warm, C.white, hex('#e070a8')][k % 4]); }
     for (let y = 0; y < 130; y += 10) ibox(170, y, 172, y + 2, 0, 14, C.wood);
     line(...P(171, 0, 12), ...P(171, 130, 12), C.wood); line(...P(171, 0, 6), ...P(171, 130, 6), C.wood);
     // a lamp post and the red postbox by the kerb
     ibox(-30, 140, -27, 143, 0, 80, C.greyDark); ibox(-34, 136, -20, 147, 80, 84, C.greyDark); onLeft(147, -32, -22, 79, 80, C.warm);
     ibox(156, 138, 164, 146, 0, 16, C.red, shade(C.red, 1.2)); onLeft(146, 158, 162, 11, 12, C.ink);
+    backGarden();                                                                          // behind the house
+    // the house next door, on the left: cream render, a green door
+    ibox(-170, 0, -80, 60, 0, 54, C.cream);
+    gableRoof(-173, -3, -77, 63, 54, 28, C.cream, C.roofLine);
+    winLeft(60, -160, -144, 32, 46); winLeft(60, -106, -90, 32, 46); winLeft(60, -160, -144, 10, 24);
+    onLeft(60, -131, -117, 0, 27, C.white); onLeft(60, -130, -118, 0, 26, C.tree2);
+    ground(-132, 60, -116, 130, C.concreteDark);                                           // their path
+    ibox(-200, 130, -132, 136, 0, 8, C.tree2, C.tree1); ibox(-116, 130, -60, 136, 0, 8, C.tree2, C.tree1);   // their hedge
     // the house: red brick, slate roof, white windows, blue front door
     ibox(0, 0, 90, 60, 0, 54, C.brick);
     bricks(0, 0, 90, 60, 54, C.brickLine);
@@ -68,26 +76,140 @@ SCREENS.home = {
     // the car, the bin, parcels by the door, you
     isoCar(102, 72);
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
-    S.doorstep.forEach((p, i) => { ibox(56, 62 + i * 9, 64, 70 + i * 9, 0, 7, CARDBOARD); line(...P(60, 62 + i * 9, 7), ...P(60, 70 + i * 9, 7), C.warm); });
+    kerbMailbox(S.doorstep.length > 0);                                                   // the mailbox at the kerb: a parcel sticks out when there is one
     standingMan('home');
     spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
-    spot('Front door: the computer', isoArea(38, 58, 54, 62, 0, 28), 'pc', [46, 66]);
+    spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
-    if (S.doorstep.length) spot('Parcel', isoArea(54, 60, 66, 72 + (S.doorstep.length - 1) * 9, 0, 9), 'act:parcel', [62, 76]);
+    spot(S.doorstep.length ? 'Mailbox: a parcel!' : 'Mailbox (empty)', isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), S.doorstep.length ? 'act:parcel' : 'act:look:Mailbox', [MAILBOX[0] + 4, MAILBOX[1] - 8]);
     hud();
   },
   actions() {
     return [
-      { label: 'Into town', act: 'go:city' },
-      { label: 'Computer', act: 'go:pc' },
-      { label: 'Garage', act: 'go:garage' },
-      { label: 'Make a cup of tea', act: 'tea' },
-      ...(S.inv.torch && !S.flags.torchLit ? [{ label: 'Look for batteries in the kitchen drawer', act: 'batteries' }] : []),
-      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : []),
-      { label: 'Go to bed', act: 'bed' }
-    ].concat(S.doorstep.length ? [{ label: 'Open the parcel', act: 'parcel' }] : []);
+      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : [])
+    ];
   }
 };
+
+// Night at home: dark outside; lit windows in all three houses; the street light glows
+const HOME_WINDOWS_LEFT = [[60, 10, 26, 32, 46], [60, 64, 80, 32, 46], [60, 10, 26, 10, 24], [60, -160, -144, 32, 46], [60, -106, -90, 32, 46], [60, -160, -144, 10, 24], [60, 190, 204, 16, 30], [60, 214, 228, 16, 30]];
+SCREENS.home.night = function (d) {
+  ISO.ox = 250; ISO.oy = 96;
+  nightShade(0, 18, W, H, d);
+  if (d > 0.2) {
+    for (const [yf, a, b, c, e] of HOME_WINDOWS_LEFT) onLeft(yf, a + 1, b - 1, c + 1, e - 1, LIT);
+    onRight(90, 21, 35, 39, 47, LIT);
+  }
+  const lamp = P(-27, 141, 79), pool = P(-27, 141, 0);
+  lampGlow(lamp[0], lamp[1], 14, d); lampGlow(pool[0], pool[1], 22, d * 0.6);     // the street light, and its pool of light
+  keepHud(18);
+};
+
+// =====================================================================
+// INSIDE THE HOUSE: one room. The computer (on a chair: there's no desk), the bed, the kitchen
+// =====================================================================
+const ROOM = { w: 180, d: 140, h: 84 };                    // the room: across (x), deep (y), high
+const KETTLE = [146, 8];
+const WIFE_AT = [128, 38];                                  // where she stands: by the kitchen                                   // where the kettle stands on the worktop (the tea is made here)
+SCREENS.room = {
+  size: [480, 270],
+  paint() {
+    ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
+    rect(0, 0, W, H, C.greyDark);
+    // walls (wallpaper with a stripe), a carpet
+    poly([P(0, 0, 0), P(0, ROOM.d, 0), P(0, ROOM.d, ROOM.h), P(0, 0, ROOM.h)], shade(C.cream, 0.88));
+    poly([P(0, 0, 0), P(ROOM.w, 0, 0), P(ROOM.w, 0, ROOM.h), P(0, 0, ROOM.h)], C.cream);
+    for (let k = 6; k < ROOM.w; k += 12) onLeft(0, k, k + 1, 0, ROOM.h, C.creamDark);
+    for (let k = 6; k < ROOM.d; k += 12) onRight(0, k, k + 1, 0, ROOM.h, shade(C.creamDark, 0.9));
+    ground(0, 0, ROOM.w, ROOM.d, hex('#8a6a5a'));
+    ground(40, 40, 120, 100, hex('#9a5a4a'));                                         // a rug
+    // the window on the back wall
+    onLeft(0, 64, 96, 38, 66, C.white); onLeft(0, 66, 94, 40, 64, skyColour()); onLeft(0, 79, 81, 40, 64, C.white);
+    // the computer: on a small desk under the window, a chair pulled up to it
+    for (const [lx, ly] of [[68, 1], [90, 1], [68, 14], [90, 14]]) ibox(lx, ly, lx + 2, ly + 2, 0, 22, C.bench);   // desk legs
+    ibox(66, 0, 94, 17, 22, 24, C.wood);                                              // the desk top
+    ibox(74, 2, 86, 6, 24, 36, C.ink);                                                // the monitor
+    onLeft(6, 75, 85, 26, 35, hex('#2a5070'));                                        // its screen
+    ibox(72, 9, 86, 14, 24, 25, C.greyDark);                                          // the keyboard
+    for (const [lx, ly] of [[73, 22], [85, 22], [73, 32], [85, 32]]) ibox(lx, ly, lx + 2, ly + 2, 0, 13, C.bench);   // chair legs
+    ibox(72, 21, 88, 35, 13, 15, C.wood);                                             // the seat
+    ibox(72, 33, 88, 36, 15, 29, C.bench);                                            // its back (towards you)
+    // the kitchen: units along the back wall, a sink, the kettle, cupboards above
+    ibox(104, 0, 178, 18, 0, 30, C.white, C.steel2);                                  // the units and the worktop
+    for (const x of [104, 129, 154]) onLeft(18, x + 2, x + 22, 4, 26, shade(C.white, 0.93));   // cupboard doors
+    onLeft(18, 108, 124, 27, 29, C.steel2);                                            // the kitchen drawer
+    ground(112, 3, 132, 14, C.steel, 30);                                             // the sink
+    kettle(KETTLE[0], KETTLE[1]);                                                      // the kettle
+    ibox(104, 0, 178, 12, 50, 68, C.white);                                           // cupboards on the wall
+    // the bed, its head against the left wall
+    ibox(0, 80, 3, 130, 0, 28, C.wood);                                               // headboard
+    ibox(3, 80, 58, 130, 0, 12, C.bench);                                             // the base
+    ibox(3, 82, 58, 128, 12, 17, C.white);                                            // the mattress
+    ibox(4, 86, 16, 124, 17, 22, C.white, hex('#ffffff'));                            // the pillow
+    ibox(18, 81, 59, 129, 15, 20, C.door);                                            // the duvet
+    // the sofa, in the corner against the left wall
+    const sofa = hex('#4a6a8a');
+    ibox(0, 6, 18, 58, 0, 10, sofa);                                                  // the seat
+    ibox(0, 6, 5, 58, 10, 24, shade(sofa, 0.9));                                      // its back
+    ibox(0, 4, 18, 9, 0, 16, shade(sofa, 0.95)); ibox(0, 55, 18, 60, 0, 16, shade(sofa, 0.95));   // its arms
+    ibox(6, 10, 16, 30, 10, 12, shade(sofa, 1.1)); ibox(6, 32, 16, 52, 10, 12, shade(sofa, 1.1));  // cushions
+    // the way out: a see-through door in the near wall
+    exitDoor(ROOM.d);
+    standingMan('room');
+    const [fx, fy] = WIFE.pos;                                         // she walks round (drawn in life.js); the tap area follows her
+    spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 18, fy + 14]);
+    spot('Computer', isoArea(66, 0, 94, 17, 0, 36), 'pc', [80, 46]);
+    spot('Bed: go to sleep', isoArea(0, 80, 59, 130, 0, 22), 'act:bed', [70, 104]);
+    spot('Kettle: make a cup of tea', isoArea(KETTLE[0] - 6, 0, KETTLE[0] + 14, 18, 26, 42), 'act:tea', [150, 32]);
+    spot('Door: outside', isoArea(EXIT_DOOR[0], ROOM.d - 4, EXIT_DOOR[1], ROOM.d, 0, EXIT_DOOR[2]), 'home', [105, 130]);
+    hud();
+  },
+  actions() {
+    const a = [];
+    if (S.inv.torch && !S.flags.torchLit) a.push({ label: 'Look for batteries in the kitchen drawer', act: 'batteries' });
+    return a;
+  }
+};
+
+// The back garden: a lawn behind the house, fences, a patio, a washing line and a shed
+function backGarden() {
+  for (let y = -100; y < 0; y += 10) ground(0, y, 170, y + 10, (y / 10) % 2 ? C.grass : C.grassLine);   // mown stripes
+  ground(0, -24, 90, 0, C.concrete);                                                     // the patio
+  for (let x = 0; x <= 170; x += 10) ibox(x, -101, x + 2, -99, 0, 14, C.wood);          // the back fence
+  line(...P(0, -100, 12), ...P(170, -100, 12), C.wood); line(...P(0, -100, 6), ...P(170, -100, 6), C.wood);
+  for (let y = -100; y < 0; y += 10) ibox(170, y, 172, y + 2, 0, 14, C.wood);           // the fence to next door, carried on
+  line(...P(171, -100, 12), ...P(171, 0, 12), C.wood); line(...P(171, -100, 6), ...P(171, 0, 6), C.wood);
+  ibox(124, -92, 160, -66, 0, 24, hex('#7a6a50'), hex('#5a4a38'));                    // the shed
+  onLeft(-66, 132, 144, 0, 18, hex('#5a4a38'));                                         // its door
+  for (const x of [20, 100]) ibox(x, -70, x + 2, -68, 0, 34, C.steel2);                 // the washing line's poles…
+  line(...P(21, -69, 33), ...P(101, -69, 33), C.white);                                 // …the line…
+  [[30, C.red], [44, C.white], [58, C.car], [72, C.warm], [86, C.white]].forEach(([x, c]) => onLeft(-69, x, x + 8, 22, 32, c));   // …and the washing
+}
+
+// A red kettle on the worktop: body, lid, handle, spout, on its base
+function kettle(x, y) {
+  ibox(x - 1, y - 1, x + 9, y + 8, 30, 31, C.ink);                                  // the base
+  ibox(x, y, x + 8, y + 7, 31, 41, C.red, shade(C.red, 1.25));                      // the body
+  ibox(x + 2, y + 2, x + 6, y + 5, 41, 42, C.ink);                                  // the lid's knob
+  line(...P(x + 8, y + 2, 39), ...P(x + 11, y + 2, 37), C.ink); line(...P(x + 11, y + 2, 37), ...P(x + 11, y + 2, 33), C.ink); line(...P(x + 11, y + 2, 33), ...P(x + 8, y + 2, 32), C.ink);   // the handle
+  line(...P(x + 3, y + 7, 36), ...P(x + 2, y + 11, 39), C.red); line(...P(x + 4, y + 7, 36), ...P(x + 3, y + 11, 39), C.red);   // the spout
+  const k = P(x + 6, y + 7, 33); px(k[0], k[1], C.warm);                             // its little light
+}
+
+// The mailbox at the kerb, on its post; full: the flag's up and a parcel sticks out of the front
+const MAILBOX = [62, 140];
+function kerbMailbox(full) {
+  const [x, y] = MAILBOX;
+  ibox(x + 3, y + 3, x + 5, y + 5, 0, 16, C.wood);                                // the post
+  ibox(x, y, x + 8, y + 10, 16, 23, hex('#2e5a3a'), hex('#3a7048'));              // the box
+  if (full) {
+    ibox(x + 1, y + 8, x + 7, y + 15, 17, 22, CARDBOARD);                         // the parcel, sticking out
+    line(...P(x + 4, y + 8, 22), ...P(x + 4, y + 15, 22), C.warm);                // its tape
+    ibox(x + 8, y + 2, x + 9, y + 4, 20, 29, C.red);                              // the flag, up
+  } else {
+    ibox(x + 8, y + 2, x + 9, y + 9, 20, 22, C.red);                              // the flag, down
+  }
+}
 
 // =====================================================================
 // CITY: the map of town. Tap a place and you're there
@@ -95,7 +217,7 @@ SCREENS.home = {
 const PLACES = [
   // [name, category]  (one per lot, 7 across x 6 down)
   ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Library (free Wi-Fi)', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
-  ['Pawn Shop', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
+  ['The Rusty Spanner', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
   ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Breakers Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Makerspace (3D printer)', 'other'], ['Café', 'other'],
@@ -109,8 +231,14 @@ const CAT = {
 const BLOCK = 100, STREET = 30;                          // each block: a 30-wide street, then a 70-wide lot
 const placeIndex = name => PLACES.findIndex(p => p[0] === name);
 
+SCREENS.city_night = function (d) {
+  nightShade(0, 36, W, H, d);
+  ISO.ox = S.cam.ox; ISO.oy = S.cam.oy;
+  for (let i = 0; i <= 7; i++) for (let j = 0; j <= 6; j++) { const p = P(i * BLOCK + 2, j * BLOCK + 2, 6); lampGlow(p[0], p[1], 9, d); }
+  keepHud(36);
+};
 SCREENS.city = {
-  size: [640, 360],
+  size: [582, 328],                                         // one zoom step closer than 640 x 360
   paint() {
     ISO.ox = S.cam.ox; ISO.oy = S.cam.oy;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
@@ -123,13 +251,15 @@ SCREENS.city = {
     for (const lot of lots) lot.top = building(lot);
     // your car (the only blue one), parked in the street outside the last place you went
     const here = Math.max(0, placeIndex(S.place || 'Home'));
-    isoCarX((here % 7) * BLOCK + STREET + 22, Math.floor(here / 7) * BLOCK + STREET + 74, 0.5, C.car);
+    const carX = (here % 7) * BLOCK + STREET + 22, carY = Math.floor(here / 7) * BLOCK + STREET + 74;
+    isoCarX(carX, carY, 0.5, C.car);
     for (const lot of lots) sign(lot);
+    spot('Your car: drive home', isoArea(carX, carY, carX + 24, carY + 13, 0, 12), 'home');   // tap your car to go home
     minimap();
-    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round.', 1, 80);
+    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round. Tap your blue car to go home.', 1, 80);
     hud();
   },
-  actions() { return [{ label: 'Go home', act: 'go:home' }]; }
+  actions() { return []; }
 };
 function building(lot) {
   const x0 = lot.bi * BLOCK + STREET, y0 = lot.bj * BLOCK + STREET, x1 = x0 + 70, y1 = y0 + 70;
@@ -192,8 +322,8 @@ function minimap() {
 // =====================================================================
 // The door out of a shop: in the near wall (the one you can't see), so it's drawn as a wireframe
 const EXIT_DOOR = [88, 122, 52];                                    // from x, to x, height
-function exitDoor() {
-  const [x0, x1, h] = EXIT_DOOR, y = 150;
+function exitDoor(y = 150, where = EXIT_DOOR) {
+  const [x0, x1, h] = where;
   const edges = [[P(x0, y, 0), P(x0, y, h)], [P(x0, y, h), P(x1, y, h)], [P(x1, y, h), P(x1, y, 0)]];   // the frame: both sides and the top
   for (const [a, b] of edges) dashedLine(a, b, C.mint);
   const k = P(x1 - 5, y, h * 0.45);                                 // the handle
@@ -219,17 +349,30 @@ SCREENS.place = {
       tip(name, shut ? esc(shut) : 'Open. Tap the door to go in.', 1, 8);
       return hud();
     }
+    if (style === 'pub') {                                         // the pub: a flat, side-on view of the bar
+      pubScene(shut);
+      pubSpots(shut);
+      tip(name, shut ? esc(shut) : 'Tap the barman to order. The regulars will tell you what\'s wrong with your car.', 1, 8);
+      return hud();
+    }
     shopInterior(name, shut);
     ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
     const person = (PLACE_INFO[name] || {}).person || (style === 'house' ? name.replace("'s", '') : 'the shopkeeper');
     if (!shut) {
       const [hx, hy] = keeperHead();
-      spot('Talk to ' + esc(person), [hx - 12, hy - 2, 26, 44], 'act:talk', style === 'house' ? [80, 70] : [104, 80]);
+      const queueing = name === 'Post Office' && !postFirst();       // at the post office you stay at the back of the queue
+      spot('Talk to ' + esc(person), [hx - 12, hy - 2, 26, 44], 'act:talk', style === 'house' ? [80, 70] : queueing ? [118, 146] : [104, 80]);
     }
     if (style !== 'house') {
-      if (['tools', 'parts', 'aisles'].includes(style)) [16, 34, 52].forEach((z, k) => spot('Shelf ' + (k + 1) + ': look closer', isoArea(10, 0, 190, 12, z - 2, z + 14), 'act:shelfzoom:' + k, [184, 82]));
-      else spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
-      spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
+      if (SHELF_STYLES.includes(style)) {                          // shelves along the left wall, a till to pay at, posters on the back wall
+        shelfSpots();
+        if (!shut) spot('Till: pay' + (basketHere().length ? ' £' + basketTotal().toFixed(2) : ''), isoArea(56, 54, 82, 66, 22, 36), 'act:checkout', [66, 80]);
+        spot('Read the posters', isoArea(140, 0, 190, 1, 30, 56), 'act:posters', [160, 80]);
+      } else {
+        spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
+        spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
+      }
+      basketLabel();
     }
     exitDoor();                                                    // the way out: a see-through door in the near wall
     spot('Door: leave', isoArea(EXIT_DOOR[0], 146, EXIT_DOOR[1], 150, 0, EXIT_DOOR[2]), style === 'house' ? 'city' : 'act:leave', [105, 140]);
@@ -241,9 +384,7 @@ SCREENS.place = {
     const opensLater = !S.inside && !info.gone && !info.holiday && S.mins < from;
     return [
       ...(opensLater ? [{ label: 'Wait until it opens (' + hhmm(from) + ')', act: 'waitopen' }] : []),
-      { label: 'Wait 30 minutes', act: 'wait' },
-      { label: 'Back to the map', act: 'go:city' },
-      { label: 'Go home', act: 'go:home' }
+      { label: 'Wait 30 minutes', act: 'wait' }
     ];
   }
 };
@@ -256,7 +397,7 @@ SCREENS.pc = {
   paint() {
     rect(0, 0, W, H, C.cream);
     for (let x = 0; x < W; x += 24) rect(x, 0, 1, 228, C.creamDark);
-    rect(0, 228, W, 42, C.wood); rect(0, 228, W, 1, C.bench);
+    rect(0, 228, W, 42, C.wood); rect(0, 228, W, 1, C.bench);                       // the table
     rect(30, 9, 420, 210, C.greyDark); rect(33, 12, 414, 204, C.grey); rect(39, 18, 402, 192, C.ink);
     rect(222, 219, 36, 9, C.greyDark); rect(204, 226, 72, 3, C.greyDark);
     rect(450, 30, 21, 18, C.warm); text('PW?', 453, 36, C.bench);
@@ -264,46 +405,61 @@ SCREENS.pc = {
     rect(321, 237, 15, 18, C.white); rect(336, 241, 4, 7, C.white); rect(324, 239, 9, 1, C.bench);
   },
   overlay() {
-    const apps = ['ViewTube', 'Forum', 'Mail', 'Pics', 'MegaMart', 'eBuy', 'TechDocs'];
-    const dock = apps.map(a => `<button data-app="${a}" class="${a === S.app ? 'on' : ''}">${a}</button>`).join('');
-    return `<div class="ov pc"><div class="dock">${dock}</div><div class="win">${appHTML(S.app)}</div></div>`;
+    const dock = APPS.map(([id, name]) => `<button data-app="${id}" class="${id === S.app ? 'on' : ''}">${APP_ICON[id]}<span>${name}</span></button>`).join('');
+    return `<div class="ov pc"><div class="dock">${dock}</div><div class="win app-${S.app}">${appHTML(S.app)}</div></div>`;
   },
-  actions() { return [{ label: 'Get up (back outside)', act: 'go:home' }]; }
+  actions() { return [{ label: 'Get up', act: 'go:room' }]; }
 };
-// A product row with a Buy button
-function product(id, extra) {
-  const it = ITEMS[id], ordered = S.flags['ordered-' + id];
-  return `<tr><td>${esc(it.name)}<br><span class="meta">${extra}</span></td><td>£${it.price.toFixed(2)}</td><td>${ordered ? 'Ordered' : `<button data-act="buy:${id}">Buy</button>`}</td></tr>`;
-}
+// The apps on the computer: [the game's name for it, the name you see]
+const APPS = [['ViewTube', 'Yoo Toob'], ['Forum', 'Reedit'], ['Mail', 'Grrmail'], ['Pics', 'Instaglum'], ['MegaMart', 'Zamanon'], ['eBuy', 'TheeBay'], ['TechDocs', 'Wonkypedia']];
+// Each app's little logo (drawn in SVG, 24 x 24)
+const svgIcon = inner => `<svg viewBox="0 0 24 24" class="ic">${inner}</svg>`;
+const APP_ICON = {
+  ViewTube: svgIcon('<rect x="1" y="5" width="22" height="15" rx="4" fill="#f03"/><path d="M10 9l6 3.5-6 3.5z" fill="#fff"/>'),
+  Forum: svgIcon('<circle cx="12" cy="12" r="11" fill="#ff4500"/><ellipse cx="12" cy="14" rx="7" ry="5" fill="#fff"/><circle cx="9.5" cy="13.5" r="1.2" fill="#ff4500"/><circle cx="14.5" cy="13.5" r="1.2" fill="#ff4500"/><circle cx="16" cy="6" r="1.6" fill="#fff"/><path d="M12 9l1.5-4 2.5 1" stroke="#fff" fill="none"/>'),
+  Mail: svgIcon('<rect x="2" y="5" width="20" height="14" rx="2" fill="#fff"/><path d="M2 7l10 7 10-7v12h-3V11l-7 5-7-5v8H2z" fill="#ea4335"/><path d="M2 7v12h3v-8z" fill="#4285f4"/><path d="M22 7v12h-3v-8z" fill="#34a853"/>'),
+  Pics: svgIcon('<defs><linearGradient id="igg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".5" stop-color="#d62976"/><stop offset="1" stop-color="#4f5bd5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igg)"/><rect x="6" y="6" width="12" height="12" rx="4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16.5" cy="7.5" r="1" fill="#fff"/>'),
+  MegaMart: svgIcon('<rect x="1" y="1" width="22" height="22" rx="4" fill="#232f3e"/><text x="12" y="13" font-size="11" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Arial">z</text><path d="M5 16q7 4 14 0" stroke="#ff9900" stroke-width="2" fill="none"/><path d="M17 14.5l2.5 1.5-2 1.8" stroke="#ff9900" stroke-width="1.5" fill="none"/>'),
+  eBuy: svgIcon('<rect x="1" y="1" width="22" height="22" rx="4" fill="#fff"/><text y="16" font-size="10" font-weight="bold" font-family="Arial"><tspan x="2" fill="#e53238">T</tspan><tspan fill="#0064d2">h</tspan><tspan fill="#f5af02">e</tspan><tspan fill="#86b817">B</tspan></text>'),
+  TechDocs: svgIcon('<circle cx="12" cy="12" r="11" fill="#eee" stroke="#999"/><text x="12" y="17" font-size="14" font-family="Georgia, serif" text-anchor="middle" fill="#222">W</text>')
+};
+// Each app, made to look like the site it's like
 function appHTML(app) {
-  if (app === 'ViewTube') return `<div class="bar">viewtube.example/watch?v=zaf1ra-excite</div><div class="body">
-    <h2>2005 Zafira 1.6i EXCITE gearbox sensor replacement (EASY 10 MIN JOB)</h2><div class="meta">GarageGuy Gaz · 1.2M views · 9 years ago</div>
+  if (app === 'ViewTube') return `<div class="top">${APP_ICON.ViewTube}<b class="logo">Yoo Toob</b><span class="search">zafira gearbox sensor</span></div><div class="body">
+    <div class="video"><div class="play"></div><div class="prog"><i></i></div></div>
+    <h2>2005 Zafira 1.6i EXCITE gearbox sensor replacement (EASY 10 MIN JOB)</h2>
+    <div class="chan"><span class="av">G</span><div><b>GarageGuy Gaz</b><div class="meta">1.2M views · 9 years ago</div></div><span class="sub">SUBSCRIBE</span></div>
     <p>Right lads, first get the car on a ramp. After removing the dashboard, simply slide the sensor out. Refit in reverse order of removal.</p>
     <div class="post"><b>@ZafPlusOwner</b> mine is the PLUS, totally different connector</div><div class="post"><b>@tony_b</b> 13:42 he just skips the hard bit</div>
     <p><button data-act="watch">Watch it (15 min)</button></p></div>`;
-  if (app === 'Forum') return `<div class="bar">SpannerTalk Forums › Vauxhall › Zafira A (1999–2005) › Gearbox</div><div class="body">
-    <h2>${S.flags.codes ? 'P0705 red light on dash, auto box?? HELP' : 'Search the forum'}</h2>
-    ${S.flags.codes ? `<div class="meta">Started by <b>zaf_dave</b> · 14 March 2009 · 3,412 views</div>
-    <div class="post"><b>zaf_dave</b> · 14 Mar 2009<br>P0705, red light on dash. Garage says 3 months. Any ideas?</div>
-    <div class="post"><b>MrTorque</b> · 15 Mar 2009<br>Its the selector sensor. Or the loom. Check ur fuses first tbh</div>
-    <div class="post"><b>zaf_dave</b> · 2 Jun 2009<br>Fixed it.</div>
-    <div class="post"><b>Lisa_K</b> · 11 Nov 2016<br>how?? same problem</div>
-    <div class="post"><b>zaf_dave</b> · 12 Nov 2016<br>Solved, PM me<br><span class="red">[image no longer available]</span></div>
+  if (app === 'Forum') return `<div class="top">${APP_ICON.Forum}<b class="logo">reedit</b><span class="sub">r/ZafiraOwners</span><span class="search">Search r/ZafiraOwners</span></div><div class="body">
+    ${S.flags.codes ? `<div class="card"><div class="votes">▲<b>412</b>▼</div><div><div class="meta">r/ZafiraOwners · Posted by u/zaf_dave · 14 March 2009</div>
+    <h2>P0705 red light on dash, auto box?? HELP</h2><p>P0705, red light on dash. Garage says 3 months. Any ideas?</p></div></div>
+    <div class="card"><div class="votes">▲<b>88</b>▼</div><div><div class="meta">u/MrTorque · 15 Mar 2009</div>Its the selector sensor. Or the loom. Check ur fuses first tbh</div></div>
+    <div class="card"><div class="votes">▲<b>3</b>▼</div><div><div class="meta">u/zaf_dave · 2 Jun 2009</div>Fixed it.</div></div>
+    <div class="card"><div class="votes">▲<b>146</b>▼</div><div><div class="meta">u/Lisa_K · 11 Nov 2016</div>how?? same problem</div></div>
+    <div class="card"><div class="votes">▲<b>−20</b>▼</div><div><div class="meta">u/zaf_dave · 12 Nov 2016</div>Solved, PM me<br><span class="red">[image no longer available]</span></div></div>
     <p><button data-act="readforum">Read it properly and note it down (30 min)</button></p>` :
-    `<p>You type "red light dash". 41,000 results. Without the error codes you don't know what to search for.</p>`}</div>`;
-  if (app === 'Mail') return `<div class="bar">Inbox</div><div class="body"><table>${S.mails.map(m => `<tr><td>${esc(m.from)}</td><td>${esc(m.subject)}</td><td>${m.when}</td></tr>`).join('') || '<tr><td>No mail. Not even spam.</td></tr>'}</table></div>`;
-  if (app === 'Pics') return `<div class="bar">Pictures › Car</div><div class="body"><div class="grid">
-    <div style="--p:#4a5a60">dash_light.jpg</div><div style="--p:#5a4a40">IMG_0042.jpg</div><div style="--p:#6a6050">part_number_blurry.jpg</div><div style="--p:#3a4448">thumb.jpg</div></div></div>`;
-  if (app === 'MegaMart') return `<div class="bar">megamart.example — Everything, Delivered Eventually</div><div class="body"><table>
-    ${product('reader-cheap', '★★★★☆ · *not all cars · arrives tomorrow')}
-    ${findJob('new-sensor') ? product('part-mega', '"fits all models*" · *not all models · arrives tomorrow') : ''}
+    `<div class="card"><div class="votes">▲<b>•</b>▼</div><div>You type "red light dash". 41,000 results. Without the error codes you don't know what to search for.</div></div>`}</div>`;
+  if (app === 'Mail') return `<div class="top">${APP_ICON.Mail}<b class="logo">Grrmail</b><span class="search">Search mail</span></div><div class="cols">
+    <div class="side"><span class="compose">✎ Compose</span><span class="here">Inbox <b>${S.mails.length || ''}</b></span><span>Starred</span><span>Sent</span><span>Drafts</span></div>
+    <div class="body"><table>${S.mails.map(m => `<tr><td><b>${esc(m.from)}</b></td><td>${esc(m.subject)}</td><td class="meta">${m.when}</td></tr>`).join('') || '<tr><td>No mail. Not even spam.</td></tr>'}</table></div></div>`;
+  if (app === 'Pics') return `<div class="top">${APP_ICON.Pics}<b class="logo">Instaglum</b></div><div class="body">
+    <div class="prof"><span class="ring"><span>Z</span></span><div><b>zafira_pain</b><div class="meta">4 posts · 2 followers (Mum, Gaz)</div></div></div>
+    <div class="grid"><div style="--p:#4a5a60" title="dash_light.jpg"></div><div style="--p:#5a4a40" title="IMG_0042.jpg"></div><div style="--p:#6a6050" title="part_number_blurry.jpg"></div><div style="--p:#3a4448" title="thumb.jpg"></div></div>
+    <div class="meta">dash_light.jpg · IMG_0042.jpg · part_number_blurry.jpg · thumb.jpg</div></div>`;
+  if (app === 'MegaMart') return `<div class="top">${APP_ICON.MegaMart}<b class="logo">zamanon</b><span class="search">car code reader</span><span class="sbtn">🔍</span></div><div class="body"><table>
+    ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
+    ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
-  if (app === 'eBuy') return `<div class="bar">ebuy.example — Used, untested, spares or repair</div><div class="body"><table>
+  if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i><i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
     <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Collection only, Aberdeen</span></td><td>£0.99</td><td class="red">Collection only</td></tr>
     <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr></table></div>`;
-  return `<div class="bar">techdocs.example › TIS › Bulletins › SB-0471/09 Rev C (superseded by Rev B)</div><div class="body">
+  return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
+    <div class="side"><span>Main page</span><span>Random fault</span><span>Help</span><span>Talk</span></div><div class="body">
     <h2>SB-0471/09 Rev C — TCM DTC P0705/P0706 sporadic, MY 03–05, see note 4</h2>
+    <div class="meta">From Wonkypedia. This article is superseded by Rev B. [citation needed]</div>
     <p><b>1.</b> With KL15 ON and KL50 OFF, measure resistance between X12/3 (BK/WH) and X12/7 (BU/RD). Specified value: 4.7 kΩ ± 12% (see table 9, not included).</p>
     <p><b>2.</b> If value is within specification, continue at step 4. If not, continue at step 2.</p><p><b>3.</b> Step deleted.</p>
     <p class="red">Diagram 12 of 12 failed to load.</p><p><button data-act="readdocs">Try to make sense of it (20 min)</button></p>
@@ -312,7 +468,12 @@ function appHTML(app) {
       <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
       <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
       <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
-      <p><button data-act="fusenote">Note it down (20 min)</button></p>` : ''}</div>`;
+      <p><button data-act="fusenote">Note it down (20 min)</button></p>` : ''}</div></div>`;
+}
+// A product row with a Buy button
+function product(id, extra) {
+  const it = ITEMS[id], ordered = S.flags['ordered-' + id];
+  return `<tr><td>${esc(it.name)}<br><span class="meta">${extra}</span></td><td>£${it.price.toFixed(2)}</td><td>${ordered ? 'Ordered' : `<button data-act="buy:${id}">Buy</button>`}</td></tr>`;
 }
 
 // =====================================================================
@@ -321,13 +482,13 @@ function appHTML(app) {
 SCREENS.phone = {
   size: [480, 270],
   paint() {
-    grime(0, 0, W, H, C.greyDark, 0.1, 71);
+    paintBehind();                                                   // over whatever you were looking at
     rect(168, 9, 144, 255, C.greyDark); rect(171, 12, 138, 249, C.ink); rect(225, 17, 30, 3, C.grey);
   },
   overlay() {
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov ph"><div class="msgs">${msgs}</div>
-      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div></div></div>`;
+      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
 };
@@ -338,7 +499,7 @@ SCREENS.phone = {
 SCREENS.notebook = {
   size: [480, 270],
   paint() {
-    grime(0, 0, W, H, C.wood, 0.15, 61);
+    paintBehind();                                                   // over whatever you were looking at
     rbox(40, 6, 400, 258, 4, hex('#c8bc98'));
     rect(44, 10, 190, 250, hex('#f2ecd8')); rect(246, 10, 190, 250, hex('#f2ecd8'));
     for (let y = 24; y < 258; y += 10) { rect(46, y, 186, 1, hex('#c8d4e0')); rect(248, y, 186, 1, hex('#c8d4e0')); }
@@ -362,7 +523,21 @@ SCREENS.notebook = {
     };
     const roots = S.jobs.filter(j => !j.parent);
     const html = roots.map(r => block(r, 0)).join('');
-    return `<div class="ov nb"><div class="cols">${html}</div></div>`;
+    return `<div class="ov nb"><div class="cols">${html}</div></div>`
+      + '<button class="ov nbflip prev" data-act="nbpage:-1">◀</button><button class="ov nbflip next" data-act="nbpage:1">▶</button>';
+  },
+  // the notebook runs onto more pages: show two at a time, ◀ ▶ to leaf through
+  after() {
+    const cols = stage.querySelector('.nb .cols');
+    if (!cols) return;
+    const gapText = getComputedStyle(cols).columnGap;                 // the gap between pages (it may be given in %)
+    const gap = gapText.endsWith('%') ? parseFloat(gapText) / 100 * cols.clientWidth : parseFloat(gapText);
+    const spread = cols.clientWidth + gap;                             // two pages and the gap to the next two
+    const spreads = Math.max(1, Math.round((cols.scrollWidth + gap) / spread));
+    S.nbPage = Math.max(0, Math.min(spreads - 1, S.nbPage || 0));
+    cols.scrollLeft = S.nbPage * spread;
+    stage.querySelector('.nbflip.prev').hidden = S.nbPage === 0;
+    stage.querySelector('.nbflip.next').hidden = S.nbPage >= spreads - 1;
   },
   actions() { return []; }
 };
@@ -382,6 +557,7 @@ SCREENS.garage = {
     ground(30, 100, 50, 112, shade(C.floor, 0.85));
     onLeft(0, 30, 90, 74, 77, C.light);
     onLeft(0, 100, 172, 36, 70, C.peg);
+    onLeft(0, 104, 168, 74, 81, C.white); onLeft(0, 105, 167, 75, 80, skyColour());   // a high window: you can see if it's dark outside
     for (let x = 104; x < 170; x += 5) for (let z = 40; z < 68; z += 5) { const p = P(x, 0, z); px(p[0], p[1], C.pegHole); }
     for (const [x, len] of [[106, 20], [112, 16], [118, 22], [124, 14]]) line(...P(x, 0, 64), ...P(x, 0, 64 - len), C.tool);
     onLeft(0, 132, 148, 56, 60, C.tool); onLeft(0, 138, 141, 44, 56, C.tool);
@@ -389,6 +565,7 @@ SCREENS.garage = {
     const spines = [C.red, C.car, C.warm, C.tree2, C.red, C.white, C.car, C.warm, C.redDim, C.tree1, C.car, C.red, C.warm, C.white];
     for (let k = 0; k < 14; k++) ibox(0, 20 + k * 5, 10, 24 + k * 5, 50, 60 + Math.floor(hash(k, 3) * 5), spines[k]);
     ibox(0, 20, 12, 38, 24, 36, CARDBOARD); ibox(0, 42, 12, 58, 24, 33, CARDBOARD); ibox(0, 62, 12, 92, 24, 38, CARDBOARD);
+    garageShelves();                                                     // shelves next to the tool chest: what you've bought
     ibox(60, 0, 86, 18, 0, 40, C.red); ibox(60, 0, 86, 18, 40, 50, C.red);
     for (const z of [8, 16, 24, 32, 44]) onLeft(18, 62, 84, z, z + 1, C.redDim);
     ibox(98, 0, 176, 26, 0, 28, C.bench, C.benchTop);
@@ -398,25 +575,31 @@ SCREENS.garage = {
     if (S.flags.screwsSpilt && !S.flags.n3found) for (let n = 0; n < 60; n++) { const p = P(100 + hash(n, 9) * 70, 30 + hash(9, n) * 30); px(p[0], p[1], C.steel); }
     ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
     isoCar(40, 46, 1.25);
+    for (const [wx, wy] of [[83, 61], [91, 61], [83, 85], [91, 85]]) { const w = P(wx, wy, 0.6); ellipse(w[0], w[1], 2, 1, C.tyre); }   // the creeper's little wheels
     ibox(82, 60, 92, 86, 1, 3, C.red);
     standingMan('garage');
     spot('Toolbox', isoArea(60, 0, 86, 18, 0, 50), 'toolbox', [73, 26]);
+    spot('Shelves: what you\'ve bought', isoArea(2, 0, 56, 10, 0, 78), 'stores', [30, 24]);
     spot('Workbench', isoArea(98, 0, 176, 26, 0, 40), 'bench', [132, 34]);
     spot('Manuals', isoArea(0, 18, 14, 96, 50, 66), 'shelf', [22, 56]);
-    spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'act:look:Parts boxes', [26, 118]);
+    spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'partsbox', [26, 118]);
     spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
     spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
     spot('Under the car (creeper)', isoArea(80, 58, 94, 88, 0, 4), 'under', [96, 80]);
-    spot('Out', isoArea(130, 126, 178, 140, 0, 2), 'home', [150, 132]);
+    exitDoor(140, [136, 168, 52]);                                    // the way out: a see-through door in the near wall
+    spot('Door: leave', isoArea(136, 136, 168, 140, 0, 52), 'home', [150, 128]);
+    if (wifeInGarage()) spot('Talk to the wife', isoArea(WIFE_IN_GARAGE[0] - 4, WIFE_IN_GARAGE[1] - 4, WIFE_IN_GARAGE[0] + 4, WIFE_IN_GARAGE[1] + 4, 0, 40), 'act:wife', [160, 48]);
+    if (S.flags.n3lost && !S.flags.n3found) {                        // the lost nut: look under things
+      spot('Look under the shelves', isoArea(2, 0, 56, 12, 0, 6), 'act:search:the shelves', [30, 24]);
+      spot('Look under the tool chest', isoArea(60, 0, 86, 20, 0, 6), 'act:search:the tool chest', [73, 28]);
+      spot('Look under the workbench', isoArea(98, 0, 176, 28, 0, 6), 'act:search:the workbench', [132, 36]);
+      spot('Look under the car', isoArea(40, 50, 70, 100, 0, 4), 'act:search:the car', [34, 70]);
+      spot('Look under the parts boxes', isoArea(0, 104, 18, 138, 0, 4), 'act:search:the parts boxes', [26, 118]);
+    }
     hud();
   },
   actions() {
-    return [
-      { label: 'Under the car', act: 'go:under' }, { label: 'Under the bonnet', act: 'go:bonnet' },
-      { label: 'Driver\'s seat', act: 'go:dash' }, { label: 'Workbench', act: 'go:bench' },
-      { label: 'Toolbox', act: 'go:toolbox' }, { label: 'Out', act: 'go:home' },
-      ...(S.flags.n3lost && !S.flags.n3found ? ['the car', 'the workbench', 'the tool chest', 'the parts boxes', 'the shelves'].map(w => ({ label: 'Search under ' + w, act: 'search:' + w })) : [])
-    ];
+    return [];                                                         // everything is in the picture: tap it
   }
 };
 
@@ -746,9 +929,10 @@ SCREENS.dash = {
     spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [kx - 16, ky - 16, 36, 32], 'act:turnkey');
     spot('Accelerator', [248, 222, 36, 46], 'act:pedal');
     spot(S.flags.hatch ? 'Diagnostic port' : 'Hatch under the wheel', [58, 220, 36, 30], 'act:hatch');
-    spot('Radio: left', [bl - 7, 153, 14, 14], 'act:radio:-1');
-    spot(radioState().unlocked ? 'Radio: on / off' : 'Radio: change the number', [bm - 7, 153, 14, 14], 'act:radio:0');
-    spot('Radio: right', [br - 7, 153, 14, 14], 'act:radio:1');
+    const below = 'transform:translate(-50%,3.6cqw)';                                    // radio names show under the buttons, not over the code
+    spot('Radio: left', [bl - 7, 153, 14, 14], 'act:radio:-1', null, below);
+    spot(radioState().unlocked ? 'Radio: on / off' : 'Change the number', [bm - 7, 153, 14, 14], 'act:radio:0', null, below);
+    spot('Radio: right', [br - 7, 153, 14, 14], 'act:radio:1', null, below);
     spot('Door handle: get out', DOOR_HANDLE, 'garage');
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
@@ -786,12 +970,16 @@ SCREENS.bench = {
     const moving = ANIM && ANIM.kind.startsWith('bench');           // while a moment moves the part, it draws it
     if (b && !moving) benchPart(b, LIFT[b.state], 0);
     ISO.ox = 240; ISO.oy = 64;
-    if (S.inv['old-sensor']) { ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink); }
+    if (S.inv['old-sensor']) {                                         // the old sensor, on the bench: tap it to try it in the hole
+      ibox(170, 30, 210, 44, 0, 12, C.greyDark); text('OLD', ...P(196, 40, 22), C.ink);
+      spot('The old sensor: try it', isoArea(170, 30, 210, 44, 0, 12), 'act:pick:old-sensor');
+    }
     tip('Workbench', b ? ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '') : 'Pick a part to try.', 1, 8);
     hud();
   },
   actions() {
     const a = [];
+    if (S.inv['old-sensor']) a.push({ label: 'Try the old sensor', act: 'pick:old-sensor' });
     if (S.inv['part-p4l']) a.push({ label: 'Try the Parts 4 Less sensor', act: 'pick:part-p4l' });
     if (S.inv['part-mega']) a.push({ label: 'Try the MegaMart sensor', act: 'pick:part-mega' });
     if (S.bench && S.bench.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
@@ -801,6 +989,47 @@ SCREENS.bench = {
     return a;
   }
 };
+
+// =====================================================================
+// LOOKING UNDER SOMETHING IN THE GARAGE: lying on the floor; black, unless you've got a torch on
+// =====================================================================
+const UNDER_FINDS = {                                                 // what's down there: [x, y, what] on the floor
+  'the car': [[150, 200, 'coin'], [300, 220, 'wrapper'], [240, 180, 'stain']],
+  'the shelves': [[120, 210, 'dust'], [260, 190, 'dust'], [340, 220, 'dust']],
+  'the parts boxes': [[180, 200, 'spider'], [300, 210, 'sandwich']],
+  'the workbench': [[140, 200, 'screw'], [200, 220, 'screw'], [260, 190, 'screw'], [320, 215, 'screw'], [360, 200, 'screw']],
+  'the tool chest': [[330, 168, 'nut'], [160, 210, 'dust']]
+};
+SCREENS.lookunder = {
+  size: [480, 270],
+  paint() {
+    const where = S.under || 'the tool chest';
+    const lit = S.flags.torchLit || S.flags.phoneTorch;
+    rect(0, 0, W, H, hex('#08080a'));
+    rect(0, 18, W, 120, hex('#1a1a1e'));                             // the underneath of it, just above your head
+    for (const x of [40, 430]) rect(x, 18, 12, 150, hex('#222226'));    // its legs (or wheels)
+    rect(0, 150, W, 120, hex('#141416'));                            // the floor, going back into the dark
+    if (lit) {
+      ellipse(240, 205, 210, 60, hex('#6a6450'));                    // the torch's pool of light
+      ellipse(240, 205, 150, 42, hex('#8a826a'));
+      for (const [x, y, k] of UNDER_FINDS[where] || []) underFind(k, x, y);
+    }
+    tip('Under ' + esc(where), lit ? 'Lying on the cold floor with a light.' : 'Pitch black. You need a light.', 1, 8);
+    hud();
+  },
+  actions() { return [{ label: 'Get up', act: 'go:garage' }]; }
+};
+// One thing on the floor under there
+function underFind(k, x, y) {
+  if (k === 'nut') { if (S.flags.n3found) return; nutAt(x, y, 6, 0.3, C.steel2); disc(x, y, 2, C.ink); px(x - 3, y - 4, C.white); px(x - 2, y - 5, C.white); return; }   // a glint
+  if (k === 'coin') { ellipse(x, y, 5, 3, C.warm); return; }
+  if (k === 'wrapper') { rect(x - 6, y - 3, 12, 6, C.red); rect(x - 2, y - 2, 4, 4, C.white); return; }
+  if (k === 'stain') { ellipse(x, y, 18, 6, hex('#2a2620')); return; }
+  if (k === 'spider') { disc(x, y, 2, C.ink); for (let n = 0; n < 8; n++) line(x, y, x + Math.cos(n * 0.8) * 6, y + Math.sin(n * 0.8) * 4, C.ink); return; }
+  if (k === 'sandwich') { poly([[x - 8, y + 4], [x + 8, y + 4], [x, y - 6]], hex('#e8c890')); return; }
+  if (k === 'screw') { line(x - 4, y + 1, x + 4, y - 1, C.steel); disc(x + 4, y - 1, 1, C.steel2); return; }
+  ellipse(x, y, 7, 3, hex('#5a5650')); px(x - 2, y - 2, hex('#7a7670'));          // dust
+}
 
 // =====================================================================
 // THE TOOLBOX: a tall red chest; each drawer pulls out to show what's in it
@@ -814,37 +1043,63 @@ const DRAWER_NOTES = [
   'A multimeter, a crimping tool, loose fuses and a test lamp.',
   'A breaker bar, a bent wheel brace, the jack handle, and a hammer-shaped gap.'
 ];
+// The tool chest: where it is, and where each drawer's front is
+const CHEST = { x0: 140, x1: 340, top: 26 };
+// How far to look down so an open drawer's front fits on the screen (only the bottom drawers need it)
+function chestLift(d) {
+  if (!d) return 0;
+  const front = CHEST.top + 34 + (d - 1) * 28 + 6 + 96 + 18;                 // the bottom of its front, pulled out
+  return Math.max(0, front - (H - 6));
+}
+const chestTop = () => CHEST.top - chestLift(S.drawer);
+const drawerSlot = k => chestTop() + 34 + k * 28;
+let DRAWER_MOVE = null;                                           // a drawer sliding: { d, opening } (drawn by the 'drawer' moment)
+// Drawer d pulled out towards you: out = 0 (shut) to 1 (all the way out), seen from above, over the drawers below it
+function pulledDrawer(d, out) {
+  const { x0, x1 } = CHEST;
+  const y = drawerSlot(d - 1) + 6 - (1 - out) * 96;               // the whole drawer slides down the screen as it comes out
+  poly([[x0 - 6, y], [x1 + 6, y], [x1 + 40, y + 96], [x0 - 40, y + 96]], shade(C.red, 0.7));
+  poly([[x0, y + 4], [x1, y + 4], [x1 + 32, y + 88], [x0 - 32, y + 88]], hex('#3a3c42'));
+  rect(x0 - 40, y + 96, x1 - x0 + 80, 18, C.red); rect(x0 + 40, y + 102, x1 - x0 - 80, 4, C.steel);
+  drawerContents(d, x0, y);
+  if (out < 1 && BG) {                                            // the part still inside the chest is hidden: put the chest back over it
+    const hide = (drawerSlot(d - 1) + 2) * W * 4;
+    img.data.set(BG.subarray(0, hide), 0);
+  }
+}
+
 SCREENS.toolbox = {
   size: [480, 270],
   paint() {
     grime(0, 0, W, H, C.concrete, 0.08, 81);
     for (let y = 6; y < 230; y += 9) rect(0, y, W, 1, C.concreteDark);
-    rect(0, 230, W, 40, C.floor); rect(0, 230, W, 1, C.steel2);
+    const { x0, x1 } = CHEST, top = chestTop(), lift = chestLift(S.drawer);   // a bottom drawer out: look down a bit
+    rect(0, 230 - lift, W, 40 + lift, C.floor); rect(0, 230 - lift, W, 1, C.steel2);
     // the chest: top box with a lid, then six drawers, on wheels
-    const x0 = 140, x1 = 340, top = 26;
     rbox(x0 - 4, top, x1 - x0 + 8, 30, 4, C.red); rect(x0, top + 22, x1 - x0, 3, C.redDim); rect(220, top + 8, 40, 4, C.steel);
     rect(x0 - 4, top + 30, x1 - x0 + 8, 176, shade(C.red, 0.85));
-    const slot = k => top + 34 + k * 28;
+    const slot = drawerSlot;
     for (let k = 0; k < 6; k++) {
       rect(x0, slot(k), x1 - x0, 25, C.red); rect(x0, slot(k), x1 - x0, 2, shade(C.red, 1.2)); rect(x0, slot(k) + 23, x1 - x0, 2, C.redDim);
       rect(x0 + 60, slot(k) + 9, 80, 4, C.steel); rect(x0 + 60, slot(k) + 12, 80, 1, C.steel2);
       text(String(k + 1), x0 + 8, slot(k) + 9, C.redDim);
     }
-    for (const wx of [x0 + 6, x1 - 18]) { disc(wx + 6, 236, 6, C.tyre); disc(wx + 6, 236, 2, C.steel); }
+    for (const wx of [x0 + 6, x1 - 18]) { disc(wx + 6, 236 - lift, 6, C.tyre); disc(wx + 6, 236 - lift, 2, C.steel); }
     // the open drawer: pulled out towards you, seen from above, over the drawers below it
     const d = S.drawer;
-    if (d) {
-      const y = slot(d - 1) + 6;
-      poly([[x0 - 6, y], [x1 + 6, y], [x1 + 40, y + 96], [x0 - 40, y + 96]], shade(C.red, 0.7));
-      poly([[x0, y + 4], [x1, y + 4], [x1 + 32, y + 88], [x0 - 32, y + 88]], hex('#3a3c42'));
-      rect(x0 - 40, y + 96, x1 - x0 + 80, 18, C.red); rect(x0 + 40, y + 102, x1 - x0 - 80, 4, C.steel);
-      drawerContents(d, x0, y);
+    const sliding = ANIM && ANIM.kind === 'drawer';               // while it slides, the moment draws it
+    if (d && !sliding) pulledDrawer(d, 1);
+    // tap a drawer's front to pull it out; tap the open one's front to push it back
+    for (let k = 0; k < 6; k++) {
+      if (d && k >= d - 1) continue;                              // the open drawer covers itself and the ones below
+      spot(`Drawer ${k + 1}: ${esc(DRAWERS[k])}`, [x0, slot(k), x1 - x0, 25], 'act:drawer:' + (k + 1));
     }
-    tip('Toolbox', d ? `Drawer ${d}: ${esc(DRAWERS[d - 1])}.<br>${esc(DRAWER_NOTES[d - 1])}` : 'Six drawers. Pull one out.', 1, 8);
+    if (d) spot(`Push drawer ${d} shut`, [x0 - 40, slot(d - 1) + 102, x1 - x0 + 80, 18], 'act:drawer:' + d);
+    tip('Toolbox', d ? `Drawer ${d}: ${esc(DRAWERS[d - 1])}.<br>${esc(DRAWER_NOTES[d - 1])}` : 'Six drawers. Tap one to pull it out.', 1, 8);
     hud();
   },
   actions() {
-    const a = DRAWERS.map((name, i) => ({ label: (S.drawer === i + 1 ? 'Close ' : 'Open ') + `${i + 1}: ${name}`, act: 'drawer:' + (i + 1) }));
+    const a = [];
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
     if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
     if (S.drawer === 5) a.push({ label: 'Test the multimeter', act: 'meter' }, { label: 'Take the torch', act: 'takeTorch' });

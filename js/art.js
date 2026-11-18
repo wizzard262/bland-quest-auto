@@ -113,18 +113,24 @@ function panel(lines, x, y, colour = C.ui) {
   lines.forEach((ln, i) => text(ln, x + 4, y + 4 + i * 8, i === 0 ? C.mint : colour));
 }
 
+// The anger bar: green, then orange, then red; it shakes when it goes up, and all the time over half (faster the angrier)
+let ANGER_UP = 0;                                           // when anger last went up (performance.now())
+function angerBar(anger, x, y, w, h) {
+  const colour = anger < 40 ? 'calm' : anger < 70 ? 'cross' : 'furious';
+  const bump = performance.now() - ANGER_UP < 700 ? ' bump' : '';
+  const shake = anger > 50 ? ` shaking" style="--speed:${(0.5 - (anger - 50) / 50 * 0.42).toFixed(2)}s;` : '" style="';
+  LABELS.push(`<div class="anger ${colour}${bump}${shake}left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"><i style="width:${anger}%"></i></div>`);
+}
 // ---------- the same strip on every world screen: time, task, anger, phone ----------
 // s = how big the pixels of the strip are (2 on the bigger city picture, so it reads the same)
 function hud() {
   const info = hudInfo();                                  // from the game: clock, current job, anger 0-100, unread texts
-  const s = W >= 640 ? 2 : 1;
+  const s = W > 500 ? 2 : 1;                               // the town map is bigger: draw the strip twice size there
   rect(0, 0, W, 18 * s, C.ink);
   text(info.clock, 4 * s, 3 * s, C.dim, s);
   text('JOB: ' + info.task, 4 * s, 10 * s, C.ui, s);
   text('ANGER', W - 74 * s, 3 * s, C.dim, s);
-  rect(W - 50 * s, 3 * s, 46 * s, 5 * s, C.grey);
-  rect(W - 49 * s, 4 * s, Math.round(44 * s * info.anger / 100), 3 * s, info.anger > 75 ? C.red : C.warm);
-  link('act:calm', W - 76 * s, 0, 74 * s, 12 * s);                     // tap the anger bar: ways to calm down
+  angerBar(info.anger, W - 50 * s, 3 * s, 46 * s, 5 * s);           // the anger bar (it shakes when you're wound up)
   // phone in your pocket, with a red dot for unread texts
   const x = W - 18 * s, y = H - 23 * s;
   rect(x, y, 11 * s, 17 * s, C.ink); rect(x + s, y + s, 9 * s, 15 * s, C.ui); rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, C.glass);
@@ -199,26 +205,31 @@ const CAR_SHAPES = {
 // opts.shape: one of CAR_SHAPES (ours if not given); opts.alongX: turned to drive along x (parking at the kerb, traffic)
 // opts.broken: a wreck (rust, dark empty windows, a smashed headlight); opts.noWheels: down on its axles;
 // opts.noBonnet: the bonnet's gone (you see the engine bay); opts.flat: flat tyres; opts.dz: lifts it (to stack wrecks)
+// opts.reverse: facing the other way, so you see its back (traffic coming the other way)
 function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const K = CAR_SHAPES[opts.shape] || CAR_SHAPES.zafira;
   const broken = !!opts.broken, dz = opts.dz || 0;
   const sink = opts.noWheels ? 3 : 0;                                                    // no wheels: it sits lower
-  const Q = opts.alongX ? (a, b, c) => P(x + b * s, y + a * s, (c - sink) * s + dz)
-                        : (a, b, c) => P(x + a * s, y + b * s, (c - sink) * s + dz);
+  const rev = !!opts.reverse;                                                            // facing the other way: front to back
+  const flip = b => rev ? K.L - b : b;
+  const Q = opts.alongX ? (a, b, c) => P(x + flip(b) * s, y + a * s, (c - sink) * s + dz)
+                        : (a, b, c) => P(x + a * s, y + flip(b) * s, (c - sink) * s + dz);
   const F = pts => pts.map(([a, b, c]) => Q(a, b, c));
   const side = pts => F(pts.map(([b, c]) => [24, b, c]));                                // a shape on the side we see
-  const nose = pts => F(pts.map(([a, c]) => [a, K.L, c]));                               // a shape on the front
+  const nose = pts => rev ? [] : F(pts.map(([a, c]) => [a, K.L, c]));                    // a shape on the front (hidden when it faces away)
+  const tail = pts => F(pts.map(([a, c]) => [a, 0, c]));                                 // a shape on the back (seen when it faces away)
   const i0 = K.inset === undefined ? 2 : K.inset;                                        // the cabin is a little narrower than the body
   const i1 = 24 - i0;
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
-  poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass ? glass : shade(col, 0.7));
+  poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass || rev ? glass : shade(col, 0.7));
   poly(F([[0, 0, K.tz], [24, 0, K.tz], [24, Math.max(1, K.hy), K.tz], [0, Math.max(1, K.hy), K.tz]]), shade(col, 1.15));
   // the side: below the windows, the sill, then the cabin above
   poly(side([[0, 4], [0, K.tz], [K.sy, K.sz], [L, K.nz], [L, 4]]), col);
   poly(side([[0, 4], [L, 4], [L, 6], [0, 6]]), shade(col, 0.7));
+  if (rev) carBack(K, tail, col, broken);                                               // facing away: its back, lights and plate
   poly(F([[i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i1, K.ry1, K.rz], [i1, K.sy, K.sz]]), col);
   const win = K.win || [[K.hy + 2, K.tz + 1], [K.ry0 + 1, K.rz - 1], [K.ry1 - 1, K.rz - 1], [K.sy - 2, K.sz + 0.5]];
   poly(F(win.map(([b, c]) => [i1, b, c])), glass);                                                                 // side windows
@@ -254,6 +265,15 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
   carWheels(K, Q, side, col, broken, opts);
   if (broken) rustOn(Q, L, x);
+}
+// A car's back (when it's facing away): the tailgate, bumper, number plate, rear lights
+function carBack(K, tail, col, broken) {
+  poly(tail([[0, 4], [24, 4], [24, K.tz], [0, K.tz]]), shade(col, 0.8));                     // the tailgate
+  poly(tail([[0, 4], [24, 4], [24, 6], [0, 6]]), shade(col, 0.55));                          // the bumper
+  poly(tail([[9, 6.5], [15, 6.5], [15, 8.5], [9, 8.5]]), C.warm);                            // the number plate (yellow at the back)
+  const tl = Math.max(8, K.tz - 5), red = broken ? C.redDim : C.red;
+  poly(tail([[1, tl], [5, tl], [5, K.tz - 1], [1, K.tz - 1]]), red);                         // rear lights
+  poly(tail([[19, tl], [23, tl], [23, K.tz - 1], [19, K.tz - 1]]), red);
 }
 // Bumpers, grille, number plate, lights (one smashed on a wreck), door handles, mirror
 function carDetails(K, Q, side, nose, col, broken, pillar, i1) {
@@ -319,6 +339,15 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     L(10, -2, 14, -6, K.jeans); L(14, -6, 18, -2, K.jeans);
     L(6, -4, 7, -9, K.shirt); D(7, -10, K.skin); return;
   }
+  if (pose === 'sit') {                                  // on a stool: knees bent, feet on the rung (hips where his feet would be, 9 up)
+    R(0, -19, 2, 3, K.skin); R(0, -19, 2, 1, K.hair); D(0, -16, K.skin);
+    R(0, -15, 2, 5, K.shirt); D(0, -10, K.jeans);
+    L(0, -9, -1, -7, K.jeansDark); L(-1, -7, -1, -4, K.jeansDark);
+    L(1, -9, 2, -7, K.jeans); L(2, -7, 2, -4, K.jeans);
+    L(0, -14, -1, -11, K.shirtDark); D(-1, -10, K.skin);
+    L(1, -14, 2, -11, K.shirt); D(2, -10, K.skin);
+    return;
+  }
   if (pose === 'walk') {                                 // mid-stride: legs and arms swing opposite ways; phase = how far through the step
     const sw = Math.round(Math.sin(phase) * 2), up = Math.abs(Math.sin(phase)) < 0.4 ? 0 : 1;
     const Y = d => d - up;                               // a little bob on each step
@@ -335,6 +364,147 @@ function man(x, y, pose, s = 1, phase = 0, look) {
   L(0, -14, -1, -9, K.shirtDark); D(-1, -8, K.skin);
   L(1, -14, 2, -9, K.shirt); D(2, -8, K.skin);
 }
+
+// ---------- his wife: a choice of glamorous looks, drawn in fine (1-pixel) detail, about as tall as him ----------
+// x, y = the ground point in world units. Each look: the dress (full, gown, short or wiggle), colours, hair and its style, extras
+const WIFE_LOOKS = {
+  pinup: { name: '1950s pin-up', cut: 'full', dress: hex('#c8203a'), dots: C.white, hair: hex('#f0d070'), style: 'curls', shoes: hex('#c8203a'), halter: true },
+  gown: { name: 'Film star', cut: 'gown', dress: hex('#1e8a5a'), hair: hex('#b04a20'), style: 'long', shoes: hex('#d8b040'), earrings: hex('#f0d050') },
+  lbd: { name: 'Little black dress', cut: 'short', dress: hex('#1a1a22'), hair: hex('#2a1810'), style: 'bob', shoes: hex('#1a1a22'), pearls: true },
+  diner: { name: '1960s wiggle dress', cut: 'wiggle', dress: hex('#f090b8'), hair: hex('#5a3418'), style: 'ponytail', shoes: C.white, scarf: C.white },
+  cocktail: { name: 'Gold cocktail dress', cut: 'short', dress: hex('#d8b040'), hair: hex('#f0d070'), style: 'bob', shoes: hex('#d8b040'), earrings: C.white },
+  redcarpet: { name: 'Red carpet gown', cut: 'gown', dress: hex('#b01020'), hair: hex('#1a1210'), style: 'long', shoes: C.ink, earrings: C.white },
+  sundress: { name: 'Summer sundress', cut: 'full', dress: hex('#f0c830'), dots: C.white, hair: hex('#7a4a28'), style: 'curls', shoes: hex('#c8a070'), halter: true },
+  office: { name: 'Navy pencil dress', cut: 'wiggle', dress: hex('#203a7a'), hair: hex('#f0d070'), style: 'updo', shoes: C.ink, pearls: true },
+  jeans: { name: 'Jeans and a crop top', cut: 'trousers', dress: hex('#3a5aa0'), top: C.white, crop: true, hair: hex('#e8c060'), style: 'long', shoes: C.white },
+  rock: { name: 'Rock chick', cut: 'trousers', dress: hex('#1a1a22'), top: hex('#c8203a'), hair: hex('#101010'), style: 'bob', shoes: C.ink, earrings: C.steel },
+  flapper: { name: '1920s flapper', cut: 'short', dress: hex('#c8c8d0'), dots: hex('#f0f0f8'), hair: hex('#101010'), style: 'bob', band: hex('#c8203a'), shoes: C.ink, pearls: true },
+  disco: { name: 'Disco jumpsuit', cut: 'trousers', flare: true, dress: hex('#8a3ac0'), hair: hex('#7a4a28'), style: 'perm', shoes: hex('#d8b040'), earrings: hex('#f0d050') },
+  tennis: { name: 'Tennis whites', cut: 'short', dress: C.white, hair: hex('#f0d070'), style: 'ponytail', shoes: C.white, scarf: hex('#40a060') },
+  navy: { name: 'Navy pencil dress, dark updo', cut: 'wiggle', dress: hex('#203a7a'), hair: hex('#3a2010'), style: 'updo', shoes: C.ink, pearls: true, earrings: C.white },   // Steve's pick (H's dress, N's hair)
+  nightie: { name: 'Nightie (at night)', cut: 'baby', dress: hex('#f4c8d8'), dots: hex('#fbe4ec'), hair: hex('#3a2010'), style: 'long', barefoot: true },   // Steve's pick: short, bare feet, hair down
+  slip: { name: 'Satin slip (night)', cut: 'gown', dress: hex('#f0e0c0'), hair: hex('#3a2010'), style: 'long', shoes: hex('#f0e0c0'), slippers: true },
+  pjs: { name: 'Silk pyjamas (night)', cut: 'shorts', dress: hex('#203a7a'), hair: hex('#3a2010'), style: 'long', shoes: hex('#203a7a'), slippers: true },
+  tee: { name: 'Big T-shirt (night)', cut: 'short', dress: hex('#8a8a90'), tee: true, hair: hex('#3a2010'), style: 'long', shoes: hex('#e8e0d0'), slippers: true },
+  robe: { name: 'Silk dressing gown (night)', cut: 'gown', dress: hex('#b01020'), belt: hex('#f0c040'), hair: hex('#3a2010'), style: 'long', shoes: hex('#b01020'), slippers: true },
+  velvet: { name: 'Velvet evening gown', cut: 'gown', dress: hex('#5a2070'), hair: hex('#3a2010'), style: 'updo', shoes: C.ink, earrings: C.white }
+};
+// One row of pixels, centred on cx (w wide; an odd width sits one pixel to the right)
+function rowAt(cx, y, w, col) { rect(Math.round(cx - w / 2), y, w, 1, col); }
+// step: 0 standing, or 1 / -1 mid-stride (walking round the house)
+// sit: sitting down (on the sofa): she's lower, with her knees bent towards you
+function wife(wx, wy, lookId, step = 0, sit = false) {
+  const K = WIFE_LOOKS[lookId] || WIFE_LOOKS.pinup;
+  const [fx, fy] = P(wx, wy), x = Math.round(fx), floor = Math.round(fy), y = floor + (sit ? 7 : 0);
+  const skin = C.skin, skinDark = shade(C.skin, 0.85), dress = K.dress, dressDark = shade(K.dress, 0.75);
+  const lean = step ? 1 : 0;
+  // legs and heels (a little apart; one forward when she walks)
+  const legL = x - 2 - (step > 0 ? 1 : 0), legR = x + 1 + (step < 0 ? 1 : 0);
+  for (const lx of [legL, legR]) {
+    if (sit) { rect(lx, y - 18, 2, floor - (y - 18) - 1, skin); rect(lx - 1, floor - 1, 3, 1, K.barefoot ? skin : K.shoes); continue; }   // knees up, feet on the floor
+    rect(lx, y - 18, 2, 14, skin); rect(lx, y - 4, 1, 3, skin);          // thigh to calf (the dress covers the top), then a slim ankle
+    rect(lx + 1, y - 9, 1, 3, skinDark);                                  // a touch of shadow down the calf
+    if (K.barefoot) rect(lx - 1, y - 1, 3, 1, C.skin);                    // bare feet
+    else if (K.slippers) rect(lx - 1, y - 1, 3, 2, K.shoes);              // fluffy slippers
+    else { rect(lx - 1, y - 1, 3, 1, K.shoes); rect(lx + 1, y - 2, 1, 1, K.shoes); rect(lx - 1, y, 1, 1, K.shoes); }   // a heel
+  }
+  // the dress, from the hips down
+  if (K.cut === 'full') {                                                 // a full, swirling skirt to the knee
+    for (let k = 0; k < 10; k++) rowAt(x, y - 22 + k, 8 + Math.round(k * 1.1), k === 9 ? dressDark : dress);
+    if (K.dots) for (const [dx, dy] of [[-4, -19], [1, -20], [4, -16], [-2, -15], [-6, -14], [3, -13], [0, -17], [6, -14]]) rect(x + dx, y + dy, 1, 1, K.dots);
+  }
+  if (K.cut === 'gown') {                                                 // to the floor, with a slit up one side
+    for (let k = 0; k < 22; k++) rowAt(x, y - 22 + k, 9 + Math.floor(k / 5), k % 6 === 3 ? dressDark : dress);
+    rect(legR, y - 12, 2, 11, skin); rect(legR + 1, y - 9, 1, 3, skinDark);   // the leg through the slit
+    rect(legR - 1, y - 1, 3, 1, K.shoes);
+  }
+  if (K.cut === 'short') {                                                // above the knee, fitted
+    for (let k = 0; k < 8; k++) rowAt(x, y - 22 + k, 10 - (k > 5 ? 1 : 0), k === 7 ? dressDark : dress);
+    if (K.dots) for (let k = 0; k < 8; k += 2) rowAt(x, y - 21 + k, 9, K.dots);   // rows of fringe
+  }
+  if (K.cut === 'baby') { for (let k = 0; k < 5; k++) rowAt(x, y - 22 + k, 10 + (k > 2 ? 1 : 0), k === 4 ? K.dots : dress); }   // a short babydoll nightie, frilled hem
+  if (K.cut === 'shorts') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); for (const lx of [legL, legR]) rect(lx, y - 20, 2, 4, dress); }   // short pyjama shorts
+  if (K.cut === 'trousers') {                                             // trousers or jeans, to the ankle (flared for the jumpsuit)
+    rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); rowAt(x, y - 20, 7, dress);
+    for (const lx of [legL, legR]) { rect(lx, y - 19, 2, 17, dress); rect(lx + 1, y - 15, 1, 6, dressDark); if (K.flare) rect(lx - 1, y - 4, 4, 2, dress); }
+  }
+  if (K.cut === 'wiggle') { for (let k = 0; k < 11; k++) rowAt(x, y - 22 + k, 10 - Math.floor(k / 4), k === 10 ? dressDark : dress); }   // hugging, to just below the knee
+  // the waist (cinched), the bodice, the shoulders and arms
+  const top = K.top || dress;
+  rowAt(x, y - 23, 6, K.crop ? skin : top); rowAt(x, y - 24, 6, K.crop ? skin : top); rowAt(x, y - 25, 7, top);
+  if (K.cut === 'full') rowAt(x, y - 24, 6, C.ink);                       // a thin belt
+  if (K.belt) rowAt(x, y - 24, 6, K.belt);
+  for (const [dy, w] of [[-26, 8], [-27, 9], [-28, 9], [-29, 8]]) rowAt(x, y + dy, w, top);   // the bust
+  rowAt(x, y - 28, 9, shade(top, 0.75)); rowAt(x, y - 29, 7, top);       // the line of the neckline
+  if (K.halter) { rect(x - 2, y - 32, 1, 3, dress); rect(x + 1, y - 32, 1, 3, dress); }   // halter straps
+  for (const [dy, w] of [[-30, 9], [-31, 8]]) rowAt(x, y + dy, w, skin);  // bare shoulders
+  if (K.halter) { rect(x - 2, y - 31, 1, 2, dress); rect(x + 1, y - 31, 1, 2, dress); }
+  if (K.tee) for (const sx of [x - 6, x + 4]) rect(sx, y - 30, 2, 4, dress);   // baggy T-shirt sleeves
+  for (const sx of [x - 5, x + 4]) { rect(sx, y - 30, 1, 7, skin); rect(sx + (sx < x ? 1 : -1) * lean, y - 23, 1, 4, skin); }   // arms, hands by her hips
+  if (K.pearls) { for (let k = -2; k <= 1; k++) rect(x + k, y - 30 + (k === -2 || k === 1 ? 0 : 1), 1, 1, C.white); }
+  // neck and face
+  rect(x - 1, y - 33, 2, 2, skin);
+  for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5], [-39, 4]]) rowAt(x, y + dy, w, skin);
+  rect(x - 2, y - 37, 1, 1, C.ink); rect(x + 1, y - 37, 1, 1, C.ink);    // eyes
+  rect(x - 1, y - 35, 2, 1, C.red);                                       // red lips
+  // hair
+  const h = K.hair, hd = shade(K.hair, 0.8);
+  if (K.style === 'curls') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) { rect(sx, y - 39, 2, 6, h); rect(sx, y - 35, 1, 1, hd); } rect(x - 3, y - 39, 2, 2, h); }
+  if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); rect(x + 4, y - 28, 1, 4, hd); rect(x - 4, y - 32, 1, 3, hd); rect(x - 3, y - 39, 2, 2, h); }
+  if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); rowAt(x, y - 39, 6, h); }
+  if (K.style === 'ponytail') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); rect(x - 4, y - 39, 1, 4, h); rect(x + 3, y - 39, 1, 3, h); rect(x + 4, y - 40, 2, 2, h); rect(x + 5, y - 38, 2, 7, h); rect(x + 6, y - 32, 1, 2, hd); }
+  if (K.style === 'updo') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 5, h); rowAt(x, y - 42, 3, h); rect(x - 3, y - 39, 1, 3, h); rect(x + 2, y - 39, 1, 3, h); }
+  if (K.style === 'perm') { for (const [dy, w] of [[-42, 6], [-41, 9], [-40, 10], [-39, 10], [-38, 10]]) rowAt(x, y + dy, w, h); for (const sx of [x - 5, x + 4]) rect(sx, y - 37, 2, 5, h); rowAt(x, y - 39, 5, skin); rowAt(x, y - 38, 5, skin); }
+  if (K.band) rowAt(x, y - 39, 6, K.band);
+  if (K.scarf) rowAt(x, y - 40, 6, K.scarf);
+  if (K.earrings) { rect(x - 3, y - 35, 1, 1, K.earrings); rect(x + 2, y - 35, 1, 1, K.earrings); }
+}
+// Where her head is on screen (for her speech bubble's arrow)
+function wifeHead() {
+  const inGarage = S.screen === 'garage';                              // she comes to the garage at night
+  [ISO.ox, ISO.oy] = inGarage ? VIEW.garage : VIEW.room;
+  const p = P(...(inGarage ? WIFE_IN_GARAGE : WIFE.pos));
+  return [p[0] + 2, p[1] - 42];
+}
+
+// ---------- night: how dark it is outside, the picture darkened, and lights that glow ----------
+// 0 by day; dusk from 18:00 to 20:30; night (0.72) until 5:30; light again by 7:30
+function darkness() {
+  const m = S.mins, night = 0.72;
+  if (m >= 20.5 * 60 || m < 5.5 * 60) return night;
+  if (m >= 18 * 60) return night * (m - 18 * 60) / 150;
+  if (m < 7.5 * 60) return night * (1 - (m - 5.5 * 60) / 120);
+  return 0;
+}
+// The sky's colour now (for windows that look out)
+function skyColour() {
+  const d = darkness() / 0.72;
+  return [Math.round(lerpN(120, 18, d)), Math.round(lerpN(176, 26, d)), Math.round(lerpN(232, 64, d))];
+}
+const lerpN = (a, b, p) => a + (b - a) * p;
+// Darken a part of the picture for the night: red and green go first, so it turns blue
+function nightShade(x0, y0, x1, y1, d) {
+  const dd = img.data;
+  for (let y = Math.max(0, y0); y < Math.min(H, y1); y++) for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
+    const i = (y * W + x) * 4;
+    dd[i] *= 1 - d; dd[i + 1] *= 1 - d * 0.92; dd[i + 2] *= 1 - d * 0.7;
+  }
+}
+// A light glowing at x, y: warm, fading out to radius r (brighter the darker it is)
+function lampGlow(x, y, r, d) {
+  const dd = img.data, k = Math.min(1, d / 0.5);
+  for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) {
+    if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+    const f = 1 - Math.hypot(xx - x, yy - y) / r;
+    if (f <= 0) continue;
+    const i = (yy * W + xx) * 4, a = f * f * 0.8 * k;
+    dd[i] += (255 - dd[i]) * a; dd[i + 1] += (220 - dd[i + 1]) * a; dd[i + 2] += (140 - dd[i + 2]) * a * 0.6;
+  }
+}
+// A lit window (warm yellow), on a wall facing left (y = yf) or right (x = xf)
+const LIT = hex('#f8d870');
+// Put the top bar back as it was (lights and glows mustn't spill over it)
+function keepHud(rows) { img.data.set(BG.subarray(0, rows * W * 4), 0); }
 
 // ---------- things you can point at: invisible until the pointer is over them ----------
 // The screen box round an isometric box (for a hover area over an object)

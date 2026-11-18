@@ -49,6 +49,12 @@
   /* ---- the manuals: a title down each spine, and an open book ---- */
   .spine { position: absolute; writing-mode: vertical-rl; font: bold 1.05cqw 'Segoe UI', Tahoma, sans-serif; text-rendering: geometricPrecision; text-align: center; overflow: hidden; pointer-events: none; }
   .book { left: 14%; top: 19%; width: 72%; height: 66%; display: flex; gap: 2%; font: 1.3cqw/1.5 Georgia, serif; color: #2a2418; }
+  .bookoff { inset: 0; cursor: pointer; }
+  .book { animation: bookopen .25s ease-out; }
+  @keyframes bookopen { from { transform: scaleX(.06); opacity: .5; } to { transform: none; opacity: 1; } }
+  .book .pg { display: flex; flex-direction: column; }
+  .book .pgnav { margin-top: auto; display: flex; align-items: center; justify-content: space-between; font: bold .9em Tahoma, sans-serif; color: #6a5a38; }
+  .book .flip { width: 2.4em; font-size: 1.1em; background: #e0d4b0; border: 1px solid #b8ab88; cursor: pointer; }
   .book .pg { flex: 1; background: #f4ecd4; padding: 1.2em 1.4em; box-shadow: inset 0 0 18px rgba(120, 90, 40, .35); }
   .book h3 { margin: 0 0 .6em; font-size: 1.2em; }
   .book .faint { color: #b8ab88; overflow: hidden; }
@@ -98,6 +104,77 @@
   .pc .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6em; }
   .pc .grid div { font-size: .85em; }
   .pc .grid div::before { content: ''; display: block; aspect-ratio: 4/3; background: var(--p, #6a7a80); margin-bottom: .2em; }
+  /* the computer's apps: each one looks like the site it's like */
+  .pc .dock { width: 19%; }
+  .pc .dock button { display: flex; align-items: center; gap: .5em; }
+  .pc .ic { width: 1.7em; height: 1.7em; flex: none; }
+  .pc .top { display: flex; align-items: center; gap: .5em; padding: .35em .7em; background: #fff; border-bottom: 1px solid #ddd; white-space: nowrap; overflow: hidden; }
+  .pc .top .logo { font: bold 1.25em Arial, sans-serif; letter-spacing: -.02em; }
+  .pc .top .search { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; background: #f1f3f4; border: 1px solid #ddd; border-radius: 2em; padding: .25em .9em; color: #666; }
+  .pc .cols { flex: 1; display: flex; min-height: 0; }
+  .pc .cols .side { width: 22%; display: flex; flex-direction: column; gap: .2em; padding: .6em .4em; }
+  .pc .win { background: #fff; color: #111; font-family: Arial, sans-serif; }
+  /* Yoo Toob */
+  .app-ViewTube .video { position: relative; aspect-ratio: 16/6; background: #000; border-radius: .5em; margin-bottom: .5em; }
+  .app-ViewTube .play { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 3.4em; height: 2.4em; background: #f03; border-radius: .6em; }
+  .app-ViewTube .play::after { content: ''; position: absolute; left: 1.3em; top: .65em; border-left: 1.1em solid #fff; border-top: .55em solid transparent; border-bottom: .55em solid transparent; }
+  .app-ViewTube .prog { position: absolute; left: 0; right: 0; bottom: 0; height: .25em; background: #555; }
+  .app-ViewTube .prog i { display: block; width: 37%; height: 100%; background: #f03; }
+  .app-ViewTube .chan { display: flex; align-items: center; gap: .6em; margin: .3em 0 .5em; }
+  .app-ViewTube .av { width: 2em; height: 2em; border-radius: 50%; background: #c44; color: #fff; display: grid; place-items: center; font-weight: bold; }
+  .app-ViewTube .sub { margin-left: auto; background: #f03; color: #fff; font-weight: bold; padding: .4em .9em; border-radius: 2em; font-size: .85em; }
+  .app-ViewTube button { background: #f03; color: #fff; border-radius: 2em; }
+  /* Reedit */
+  .app-Forum .top .logo { color: #1a1a1b; }
+  .app-Forum .top .sub { font-weight: bold; color: #ff4500; }
+  .app-Forum .body { background: #dae0e6; }
+  .app-Forum .card { display: flex; gap: .6em; background: #fff; border: 1px solid #ccc; border-radius: .3em; padding: .45em .6em; margin-bottom: .45em; }
+  .app-Forum .votes { display: flex; flex-direction: column; align-items: center; color: #888; font-size: .85em; min-width: 2.2em; }
+  .app-Forum .votes::first-line { color: #ff4500; }
+  .app-Forum .votes b { color: #1a1a1b; }
+  .app-Forum button { background: #ff4500; color: #fff; border-radius: 2em; }
+  /* Grrmail */
+  .app-Mail .top .logo { color: #5f6368; font-weight: normal; }
+  .app-Mail .side span { padding: .35em .7em; border-radius: 0 2em 2em 0; color: #202124; }
+  .app-Mail .side .compose { background: #c2e7ff; border-radius: 1em; font-weight: bold; margin-bottom: .4em; }
+  .app-Mail .side .here { background: #d3e3fd; font-weight: bold; }
+  .app-Mail .body { background: #f6f8fc; }
+  .app-Mail td { border-bottom: 1px solid #e0e0e0; }
+  /* Instaglum */
+  .app-Pics .top .logo { font: italic bold 1.5em 'Brush Script MT', 'Segoe Script', cursive; }
+  .app-Pics .prof { display: flex; align-items: center; gap: .8em; margin-bottom: .6em; }
+  .app-Pics .ring { width: 3.2em; height: 3.2em; border-radius: 50%; background: linear-gradient(45deg, #feda75, #d62976, #4f5bd5); display: grid; place-items: center; }
+  .app-Pics .ring span { width: 2.7em; height: 2.7em; border-radius: 50%; background: #3c78c8; border: .2em solid #fff; color: #fff; display: grid; place-items: center; font-weight: bold; }
+  .app-Pics .grid { grid-template-columns: repeat(3, 1fr); gap: 2px; margin-bottom: .4em; }
+  .app-Pics .grid div::before { aspect-ratio: 1; margin: 0; }
+  /* Zamnon */
+  .app-MegaMart .top { background: #131921; color: #fff; border: 0; }
+  .app-MegaMart .top .search { background: #fff; border-radius: .3em 0 0 .3em; color: #333; }
+  .app-MegaMart .top .sbtn { background: #febd69; padding: .25em .6em; border-radius: 0 .3em .3em 0; margin-left: -.5em; }
+  .app-MegaMart .stars { color: #ffa41c; }
+  .app-MegaMart td:first-child { color: #007185; }
+  .app-MegaMart button { background: #ffd814; color: #0f1111; border-radius: 2em; font-weight: normal; }
+  /* TheeBay */
+  .app-eBuy .top .logo { font-size: 1.5em; letter-spacing: -.06em; }
+  .app-eBuy .top .logo i { font-style: normal; }
+  .app-eBuy .top .search { border-radius: 2em; background: #fff; border: 2px solid #191919; }
+  .app-eBuy .top .sbtn { background: #3665f3; color: #fff; padding: .3em 1em; border-radius: 2em; font-weight: bold; }
+  .app-eBuy button { background: #3665f3; color: #fff; border-radius: 2em; }
+  /* Wonkypedia */
+  .app-TechDocs .top { background: #f8f9fa; }
+  .app-TechDocs .top .logo { font: 1.3em 'Linux Libertine', Georgia, serif; }
+  .app-TechDocs .side { background: #f6f6f6; font-size: .9em; color: #0645ad; }
+  .app-TechDocs h2 { font: 1.35em 'Linux Libertine', Georgia, serif; border-bottom: 1px solid #a2a9b1; padding-bottom: .15em; }
+  .app-TechDocs .body { color: #202122; }
+  .app-TechDocs button { background: #36c; color: #fff; border-radius: .2em; }
+  .pc .top .sbtn { flex: none; }
+  .anger { position: absolute; background: #3a3a44; border: 1px solid #101018; pointer-events: none; }
+  .anger i { display: block; height: 100%; transition: width .3s; }
+  .anger.calm i { background: #58c048; } .anger.cross i { background: #f0a020; } .anger.furious i { background: #e04838; }
+  .anger.bump { animation: angershake .1s linear 6; }
+  .anger.shaking { animation: angershake var(--speed) linear infinite; }
+  @keyframes angershake { 0%, 100% { translate: 0 0; } 25% { translate: -2px 1px; } 50% { translate: 2px -1px; } 75% { translate: -1px -1px; } }
+  .basket { position: absolute; right: 1%; top: 13%; font: bold 1.2cqw Tahoma, 'Segoe UI', sans-serif; color: var(--ink); background: var(--mint); border: 2px solid var(--ink); padding: .3em .7em; pointer-events: none; }
 
   /* ---- the phone ---- */
   .ph { left: 36.6%; top: 8%; width: 26.9%; height: 86%; background: #e3e6dd; font-size: 1.1cqw; display: flex; flex-direction: column; }
@@ -108,10 +185,14 @@
   .ph .tabs { display: flex; background: #c9cec3; }
   .ph .tabs div { flex: 1; text-align: center; padding: .6em 0; font-size: .9em; cursor: pointer; }
   .ph .tabs div:hover { background: #b2b9ac; }
+  .ph .tabs { flex-wrap: wrap; }
+  .ph .tabs .on { background: #f8e070; }
 
   /* ---- the notebook ---- */
   .nb { left: 11%; top: 4%; width: 79%; height: 92%; color: #20304a; font: 1.15cqw/1.4 'Segoe Print', 'Comic Sans MS', cursive; }
-  .nb .cols { column-count: 2; column-gap: 9%; height: 100%; column-fill: auto; }
+  .nb .cols { column-count: 2; column-gap: 9%; height: 100%; column-fill: auto; overflow: hidden; }
+  .nbflip { bottom: 6%; width: 3.2cqw; height: 3.2cqw; font-size: 1.4cqw; background: #e8dcb8; border: 2px solid #8a7a50; color: #4a3a20; cursor: pointer; }
+  .nbflip.prev { left: 12%; } .nbflip.next { right: 12%; }
   .nb h3 { font-size: 1.05em; margin: .3em 0 .05em; text-decoration: underline; color: #102040; }
   .nb .job.done h3 { color: #2a7a3a; text-decoration: none; }
   .nb .ok { color: #2a7a3a; } .nb .x { color: #8a6a6a; text-decoration: line-through; } .nb .info { color: #405060; }

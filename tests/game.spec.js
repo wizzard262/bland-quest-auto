@@ -50,7 +50,23 @@ async function act(page, label) {
 // Tap a thing in the picture by where it goes (its data-go)
 async function tap(page, go) {
   await idle(page);
-  await page.locator(`.hs[data-go="${go}"]`).click();
+  await page.locator(`.hs[data-go="${go}"]`).click({ timeout: 20000 });   // a missing thing fails fast, naming it
+}
+// In a tool shop: the hammer is in the middle of shelf 2; into the basket, then pay at the till
+async function buyHammer(page) {
+  await tap(page, 'act:shelfzoom:1');
+  await tap(page, 'act:shelfitem:1:4');
+  await act(page, 'Step back');
+  await tap(page, 'act:checkout');
+}
+// Go indoors, into the room (the computer, the bed, the kettle)
+async function goRoom(page) {
+  await page.evaluate(() => { S.screen = 'room'; render(); });
+}
+// Go to bed: indoors, tap the bed, and wait for the night to pass
+async function sleep(page) {
+  await goRoom(page);
+  await tap(page, 'act:bed');
 }
 // In the driver's seat: tap the key until the engine starts
 async function startCar(page) {
@@ -59,10 +75,10 @@ async function startCar(page) {
 // Go into town from wherever you are, then to a place on the map
 async function goPlace(page, name) {
   const screen = await page.evaluate(() => S.screen);
-  if (screen === 'place') await act(page, 'Back to the map');
+  if (screen === 'place') await page.evaluate(() => { S.screen = 'city'; render(); });
   else if (screen !== 'city') {
     await page.evaluate(() => { if (S.screen !== 'home') { S.screen = 'home'; render(); } });
-    await act(page, 'Into town');
+    await tap(page, 'city'); await idle(page);                            // tap the car
   }
   const i = await page.evaluate(n => placeIndex(n), name);
   await page.click(`[data-act="cam:${i % 7},${Math.floor(i / 7)}"]`);   // look at that part of town on the little map
@@ -98,9 +114,15 @@ async function hookNut(page) {
 // Walk home, then into the garage, then somewhere in it
 async function garage(page, where) {
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Garage');
+  await tap(page, 'garage'); await idle(page);
   await ok(page);                                                       // close anything that happens as you walk in (the nut escaping)
-  if (where) await act(page, where);
+  if (where) await garageTap(page, where);
+}
+// In the garage: tap a thing in the picture by its name
+async function garageTap(page, where) {
+  const go = { 'Toolbox': 'toolbox', 'Workbench': 'bench', "Driver's seat": 'dash', 'Under the car': 'under', 'Under the bonnet': 'bonnet' }[where];
+  if (go) { await tap(page, go); await idle(page); return; }
+  await tap(page, 'act:search:' + where.replace('Search under ', ''));         // 'Search under the car' and so on
 }
 const flag = (page, f) => page.evaluate(k => !!S.flags[k], f);
 
@@ -150,7 +172,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -176,13 +198,69 @@ test('the toolbox drawers pull out and close', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await garage(page, 'Toolbox');
-  await act(page, 'Open 1: Sockets');
+  await tap(page, 'act:drawer:1');                                     // tap the drawer's front: it slides out
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('drawer');
   expect(await page.evaluate(() => S.drawer)).toBe(1);
   await act(page, 'Look for the 10 mm');
   expect(await dialogText(page)).toContain('10');
   await ok(page);
-  await act(page, 'Close 1: Sockets');
+  await tap(page, 'act:drawer:1');                                     // tap its front again: it slides back in
   expect(await page.evaluate(() => S.drawer)).toBe(0);
+  await tap(page, 'act:drawer:6');                                     // the bottom one: you look down so its front is still on screen
+  const front = await page.locator('.hs[data-go="act:drawer:6"]').boundingBox();
+  const stage = await page.locator('#stage').boundingBox();
+  expect(front.y + front.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+  await tap(page, 'act:drawer:6');
+  expect(await page.evaluate(() => S.drawer)).toBe(0);
+});
+
+test('the manuals: a book comes off the shelf and opens; three pages; tapping off it or leaving puts it back', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });
+  expect(await page.evaluate(() => BOOKS.map(b => b[0]).join('|'))).toContain('Fly Fishing');
+  await tap(page, 'act:book:14');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('book');   // off the shelf first
+  await expect(page.locator('.book')).toContainText('Fanged Noumena');
+  await expect(page.locator('.book')).toContainText('Page 1 of 3');
+  await page.locator('.book [data-act="bookpage:1"]').click();
+  await expect(page.locator('.book')).toContainText('Page 2 of 3');
+  await page.locator('.bookoff').click({ position: { x: 5, y: 200 } });   // tap off the book: it goes back
+  expect(await page.evaluate(() => S.book)).toBe(null);
+  await idle(page);
+  await tap(page, 'act:book:15');
+  await idle(page);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });       // leave the shelf: it goes back too
+  expect(await page.evaluate(() => S.book)).toBe(null);
+  expect(errors).toEqual([]);
+});
+
+test('the parts boxes: look down into them and rummage with the mouse', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await tap(page, 'partsbox'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('partsbox');
+  const before = await page.evaluate(() => PILE.map(j => j.x + ',' + j.y).join(' '));
+  const box = await page.locator('#stage canvas').boundingBox();
+  const at = (x, y) => [box.x + x / 480 * box.width, box.y + y / 270 * box.height];
+  await page.mouse.move(...at(80, 80)); await page.mouse.down();
+  for (let k = 1; k <= 20; k++) await page.mouse.move(...at(80 + k * 6, 80 + k * 7));
+  await page.mouse.up();
+  expect(await page.evaluate(() => PILE.map(j => j.x + ',' + j.y).join(' '))).not.toBe(before);
+  expect(errors).toEqual([]);
+});
+
+test('your wife: she wants it scrapped, but every third time she says something useful', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  const said = [];
+  for (let k = 0; k < 3; k++) { await tap(page, 'act:wife'); said.push(await dialogText(page)); await ok(page); }
+  expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);
+  expect(said[2]).toMatch(/codes|hammer|fuses|1234|tea/);
+  await expect(page.locator('.dlg')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test('a lead in the notebook takes you there', async ({ page }) => {
@@ -225,7 +303,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // look it up on the forum
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Computer');
+  await goRoom(page); await tap(page, 'pc'); await idle(page);
   await page.click('[data-app="Forum"]');
   await page.locator('button', { hasText: 'Read it properly' }).click(); await ok(page);
 
@@ -250,16 +328,18 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // find nut 3: torch (flat) from the toolbox, batteries from the kitchen, see it under the chest, a stick, hook it out
   await garage(page); await ok(page);
-  await act(page, 'Search under the car'); await ok(page);                         // too dark
-  await act(page, 'Toolbox'); await act(page, 'Open 5'); await act(page, 'Take the torch'); await ok(page);
+  await garageTap(page, 'Search under the car'); await ok(page);                         // too dark
+  await act(page, 'Get up');
+  await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:5'); await act(page, 'Take the torch'); await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Look for batteries'); await ok(page);
+  await goRoom(page); await act(page, 'Look for batteries'); await ok(page);
   await garage(page);
-  await act(page, 'Search under the tool chest'); await ok(page);
+  await garageTap(page, 'Search under the tool chest'); await ok(page);
+  await act(page, 'Get up');
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await act(page, 'Get a long stick'); await ok(page);
   await garage(page);
-  await act(page, 'Search under the tool chest'); await choose(page, 'Hook it out');
+  await garageTap(page, 'Search under the tool chest'); await choose(page, 'Hook it out');
   expect(await page.evaluate(() => S.screen)).toBe('fish');
   await hookNut(page);
   await ok(page);
@@ -268,7 +348,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   // order the sensor, sleep on it, collect it from the other branch
   await goPlace(page, 'Motor Factors'); await talk(page); await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Go to bed'); await ok(page);
+  await sleep(page); await ok(page);
   await goPlace(page, 'Parts 4 Less'); await ok(page);
   for (let i = 0; i < 10 && !(await page.evaluate(() => !!S.inv['part-p4l'])); i++) {
     if (await tryDoor(page)) {                                                      // open: go in and talk
@@ -283,14 +363,17 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // the workbench: it sticks, comes out, gets rotated, then fits
   await garage(page, 'Workbench');
+  await act(page, 'Try the old sensor');                                   // the old one: lined up, it goes back in
+  await act(page, 'Rotate'); await ok(page);
+  await act(page, 'Push'); await ok(page);
+  expect(await page.evaluate(() => S.bench.state)).toBe('in');
   await act(page, 'Try the Parts 4 Less sensor');
   await act(page, 'Push'); await ok(page);
   expect(await page.evaluate(() => S.bench.state)).toBe('stuck');
   await act(page, 'Pull'); await ok(page);                                 // jammed: needs a hammer
-  await act(page, 'Back to the garage'); await act(page, 'Toolbox'); await act(page, 'Open 6'); await act(page, 'Look for the hammer'); await ok(page);
+  await act(page, 'Back to the garage'); await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:6'); await act(page, 'Look for the hammer'); await ok(page);
   await goPlace(page, 'Hardware Shop'); await talk(page); await ok(page);   // "not got any"
-  await page.locator('.hs[data-go="act:shelfzoom:1"]').click(); await idle(page);
-  await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').click(); await ok(page);
+  await buyHammer(page); await ok(page);
   expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);
   await garage(page, 'Workbench');
   await act(page, 'Tap it with the hammer'); await ok(page);
@@ -403,6 +486,191 @@ test('in a shop you walk to the shopkeeper and they answer in a speech bubble wi
   expect(errors).toEqual([]);
 });
 
+test('shop shelves: along the left wall in sections; arrows move along; things go in and out of the basket; pay at the till; they appear on the garage shelves', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Hardware Shop');
+  await tap(page, 'act:enter');
+  await expect(page.locator('.hs[data-go^="act:shelfzoom:"]')).toHaveCount(3);
+  await tap(page, 'act:shelfzoom:0');
+  await tap(page, 'act:shelfgo:1');                                    // the arrow: on to shelf 2
+  expect(await page.evaluate(() => S.shelfz)).toBe(1);
+  await tap(page, 'act:shelfgo:-1');
+  expect(await page.evaluate(() => S.shelfz)).toBe(0);
+  await tap(page, 'act:shelfitem:0:0');                                // into the basket…
+  await tap(page, 'act:shelfitem:0:1');
+  await tap(page, 'act:shelfitem:0:1');                                // …and one put back
+  await expect(page.locator('.basket')).toContainText('1 thing');
+  const [name, price] = await page.evaluate(() => sectionStock(S.place, 0)[0]);
+  const money = await page.evaluate(() => S.money);
+  await act(page, 'Step back');
+  await tap(page, 'act:checkout');
+  expect(await dialogText(page)).toContain(name);
+  await ok(page);
+  expect(await page.evaluate(() => S.money)).toBeCloseTo(money - price, 2);
+  expect(await page.evaluate(n => S.bought[n].n, name)).toBe(1);
+  // on the garage shelves, in the grid
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await tap(page, 'stores');
+  await idle(page);
+  await expect(page.locator('.lab', { hasText: name })).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('going to bed: it goes dark, black, then morning, before the message', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await sleep(page);
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'night');      // he walks to the bed, then night falls
+  await expect(page.locator('.dlg')).toHaveCount(0);                   // the message waits
+  expect(await dialogText(page)).toContain('morning');
+  expect(errors).toEqual([]);
+});
+
+test('the house: a room with the computer on a chair, the bed and the kettle; the parcel sticks out of the mailbox at the kerb', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await tap(page, 'room');                                             // the front door: in
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('room');
+  for (const go of ['pc', 'act:bed', 'act:tea', 'home']) await expect(page.locator(`.hs[data-go="${go}"]`)).toHaveCount(1);
+  const anger = await page.evaluate(() => S.anger);
+  await tap(page, 'act:tea'); await ok(page);
+  expect(await page.evaluate(() => S.anger)).toBeLessThan(anger);
+  await page.locator('.hs[data-go="home"]').last().click();           // your car (Home on the map goes there too)
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('home');
+  await expect(page.locator('.lab', { hasText: 'Mailbox (empty)' })).toHaveCount(1);
+  await page.evaluate(() => { S.doorstep.push({ id: 'reader-good' }); render(); });
+  await expect(page.locator('.hs[data-go="act:parcel"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('the pub: open in the evening; sit at the bar, pick a beer; the two regulars give useless advice', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; });
+  await goPlace(page, 'The Rusty Spanner');
+  await tap(page, 'act:enter'); await idle(page);
+  const [money, anger] = await page.evaluate(() => [S.money, S.anger]);
+  await tap(page, 'act:talk');
+  for (const beer of ['Hazy DIPA', 'Cider', 'Lager', 'Bitter']) await expect(page.locator('.dlg button', { hasText: beer })).toHaveCount(1);
+  await choose(page, 'Bitter');
+  expect(await page.evaluate(() => S.money)).toBeCloseTo(money - 4.2, 2);
+  expect(await page.evaluate(() => S.anger)).toBeLessThan(anger);
+  await tap(page, 'act:punter:0');
+  expect(await dialogText(page)).toContain('Old Ron');
+  await ok(page);
+  await tap(page, 'act:punter:1');
+  expect(await dialogText(page)).toContain('Sue');
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
+test('evening: outside gets dark and the lights come on; the garage window shows it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const brightness = () => page.evaluate(() => { const d = ctx.getImageData(0, 40, W, H - 40).data; let t = 0; for (let i = 0; i < d.length; i += 4) t += d[i] + d[i + 1] + d[i + 2]; return t / (d.length / 4); });
+  await page.evaluate(() => { S.mins = 12 * 60; S.screen = 'home'; render(); });
+  const day = await brightness();
+  await page.evaluate(() => { S.mins = 22 * 60; render(); });
+  const night = await brightness();
+  expect(night).toBeLessThan(day * 0.6);
+  expect(await page.evaluate(() => skyColour()[0])).toBeLessThan(40);
+  expect(errors).toEqual([]);
+});
+
+test('the phone shows over the screen you were on; its torch lights up under the tool chest', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.n3lost = true; S.screen = 'garage'; render(); });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="phonetorch"]').click();
+  expect(await page.evaluate(() => [S.flags.phoneTorch, S.screen])).toEqual([true, 'garage']);
+  await tap(page, 'act:search:the tool chest');
+  expect(await dialogText(page)).toContain('THERE');
+  expect(await page.evaluate(() => S.screen)).toBe('lookunder');
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
+test('the notebook leafs through its pages; the radio code gets written in it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { for (let k = 0; k < 40; k++) job('x' + k, 'A made-up job ' + k + ' with a long title to fill the pages up', null); render(); });
+  await page.click('.go[data-go="notebook"]'); await idle(page);
+  await expect(page.locator('.nbflip.next')).toBeVisible();
+  await page.locator('.nbflip.next').click();
+  expect(await page.evaluate(() => S.nbPage)).toBe(1);
+  await page.evaluate(() => { S.screen = 'dash'; S.key = 1; S.radio = null; render(); radioState().digits = [1, 2, 3, 3]; radioState().pos = 3; render(); });
+  await tap(page, 'act:radio:0');
+  expect(await page.evaluate(() => radioState().unlocked)).toBe(true);
+  expect(await page.evaluate(() => JSON.stringify(findJob('radio')))).toContain('1234');
+  expect(errors).toEqual([]);
+});
+
+test('in town your blue car takes you home; no Go home button', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => {                                         // the car parked by home, and the map moved so it's in the middle
+    S.place = null;
+    const i = placeIndex('Home'), x = (i % 7) * BLOCK + STREET + 34, y = Math.floor(i / 7) * BLOCK + STREET + 80;
+    S.cam = { ox: 291 - (x - y), oy: 164 - (x + y) / 2 };
+    S.screen = 'city'; render();
+  });
+  await expect(page.locator('.acts button', { hasText: 'Go home' })).toHaveCount(0);
+  await page.locator('.hs[data-go="home"]').last().click();           // your car (Home on the map goes there too)
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('home');
+  expect(errors).toEqual([]);
+});
+
+test('at night the wife wears her nightie, asks you to bed and follows you there; stay late at the pub and she texts', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 20 * 60; });
+  await goRoom(page);
+  await tap(page, 'act:wife');
+  expect(await dialogText(page)).toContain('bed');
+  await ok(page);
+  const before = await page.evaluate(() => Math.hypot(WIFE.pos[0] - BEDSIDE[0], WIFE.pos[1] - BEDSIDE[1]));
+  await tap(page, 'act:bed');
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => Math.hypot(WIFE.pos[0] - BEDSIDE[0], WIFE.pos[1] - BEDSIDE[1]));
+  expect(after).toBeLessThan(before);
+  await ok(page);
+  await page.evaluate(() => { S.mins = 22 * 60 + 10; });
+  await goPlace(page, 'The Rusty Spanner');
+  await tap(page, 'act:enter'); await idle(page);
+  await tap(page, 'act:talk');
+  await choose(page, 'Lager');
+  expect(await page.evaluate(() => S.msgs[0].from)).toBe('The wife');
+  expect(errors).toEqual([]);
+});
+
+test('late at night the wife comes into the garage in her nightie: come to bed, Husband', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; S.screen = 'home'; S.place = null; render(); });
+  await tap(page, 'garage');
+  expect(await dialogText(page)).toContain('Come to bed, Husband');
+  await choose(page, 'Go to bed');
+  await page.waitForFunction(() => S.mins < 12 * 60 && S.screen === 'room');
+  expect(errors).toEqual([]);
+});
+
+test('going into the garage: the roller door rolls up first', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await page.locator('.hs[data-go="garage"]').click();
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'garagedoor');
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  expect(errors).toEqual([]);
+});
+
 test('in a shop there is no Back button: you leave by the wireframe door at the bottom', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -412,7 +680,7 @@ test('in a shop there is no Back button: you leave by the wireframe door at the 
   await tap(page, 'act:leave');
   await idle(page);
   expect(await page.evaluate(() => S.inside)).toBe(false);
-  await expect(page.locator('#stage .back')).toHaveCount(1);           // outside, Back is there again
+  await expect(page.locator('#stage .back')).toHaveCount(0);           // outside too: you leave in your car
   expect(errors).toEqual([]);
 });
 
@@ -541,7 +809,7 @@ test('the post office: ten in the queue and it never moves, unless you were outs
   expect(await page.evaluate(() => S.flags.poFirst)).toBeFalsy();
   // next morning: get there before nine, wait outside, go in when it opens: first
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Go to bed'); await ok(page);
+  await sleep(page); await ok(page);
   await goPlace(page, 'Post Office');
   await act(page, 'Wait until it opens'); await ok(page);
   await talk(page);
@@ -557,23 +825,23 @@ test('the nut bounces out and hides under the tool chest; you need a torch to se
   expect(await dialogText(page)).toContain('bounces out');
   await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Garage');                                            // walk in: the nut escapes as you arrive
-  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutEscape');
+  await tap(page, 'garage');                                            // walk in: the nut escapes as you arrive
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'nutEscape');
   await ok(page);
-  await act(page, 'Search under the tool chest');
+  await garageTap(page, 'Search under the tool chest');
   expect(await dialogText(page)).toContain('torch');
   expect(errors).toEqual([]);
 });
 
-test('lose your temper and something on the car breaks; tap the anger bar to calm down', async ({ page }) => {
+test('lose your temper and something on the car breaks; the anger bar goes red and shakes', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { anger(100); render(); });
+  await page.evaluate(() => { S.anger = 0; anger(55); render(); });
+  await expect(page.locator('.anger.cross.shaking')).toHaveCount(1);     // over half: orange, shaking
+  await page.evaluate(() => { anger(50); render(); });
   await ok(page);
   expect(await page.evaluate(() => !!findJob('broke-mirror'))).toBe(true);
-  await page.click('.go[data-go="act:calm"]');
-  await choose(page, 'Ring Mum');
-  expect(await page.evaluate(() => S.anger)).toBeLessThan(40);
+  await expect(page.locator('.go[data-go="act:calm"]')).toHaveCount(0);  // no calm-down menu on the bar
   expect(errors).toEqual([]);
 });
 
@@ -582,7 +850,7 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await start(page, errors);
   await garage(page);
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
-  expect(await page.locator('.spine').count()).toBe(14);
+  expect(await page.locator('.spine').count()).toBe(19);
   await page.locator('.hs[data-go="act:book:7"]').click();
   await expect(page.locator('.book')).toContainText('torn out');
   await act(page, 'Put it back');
@@ -602,7 +870,7 @@ test('the fuses: the lid says see the manual, the manual pages are torn out, the
   await expect(page.locator('.book')).toContainText('torn out');
   expect(await page.evaluate(() => leadOpen('fusediagram'))).toBe(true);
   await page.evaluate(() => { S.screen = 'home'; render(); });
-  await act(page, 'Computer');
+  await goRoom(page); await tap(page, 'pc'); await idle(page);
   await page.click('[data-app="TechDocs"]');
   await page.locator('button', { hasText: 'Note it down' }).click(); await ok(page);
   expect(await flag(page, 'knowF23')).toBe(true);
@@ -619,11 +887,10 @@ test('a shop shelf, close up: the hammer they said they had not got is on the mi
   await goPlace(page, 'Hardware Shop'); await talk(page);
   expect(await dialogText(page)).toContain('Not got any');
   await ok(page);
-  await page.locator('.hs[data-go="act:shelfzoom:0"]').click(); await idle(page);
-  expect(await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').count()).toBe(0);   // not on the top shelf
+  await tap(page, 'act:shelfzoom:0');
+  expect(await page.locator('.lab', { hasText: 'Claw hammer' }).count()).toBe(0);   // not on the first shelf
   await act(page, 'Step back');
-  await page.locator('.hs[data-go="act:shelfzoom:1"]').click(); await idle(page);
-  await page.locator('.hs[data-go="act:shelfitem:Claw hammer"]').click();
+  await buyHammer(page);
   expect(await dialogText(page)).toContain("Didn't know we had one");
   await ok(page);
   expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);

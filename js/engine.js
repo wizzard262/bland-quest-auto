@@ -56,6 +56,16 @@ function pass(mins) {
   deliverParcels();
   runEvents();
 }
+// The phone and the notebook show over the screen you were on (darkened), not a screen of their own
+function paintBehind() {
+  const prev = [...(S.history || [])].reverse().find(k => k !== 'phone' && k !== 'notebook');
+  if (!prev || !SCREENS[prev]) return rect(0, 0, W, H, C.greyDark);
+  try { SCREENS[prev].paint(); }                                  // the picture you were looking at…
+  catch (e) { rect(0, 0, W, H, C.greyDark); }                     // (or plain grey if it can't be drawn now)
+  LABELS = [];                                                    // …but nothing on it can be tapped
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) { d[i] *= 0.4; d[i + 1] *= 0.4; d[i + 2] *= 0.45; }   // …and dimmed
+}
 // Jump to tomorrow morning (going to bed)
 function sleepUntilMorning() {
   S.day += 1;
@@ -72,6 +82,7 @@ function spend(amount) {
 }
 // Change anger; at 100 you kick something and break it
 function anger(n) {
+  if (n > 0) { ANGER_UP = performance.now(); sfx('angerup'); }  // going up: a rising tone, and the bar shakes
   S.anger = Math.max(0, Math.min(100, S.anger + n));
   if (S.anger >= 100) kickSomething();
 }
@@ -140,7 +151,7 @@ function topJob() {
 // =====================================================================
 // PHONE AND EMAIL
 // =====================================================================
-function textMsg(from, body) { S.msgs.unshift({ from, body, when: clockText(), read: false }); sfx('buzz'); }
+function textMsg(from, body) { S.msgs.unshift({ from, body, when: clockText(), read: false }); sfx('buzz'); sfx('msgtone', 0.05); }
 function mail(from, subject) { S.mails.unshift({ from, subject, when: `${weekday()} ${hhmm(S.mins)}` }); }
 
 // =====================================================================
@@ -200,7 +211,14 @@ function goTo(target) {
   if (target.startsWith('act:')) return act(target.slice(4));
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
+  if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
   show(target);
+}
+// The garage's roller door rattles up, then you're inside
+function garageDoorUp() {
+  sfx('rollerdoor');
+  moment('garagedoor', 1300);
+  ANIM.then = () => show('garage');
 }
 // Show a screen, remembering where you came from
 function show(screen) {
@@ -236,7 +254,7 @@ function visit(name) {
 // =====================================================================
 // Show a dialog: options = [{ label, run }]; with no options there's an OK button
 function say(title, body, options) {
-  const at = S.screen === 'place' ? SPEAKER : null;                // a speech bubble from the person you're talking to
+  const at = SPEAKER;                                             // a speech bubble from the person you're talking to (whoever, wherever)
   SPEAKER = null;
   DIALOG = { title, body, at, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
   if (at) chatter(Math.min(28, 4 + Math.round(body.length / 7)), 95 + hash(title.length, title.charCodeAt(0)) * 120);   // muffled chatter in their voice
@@ -306,6 +324,8 @@ function hudInfo() {
 let BG = null;                          // the still picture of this screen; moving things are drawn on a copy of it
 
 function render() {
+  if (S.screen !== 'shelf') S.book = null;                         // leaving the shelf puts any book back
+  if (S.screen !== 'toolbox') S.drawer = 0;                        // and leaving the tool chest pushes its drawer shut
   const scr = SCREENS[S.screen];
   // paint the still picture, and keep a copy for the moving things to be drawn over
   [W, H] = scr.size || [480, 270];
@@ -316,11 +336,12 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
-  const inShop = S.screen === 'place' && S.inside;                 // in a shop you leave by its door, not a Back button
-  if (S.screen !== 'home' && !inShop) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
+  if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
+  const atPlace = ['place', 'room', 'garage'].includes(S.screen); // at a shop, in the house or the garage: you leave by the door; no Back button
+  if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
   actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');
@@ -350,6 +371,8 @@ let ANIM = null;                        // the moment playing now: { kind, t0, d
 // Play a moment (an animation in MOMENTS, screens.js) for `dur` milliseconds; dialogs wait for it
 function moment(kind, dur) {
   ANIM = { kind, t0: performance.now(), dur };
+  const mine = ANIM;
+  setTimeout(() => { if (ANIM === mine) finishMoment(); }, dur + 300);   // ends even if the window is hidden (no animation frames then)
   if (kind === 'kick') { stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
 }
 // Draw one frame: the still picture, then the screen's moving things, then the moment
@@ -363,6 +386,8 @@ function drawFrame(nowMs) {
     const p = Math.min(1, (nowMs - ANIM.t0) / ANIM.dur);
     if (MOMENTS[ANIM.kind]) MOMENTS[ANIM.kind](p, t);
   }
+  const dark = darkness();
+  if (dark > 0 && scr.night) scr.night(dark);                     // evening: outside gets dark and the lights come on
   ctx.putImageData(img, 0, 0);
 }
 // About 30 frames a second; when a moment ends, show what it was holding back (its dialog)
@@ -428,6 +453,10 @@ stage.addEventListener('pointermove', e => {
   const r = canvas.getBoundingClientRect();
   fishMove((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H);
 });
+// The parts boxes: press and drag to rummage
+stage.addEventListener('pointerdown', e => { if (S.screen === 'partsbox' && !DIALOG && !ANIM) rummageStart(e); });
+stage.addEventListener('pointermove', e => { if (S.screen === 'partsbox') rummageMove(e); });
+addEventListener('pointerup', () => { if (S.screen === 'partsbox') setTimeout(rummageEnd, 0); });   // after the click, so the click doesn't close what it says
 // Drag the city map to look round town
 stage.addEventListener('pointerdown', e => {
   if (S.screen !== 'city' || DIALOG) return;

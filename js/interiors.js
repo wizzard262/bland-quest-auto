@@ -7,7 +7,7 @@ const STYLE_BY_NAME = {
   'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Library (free Wi-Fi)': 'books', 'Café': 'cafe',
   'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Tyre Place': 'tyres', 'MOT Test Centre': 'garage',
   'Machine Shop (lathe)': 'workshop', 'Makerspace (3D printer)': 'workshop', 'Bank': 'bank',
-  'Pawn Shop': 'aisles', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
+  'The Rusty Spanner': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
 };
 function placeStyle(name) {
   const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other';
@@ -28,6 +28,7 @@ const KEEPER = {
   gadgets: { shirt: C.ink, shirtDark: C.ink, jeans: C.car, jeansDark: C.carDark, hair: hex('#e07030') },
   bank: { shirt: hex('#f4f4f0'), shirtDark: hex('#2a3a6a'), jeans: hex('#2a3a6a'), jeansDark: hex('#1a2a50'), hair: hex('#303030') },
   yard: { shirt: hex('#6a7a40'), shirtDark: hex('#4a5a28'), jeans: C.jeans, jeansDark: C.jeansDark, hair: hex('#202020') },
+  pub: { shirt: C.white, shirtDark: hex('#c8c8c0'), jeans: C.ink, jeansDark: C.ink, hair: hex('#202020') },
   house: { shirt: hex('#e070a8'), shirtDark: hex('#b05080'), jeans: C.jeans, jeansDark: C.jeansDark, hair: C.steel }
 };
 // What you find when you look at the stock, and what the posters say
@@ -46,6 +47,7 @@ const BROWSE = {
   workshop: 'Machines that can make anything, if you bring a drawing with every size on it.',
   bank: 'Leaflets about savings. A pen on a chain. The chain has no pen.',
   yard: 'Parts in piles, all a bit rusty. A dog watches you.',
+  pub: 'A carpet you don\'t want to look at too closely, a fruit machine, and a dog asleep by the fire.',
   house: 'Net curtains. Someone is definitely in.'
 };
 const POSTERS = {
@@ -54,7 +56,7 @@ const POSTERS = {
   tools: ['LIFETIME GUARANTEE', 'keep your receipt'], aisles: ['EVERYTHING £1', '(some things more)'],
   parcels: ['NEXT DAY DELIVERY', 'most days'], books: ['QUIET PLEASE', 'printer out of order'],
   cafe: ['TODAY\'S SOUP', 'soup'], gadgets: ['NEW PHONE?', 'NEW PASSWORD'], tyres: ['WHILE-U-WAIT', 'bring a book'],
-  workshop: ['NO DRAWING', 'NO JOB'], bank: ['WE\'RE HERE FOR YOU', 'Mon-Wed 10-2'], yard: ['BEWARE OF THE DOG', 'and the owner'], house: ['', '']
+  workshop: ['NO DRAWING', 'NO JOB'], bank: ['WE\'RE HERE FOR YOU', 'Mon-Wed 10-2'], yard: ['BEWARE OF THE DOG', 'and the owner'], pub: ['QUIZ NIGHT THURSDAY', 'no car talk'], house: ['', '']
 };
 
 // ---------- where things are in a shop (world units; the counter runs across the middle) ----------
@@ -63,11 +65,78 @@ const KEEPER_AT = [100, 40];                    // behind the counter
 const COUNTER = [40, 50, 170, 70];             // x0, y0, x1, y1
 // Where the shopkeeper's head is on screen (for the speech bubble's arrow)
 function keeperHead() {
+  if (placeStyle(S.place) === 'pub') return pubKeeperHead();        // the pub is drawn flat, side on
   ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
   const style = placeStyle(S.place);
   const at = style === 'house' ? [78, 46] : KEEPER_AT, p = P(at[0], at[1]);
   return [p[0] + 2, p[1] - 40];
 }
+
+// ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
+const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [120, 300, 350] };   // the bar's top, the floor, the barman, the stools (yours first)
+const PUB_SEAT_Y = 214;                                       // where someone sat on a stool is drawn from (their hips on the seat)
+function pubScene(shut) {
+  // the back wall: dark wood panels, a big mirror, shelves of drinks
+  rect(0, 18, W, PUB.floor - 18, hex('#4a2e20'));
+  for (let x = 0; x < W; x += 40) rect(x, 18, 1, PUB.floor - 18, hex('#3a2218'));     // the joins between the panels
+  rect(0, 58, W, 2, hex('#6a4430'));                                                   // the dado rail
+  rect(150, 62, 180, 56, hex('#8aa0a8')); rect(154, 66, 172, 48, hex('#a8c0c8'));    // the mirror
+  const bottle = [hex('#3a7a40'), hex('#a05020'), C.white, hex('#6a2a20'), C.warm, hex('#5a6aa0')];
+  for (const sy of [96, 126, 156]) {                                                   // shelves of drinks behind the bar
+    rect(110, sy, 260, 3, C.wood);
+    for (let bx = 114, n = 0; bx < 364; bx += 9, n++) {
+      const tall = 12 + (n % 3) * 2;
+      rect(bx, sy - tall, 5, tall, bottle[(n + sy) % 6]); rect(bx + 1, sy - tall - 4, 3, 4, bottle[(n + sy) % 6]);
+    }
+  }
+  LABELS.push(`<div class="front" style="left:${200 / W * 100}%;top:${22 / H * 100}%;width:${200 / W * 100}%;height:${30 / H * 100}%;font-size:${16 / W * 100}cqw;line-height:${30 / W * 100}cqw;text-align:center;transform:none">${esc(S.place)}</div>`);
+  // a poster, and the fruit machine
+  rect(20, 70, 64, 44, C.white); rect(22, 72, 60, 40, C.warm);
+  LABELS.push(`<div class="front" style="left:${22 / W * 100}%;top:${74 / H * 100}%;width:${60 / W * 100}%;height:${36 / H * 100}%;font-size:${7 / W * 100}cqw;line-height:${10 / W * 100}cqw;text-align:center;transform:none">QUIZ NIGHT THURSDAY<br>no car talk</div>`);
+  rect(400, 110, 50, PUB.floor - 110, hex('#7a2a8a')); rect(408, 120, 34, 22, hex('#202030'));
+  for (const rx of [411, 422, 433]) rect(rx, 124, 7, 14, C.white);                      // its reels
+  // the barman, behind the bar (it hides his legs)
+  if (!shut) man(PUB.keeper, PUB.barTop + 8, 'stand', 2, 0, KEEPER.pub);
+  // the bar: its top, the front panels, a brass foot rail; the pumps on top; your pint
+  rect(80, PUB.barTop, 320, 6, hex('#b88a58'));
+  rect(84, PUB.barTop + 6, 312, PUB.floor - PUB.barTop - 6, hex('#7a5634'));
+  for (let x = 92; x < 370; x += 40) rect(x, PUB.barTop + 14, 32, 40, hex('#6a4828'));
+  rect(84, PUB.floor - 12, 312, 3, hex('#d8b040'));
+  [[200, C.warm], [222, hex('#a05020')], [272, C.white]].forEach(([px, c]) => { rect(px, PUB.barTop - 20, 4, 20, C.ink); rect(px - 1, PUB.barTop - 28, 6, 9, c); });
+  if (S.flags.pint) { rect(PUB.stools[0] + 6, PUB.barTop - 13, 8, 13, hex('#d89a30')); rect(PUB.stools[0] + 6, PUB.barTop - 15, 8, 3, C.white); }
+  // the floor: a pub carpet
+  rect(0, PUB.floor, W, H - PUB.floor, hex('#6a2a2a'));
+  for (let x = 0; x < W; x += 12) for (let y = PUB.floor + 4; y < H; y += 10) px(x + (y % 20 ? 6 : 0), y, hex('#a04a30'));
+  // the bar stools, two regulars, and you (sat at the bar once you've ordered; by the door before)
+  for (const sx of PUB.stools) {
+    rect(sx - 8, 196, 18, 4, C.redDim); rect(sx, 200, 2, PUB.floor - 200, C.steel2);
+    rect(sx - 4, 216, 10, 1, C.steel2); rect(sx - 6, PUB.floor - 2, 14, 2, C.steel2);
+  }
+  PUNTERS.forEach((p, k) => man(PUB.stools[k + 1], PUB_SEAT_Y, 'sit', 2, 0, p.look));
+  if (S.flags.pubSat) man(PUB.stools[0], PUB_SEAT_Y, 'sit', 2);
+  else man(64, PUB.floor + 6, 'stand', 2);
+  // the way out: a see-through door on the left
+  const d = [[16, 140], [56, 140]];
+  dashedLine([16, PUB.floor], d[0], C.mint); dashedLine(d[0], d[1], C.mint); dashedLine(d[1], [56, PUB.floor], C.mint);
+  rect(50, 186, 3, 2, C.mint);
+}
+// What you can tap in the pub
+function pubSpots(shut) {
+  if (!shut) spot('Talk to the barman', [PUB.keeper - 14, PUB.barTop - 46, 30, 54], 'act:talk');
+  PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 10, 160, 22, 60], 'act:punter:' + k));
+  spot('Door: leave', [14, 138, 44, PUB.floor - 138], 'act:leave');
+}
+// Where the pub people's heads are (for their speech bubbles)
+const pubKeeperHead = () => [PUB.keeper + 2, PUB.barTop + 8 - 40];
+const pubPunterHead = k => [PUB.stools[k + 1] + 2, PUB_SEAT_Y - 40];
+// The two regulars at the bar
+const PUNTERS = [
+  { name: 'Old Ron', look: { shirt: hex('#7a6040'), shirtDark: hex('#5a4428'), jeans: hex('#4a4a50'), jeansDark: hex('#3a3a40'), hair: C.steel },
+    lines: ['"In my day you could fix a car with a hammer and a pair of tights."', '"It\'s the timing belt. It\'s always the timing belt."', '"Never trust a car with a computer in it. Or a man with a code reader."'] },
+  { name: 'Sue', look: { shirt: hex('#8a4ab0'), shirtDark: hex('#6a3090'), jeans: C.jeans, jeansDark: C.jeansDark, hair: hex('#c04020') },
+    lines: ['"Put it through the car wash. Dries the electrics out."', '"Give the dashboard a good bang. Worked on my telly."', '"My ex had a Zafira. Look how that turned out."'] }
+];
+function punterHead(k) { return pubPunterHead(k); }
 
 // ---------- drawing a shop ----------
 function shopInterior(name, shut) {
@@ -81,10 +150,13 @@ function shopInterior(name, shut) {
   poly([P(0, 0, 0), P(200, 0, 0), P(200, 0, 80), P(0, 0, 80)], col);
   for (let x = 0; x < 200; x += 10) for (let y = 0; y < 150; y += 10) ground(x, y, x + 10, y + 10, ((x + y) / 10) % 2 ? C.concrete : C.concreteDark);
   onLeft(0, 36, 164, 64, 78, C.white); frontSign(name, 36, 0, 128, 78, 14);
-  // posters on the side wall
-  posters(style);
-  // the stock along the back wall
-  STOCK[style] ? STOCK[style](col) : STOCK.aisles(col);
+  if (SHELF_STYLES.includes(style)) {
+    backPosters(style);                                            // posters on the back wall
+    leftWallShelves();                                             // and the shelves along the left wall, in sections
+  } else {
+    posters(style);                                                // posters on the side wall
+    STOCK[style] ? STOCK[style](col) : STOCK.aisles(col);          // the stock along the back wall
+  }
   // the shopkeeper behind the counter (drawn first so the counter hides his legs), then the counter and the till
   if (!shut) { const m = P(KEEPER_AT[0], KEEPER_AT[1]); man(m[0], m[1], 'stand', 2, 0, look); }
   ibox(COUNTER[0], COUNTER[1], COUNTER[2], COUNTER[3], 0, 22, C.bench, C.benchTop);
@@ -129,6 +201,14 @@ function posters(style) {
   wallText(a, 110, 50, 40, 8); wallText(b, 110, 41, 40, 6);
   wallText('SALE', 140, 50, 22, 8);
 }
+// Two posters on the back wall (shops whose side wall is all shelves)
+function backPosters(style) {
+  const [a, b] = POSTERS[style] || ['', ''];
+  if (!a) return;
+  onLeft(0, 140, 190, 30, 56, C.white); onLeft(0, 142, 188, 32, 54, C.warm);
+  frontSign(a, 142, 0, 46, 50, 8);
+  frontSign(b, 142, 0, 46, 41, 6);
+}
 // Words on the side wall (x = 0), reading left to right: start at world y (the left end), top at height z
 function wallText(words, y, z, len, tall) {
   const [sx, sy] = P(0, y, z);
@@ -147,9 +227,14 @@ const STOCK = {
     shelves((x, z, k) => { ibox(x, 1, x + 8, 10, z, z + 9 + (k % 3), [CARDBOARD, C.white, C.red, C.car][(k + z) % 4]); onLeft(10, x + 2, x + 6, z + 3, z + 6, C.ink); });
     for (let k = 0; k < 4; k++) line(...P(0, 20 + k * 6, 70), ...P(0, 50 + k * 6, 30), C.steel);     // exhaust pipes on the side wall
   },
-  garage() {
+  garage(col) {
     onLeft(0, 140, 190, 0, 50, C.ink);                                                                  // the workshop door
     isoCar(150, -46, 1.1, S.place === 'MOT Test Centre' ? C.car : C.red);                                // a car on the ramp (at the MOT, it's yours)
+    // the car is in the workshop behind the wall: put the wall back over it, so you only see it through the door
+    onLeft(0, 0, 140, 0, 80, col); onLeft(0, 190, 200, 0, 80, col); onLeft(0, 140, 190, 50, 80, col);
+    onLeft(0, 36, 164, 64, 78, C.white);                                                                // the sign board, again
+    const top = P(200, 0, 80), foot = P(200, 0, 0);
+    poly([top, [W, top[1]], [W, foot[1]], foot], C.greyDark);                                           // and nothing showing past the corner
     ground(140, 0, 190, 1, C.greyDark);
     onLeft(0, 20, 60, 30, 56, C.peg); for (let k = 0; k < 18; k++) px(...P(24 + (k % 6) * 6, 0, 34 + Math.floor(k / 6) * 7), C.warm);   // the key board
     onLeft(0, 70, 92, 30, 56, C.white); onLeft(0, 72, 90, 44, 54, C.car);                          // a calendar

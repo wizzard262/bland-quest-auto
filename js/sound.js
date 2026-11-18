@@ -145,35 +145,110 @@ function carHorn(at, len, vol, bright) {
   }
 }
 
-// ---------- the car radio: three stations of chiptunes, made up here ----------
-// Each tune: beats per minute, then a lead and a bass line, one note per half beat (MIDI note numbers; 0 = a rest)
+// ---------- the car radio: three stations of chiptunes in the old home-computer style, made up here ----------
+// Like the 1980s sound chips: a lead with vibrato, chords played as super-fast arpeggios,
+// a bass that bounces between octaves, and drums made of noise. All the tunes are our own.
+// Each station: beats per minute, then 4 bars of 16 steps:
+//   lead: MIDI notes (0 = rest, -1 = keep holding the note before)
+//   chords: one per bar: [root note, 'maj' or 'min']; the bass and the arpeggio follow it
+//   bass: per step, how far above the root (0 or 12 bounces an octave; null = rest)
+//   drums: per step: k = kick, s = snare, h = hi-hat, . = nothing
 const STATIONS = [
-  { name: 'CHIP FM', bpm: 132,
-    lead: [72, 0, 76, 79, 76, 0, 72, 74, 76, 0, 74, 72, 69, 0, 67, 0, 72, 0, 76, 79, 81, 0, 79, 76, 74, 0, 76, 74, 72, 0, 0, 0],
-    bass: [48, 0, 60, 0, 48, 0, 60, 0, 45, 0, 57, 0, 45, 0, 57, 0, 41, 0, 53, 0, 41, 0, 53, 0, 43, 0, 55, 0, 43, 0, 55, 0] },
-  { name: '8BIT GOLD', bpm: 108,
-    lead: [69, 72, 76, 72, 74, 0, 72, 71, 69, 0, 64, 0, 67, 69, 71, 0, 72, 71, 69, 67, 65, 0, 64, 0, 62, 64, 65, 67, 64, 0, 0, 0],
-    bass: [45, 0, 45, 52, 45, 0, 45, 52, 41, 0, 41, 48, 41, 0, 41, 48, 38, 0, 38, 45, 38, 0, 38, 45, 40, 0, 40, 47, 40, 0, 44, 0] },
-  { name: 'BLEEP 99', bpm: 156,
-    lead: [67, 71, 74, 79, 74, 71, 67, 71, 69, 72, 76, 81, 76, 72, 69, 72, 66, 69, 74, 78, 74, 69, 66, 69, 67, 71, 74, 79, 83, 0, 79, 0],
-    bass: [43, 43, 0, 43, 43, 0, 43, 0, 45, 45, 0, 45, 45, 0, 45, 0, 38, 38, 0, 38, 38, 0, 38, 0, 43, 43, 0, 43, 43, 0, 50, 0] }
+  { name: 'CHIP FM', bpm: 140,
+    lead: [69, -1, -1, 72, -1, 76, -1, -1, 74, -1, 72, -1, 71, -1, 69, -1,
+           72, -1, -1, -1, 69, -1, 72, -1, 77, -1, -1, -1, 76, -1, 74, -1,
+           76, -1, -1, 79, -1, -1, 76, -1, 72, -1, 74, -1, 76, -1, -1, -1,
+           74, -1, 71, -1, 67, -1, 71, -1, 74, -1, -1, -1, 0, 0, 0, 0],
+    chords: [[45, 'min'], [41, 'maj'], [48, 'maj'], [43, 'maj']],
+    bass: [0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 7, 12],
+    drums: 'k.h.s.h.k.k.s.hh' },
+  { name: '8BIT GOLD', bpm: 118,
+    lead: [74, -1, -1, -1, -1, -1, 77, -1, 76, -1, 74, -1, 72, -1, 74, -1,
+           70, -1, -1, -1, -1, -1, -1, -1, 74, -1, 72, -1, 70, -1, 69, -1,
+           72, -1, -1, -1, 76, -1, -1, -1, 79, -1, -1, -1, 77, -1, 76, -1,
+           73, -1, -1, -1, -1, -1, -1, -1, 76, -1, -1, -1, 0, 0, 0, 0],
+    chords: [[38, 'min'], [34, 'maj'], [36, 'maj'], [33, 'maj']],
+    bass: [0, null, 12, 0, null, 12, 0, 12, 0, null, 12, 0, null, 12, 7, 12],
+    drums: 'k...s...k.k.s..h' },
+  { name: 'BLEEP 99', bpm: 158,
+    lead: [76, 79, 83, 79, 76, 79, 83, 88, 86, 83, 79, 83, 81, 79, 78, 79,
+           76, -1, 79, -1, 84, -1, 83, -1, 79, -1, 76, -1, 72, -1, 76, -1,
+           78, -1, 81, -1, 86, -1, 85, -1, 81, -1, 78, -1, 74, -1, 78, -1,
+           75, -1, 78, -1, 83, -1, -1, -1, 87, -1, -1, -1, 83, -1, 78, -1],
+    chords: [[40, 'min'], [36, 'maj'], [38, 'maj'], [35, 'maj']],
+    bass: [0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 0, 12, 0, 12],
+    drums: 'k.hhs.hhk.hks.hh' }
 ];
 let RADIO_PLAYING = { station: -1, timer: null, step: 0, next: 0 };
 const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
+const CHORD = { maj: [0, 4, 7], min: [0, 3, 7] };
+
+// The lead: two square waves a hair apart (that fat, phasey sound), a quick attack, then vibrato creeping in
+function chipLead(at, note, len) {
+  const f = midiHz(note), g = AC.createGain(), lp = AC.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 3200;
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(0.045, at + 0.006);
+  g.gain.setValueAtTime(0.034, at + 0.05);
+  g.gain.setValueAtTime(0.034, at + len * 0.92);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+  const lfo = AC.createOscillator(), depth = AC.createGain();
+  lfo.frequency.value = 6;
+  depth.gain.setValueAtTime(0, at);
+  depth.gain.linearRampToValueAtTime(f * 0.012, at + Math.min(0.25, len * 0.6));      // vibrato fades in on long notes
+  lfo.connect(depth);
+  for (const detune of [-6, 6]) {
+    const o = AC.createOscillator();
+    o.type = 'square'; o.frequency.value = f; o.detune.value = detune;
+    depth.connect(o.frequency);
+    o.connect(lp); o.start(at); o.stop(at + len + 0.02);
+  }
+  lp.connect(g); g.connect(MASTER);
+  lfo.start(at); lfo.stop(at + len + 0.02);
+}
+// A chord as an arpeggio: the three notes in turn, fifty times a second
+function chipArp(at, root, kind, len) {
+  const o = AC.createOscillator(), g = AC.createGain(), notes = CHORD[kind].map(n => root + 24 + n);
+  o.type = 'square';
+  for (let t = 0, k = 0; t < len; t += 0.02, k++) o.frequency.setValueAtTime(midiHz(notes[k % 3]), at + t);
+  g.gain.setValueAtTime(0.014, at); g.gain.setValueAtTime(0.014, at + len * 0.9); g.gain.linearRampToValueAtTime(0.0001, at + len);
+  o.connect(g); g.connect(MASTER); o.start(at); o.stop(at + len + 0.02);
+}
+// The bass: a short, punchy, muffled square
+function chipBass(at, note, len) {
+  const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
+  o.type = 'square'; o.frequency.value = midiHz(note);
+  lp.type = 'lowpass'; lp.frequency.setValueAtTime(1400, at); lp.frequency.exponentialRampToValueAtTime(300, at + len);
+  g.gain.setValueAtTime(0.07, at); g.gain.exponentialRampToValueAtTime(0.0001, at + len * 0.95);
+  o.connect(lp); lp.connect(g); g.connect(MASTER); o.start(at); o.stop(at + len);
+}
+// The drums: a kick (a quick drop in pitch), a snare (noise and a thump), a hi-hat (a tick of noise)
+function chipDrum(at, kind) {
+  if (kind === 'k') { tone(at, [170, 42], 0.14, 0.22); return; }
+  if (kind === 's') { hiss(at, 1800, 0.13, 0.12); tone(at, [240, 160], 0.07, 0.06, 'triangle'); return; }
+  if (kind === 'h') hiss(at, 7500, 0.03, 0.04, 'highpass');
+}
 // Start a station playing (keeps going until radioOff); a little ahead of time, so it never stutters
 function radioOn(k) {
   if (RADIO_PLAYING.station === k) return;
   radioOff();
-  const st = STATIONS[k], half = 60 / st.bpm / 2;
+  const st = STATIONS[k], step = 60 / st.bpm / 4;
   RADIO_PLAYING = { station: k, timer: null, step: 0, next: AC.currentTime + 0.05 };
   const R = RADIO_PLAYING;
   R.timer = setInterval(() => {
     while (R.next < AC.currentTime + 0.3) {                                                     // queue up the next 0.3 seconds
-      const n = R.step % st.lead.length;
-      if (st.lead[n]) tone(R.next, midiHz(st.lead[n]), half * 0.9, 0.035, 'square');
-      if (st.bass[n]) tone(R.next, midiHz(st.bass[n]), half * 0.95, 0.07, 'triangle');
-      if (n % 4 === 0) hiss(R.next, 6000, 0.03, 0.02, 'highpass');                               // a tick of hi-hat on the beat
-      R.next += half;
+      const n = R.step % st.lead.length, inBar = n % 16, [root, kind] = st.chords[Math.floor(n / 16)];
+      const note = st.lead[n];
+      if (note > 0) {                                                                            // a new lead note: how long is it held?
+        let hold = 1;
+        while (hold < 16 && st.lead[(n + hold) % st.lead.length] === -1) hold++;
+        chipLead(R.next, note, hold * step);
+      }
+      if (inBar % 4 === 0) chipArp(R.next, root, kind, step * 4);                                 // the chord, one beat at a time
+      const b = st.bass[inBar];
+      if (b !== null) chipBass(R.next, root + b, step * 0.9);
+      chipDrum(R.next, st.drums[inBar]);
+      R.next += step;
       R.step++;
     }
   }, 80);
@@ -265,4 +340,10 @@ SOUNDS.hornnear = t => carHorn(t, 0.5, 0.22, 3200);                // our own ho
 SOUNDS.horn = t => carHorn(t, 0.35, 0.03, 1400);                     // someone else's, down the street (duller)
 SOUNDS.bark = t => { for (let i = 0; i < 2; i++) { tone(t + i * 0.22, [420, 260], 0.12, 0.12, 'sawtooth'); hiss(t + i * 0.22, 900, 0.1, 0.1); } };
 SOUNDS.carpass = t => { hiss(t, [180, 700], 0.9, 0.12, 'lowpass'); hiss(t + 0.9, [700, 150], 0.9, 0.12, 'lowpass'); tone(t, [55, 75], 0.9, 0.05, 'sawtooth'); tone(t + 0.9, [75, 48], 0.9, 0.05, 'sawtooth'); };
+SOUNDS.rollerdoor = t => {                                          // a roller door going up: a rattle of slats and a low rumble
+  for (let i = 0; i < 16; i++) hiss(t + i * 0.07, 1400 + i * 40, 0.045, 0.07, 'bandpass', 4);
+  tone(t, [60, 85], 1.15, 0.05, 'sawtooth'); tone(t + 1.1, 120, 0.08, 0.08, 'square');   // …and a clunk at the top
+};
+SOUNDS.angerup = t => { tone(t, [260, 620], 0.28, 0.05, 'sawtooth'); tone(t, [130, 310], 0.28, 0.04, 'square'); };   // anger rising
+SOUNDS.msgtone = t => { tone(t, 2093, 0.08, 0.07, 'square'); tone(t + 0.13, 2093, 0.08, 0.07, 'square'); };   // a text message: beep beep
 SOUNDS.plink = t => { tone(t, [1900, 1300], 0.09, 0.06); };

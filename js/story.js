@@ -94,6 +94,7 @@ function readCodes(how) {
 // =====================================================================
 // open = [from, to] in minutes; closedDays = days it's shut; shop = things for sale
 const PLACE_INFO = {
+  'The Rusty Spanner': { open: [11 * 60, 24 * 60], person: 'the barman' },      // the pub: open late, shuts at midnight
   'Spanner & Son': { open: [8 * 60, 17 * 60 + 30], person: 'Mr Spanner' },
   'Post Office': { open: [9 * 60, 17 * 60 + 30], person: 'the woman behind the glass' },
   'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
@@ -124,6 +125,62 @@ const ITEMS = {
   'part-mega': { name: 'Gearbox sensor, "fits all models*"', price: 17.49 },
   'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 }
 };
+
+// Which night it is (after midnight still counts as the evening before)
+const nightOf = () => S.mins < 7 * 60 ? S.day - 1 : S.day;
+// Late, and you're in the garage: she comes in, in her nightie, and wants you in bed (once a night)
+const WIFE_IN_GARAGE = [172, 36];                                    // over on the right by the workbench, so her bubble is up in the top right
+function wifeComesIn() {
+  S.flags.wifeCalled = nightOf();
+  SPEAKER = wifeHead();
+  say('The wife', '"Come to bed, Husband."', [
+    { label: 'Go to bed', run() { show('room'); ACTIONS.bed(); } },
+    { label: 'Five more minutes', run() { SPEAKER = wifeHead(); say('The wife', '"Five minutes, Husband. I\'m counting."'); } }
+  ]);
+}
+
+// The radio code: once you know it, it goes in the notebook (under a job to get the radio working)
+function radioJob() { if (!findJob('radio')) job('radio', 'Get the radio working (it wants a code)', null); }
+function radioCodeNoted(how) {
+  radioJob();
+  if (S.flags.radioCode) return;
+  S.flags.radioCode = true;
+  note('radio', 'Radio code: 1234 (' + how + ')', 'ok');
+}
+
+// Still in the pub after ten: the wife texts (once a night)
+function pubLate() {
+  if (S.mins < 22 * 60 || S.flags.wifeTexted === S.day) return;
+  S.flags.wifeTexted = S.day;
+  textMsg('The wife', 'Husband. Where are you? It\'s gone ten. Come home. x');
+}
+
+// The barman's advice (no help at all)
+const BARMAN = [
+  '"Have you tried turning it off and on again?"',
+  '"Sounds like the big end, mate. It\'s always the big end."',
+  '"My cousin had a Zafira. Sold it to a man in a pub. Might have been you."',
+  '"You want a bit of WD-40 on that."',
+  '"Last orders at midnight, mind."'
+];
+
+// What your wife says about the car (mostly: scrap it)
+const WIFE_SCRAP = [
+  '"Just scrap it, Husband. Get a little Fiesta."',
+  '"The man at the scrapyard said he\'d give us £150 for it."',
+  '"You\'ve spent more on that car than we spent on the wedding."',
+  '"My sister\'s husband scrapped his. He\'s never been happier."',
+  '"Is it fixed yet, Husband? No? Scrap it."',
+  '"I\'ve found a lovely little Micra. One owner. A vicar."'
+];
+// …and now and then, something that actually helps (whatever you're stuck on)
+function wifeTip() {
+  if (!S.flags.codes) return '"Can\'t you plug something into it? Gaz had a gadget that reads the codes."';
+  if (S.flags.needHammer && !S.inv.hammer) return '"Your brother never gave your hammer back. The Hardware Shop will have one, whatever they tell you."';
+  if (leadOpen('fusebook') || leadOpen('fusediagram')) return '"Have you checked the fuses? My dad always checked the fuses first."';
+  if (S.radio && !S.radio.unlocked) { radioCodeNoted('your wife says it\'s always 1234'); return '"The radio code\'s in the handbook. Or it\'s 1234. It\'s always 1234."'; }
+  return '"Have a cup of tea first, Husband. Then scrap it."';
+}
 
 // Is a place open right now? Returns null if open, or the reason it isn't
 function closedReason(name) {
@@ -165,6 +222,24 @@ function talk(name) {
   say(name, lines[i]);
 }
 const TALK = {
+  // the pub: the barman takes your order (or gives you advice you didn't need)
+  'The Rusty Spanner'() {
+    const name = 'The Rusty Spanner';
+    const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
+      SPEAKER = keeperHead();
+      if (!spend(price)) return say(name, '"Card machine says no, mate."');
+      pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
+      say(name, `He pulls you a ${drink}. ${taste}\n\n${BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]}`);
+    } });
+    S.flags.pubSat = true;                                              // you sit up at the bar to order
+    say(name, '"Evening. What\'ll it be?"', [
+      pour('Hazy DIPA', 6.2, 'It tastes of grapefruit and regret. 8.2%.'),
+      pour('Cider', 4.8, 'Cloudy. Possibly made this morning.'),
+      pour('Lager', 4.9, 'Cold. Fizzy. Fine.'),
+      pour('Bitter', 4.2, 'Flat, brown and perfect.'),
+      { label: 'Just some advice', run() { SPEAKER = keeperHead(); say(name, BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]); } }
+    ]);
+  },
   'MOT Test Centre'() {
     // the first time: his verdict, and he hands over the failure sheet
     if (!S.flags.motDone) {
@@ -325,6 +400,7 @@ function buy(id, place) {
 // =====================================================================
 const SCREEN_ENTER = {
   garage() {
+    if (isBedtime() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
     if (!S.flags.n3lost || S.flags.nutEscaped) return;
     S.flags.nutEscaped = true;
     moment('nutEscape', 2200); sfx('drop');
@@ -357,16 +433,44 @@ const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
   talk() { talk(S.place); },
+  // a regular at the bar: their advice, round and round
+  punter(k) {
+    const p = PUNTERS[+k];
+    S.punterTalks = S.punterTalks || [0, 0];
+    const line = p.lines[S.punterTalks[+k]++ % p.lines.length];
+    pass(10); pubLate();
+    SPEAKER = punterHead(+k);
+    say(p.name, line);
+  },
+  // the phone's torch: on (so you can see under things) or off; then put the phone away
+  nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
+  phonetorch() {
+    S.flags.phoneTorch = !S.flags.phoneTorch;
+    sfx('click');
+    back();
+  },
+  // your wife: she wants the car scrapped; every third time, something useful
+  wife() {
+    S.wifeTalks = (S.wifeTalks || 0) + 1;
+    pass(5);
+    SPEAKER = wifeHead();
+    const useful = S.wifeTalks % 3 === 0;
+    if (isBedtime()) return say('The wife', S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."');   // in her nightie: bed
+    if (!useful) anger(5);                                             // "scrap it" again: that winds you up
+    say('The wife', useful ? wifeTip() : WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length]);
+  },
   // wait outside until it opens (you're there, ready, when the door unlocks)
   waitopen() {
     const [from] = (PLACE_INFO[S.place] || {}).open || [9 * 60];
     if (S.mins >= from) return;
     if (S.place === 'Post Office') S.flags.poEarly = S.day;
+    anger(Math.min(15, 4 + Math.round((from - S.mins) / 10)));         // standing about waiting winds you up (the longer, the worse)
     pass(from - S.mins);
     say('You wait', `You wait on the pavement. At ${hhmm(S.mins)} the door unlocks.`);
   },
   wait() {
     const early = S.place === 'Post Office' && S.mins < 9 * 60;
+    anger(5);                                                           // waiting about: it winds you up
     pass(30);
     if (early && !S.inside) S.flags.poEarly = S.day;                  // still outside when it opens
     say('You wait', `Half an hour${S.inside ? '' : ' on the pavement'}. It's ${hhmm(S.mins)}.`);
@@ -375,12 +479,18 @@ const ACTIONS = {
   cam(arg) {
     const [bi, bj] = arg.split(',').map(Number);
     const cx = bi * BLOCK + STREET + 35, cy = bj * BLOCK + STREET + 35;
-    S.cam.ox = 320 - (cx - cy);
-    S.cam.oy = 190 - (cx + cy) / 2;
+    S.cam.ox = 291 - (cx - cy);                                         // the middle of the town map (582 x 328)
+    S.cam.oy = 172 - (cx + cy) / 2;
   },
   // ----- home -----
   tea() { pass(10); anger(-15); moment('tea', 1400); sfx('pour'); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
-  bed() { sfx('door'); sleepUntilMorning(); say('Next morning', `It's ${weekday()} morning. You feel a bit better.`); },
+  bed() {
+    sfx('door');
+    S.flags.bedLate = isBedtime();                                     // late: she's in her nightie and comes too (it's morning by the time you wake)
+    sleepUntilMorning();
+    moment('night', 3200);                                           // dusk, black, then morning (the message waits for it)
+    say('Next morning', `It's ${weekday()} morning. You feel a bit better.`);
+  },
   parcel() {
     const p = S.doorstep.shift();
     if (!p) return say('The doorstep', 'Nothing there.');
@@ -391,9 +501,11 @@ const ACTIONS = {
   // ----- finding nut 3: a torch to look under things, then a stick to hook it out -----
   search(where) {
     pass(10);
-    if (!S.flags.torchLit) {
-      lead('nut3', 'torch', 'A torch: there was one in the toolbox', 'you', 'fairly sure', 'toolbox');
-      return say('Under ' + where, 'Pitch black under there. You need a torch.');
+    S.under = where;
+    show('lookunder');                                                  // down on the floor, looking under it
+    if (!S.flags.torchLit && !S.flags.phoneTorch) {
+      lead('nut3', 'torch', 'A torch: there was one in the toolbox (or your phone has one)', 'you', 'fairly sure', 'toolbox');
+      return say('Under ' + where, 'Pitch black under there. You need a light. Your phone has a torch.');
     }
     closeLead('search', 'ok');
     if (where === 'the workbench' && !S.flags.screwsSpilt) {
@@ -440,7 +552,13 @@ const ACTIONS = {
     if (S.place === 'Post Office' && S.flags.poEarly === S.day && S.mins <= 9 * 60 + 10) S.flags.poFirst = S.day;
     S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
   },
-  leave() { S.inside = false; S.spot.outside = [162, 52]; sfx('bell'); },
+  leave() {
+    S.flags.pubSat = false;                                             // off your bar stool
+    const unpaid = basketHere().length;
+    S.basket = (S.basket || []).filter(b => b.place !== S.place);     // you can't walk out with it
+    S.inside = false; S.spot.outside = [162, 52]; sfx('bell');
+    if (unpaid) say('The basket', 'You leave the basket by the door. You haven\'t paid for it.');
+  },
   browse() { pass(5); say('The stock', BROWSE[placeStyle(S.place)]); },
   posters() { const [a, b] = POSTERS[placeStyle(S.place)] || ['', '']; pass(2); say('The posters', `"${a}" (${b}). And one that just says SALE. It's from 2017.`); },
   // ----- the breakers yard: look at each wreck -----
@@ -493,17 +611,30 @@ const ACTIONS = {
     const d = +dir;
     sfx('click');
     if (!R.unlocked) {                                                   // locked: put the code in
+      radioJob();                                                        // a job in the notebook: get the radio working
       if (d !== 0) { R.pos = (R.pos + d + 4) % 4; return; }              // ◀ ▶ pick a place
       const now = R.digits[R.pos];
       R.digits[R.pos] = now === null ? 0 : (now + 1) % 10;               // the middle one turns it 0, 1 … 9, 0
-      if (R.digits.join('') === RADIO_CODE) { R.unlocked = true; sfx('beep'); }   // the right code: it unlocks
+      if (R.digits.join('') === RADIO_CODE) {                            // the right code: it unlocks, and it's written down
+        R.unlocked = true;
+        sfx('beep');
+        radioCodeNoted('it worked');
+        finishJob('radio', 'Radio unlocked with 1234');
+      }
       return;
     }
     if (d === 0) { R.on = !R.on; return; }                               // unlocked: the middle one turns it on or off
     if (R.on) R.station = (R.station + d + STATIONS.length) % STATIONS.length;   // on: ◀ ▶ change the station
   },
   // ----- the toolbox -----
-  drawer(n) { S.drawer = S.drawer === +n ? 0 : +n; sfx('drawer'); },
+  drawer(n) {
+    const d = +n;
+    const closing = S.drawer === d;
+    DRAWER_MOVE = { d, opening: !closing };                       // the moment slides it out or back in
+    S.drawer = closing ? 0 : d;
+    sfx('drawer');
+    moment('drawer', 320);
+  },
   find10() { pass(10); anger(5); sfx('clink'); sfx('clink', 0.3); say('The 10 mm', "It's not there. It's never there. There's a 10-shaped gap in the foam."); },
   findspanner() { pass(15); anger(5); sfx('screws'); say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and not the one you need.'); },
   meter() { pass(5); sfx('beep'); say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.'); },
@@ -629,6 +760,12 @@ const ACTIONS = {
       moment('benchNo', 1000); sfx('thud', 0.35); sfx('thud', 0.6);
       closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
       return say('Push', 'It\'s hexagonal. The hole is round. It\'s not going in.');
+    }
+    if (b.part === 'old-sensor') {                                     // the old one came out of here, so it goes back in (once lined up)
+      if (!b.rotated) return say('Push', 'The pins don\'t line up. Rotate it.');
+      b.state = 'in';
+      moment('benchFit', 1000); sfx('clink', 0.65);
+      return say('Push', 'Click. The old one goes straight back in. Of course it does. It\'s the old one.');
     }
     if (b.state === 'stuck') return say('Push', 'It won\'t go any further.');
     if (!b.rotated) { b.state = 'stuck'; anger(10); moment('benchStuck', 1100); sfx('creak'); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
