@@ -227,7 +227,10 @@ function arriveAt(name) {
   S.spot.place = [105, 140];                                       // you come in at the door
   S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
   S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
-  if (name === 'Post Office' && S.mins < 9 * 60) S.flags.poEarly = S.day;   // here before it opens: you'll be first in
+  if (name === 'Post Office') {                                     // the post office: when you got here decides your place in the queue
+    S.po = { day: S.day, arrived: S.mins };
+    if (poInQueue()) S.spot.outside = poSlot(poAhead());              // before 9: you join the back of the queue outside
+  }
 }
 // Talking at the counter (or on the doorstep)
 function talk(name) {
@@ -498,8 +501,6 @@ const ACTIONS = {
   },
   // the watch (bottom left, on every screen): wait an hour, wherever you are
   wait() {
-    const outsidePO = S.screen === 'place' && S.place === 'Post Office' && !S.inside;
-    if (outsidePO && S.mins < 9 * 60) S.flags.poEarly = S.day;        // outside the post office before it opens: you'll be at the front
     anger(5);                                                           // waiting about: it winds you up
     pass(60);
     if (S.screen === 'place' && S.place === 'Post Office' && S.inside && !postFirst()) {   // in the queue: it doesn't move
@@ -584,8 +585,11 @@ const ACTIONS = {
   enter() {
     const shut = closedReason(S.place);
     if (shut) { sfx('door'); anger(3); return say(S.place, shut); }
-    // the post office: if you were outside before it opened and you go in by 9:10, you're first in the queue
-    if (S.place === 'Post Office' && S.flags.poEarly === S.day && S.mins <= 10 * 60) S.flags.poFirst = S.day;   // you were outside when it opened (and went in within the hour)
+    // the post office: queued outside since before 9? you go in when it's your turn (9 if you were first, else 10), and you're served
+    if (S.place === 'Post Office' && poInQueue()) {
+      if (S.mins < poServedAt()) { anger(3); return say('Post Office', 'The queue is shuffling in, one at a time. Not your turn yet: about ' + hhmm(poServedAt()) + '.'); }
+      S.flags.poFirst = S.day;
+    }
     S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
   },
   leave() {

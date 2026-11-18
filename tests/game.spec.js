@@ -1061,9 +1061,39 @@ test('the post office: ten in the queue and it never moves, unless you were outs
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await sleep(page); await ok(page);
   await goPlace(page, 'Post Office');
-  while (await page.evaluate(() => S.mins < 9 * 60)) { await tap(page, 'act:wait'); await ok(page); }   // wait outside until it's open
+  while (await page.evaluate(() => S.mins < poServedAt())) { await tap(page, 'act:wait'); await ok(page); }   // wait outside until it's your turn
   await talk(page);
   expect(await dialogText(page)).toContain('first');
+  expect(errors).toEqual([]);
+});
+
+test('the post office queue outside: it grows from 6am; before 6 you are first (in at 9), from 6 to 9 you are in at 10; after 9 the queue is inside and never moves', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => [poQueueBy(6 * 60), poQueueBy(7 * 60), poQueueBy(8 * 60), poQueueBy(9 * 60 + 30)])).toEqual([0, 3, 6, 8]);
+  const arrive = mins => page.evaluate(m => { S.mins = m; S.inside = false; S.flags.poFirst = 0; S.place = 'Post Office'; arriveAt('Post Office'); S.screen = 'place'; render(); }, mins);
+  const goIn = async () => { await tap(page, 'act:enter'); await idle(page); const t = await page.evaluate(() => !!DIALOG && DIALOG.body); await ok(page); return t; };
+  // before 6: first in the queue; the door opens at 9 and you're served
+  await arrive(5 * 60 + 30);
+  expect(await page.evaluate(() => [poAhead(), poServedAt()])).toEqual([0, 9 * 60]);
+  await page.evaluate(() => { S.mins = 9 * 60; render(); });
+  await goIn();
+  expect(await page.evaluate(() => [S.inside, postFirst()])).toEqual([true, true]);
+  // 7:30: four in front; at 9 it's not your turn yet; at 10 you're in and served
+  await page.evaluate(() => { S.day += 1; });
+  await arrive(7 * 60 + 30);
+  expect(await page.evaluate(() => poAhead())).toBe(4);
+  await page.evaluate(() => { S.mins = 9 * 60 + 20; render(); });
+  expect(await goIn()).toContain('Not your turn');
+  expect(await page.evaluate(() => S.inside)).toBe(false);
+  await page.evaluate(() => { S.mins = 10 * 60; render(); });
+  await goIn();
+  expect(await page.evaluate(() => [S.inside, postFirst()])).toEqual([true, true]);
+  // after 9: straight in, the queue's inside, and you never get served
+  await page.evaluate(() => { S.day += 1; });
+  await arrive(11 * 60);
+  await goIn();
+  expect(await page.evaluate(() => [S.inside, postFirst()])).toEqual([true, false]);
   expect(errors).toEqual([]);
 });
 

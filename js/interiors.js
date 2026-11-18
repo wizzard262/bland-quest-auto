@@ -395,15 +395,52 @@ function shopExterior(name, shut) {
   ibox(110, 48, 122, 52, 0, 16, C.ink); onLeft(52, 111, 121, 4, 14, C.white);
   ibox(20, 46, 28, 52, 0, 12, C.tree2);
   ibox(-20, 60, -17, 63, 0, 70, C.greyDark); ibox(-24, 58, -10, 66, 70, 74, C.greyDark); onLeft(66, -22, -12, 69, 70, C.warm);
+  if (name === 'Post Office') postQueueOutside();                                                                     // before it opens: the queue along the pavement
   // your car (blue), parked at the kerb
   isoCarX(40, 72, 1, C.car);
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
 
 // =====================================================================
-// THE POST OFFICE QUEUE: ten people, and it never moves.
-// Be standing outside when it opens at 9:00 and you're first; otherwise you're at the back
+// THE POST OFFICE QUEUES
+//   Outside, before it opens: from 6am a queue grows along the pavement, from the door leftwards
+//   (6am nobody, 7am 3, 8am 6); people join behind you until 9. From 9 to 10 it all goes in.
+//   Here before 6: you're first, served at 9. Here from 6 to 9: you're served at 10 (an hour's wait outside).
+//   Inside, after 9: ten people, and it never moves.
 // =====================================================================
+const PO_OPENS = 9 * 60, PO_SERVED_LATE = 10 * 60;                  // the door opens; when the rest of the morning queue is through
+const PO_QUEUE_STARTS = 6 * 60;                                     // the first ones turn up
+const PO_OUTSIDE_SLOTS = 10;                                        // room along the pavement (you and nine more)
+// How many are queuing outside who turned up by time t (3 an hour from 6am; not after 9)
+function poQueueBy(t) {
+  if (t < PO_QUEUE_STARTS) return 0;
+  return Math.min(PO_OUTSIDE_SLOTS - 1, Math.floor((Math.min(t, PO_OPENS - 1) - PO_QUEUE_STARTS) / 20));
+}
+// Did you get here before it opened today? (you're in the queue outside)
+function poInQueue() { return !!S.po && S.po.day === S.day && S.po.arrived < PO_OPENS; }
+// How many were in front of you when you got here
+function poAhead() { return poInQueue() ? poQueueBy(S.po.arrived) : 0; }
+// When you get served: at 9 if you were first, at 10 if anyone was in front of you
+function poServedAt() { return poAhead() === 0 ? PO_OPENS : PO_SERVED_LATE; }
+// Where slot k of the outside queue is: along the pavement by the wall, from the door leftwards
+const poSlot = k => [160 - k * 12, 45];
+// Draw the queue outside: the ones in front of you, then the ones who came after you (they all go in between 9 and 10)
+function postQueueOutside() {
+  if (S.mins >= PO_SERVED_LATE) return;                             // all in by 10
+  const inQueue = poInQueue(), ahead = poAhead();
+  const everyone = poQueueBy(S.mins);                                // everyone who's turned up (not you)
+  const gone = S.mins < PO_OPENS ? 0 : Math.ceil(poQueueBy(PO_OPENS) * (S.mins - PO_OPENS) / 60);   // from 9 they go in, from the front
+  const slots = [];
+  for (let k = 0; k < everyone; k++) {
+    if (k < gone) continue;                                          // gone in already
+    const slot = inQueue && k >= ahead ? k + 1 : k;                  // the ones who came after you stand behind you
+    slots.push(slot);
+  }
+  slots.sort((a, b) => a - b).reverse().forEach(k => {                // the far end first (it's further back)
+    const [x, y] = poSlot(k), m = P(x, y);
+    man(m[0], m[1], 'stand', 2, 0, QUEUE_LOOKS[(k * 3) % QUEUE_LOOKS.length]);
+  });
+}
 const QUEUE_LOOKS = [
   { shirt: hex('#8a5a9a'), shirtDark: hex('#6a3a7a'), hair: C.white }, { shirt: hex('#3a7a4a'), shirtDark: hex('#2a5a34') },
   { shirt: C.warm, shirtDark: C.warmDim, hair: hex('#202020') }, { shirt: hex('#a04040'), shirtDark: hex('#702828'), hair: C.steel },
