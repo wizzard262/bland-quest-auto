@@ -239,7 +239,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
   const ours = !broken && !opts.shape && col === C.car;                                  // your car (the only blue one)
-  const kicked = ours ? kickedLamps() : { left: false, right: false };                   // which of its headlights you've kicked in
+  const kicked = opts.lampState || (ours ? kickedLamps() : { left: false, right: false });   // which of its headlights you've kicked in (the kick scene says for itself)
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
   poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass || rev ? glass : shade(col, 0.7));

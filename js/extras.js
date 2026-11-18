@@ -28,29 +28,25 @@ const CAR_BREAKS = [
 ];
 // =====================================================================
 const RAGE = { from: 'home', shook: false, done: false };
-const RAGE_CAR = [250, 214];                                  // the car's back end on the ground (it faces left, towards him)
-const RAGE_LAMP = [RAGE_CAR[0] + 4, RAGE_CAR[1] - 38];        // its headlight, at the front (left) end
-const RAGE_MAN = { size: 5, kickX: 222, standX: 210 };          // him in the cutscene: man-sized next to the car (19 x 5 = 95 tall); where he kicks from (his foot on the headlight) and stands after
-// The car side on, facing left: body, cabin and windows, wheels, the headlight (smashed once he's kicked it)
+// The kick scene: your car drawn the same way as everywhere else (isometric), big, its nose towards him
+const RAGE_ISO = { ox: 344, oy: 115, s: 4 };                  // where the car sits, and how big
+const RAGE_FLOOR = 110;                                       // where the wall meets the floor
+const RAGE_LAMP = [174, 180];                                 // the headlight nearest him (on screen), the one he kicks
+const RAGE_CAR = [0, 220];                                    // [unused x, the floor line he runs along: his feet]
+const RAGE_MAN = { size: 5, kickX: 144, standX: 132 };        // him: man-sized (19 x 5 = 95 tall); where he kicks from (his foot on the headlight) and stands after
+// The car, its near headlight whole or smashed (that's the side he kicks; mirrored for the right one), the far one as it really is
 function rageCar(smashed) {
-  const [x, y] = RAGE_CAR, col = C.car;
-  rbox(x, y - 48, 210, 34, 8, col);                                                   // the body
-  poly([[x + 52, y - 48], [x + 78, y - 86], [x + 186, y - 88], [x + 206, y - 48]], col);   // the cabin, the windscreen raked back
-  poly([[x + 60, y - 50], [x + 82, y - 82], [x + 124, y - 82], [x + 124, y - 50]], C.glass);   // front window
-  poly([[x + 130, y - 50], [x + 130, y - 82], [x + 182, y - 83], [x + 198, y - 50]], C.glass); // back window
-  rect(x, y - 22, 210, 6, shade(col, 0.7));                                           // the sill
-  rect(x + 98, y - 40, 10, 2, C.ink); rect(x + 158, y - 40, 10, 2, C.ink);            // door handles
-  for (const wx of [x + 46, x + 168]) { disc(wx, y - 14, 15, C.tyre); disc(wx, y - 14, 7, C.rim); }   // wheels
-  if (!smashed) { rect(RAGE_LAMP[0], RAGE_LAMP[1], 10, 9, C.warm); return; }          // the headlight
-  rect(RAGE_LAMP[0], RAGE_LAMP[1], 10, 9, C.ink);                                     // …smashed: a dark hole with a few jagged bits
-  for (const [dx, dy] of [[1, 1], [8, 2], [3, 7], [7, 6]]) px(RAGE_LAMP[0] + dx, RAGE_LAMP[1] + dy, C.white);
+  ISO.ox = RAGE_ISO.ox; ISO.oy = RAGE_ISO.oy;
+  const k = kickedLamps();
+  const far = RAGE.mirror ? k.left : k.right;                 // the other headlight, as it is
+  isoCar(0, 0, RAGE_ISO.s, C.car, { lampState: { left: smashed, right: far } });
 }
 SCREENS.rage = {
   size: [480, 270],
   paint() {
-    grime(0, 0, W, 214, C.concrete, 0.08, 91);                                         // a plain wall: it's all about him and the car
-    for (let y = 8; y < 214; y += 9) rect(0, y, W, 1, C.concreteDark);
-    rect(0, 214, W, H - 214, C.floor); rect(0, 214, W, 1, C.steel2);
+    grime(0, 0, W, RAGE_FLOOR, C.concrete, 0.08, 91);                                  // a plain wall: it's all about him and the car
+    for (let y = 8; y < RAGE_FLOOR; y += 9) rect(0, y, W, 1, C.concreteDark);
+    rect(0, RAGE_FLOOR, W, H - RAGE_FLOOR, C.floor); rect(0, RAGE_FLOOR, W, 1, C.steel2);   // the floor
     rageCar(RAGE.done || RAGE.already);                                                // once he's kicked it, it stays smashed
     if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
   },
@@ -68,7 +64,8 @@ function rageCutscene(side) {
   moment('rage', 2400);
   ANIM.then = () => {
     RAGE.done = true;
-    const at = RAGE.mirror ? [W - 207, 150] : [207, 150];               // his head (on the other side when the scene's mirrored)
+    const head = [RAGE_MAN.standX + 5, RAGE_CAR[1] - 95];                 // his head, where he stands after the kick
+    const at = RAGE.mirror ? [W - head[0], head[1]] : head;               // his head (on the other side when the scene's mirrored)
     DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at, options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
   };
   render();
