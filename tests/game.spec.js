@@ -274,6 +274,44 @@ test('look under the garage things any time: black without a light, lit with the
   expect(errors).toEqual([]);
 });
 
+test('look under a garage thing with a light: now and then a half-lit spider scurries off', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; S.flags.phoneTorch = true; render(); });
+  await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0; });   // make the spider come out this time
+  await tap(page, 'act:search:the shelves');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'spider');      // after he walks over, it runs while the dialog waits
+  expect(await dialogText(page)).toContain('scurries off into the dark');
+  await ok(page);
+  await act(page, 'Get up');
+  await page.evaluate(() => { Math.random = () => 0.99; });            // and this time it doesn't
+  await tap(page, 'act:search:the shelves');
+  const said = await dialogText(page);
+  expect(said).toContain('Dust');
+  expect(said).not.toContain('spider');
+  await page.evaluate(() => { Math.random = window.realRandom; });
+  // the spider's colours: brown in the torchlight, nearly black outside it
+  expect(await page.evaluate(() => [inTorchLight(240, 205), inTorchLight(470, 180)])).toEqual([true, false]);
+  expect(errors).toEqual([]);
+});
+
+test('open the boot in the garage: the spare wheel, the jack and the wheel brace are in there', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await tap(page, 'boot');                                              // he walks round to the back and lifts the lid
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('boot');
+  for (const [what, says] of [['Spare wheel', 'flat tyre'], ['Jack', 'scissor jack'], ['Wheel brace', 'wheel nuts']]) {   // look at each thing in there
+    await tap(page, 'act:look:' + what);
+    expect(await dialogText(page)).toContain(says);
+    await ok(page);
+  }
+  await act(page, 'Close the boot');
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  expect(errors).toEqual([]);
+});
+
 test('your wife: she wants it scrapped, but every third time she says something useful', async ({ page }) => {
   const errors = [];
   await start(page, errors);

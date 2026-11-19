@@ -673,6 +673,7 @@ SCREENS.garage = {
     spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'partsbox', [26, 118]);
     spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
     spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
+    spot('Boot', isoArea(40, 44, 70, 54, 8, 24), 'boot', [56, 36]);   // the spare wheel, jack and wheel brace (for a flat tyre)
     spot('Under the car (creeper)', isoArea(80, 58, 94, 88, 0, 4), 'under', [96, 80]);
     exitDoor(140, [136, 168, 52]);                                    // the way out: a see-through door in the near wall
     spot('Door: leave', isoArea(136, 136, 168, 140, 0, 52), 'home', [150, 128]);
@@ -792,6 +793,52 @@ SCREENS.underZoom = {
     a.push({ label: 'Zoom out', act: 'go:under' });
     return a;
   }
+};
+
+// =====================================================================
+// THE BOOT: lid up, looking in from behind; the spare wheel, the jack and the wheel brace (for a flat tyre)
+// =====================================================================
+SCREENS.boot = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, C.concrete, 0.1, 41);                            // the garage wall behind
+    rect(0, 236, W, 34, C.floor);                                       // the garage floor
+    // the lid, swung up, with its rear window
+    rbox(60, 2, 360, 34, 8, C.car);
+    rbox(80, 8, 320, 20, 4, C.glass);
+    rect(96, 12, 120, 2, shade(C.glass, 1.6));                          // a shine on the glass
+    // the back of the car round the opening, and the tail lights
+    rbox(30, 30, 420, 214, 12, C.car);
+    for (const x of [36, 424]) { rbox(x, 44, 20, 70, 4, C.red); rect(x + 4, 50, 12, 20, shade(C.red, 1.3)); }
+    // inside: the boot floor lifted out, so you see the well underneath
+    rbox(60, 42, 360, 190, 8, hex('#2a2a30'));
+    grime(66, 48, 348, 178, hex('#2a2a30'), 0.25, 42);
+    // the spare wheel, lying flat in its round well, bolted down in the middle
+    disc(240, 136, 66, hex('#18181c'));                                 // the well
+    disc(240, 136, 60, C.tyre);                                         // the tyre
+    for (let a = 0; a < 6.28; a += 0.2) px(240 + Math.cos(a) * 54, 136 + Math.sin(a) * 54, hex('#34343a'));   // tread
+    disc(240, 136, 36, C.rim);                                          // the steel wheel
+    ring(240, 136, 36, C.steel2);
+    for (let k = 0; k < 4; k++) disc(240 + Math.cos(k * 1.571) * 20, 136 + Math.sin(k * 1.571) * 20, 3, C.steel2);   // its stud holes
+    bolt(240, 136, 9, false);                                           // the big nut holding it down
+    // the jack: a scissor jack, folded flat in its foam tray
+    rbox(80, 92, 84, 96, 6, hex('#1e1e22'));
+    for (const [x0, y0, x1, y1] of [[96, 170, 122, 120], [122, 120, 148, 170], [96, 110, 122, 140], [122, 140, 148, 110]]) pipe(x0, y0, x1, y1, 4, C.steel2);
+    rect(92, 170, 60, 6, C.tool); rect(110, 102, 24, 6, C.tool);        // its foot and its saddle
+    pipe(150, 140, 162, 140, 3, C.steel);                               // the screw it winds up on
+    // the wheel brace: an L-shaped bar, clipped down on the right
+    rbox(324, 84, 88, 112, 6, hex('#1e1e22'));
+    pipe(344, 100, 344, 176, 6, C.steel);
+    pipe(344, 176, 392, 176, 6, C.steel);
+    disc(344, 100, 6, C.steel2); disc(344, 100, 3, C.greyDark);         // its socket end
+    // the bumper and the number plate
+    rbox(24, 238, 432, 24, 6, C.carDark);
+    rbox(196, 242, 88, 16, 2, C.warm);
+    text('TT85 KIK', 210, 247, C.ink);
+    zoomZones([['Spare wheel', 172, 68, 136, 136], ['Jack', 78, 88, 90, 104], ['Wheel brace', 320, 80, 96, 120]]);
+    hud();
+  },
+  actions() { return [{ label: 'Close the boot', act: 'go:garage' }]; }
 };
 
 // =====================================================================
@@ -1150,6 +1197,14 @@ const UNDER_FINDS = {                                                 // what's 
   'the workbench': [[140, 200, 'screw'], [200, 220, 'screw'], [260, 190, 'screw'], [320, 215, 'screw'], [360, 200, 'screw']],
   'the tool chest': [[330, 168, 'nut'], [160, 210, 'dust']]
 };
+const SPIDER_CHANCE = 0.3;                                            // how often a spider scurries off when you look under something with a light
+const UNDER_POOL = { x: 240, y: 205, rx: 210, ry: 60 };                // the torch's pool of light on the floor
+// Is this point inside the torch's pool of light?
+function inTorchLight(x, y) {
+  const dx = (x - UNDER_POOL.x) / UNDER_POOL.rx;                        // how far across the pool, 0 = the middle, 1 = its edge
+  const dy = (y - UNDER_POOL.y) / UNDER_POOL.ry;                        // how far up or down the pool
+  return dx * dx + dy * dy < 1;
+}
 SCREENS.lookunder = {
   size: [480, 270],
   paint() {
@@ -1160,7 +1215,7 @@ SCREENS.lookunder = {
     for (const x of [40, 430]) rect(x, 18, 12, 150, hex('#222226'));    // its legs (or wheels)
     rect(0, 150, W, 120, hex('#141416'));                            // the floor, going back into the dark
     if (lit) {
-      ellipse(240, 205, 210, 60, hex('#6a6450'));                    // the torch's pool of light
+      ellipse(UNDER_POOL.x, UNDER_POOL.y, UNDER_POOL.rx, UNDER_POOL.ry, hex('#6a6450'));   // the torch's pool of light
       ellipse(240, 205, 150, 42, hex('#8a826a'));
       for (const [x, y, k] of UNDER_FINDS[where] || []) underFind(k, x, y);
     }

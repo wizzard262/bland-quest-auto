@@ -185,6 +185,10 @@ The game picks from these at random, so the same task goes differently each time
   - The number is under grease and half rubbed off
     - Clean it: it's a 5 or a 6 → order both? 💷💷 → **Try it in the hole**
   - Look it up. 📍 Computer › MegaMart: number 101 is replaced by 102; 102 is replaced by 101 ↺ 😡
+- **Send the old part off for testing** (this really happened to Steve). 📍 Workbench → City › Post Office 💷
+  - Tracking says "Delivered" ⏳ 3 days
+  - A phone call ⏳ a week later: "We can't test this one" (that model number) ✖
+    - It's posted back to you ⏳ 💷: **not failed, just untestable**. You still don't know if it's broken ↺ 😡
 - **Parts shop**. 📍 City › Motor Factors: "ready in 2 hours… at the other branch"
   - Drive there. 📍 City › Parts 4 Less ⏳: they shut at 4:30, you arrive at 4:31 ✖ ⏳ tomorrow
   - 📍 City › Car Spares Direct: "We can order it in" ⏳ 10 days → **wrong size** ✖
@@ -382,3 +386,15 @@ The game picks from these at random, so the same task goes differently each time
   - Machine Shop, Makerspace: make your own
   - Post Office, Courier Depot, Bank, Library, Phone Shop, PC Shop: the admin (and fixing the crashed computer)
   - Family and friends (Mum & Dad's, Brother's, Mate Gaz's, Neighbour Ken's, Auntie Jean's): favours that cost favours
+
+---
+
+## Cutscenes: 1980s anime-style stills
+
+Big still pictures for the big moments, in `cutscenes.html` (an 80s action-anime look: thick outlines, flat shading, neon and pastels, film grain; a Pixel button shows each one at the game's own 480 × 270 pixel size).
+
+- Done: **The kick** (he flying-kicks the car's headlight), **The wife** (in the bedroom at night)
+- Still to draw:
+  - Being sick outside the pub
+  - The shopkeepers
+  - The police pull him over for drink-driving

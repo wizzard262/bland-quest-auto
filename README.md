@@ -20,6 +20,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/engine.js`: game state, time, money, anger, the notebook, dialogs, saving
 - `task-tree.md`: the full design tree of tasks and snags (branches still to build)
 - `mockups.html`: the still mockups the game was built from
+- `cutscenes.html`: big 1980s anime-style still cutscenes (the kick, the wife); the Pixel button shows them at the game's pixel size
 - `forest.html`, `spanner-and-son.html`: early scenes
 
 ## Tests

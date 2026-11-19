@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thankless Task Cutscenes</title>
+<!-- The Thankless Task: big still cutscenes in a 1980s action-anime look (thick outlines, flat shading, neon and pastels, film grain).
+     Each scene is drawn as an SVG picture. The Pixel button redraws each one at the game's own size (480 x 270) with hard pixels. -->
+<style>
+  :root { --bg: #14101e; --panel: #1f1830; --text: #f4eefc; --dim: #b6a9cc; --pink: #ff5fa8; --cyan: #46e0ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  h1 { font: italic 900 28px/1.1 Impact, 'Arial Black', sans-serif; letter-spacing: 1px; color: var(--pink); text-shadow: 3px 3px 0 #2a1550, 0 0 18px rgba(255, 95, 168, .5); margin: 8px 0 4px; }
+  .sub { color: var(--dim); margin: 0 0 16px; }
+  button { font: 700 15px system-ui, sans-serif; color: #14101e; background: var(--cyan); border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--pink); }
+  figure { margin: 20px 0 28px; background: var(--panel); border-radius: 10px; padding: 10px; }
+  figure svg, figure canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+  figure canvas { image-rendering: pixelated; aspect-ratio: 16 / 9; }
+  figcaption { padding: 10px 4px 2px; }
+  figcaption b { color: var(--cyan); }
+  .pixel svg { display: none; }
+  body:not(.pixel) canvas { display: none; }
+  .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .cast div { background: var(--panel); border-radius: 10px; padding: 12px 14px; }
+  .cast h3 { margin: 0 0 4px; color: var(--pink); }
+  .cast p { margin: 0; color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1>THE THANKLESS TASK</h1>
+  <p class="sub">Cutscenes: big still moments, drawn like a 1980s action cartoon.</p>
+  <button id="pixel" aria-pressed="false">Pixel look: off</button>
+
+  <!-- ================= SCENE 1: THE KICK ================= -->
+  <figure>
+    <svg id="kick" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="He flying-kicks the car's headlight; glass explodes">
+      <style>
+        .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+        .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+      </style>
+      <defs>
+        <linearGradient id="k-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ece4ff"/><stop offset="1" stop-color="#9ca6f2"/></linearGradient>
+        <radialGradient id="k-flash" cx="636" cy="342" r="300" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".35" stop-color="#fff6c8" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="k-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+        <linearGradient id="k-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a4c86"/><stop offset=".45" stop-color="#121a34"/><stop offset=".55" stop-color="#ff7ab8"/><stop offset=".62" stop-color="#121a34"/><stop offset="1" stop-color="#20305a"/></linearGradient>
+        <radialGradient id="k-vig" cx=".5" cy=".5" r=".75"><stop offset=".6" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".5"/></radialGradient>
+        <filter id="k-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+      </defs>
+
+      <rect width="960" height="540" fill="url(#k-bg)"/>
+      <g id="k-lines"></g>                                    <!-- speed lines out from the kick (drawn by the script) -->
+      <circle cx="636" cy="342" r="300" fill="url(#k-flash)"/>
+
+      <!-- the car: his blue hatchback, nose towards him, jolted by the kick -->
+      <g transform="rotate(-3 780 360)">
+        <ellipse cx="640" cy="452" rx="30" ry="36" fill="#222228" class="o"/>                      <!-- front wheel, under the bumper -->
+        <ellipse cx="882" cy="440" rx="46" ry="52" fill="#222228" class="o"/>                      <!-- front wheel, side on -->
+        <ellipse cx="882" cy="440" rx="24" ry="28" fill="#a8acb4" class="o"/>
+        <circle cx="882" cy="440" r="7" fill="#5a5e68"/>
+        <path class="o" fill="#285094" d="M762,300 L830,252 L960,244 L960,420 L930,422 C928,392 906,380 880,380 C854,380 834,394 832,428 L772,436 Z"/>   <!-- side -->
+        <path class="t" stroke="#18284e" d="M782,316 L960,300 M800,436 L960,424"/>
+        <rect x="900" y="316" width="22" height="6" rx="2" fill="#a8acb4"/>                        <!-- door handle -->
+        <path class="o" fill="url(#k-glass)" d="M842,250 L876,192 L960,186 L960,242 Z"/>           <!-- side window -->
+        <path class="o" fill="#5a92dc" d="M592,312 L762,300 L830,252 L660,262 Z"/>                 <!-- bonnet -->
+        <path fill="#fff" opacity=".55" d="M684,276 L800,267 L808,262 L694,270 Z"/>
+        <path class="o" fill="url(#k-glass)" d="M660,262 L830,252 L870,186 L712,194 Z"/>           <!-- windscreen -->
+        <path fill="#fff" opacity=".35" d="M760,252 L800,250 L842,200 L812,202 Z"/>
+        <path class="o" fill="#5a92dc" d="M712,194 L870,186 L960,180 L960,168 L880,172 L722,182 Z"/>  <!-- roof edge -->
+        <path class="o" fill="#285094" d="M832,256 L852,252 L856,266 L836,268 Z"/>                 <!-- wing mirror -->
+        <path class="o" fill="#3c78c8" d="M592,312 L762,300 L772,436 L588,446 Z"/>                 <!-- the front -->
+        <path fill="#285094" d="M716,304 L762,300 L772,436 L724,438 Z" opacity=".6"/>
+        <path class="o" fill="#1a2240" d="M672,326 L704,324 L706,354 L674,356 Z"/>                 <!-- grille -->
+        <path class="t" stroke="#5a6aa0" d="M675,334 L703,332 M675,342 L704,340 M675,350 L705,348"/>
+        <path class="o" fill="#e8f0ff" d="M712,321 L752,318 L754,350 L714,352 Z"/>                 <!-- the other headlight -->
+        <path class="o" fill="#fff8d0" d="M604,328 L664,324 L666,356 L606,360 Z"/>                 <!-- THE headlight, smashing -->
+        <path class="t" d="M636,342 L606,332 M636,342 L620,360 M636,342 L662,328 M636,342 L664,350 M636,342 L640,325 M636,342 L644,359 M622,337 L612,346"/>
+        <rect x="606" y="364" width="18" height="7" fill="#f8a030" class="t"/>
+        <rect x="726" y="356" width="16" height="7" fill="#f8a030" class="t"/>
+        <path class="o" fill="#3a3a44" d="M586,392 L772,384 L774,412 L586,422 Z"/>                 <!-- bumper -->
+        <path class="o" fill="#f4f4f0" stroke-width="2.5" d="M644,396 L708,393 L709,408 L645,411 Z"/>  <!-- number plate -->
+        <text x="676" y="406" font-family="Arial Black, Impact, sans-serif" font-size="11" text-anchor="middle" fill="#1c1028" transform="rotate(-2 676 404)">TT85 KIK</text>
+      </g>
+
+      <g id="k-burst"></g>                                     <!-- the impact star (drawn by the script) -->
+
+      <!-- him: afterimages first (where he flew from), then the real him -->
+      <use href="#k-hero" transform="translate(-90 34)" opacity=".14"/>
+      <use href="#k-hero" transform="translate(-46 17)" opacity=".26"/>
+      <g id="k-hero">
+        <!-- the tucked leg (behind) -->
+        <path class="o" fill="#304a88" d="M428,298 C452,334 474,362 498,380 C514,392 516,406 502,412 C478,416 450,418 424,422 L420,398 C442,396 462,394 474,390 C456,372 436,348 416,324 Z"/>
+        <path class="o" fill="#5a2e14" d="M424,396 L398,394 C388,400 386,418 394,428 L426,426 Z"/>
+        <!-- the arm flung back (behind), open hand -->
+        <path class="o" fill="#d89c7c" d="M362,186 C340,178 320,172 290,168 L262,164 C256,170 256,178 262,182 L292,186 C320,192 340,200 356,206 Z"/>
+        <path class="o" fill="#a83020" d="M366,182 C356,178 346,176 334,174 L330,198 C342,200 352,204 362,210 Z"/>
+        <path class="o" fill="#e8b090" d="M262,162 C250,158 238,158 230,162 C228,168 230,176 236,180 C246,182 256,182 262,182 Z"/>
+        <path class="t" d="M240,168 L254,168 M240,174 L254,175"/>
+        <!-- his body: red shirt, open collar -->
+        <path class="o" fill="#e04838" d="M455,288 C446,252 430,218 410,192 C396,176 368,172 350,186 C338,200 346,226 366,250 C386,274 404,292 420,308 Z"/>
+        <path fill="#a83020" d="M352,188 C340,202 348,226 368,250 C388,274 404,292 420,306 L430,298 C410,278 390,256 376,234 C364,214 358,200 362,190 Z"/>
+        <path fill="#e8b090" class="t" d="M398,188 C408,198 418,212 424,228 C412,224 400,212 392,198 Z"/>
+        <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M420,206 C434,226 444,250 450,276"/>
+        <circle cx="430" cy="244" r="2.5" fill="#f4f4f0"/><circle cx="438" cy="262" r="2.5" fill="#f4f4f0"/><circle cx="444" cy="280" r="2.5" fill="#f4f4f0"/>
+        <!-- jeans and belt -->
+        <path class="o" fill="#4060a8" d="M418,306 C430,296 446,288 458,288 C472,300 470,322 456,330 C440,334 424,330 414,322 Z"/>
+        <path class="o" fill="#2a1810" d="M416,304 C428,294 444,288 458,288 L462,298 C450,298 436,304 424,314 Z"/>
+        <rect x="440" y="290" width="10" height="9" fill="#f0c040" class="t" transform="rotate(-20 445 294)"/>
+        <!-- the kicking leg: straight out, boot sole into the headlight -->
+        <path class="o" fill="#4060a8" d="M446,282 C500,286 560,306 604,320 L606,356 C560,348 500,338 444,328 Z"/>
+        <path fill="#304a88" d="M448,326 C500,336 560,346 604,354 L604,344 C560,336 502,326 454,316 Z"/>
+        <path fill="none" stroke="#86a4e8" stroke-width="3" stroke-linecap="round" d="M470,290 C520,296 566,308 596,320"/>
+        <path class="t" stroke="#304a88" d="M528,302 C534,314 534,324 528,336"/>
+        <path class="o" fill="#5a7ac8" d="M590,316 L606,318 L608,358 L592,354 Z"/>
+        <path class="o" fill="#6a3a1a" d="M604,316 L630,320 C640,328 643,350 637,364 L604,360 Z"/>
+        <path class="o" fill="#2a1408" d="M630,320 C640,328 643,350 637,364 L645,364 C651,350 649,326 637,318 Z"/>
+        <path class="t" stroke="#c88a50" d="M610,326 L622,330 M610,334 L622,338"/>
+        <!-- neck -->
+        <path class="o" fill="#c88a6e" d="M378,176 L396,188 L404,170 L390,160 Z"/>
+        <!-- the arm drawn in: fist by his chest -->
+        <path class="o" fill="#e8b090" d="M404,194 C394,212 386,230 382,248 C380,258 388,264 396,260 C406,252 416,242 424,234 L428,220 C420,226 408,234 400,240 C404,226 410,214 414,202 Z"/>
+        <path class="o" fill="#e04838" d="M402,188 C396,198 392,208 390,218 L410,224 C412,214 416,204 420,196 Z"/>
+        <rect x="414" y="206" width="26" height="26" rx="9" fill="#e8b090" class="o"/>
+        <path class="t" d="M420,214 L434,212 M420,222 L434,220"/>
+        <!-- his head: hair swept back by the speed, headband tails streaming, aviators -->
+        <path class="o" fill="#f4f4f0" d="M348,132 C320,120 300,124 268,110 C290,128 310,134 340,142 Z"/>
+        <path class="o" fill="#f4f4f0" d="M346,138 C322,142 300,152 274,148 C298,160 320,156 344,146 Z"/>
+        <path class="o" fill="#603818" d="M352,118 L312,106 L346,130 L306,134 L346,146 Z"/>
+        <path class="o" fill="#e8b090" d="M346,152 C344,130 356,116 376,116 C396,116 406,130 404,150 C404,164 402,174 396,182 C388,190 372,192 360,186 C350,180 346,166 346,152 Z"/>
+        <path fill="#c08068" opacity=".7" d="M360,186 C372,192 388,190 396,182 C392,176 386,172 380,172 C372,176 364,180 358,182 Z"/>
+        <path fill="#603818" opacity=".4" d="M362,168 C370,182 388,186 400,176 C400,184 392,191 378,191 C368,191 360,184 358,174 Z"/>
+        <ellipse cx="358" cy="154" rx="6" ry="9" fill="#e0a484" class="t"/>
+        <path class="o" fill="#603818" d="M344,150 C338,128 350,108 374,106 C392,104 406,114 408,130 C400,124 390,122 380,124 C372,126 366,130 360,138 C356,144 350,150 344,150 Z"/>
+        <path fill="none" stroke="#9a6038" stroke-width="3" stroke-linecap="round" d="M366,112 C380,108 394,112 402,120"/>
+        <path class="o" fill="#f4f4f0" d="M346,128 C366,122 390,122 408,130 L406,138 C390,130 366,130 348,138 Z"/>
+        <path class="t" stroke-width="4" d="M374,136 L394,141"/>
+        <path class="o" fill="url(#k-shades)" stroke-width="3" d="M372,142 C380,140 390,140 394,144 C394,154 388,160 380,158 C374,156 372,150 372,142 Z"/>
+        <path class="o" fill="url(#k-shades)" stroke-width="3" d="M398,143 C402,143 406,144 406,147 C405,155 402,158 398,157 Z"/>
+        <path class="t" d="M394,144 L398,143 M372,144 L358,148"/>
+        <path fill="#fff" opacity=".8" d="M376,145 L382,144 L376,152 Z"/>
+        <path class="t" d="M404,150 C410,158 408,162 402,164"/>
+        <path class="o" fill="#f4f4f0" stroke-width="3" d="M384,170 L400,168 L398,177 L386,178 Z"/>
+        <path class="t" stroke-width="1.5" d="M385,173 L399,172 M390,169 L390,178 M395,168 L395,177"/>
+      </g>
+
+      <!-- the swoosh of the kick -->
+      <path d="M400,452 C480,440 560,400 626,348" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".75"/>
+      <path d="M430,470 C500,456 566,418 620,364" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+      <g id="k-shards"></g>                                    <!-- flying glass (drawn by the script) -->
+
+      <text x="714" y="140" transform="rotate(-12 714 140)" font-family="Impact, 'Arial Black', sans-serif" font-size="104" font-style="italic" fill="#ff5fa8" opacity=".9">KRAK!</text>
+      <text x="706" y="132" transform="rotate(-12 706 132)" font-family="Impact, 'Arial Black', sans-serif" font-size="104" font-style="italic" fill="#ffe14a" stroke="#1c1028" stroke-width="7" paint-order="stroke">KRAK!</text>
+
+      <rect width="960" height="540" filter="url(#k-grain)"/>
+      <rect width="960" height="540" fill="url(#k-vig)"/>
+    </svg>
+    <canvas width="480" height="270" data-for="kick"></canvas>
+    <figcaption><b>The kick.</b> One snag too many. He leaves the ground, the boot goes in, and the headlight goes everywhere.</figcaption>
+  </figure>
+
+  <!-- ================= SCENE 2: THE WIFE ================= -->
+  <figure>
+    <svg id="wife" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="His wife in a pink nightie in front of the bed, lamp and window light">
+      <style>
+        .o { stroke: #3a1a2a; stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+        .t { stroke: #3a1a2a; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+      </style>
+      <defs>
+        <linearGradient id="w-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0aeb0"/><stop offset="1" stop-color="#d4848e"/></linearGradient>
+        <linearGradient id="w-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a4a72"/><stop offset="1" stop-color="#4a2246"/></linearGradient>
+        <linearGradient id="w-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1458"/><stop offset=".6" stop-color="#8a2a8a"/><stop offset="1" stop-color="#ff6aa0"/></linearGradient>
+        <linearGradient id="w-sheet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d0285a"/><stop offset=".5" stop-color="#9a1444"/><stop offset="1" stop-color="#6a0c34"/></linearGradient>
+        <linearGradient id="w-satin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fbd8e4"/><stop offset=".45" stop-color="#f4c0d4"/><stop offset="1" stop-color="#d890b0"/></linearGradient>
+        <radialGradient id="w-lamp" cx="212" cy="280" r="260" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd890" stop-opacity=".85"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
+        <radialGradient id="w-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#1a0a20" stop-opacity="0"/><stop offset="1" stop-color="#1a0a20" stop-opacity=".55"/></radialGradient>
+        <filter id="w-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+        <clipPath id="w-winclip"><rect x="752" y="72" width="146" height="206"/></clipPath>
+      </defs>
+
+      <!-- the room -->
+      <rect width="960" height="372" fill="url(#w-wall)"/>
+      <rect y="372" width="960" height="168" fill="url(#w-floor)"/>
+      <rect y="364" width="960" height="10" fill="#b86a78"/>
+      <!-- the window: a synthwave night outside, blinds half open -->
+      <rect x="740" y="60" width="170" height="230" fill="#f6e0d4" class="o"/>
+      <g clip-path="url(#w-winclip)">
+        <rect x="752" y="72" width="146" height="206" fill="url(#w-sky)"/>
+        <circle cx="850" cy="128" r="24" fill="#fff0d0"/>
+        <path fill="#2a0c3a" d="M752,278 L752,236 L776,236 L776,220 L800,220 L800,244 L830,244 L830,212 L846,212 L846,240 L872,240 L872,226 L898,226 L898,278 Z"/>
+        <path fill="#2a0c3a" d="M786,278 C788,240 792,212 790,196 L794,196 C798,214 796,244 794,278 Z M790,198 C776,186 764,190 756,198 C770,192 780,194 790,202 Z M792,198 C806,184 820,188 828,196 C814,190 802,194 792,202 Z M791,200 C780,206 772,216 770,226 C778,214 786,208 792,204 Z M793,200 C806,206 814,216 816,226 C808,214 800,208 792,204 Z"/>
+        <g id="w-blinds"></g>
+      </g>
+      <!-- the bedside table and lamp -->
+      <path class="o" fill="#5a2a3a" d="M160,330 L272,330 L272,428 L160,428 Z"/>
+      <path class="t" d="M168,372 L264,372"/>
+      <circle cx="216" cy="352" r="4" fill="#f0c040"/><circle cx="216" cy="396" r="4" fill="#f0c040"/>
+      <path class="o" fill="#3a1a2a" d="M206,330 L226,330 L222,300 L210,300 Z"/>
+      <path class="o" fill="#ffd89a" d="M182,250 L250,250 L264,302 L168,302 Z"/>
+      <!-- the bed, behind her -->
+      <path class="o" fill="#5a2a6a" d="M300,330 L300,226 C300,206 330,200 480,200 C630,200 660,206 660,226 L660,330 Z"/>
+      <g fill="#3a1a4a"><circle cx="360" cy="240" r="4"/><circle cx="420" cy="232" r="4"/><circle cx="480" cy="230" r="4"/><circle cx="540" cy="232" r="4"/><circle cx="600" cy="240" r="4"/><circle cx="390" cy="280" r="4"/><circle cx="450" cy="276" r="4"/><circle cx="510" cy="276" r="4"/><circle cx="570" cy="280" r="4"/></g>
+      <path class="o" fill="url(#w-sheet)" d="M282,318 L678,318 L726,424 L236,424 Z"/>
+      <ellipse cx="398" cy="306" rx="72" ry="24" fill="#f6d6e0" class="o"/>
+      <ellipse cx="562" cy="306" rx="72" ry="24" fill="#f6d6e0" class="o"/>
+      <path fill="none" stroke="#ff7aa0" stroke-width="3" opacity=".7" d="M300,350 C360,340 420,362 480,350 C540,338 600,360 660,348"/>
+      <path class="o" fill="#3a1530" d="M236,424 L726,424 L726,450 L236,450 Z"/>
+      <!-- the lamp's warm glow -->
+      <rect width="960" height="540" fill="url(#w-lamp)" style="mix-blend-mode: screen"/>
+      <!-- her shadow on the carpet -->
+      <ellipse cx="478" cy="516" rx="66" ry="10" fill="#1a0a20" opacity=".4"/>
+
+      <!-- HER -->
+      <g id="w-her">
+        <!-- hair at the back -->
+        <path class="o" fill="#3a2010" d="M484,48 C450,48 434,74 436,106 C438,140 420,170 410,206 C404,232 412,256 432,264 C440,240 446,210 456,180 L508,150 C518,130 530,110 528,88 C524,62 508,48 484,48 Z"/>
+        <!-- the arm raised, hand behind her head -->
+        <path class="o" fill="#f0b896" d="M532,170 C552,168 566,150 576,128 C584,112 592,98 588,88 C584,80 572,78 556,78 L520,76 L516,92 C540,94 556,96 566,102 C562,118 552,138 542,154 C538,160 530,170 528,186 Z"/>
+        <path fill="#c98a74" opacity=".6" d="M528,186 C530,170 538,160 542,154 C552,138 562,118 566,102 L572,104 C566,124 556,146 546,162 C540,170 534,178 532,190 Z"/>
+        <path fill="none" stroke="#8ff0ff" stroke-width="2.5" stroke-linecap="round" opacity=".85" d="M578,126 C586,110 592,98 589,90"/>
+        <!-- legs: her weight on one, the other knee turned in, up on her toes -->
+        <path class="o" fill="#f0b896" d="M430,300 C428,350 438,385 440,405 C442,425 450,440 448,462 C446,478 450,488 452,494 L448,510 C452,516 470,517 474,512 L468,494 C470,480 474,460 472,440 C470,425 466,415 468,400 C472,370 482,345 484,320 Z"/>
+        <path class="o" fill="#f0b896" d="M484,320 C488,350 490,380 488,404 C486,420 480,440 482,460 C484,476 486,486 487,496 L486,512 C492,516 504,514 504,508 L500,494 C502,478 506,455 504,436 C502,420 506,410 508,396 C512,365 518,330 522,300 Z"/>
+        <path fill="#c98a74" opacity=".55" d="M470,330 C472,360 466,390 468,400 C466,416 470,428 472,440 L464,440 C462,420 458,404 460,390 C462,370 464,350 466,330 Z"/>
+        <path fill="none" stroke="#8ff0ff" stroke-width="2.5" stroke-linecap="round" opacity=".85" d="M520,310 C514,350 508,380 507,398 C504,414 502,430 504,450"/>
+        <!-- her body under the nightie -->
+        <path class="o" fill="#f0b896" d="M446,165 C430,170 418,174 412,186 L410,216 C420,240 438,262 446,286 L520,286 C528,262 540,236 548,212 L548,186 C542,174 530,170 516,165 Z"/>
+        <path fill="#ffd6bc" opacity=".6" d="M450,176 C470,182 496,182 512,176 C500,186 466,188 450,176 Z"/>
+        <!-- the nightie: pink satin, empire line, short and floaty, lace at the hem -->
+        <path class="o" fill="url(#w-satin)" d="M432,236 L530,236 C540,270 556,310 572,345 C548,352 520,348 496,354 C470,348 450,356 424,348 C412,350 398,346 392,340 C404,305 420,268 432,236 Z"/>
+        <path fill="#d890b0" opacity=".7" d="M500,240 C506,290 520,320 540,350 L572,345 C556,310 540,270 530,236 Z"/>
+        <path fill="none" stroke="#c87898" stroke-width="2.5" stroke-linecap="round" d="M456,242 C450,280 440,312 430,346 M482,242 C484,290 486,320 486,352 M506,242 C512,286 520,318 530,348"/>
+        <path fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7" d="M444,250 C436,280 426,310 414,336 M492,250 C494,280 496,310 498,340"/>
+        <path id="w-hem" fill="none" stroke="#fbe8f0" stroke-width="7" d="M392,340 C412,350 450,356 470,350 C490,346 520,352 548,350 C558,349 566,347 572,345"/>
+        <path fill="none" stroke="#fff4f8" stroke-width="7" stroke-dasharray="0.1 9" stroke-linecap="round" d="M394,346 C414,356 450,362 470,356 C490,352 520,358 548,356 C558,355 566,353 572,351"/>
+        <!-- the bodice: the cup nearest the fallen strap sits lower -->
+        <path class="o" fill="#f4c0d4" d="M428,214 C432,200 452,194 470,206 C476,210 480,214 481,216 C484,208 494,196 512,194 C530,194 540,206 538,222 C540,232 534,236 530,238 L432,238 C426,232 425,224 428,214 Z"/>
+        <path fill="none" stroke="#fbe8f0" stroke-width="5" stroke-linecap="round" d="M430,214 C436,202 454,198 470,208 C476,212 480,216 481,218 C484,210 494,198 512,196 C528,196 538,206 537,218"/>
+        <path class="t" stroke="#a0587a" d="M481,218 L481,236"/>
+        <path fill="#fff" opacity=".7" d="M506,200 C516,200 524,204 528,210 C520,206 512,204 504,204 Z"/>
+        <rect x="432" y="232" width="98" height="7" fill="#fbe8f0" class="t"/>
+        <path fill="#f0587a" d="M474,229 C478,224 484,224 488,229 C484,232 478,232 474,229 Z M481,231 L476,240 M481,231 L486,240" stroke="#c02a50" stroke-width="2"/>
+        <!-- the strap that stays up -->
+        <path fill="none" stroke="#3a1a2a" stroke-width="6" stroke-linecap="round" d="M522,198 L528,172"/>
+        <path fill="none" stroke="#fbd8e4" stroke-width="3" stroke-linecap="round" d="M522,198 L528,172"/>
+        <!-- the arm down, hand on her hip -->
+        <path class="o" fill="#f0b896" d="M412,178 C398,190 390,220 386,250 C384,262 390,268 400,266 C410,276 420,290 428,298 C434,304 446,300 446,292 C444,284 436,278 430,276 C422,268 414,258 408,250 C412,232 420,210 428,192 Z"/>
+        <path fill="#c98a74" opacity=".5" d="M392,214 C390,232 388,248 390,260 C386,256 386,240 388,224 Z"/>
+        <path class="o" fill="#f0b896" d="M428,282 C438,282 448,288 452,296 C446,304 434,304 426,298 Z"/>
+        <path class="t" stroke-width="1.8" d="M436,286 L446,294 M432,290 L442,298"/>
+        <path fill="#d0204a" d="M447,292 l4,1 -1,4 -4,-1 Z M443,296 l4,1 -1,4 -4,-1 Z"/>
+        <!-- the strap slipped off her shoulder, down on her arm -->
+        <path fill="none" stroke="#3a1a2a" stroke-width="6" stroke-linecap="round" d="M442,204 C432,214 420,222 404,220"/>
+        <path fill="none" stroke="#fbd8e4" stroke-width="3" stroke-linecap="round" d="M442,204 C432,214 420,222 404,220"/>
+        <!-- neck -->
+        <path class="o" fill="#f0b896" d="M468,136 L468,170 C474,176 488,176 494,170 L494,136 Z"/>
+        <path fill="#c98a74" opacity=".7" d="M468,146 C476,154 488,154 494,146 L494,158 C486,162 476,162 468,158 Z"/>
+        <!-- her head, tilted, a sultry look straight at you -->
+        <g transform="rotate(-7 481 112)">
+          <path class="o" fill="#f0b896" d="M454,104 C452,128 462,150 481,156 C500,150 510,128 508,104 C508,84 496,72 481,72 C466,72 454,84 454,104 Z"/>
+          <path fill="#c98a74" opacity=".5" d="M454,104 C452,124 460,144 474,152 C464,140 458,124 458,104 Z"/>
+          <ellipse cx="465" cy="124" rx="7" ry="4" fill="#ff7a8a" opacity=".35"/>
+          <ellipse cx="499" cy="124" rx="7" ry="4" fill="#ff7a8a" opacity=".35"/>
+          <path fill="#b04a8a" opacity=".45" d="M461,106 C465,98 474,98 478,105 C472,103 466,103 461,106 Z M485,105 C489,98 498,98 502,106 C497,103 491,103 485,105 Z"/>
+          <path class="t" stroke-width="2.6" d="M460,98 C465,92 472,92 477,96 M486,96 C491,92 498,92 503,98"/>
+          <path fill="#fff" d="M463,109 C467,106 473,106 476,109 C472,112 467,112 463,109 Z M488,109 C491,106 497,106 501,109 C497,112 492,112 488,109 Z"/>
+          <circle cx="470" cy="109.5" r="3" fill="#5a3a20"/><circle cx="494" cy="109.5" r="3" fill="#5a3a20"/>
+          <circle cx="471" cy="108.5" r="1" fill="#fff"/><circle cx="495" cy="108.5" r="1" fill="#fff"/>
+          <path fill="none" stroke="#2a1018" stroke-width="3.2" stroke-linecap="round" d="M461,108 C466,104 473,104 477,108 M487,108 C491,104 498,104 503,108"/>
+          <path class="t" stroke-width="1.6" d="M461,108 L457,105 M462,106 L459,102 M503,108 L507,105 M502,106 L505,102"/>
+          <path class="t" stroke-width="2" d="M482,112 C481,120 479,124 483,126"/>
+          <path fill="#c8203a" class="t" stroke-width="1.6" d="M471,134 C475,130 479,130 481,132 C483,130 487,130 491,134 C487,137 475,137 471,134 Z"/>
+          <path fill="#e0304a" class="t" stroke-width="1.6" d="M472,135 C476,142 486,142 490,135 C486,137 476,137 472,135 Z"/>
+          <path fill="#fff" opacity=".7" d="M478,138 L484,138 L482,140 Z"/>
+          <circle cx="494" cy="129" r="1.4" fill="#3a1a2a"/>
+          <!-- her hair: a side-swept fringe, and a long wave over her shoulder -->
+          <path class="o" fill="#3a2010" d="M452,98 C452,70 474,60 492,64 C512,68 518,88 512,104 C504,88 492,80 476,82 C468,90 460,94 452,98 Z"/>
+          <path class="o" fill="#3a2010" d="M452,90 C440,112 440,140 434,170 C428,200 424,230 430,252 C444,236 448,206 452,180 C456,150 458,122 460,100 Z"/>
+          <path fill="none" stroke="#7a4628" stroke-width="2.5" stroke-linecap="round" d="M470,70 C486,66 500,72 506,84 M452,110 C448,140 444,170 440,200 M458,120 C454,160 450,190 446,230"/>
+          <path fill="none" stroke="#8ff0ff" stroke-width="2.5" stroke-linecap="round" opacity=".85" d="M514,96 C518,82 512,70 500,64"/>
+        </g>
+        <!-- warm lamplight on her near side -->
+        <path fill="none" stroke="#ffd890" stroke-width="2.5" stroke-linecap="round" opacity=".8" d="M432,302 C430,350 438,384 440,404 M396,342 C408,308 420,270 432,238"/>
+      </g>
+
+      <!-- light through the blinds, falling across the room and her -->
+      <g id="w-stripes" style="mix-blend-mode: screen"></g>
+
+      <rect width="960" height="540" filter="url(#w-grain)"/>
+      <rect width="960" height="540" fill="url(#w-vig)"/>
+    </svg>
+    <canvas width="480" height="270" data-for="wife"></canvas>
+    <figcaption><b>The wife.</b> Late. The lamp's low, the blinds are half shut, and he's still out in the garage with that car.</figcaption>
+  </figure>
+
+  <!-- ================= THE CAST ================= -->
+  <h2>The cast</h2>
+  <div class="cast">
+    <div><h3>Him</h3><p>Tall, square-jawed, a two-day beard. Red shirt, sleeves rolled, jeans, work boots. Aviators, even in the garage. A black belt in losing his temper: every snag winds him tighter, until something gets kicked.</p></div>
+    <div><h3>The wife</h3><p>Long dark hair, a red-lipped half smile, and the only one who ever says something useful about the car. Glamorous at any hour, pink satin at night, and very tired of the word "nearly".</p></div>
+  </div>
+</main>
+
+<script>
+// The Thankless Task cutscenes: the bits of each picture that are easier to make with a loop
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+// A small seeded random, so the picture is the same every time it's opened
+function seeded(seed) {
+  let s = seed;                                                   // the running state
+  return function next() {
+    s = (s * 1664525 + 1013904223) % 4294967296;                  // one step of a simple generator
+    return s / 4294967296;                                        // a number from 0 to 1
+  };
+}
+
+// Make one SVG element with these attributes, inside a parent
+function addShape(parent, tag, attrs) {
+  const el = document.createElementNS(SVGNS, tag);                // a new SVG element
+  for (const name in attrs) el.setAttribute(name, attrs[name]);   // copy each attribute across
+  parent.appendChild(el);                                         // put it in the picture
+  return el;
+}
+
+// A list of x,y points as an SVG points string
+function pointsText(points) {
+  const pairs = points.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1));   // "x,y" for each point
+  return pairs.join(' ');
+}
+
+// ---------- scene 1: speed lines bursting out from the kick ----------
+function drawSpeedLines() {
+  const group = document.getElementById('k-lines');              // where the lines go
+  const rnd = seeded(7);                                          // the same lines every time
+  const cx = 636, cy = 342;                                       // the point of impact
+  const colours = ['#5a62d8', '#3f4ab8', '#ffffff', '#8f8ff0', '#ff9ad0'];
+  for (let n = 0; n < 110; n++) {                                 // for each line:
+    const angle = rnd() * Math.PI * 2;                            // its direction out from the kick
+    const inner = 110 + rnd() * 120;                              // where it starts (a gap round the kick)
+    const width = 0.01 + rnd() * 0.03;                            // how wide it fans out
+    const tip = [cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner];
+    const outA = [cx + Math.cos(angle - width) * 1100, cy + Math.sin(angle - width) * 1100];
+    const outB = [cx + Math.cos(angle + width) * 1100, cy + Math.sin(angle + width) * 1100];
+    const colour = colours[Math.floor(rnd() * colours.length)];   // pick a colour
+    addShape(group, 'polygon', { points: pointsText([tip, outA, outB]), fill: colour, opacity: (0.45 + rnd() * 0.5).toFixed(2) });
+  }
+}
+
+// A jagged star: points alternate between an outer and an inner radius
+function starPoints(cx, cy, spikes, outer, inner, rnd) {
+  const points = [];
+  for (let k = 0; k < spikes * 2; k++) {                          // for each corner of the star:
+    const angle = (k / (spikes * 2)) * Math.PI * 2;               // go round in steps
+    const isSpike = k % 2 === 0;                                  // every other corner sticks out
+    const radius = isSpike ? outer * (0.7 + rnd() * 0.5) : inner * (0.8 + rnd() * 0.4);
+    points.push([cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius]);
+  }
+  return points;
+}
+
+// ---------- scene 1: the impact star, and glass flying ----------
+function drawImpact() {
+  const burst = document.getElementById('k-burst');              // the star goes behind him
+  const rnd = seeded(21);
+  const outerStar = starPoints(636, 342, 14, 92, 38, rnd);       // the big white star
+  addShape(burst, 'polygon', { points: pointsText(outerStar), fill: '#ffffff', stroke: '#1c1028', 'stroke-width': 4, 'stroke-linejoin': 'round' });
+  const innerStar = starPoints(636, 342, 10, 50, 20, rnd);       // the yellow heart of it
+  addShape(burst, 'polygon', { points: pointsText(innerStar), fill: '#ffe14a' });
+
+  const shards = document.getElementById('k-shards');            // the glass goes in front of everything
+  for (let n = 0; n < 34; n++) {                                  // for each bit of glass:
+    const angle = -Math.PI * 0.75 + rnd() * Math.PI * 1.5;        // flying away from his boot (mostly right, up and down)
+    const dist = 60 + rnd() * 240;                                // how far it has flown
+    const size = 5 + rnd() * 13;                                  // how big it is
+    const x = 650 + Math.cos(angle) * dist, y = 342 + Math.sin(angle) * dist;
+    const spin = rnd() * Math.PI;                                 // which way up it is
+    const corner = k => [x + Math.cos(spin + k * 2.1) * size * (0.6 + (k % 2) * 0.5), y + Math.sin(spin + k * 2.1) * size * (0.6 + (k % 2) * 0.5)];
+    const fill = rnd() < 0.5 ? '#e6fbff' : '#9fe8ff';             // clear glass, catching the light
+    addShape(shards, 'polygon', { points: pointsText([corner(0), corner(1), corner(2)]), fill, stroke: '#1c1028', 'stroke-width': 2, 'stroke-linejoin': 'round' });
+    const trailEnd = [x - Math.cos(angle) * size * 2.2, y - Math.sin(angle) * size * 2.2];   // a little speed streak behind it
+    addShape(shards, 'line', { x1: x.toFixed(1), y1: y.toFixed(1), x2: trailEnd[0].toFixed(1), y2: trailEnd[1].toFixed(1), stroke: '#ffffff', 'stroke-width': 2, opacity: 0.8 });
+  }
+}
+
+// ---------- scene 2: the blinds, and the stripes of light they throw ----------
+function drawBlinds() {
+  const blinds = document.getElementById('w-blinds');            // inside the window
+  for (let y = 76; y < 278; y += 14) {                            // for each slat:
+    addShape(blinds, 'rect', { x: 752, y, width: 146, height: 7, fill: '#f6dccb', opacity: 0.92 });
+  }
+  addShape(blinds, 'line', { x1: 825, y1: 72, x2: 825, y2: 278, stroke: '#c8a898', 'stroke-width': 1.5 });   // the cord
+
+  const stripes = document.getElementById('w-stripes');          // the light falling into the room
+  for (let n = 0; n < 9; n++) {                                   // for each gap between the slats:
+    const y0 = 96 + n * 26;                                       // where it leaves the window
+    const along = [-900, 495];                                    // the way the light travels: down and to the left, off the picture
+    const top = [[744, y0], [744 + along[0], y0 + along[1]]];
+    const bottom = [[744 + along[0], y0 + along[1] + 12], [744, y0 + 12]];
+    addShape(stripes, 'polygon', { points: pointsText([...top, ...bottom]), fill: '#ff9ec8', opacity: 0.15 });
+  }
+}
+
+// ---------- the Pixel look: each picture redrawn at the game's size, with hard pixels ----------
+function pixelate(svg, canvas) {
+  const text = new XMLSerializer().serializeToString(svg);        // the picture as a file
+  const blob = new Blob([text], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const picture = new Image();
+  picture.onload = () => {
+    const pen = canvas.getContext('2d');
+    pen.imageSmoothingEnabled = true;                             // average the colours down into each big pixel
+    pen.drawImage(picture, 0, 0, canvas.width, canvas.height);    // 480 x 270, shown big with hard edges
+    canvas.dataset.drawn = 'yes';                                 // (the tests look for this)
+    URL.revokeObjectURL(url);
+  };
+  picture.src = url;
+}
+
+function setPixelLook(on) {
+  const button = document.getElementById('pixel');
+  document.body.classList.toggle('pixel', on);                    // show the canvases instead of the pictures
+  button.setAttribute('aria-pressed', on ? 'true' : 'false');
+  button.textContent = on ? 'Pixel look: on' : 'Pixel look: off';
+  if (!on) return;
+  for (const canvas of document.querySelectorAll('canvas[data-for]')) {   // for each scene:
+    const svg = document.getElementById(canvas.dataset.for);
+    pixelate(svg, canvas);                                        // draw its pixel version
+  }
+}
+
+drawSpeedLines();
+drawImpact();
+drawBlinds();
+document.getElementById('pixel').addEventListener('click', () => setPixelLook(!document.body.classList.contains('pixel')));
+</script>
+</body>
+</html>

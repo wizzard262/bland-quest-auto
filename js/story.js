@@ -802,7 +802,10 @@ const ACTIONS = {
     if (where !== 'the tool chest' || !hunting) {                      // nothing much down there
       const found = { 'the car': 'A 1996 coin, a sweet wrapper and an oil stain shaped like France.', 'the parts boxes': 'Old parts, a dead spider and half a sandwich.', 'the shelves': 'Dust. A lot of dust.', 'the workbench': 'Screws, everywhere.', 'the tool chest': 'Dust, and a lot more of it than you\'d like.' };
       if (hunting) anger(3);
-      return say('Under ' + where, (found[where] || 'Nothing.') + noNut);
+      const spider = Math.random() < SPIDER_CHANCE;                    // now and then, a spider at the edge of the light
+      if (spider) moment('spider', 1600);                              // it scurries off into the dark (the dialog waits for it)
+      const spiderText = spider ? ' Something at the edge of the light, half lit, scurries off into the dark. A spider. A big one.' : '';
+      return say('Under ' + where, (found[where] || 'Nothing.') + spiderText + noNut);
     }
     S.flags.nutSeen = true;
     if (!S.inv.stick) {
@@ -1217,6 +1220,9 @@ const LOOKS = {
   'Brake lines': 'Crusty but dry. Leave them alone.',
   'Engine': 'An engine. It looks like an engine.',
   'Battery': 'It reads 12.6 volts on the dash. Fine.',
+  'Spare wheel': 'A spare wheel, bolted down in its well. The tyre feels a bit soft. Good to know it\'s there for a flat tyre. Probably.',
+  'Jack': 'The scissor jack, folded flat in its foam tray. It winds up very, very slowly.',
+  'Wheel brace': 'The wheel brace, for the wheel nuts. It\'s the short one, so it won\'t shift a nut that\'s on tight.',
   'Air filter': 'Full of leaves. Not the problem, but you feel judged.',
   'Coolant': 'Pink, at MAX. Fine.',
   'Brake fluid': 'Fine.',

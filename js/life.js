@@ -683,4 +683,27 @@ MOMENTS.collapse = function (p) {                                    // he sways
   if (p < 0.7) return man(m[0], m[1], 'bend', MAN_SIZE.room);
   man(m[0], m[1], 'lie', MAN_SIZE.room);
 };
+MOMENTS.spider = function (p) {                                      // under something: a spider at the edge of the torchlight scurries off into the dark
+  const run = ease(p);                                                 // how far it has run (quick start, slowing as it goes)
+  const x = lerp(400, 500, run);                                       // from just inside the light, off to the right…
+  const y = lerp(214, 176, run) + Math.sin(p * 18) * 2;                // …and back into the dark, zig-zagging a little
+  spiderAt(x, y, p * 40);
+};
 Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments
+
+// A spider running to the right at x, y; each part is lit only where it's in the torchlight, so at the edge it's half lit
+function spiderAt(x, y, phase) {
+  const litCol = hex('#4a3a2a'), darkCol = hex('#0c0c0e');             // brown in the light, nearly black outside it
+  const colAt = (px_, py_) => (inTorchLight(px_, py_) ? litCol : darkCol);
+  for (let n = 0; n < 4; n++) {                                        // 4 legs a side, scuttling back and forth
+    const step = Math.sin(phase + n * 1.6) * 2;                        // each pair of legs swings out of step with the next
+    const lx = x - 3 + n * 2;                                          // where the leg leaves the body
+    const tipX = lx - 4 + n * 3 + step;                                // where its foot lands
+    line(lx, y, tipX, y - 5, colAt(lx, y - 3));                        // a back leg (up the screen)
+    line(lx, y, tipX - step * 2, y + 5, colAt(lx, y + 3));             // a front leg (down the screen)
+  }
+  disc(x - 3, y, 3, colAt(x - 3, y));                                  // its fat body (the back half)
+  disc(x + 2, y, 2, colAt(x + 2, y));                                  // its head (the front half)
+  if (inTorchLight(x - 4, y - 2)) px(x - 4, y - 2, hex('#8a7a60'));    // a shine on its back, only in the light
+  if (inTorchLight(x + 3, y - 1)) px(x + 3, y - 1, C.white);           // a glint of an eye, only in the light
+}
