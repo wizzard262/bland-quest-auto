@@ -797,6 +797,26 @@ SCREENS.underZoom = {
 // =====================================================================
 // UNDER THE BONNET, and the fuse box close up
 // =====================================================================
+// The battery's two terminals (+ red, − black) and their leads: on the posts, or lifted off and lying beside them
+const BATTERY_POST = { plus: [364, 96], minus: [406, 96] };
+const BATTERY_LEAD_COL = { plus: C.red, minus: C.ink };
+const batteryLeadOn = side => !S.battery || S.battery[side] !== false;
+// Is there power in the car? (both leads on)
+const carPowered = () => batteryLeadOn('plus') && batteryLeadOn('minus');
+function batteryLeads() {
+  for (const side of ['plus', 'minus']) {
+    const [x, y] = BATTERY_POST[side], col = BATTERY_LEAD_COL[side], on = batteryLeadOn(side);
+    rect(x - 2, y - 2, 4, 4, C.steel2);                                         // the post
+    if (on) {
+      rect(x - 6, y - 4, 12, 8, col);                                            // the clamp, on the post
+      pipe(x, y - 4, x - 10, y - 40, 4, col);                                    // its cable
+    } else {
+      rect(x - 18, y - 22, 12, 8, col);                                          // lifted off, to one side
+      pipe(x - 12, y - 22, x - 16, y - 46, 4, col);
+    }
+    text(side === 'plus' ? '+' : '-', x - 2, y + 6, C.white);
+  }
+}
 SCREENS.bonnet = {
   size: [480, 270],
   paint() {
@@ -816,14 +836,18 @@ SCREENS.bonnet = {
     disc(300, 96, 9, C.warm); ring(300, 96, 9, C.warmDim); rect(296, 95, 9, 2, C.warmDim);
     rect(196, 186, 2, 22, C.warm); ring(197, 212, 5, C.warm);
     rbox(330, 66, 32, 26, 4, hex('#d8d4b0')); disc(346, 66, 6, C.warm); rect(332, 82, 28, 8, hex('#c8a858'));
-    rbox(354, 98, 64, 46, 4, hex('#1c1c1c')); rect(358, 96, 12, 8, C.red); rect(400, 96, 12, 8, C.ink); text('+', 362, 98, C.white); text('-', 404, 98, C.white);
+    rbox(354, 98, 64, 46, 4, hex('#1c1c1c')); batteryLeads();
     rbox(352, 152, 68, 56, 4, hex('#202020'));
     for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const fc = FUSECOLS[(r * 6 + k * 5) % 5][0]; rect(358 + k * 10, 158 + r * 12, 7, 9, fc); rect(360 + k * 10, 160 + r * 12, 3, 2, shade(fc, 0.7)); }
     rbox(64, 166, 56, 50, 10, hex('#e4e0d4')); rect(68, 190, 48, 22, hex('#e080a0')); disc(92, 166, 8, C.warm); text('MAX', 70, 186, C.ink);
     disc(420, 222, 7, C.car); ring(420, 222, 7, C.carDark);
     for (const [x0, y0, x1, y1] of [[160, 160, 340, 170], [330, 170, 352, 180], [322, 120, 354, 120]]) pipe(x0, y0, x1, y1, 4, C.ink);
     for (let x = 180; x < 330; x += 22) rect(x, 158, 3, 10, hex('#3a3a3a'));
-    zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 94, 72, 52, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 40, 36, false, 'act:look:Brake fluid']]);
+    zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 106, 72, 40, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 40, 36, false, 'act:look:Brake fluid']]);
+    for (const side of ['plus', 'minus']) {                                     // each lead comes off (and goes back on) by itself
+      const [x, y] = BATTERY_POST[side], on = batteryLeadOn(side);
+      spot((side === 'plus' ? '+ lead' : '− lead') + (on ? ': take it off' : ': put it back on'), [x - 8, y - 14, 24, 22], 'act:batlead:' + side);
+    }
     hud();
   },
   actions() {
@@ -983,10 +1007,10 @@ SCREENS.dash = {
     rbox(76, 112, 186, 78, 16, hex('#18191c'));
     for (const cx of [DASH.mph, DASH.rpm]) {
       disc(cx, DASH.y, DASH.r, hex('#0e0f11')); ring(cx, DASH.y, DASH.r, C.steel2);
-      for (let a = 2.4; a < 7.1; a += 0.39) line(cx + Math.cos(a) * DASH.r * 0.83, DASH.y + Math.sin(a) * DASH.r * 0.83, cx + Math.cos(a) * DASH.r * 0.94, DASH.y + Math.sin(a) * DASH.r * 0.94, S.key >= 1 ? C.ui : C.dim);
+      for (let a = 2.4; a < 7.1; a += 0.39) line(cx + Math.cos(a) * DASH.r * 0.83, DASH.y + Math.sin(a) * DASH.r * 0.83, cx + Math.cos(a) * DASH.r * 0.94, DASH.y + Math.sin(a) * DASH.r * 0.94, S.key >= 1 && carPowered() ? C.ui : C.dim);
       dialNeedle(cx, 2.5);
     }
-    const on = S.key >= 2;
+    const on = S.key >= 2 && carPowered();                           // no power (a battery lead off): nothing lights
     const check = on && !S.flags.running;                            // key at II: every bulb lights to show it works; running: they go out
     warnLight(...DASH.gear, 'gear', C.red, on && !S.flags.fitted);   // …except the red one
     warnLight(...DASH.engine, 'engine', C.warm, check);
@@ -1023,9 +1047,9 @@ SCREENS.dash = {
       rbox(2, 160, 54, 96, 8, hex('#d0a020')); rect(7, 168, 44, 40, hex('#0a2a20'));
       for (const [x, y] of [[8, 216], [30, 216], [8, 234], [30, 234]]) rbox(x, y, 18, 12, 3, hex('#3a3a3a'));
       pipe(56, 226, 76, 236, 4, C.ink);                                                     // its lead, into the port
-      LABELS.push(`<div class="scr" style="left:${8 / W * 100}%;top:${169 / H * 100}%;width:${42 / W * 100}%;height:${38 / H * 100}%">${S.key >= 2 ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
+      LABELS.push(`<div class="scr" style="left:${8 / W * 100}%;top:${169 / H * 100}%;width:${42 / W * 100}%;height:${38 / H * 100}%">${S.key >= 2 && carPowered() ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
-    if (S.key >= 1) LABELS.push(`<div class="scr radio" style="left:${321 / W * 100}%;top:${121 / H * 100}%;width:${78 / W * 100}%;height:${28 / H * 100}%">${radioScreenHtml()}</div>`);
+    if (S.key >= 1 && carPowered()) LABELS.push(`<div class="scr radio" style="left:${321 / W * 100}%;top:${121 / H * 100}%;width:${78 / W * 100}%;height:${28 / H * 100}%">${radioScreenHtml()}</div>`);
     // what you can tap
     spot('Horn', HORN, 'act:horn');
     spot(S.flags.running ? 'Turn the key: switch off' : ['Turn the key to I', 'Turn the key to II', 'Turn the key: start it'][S.key] || 'Key', [kx - 16, ky - 16, 36, 32], 'act:turnkey');
@@ -1412,6 +1436,57 @@ SCREENS.breath = {
     breathTick();
     for (let k = 0; k < BREATH.lit; k++) { const [lx, ly] = breathLedAt(k); disc(lx, ly, 4, BREATH_COLOURS[k]); }   // lit, green to red
   }
+};
+// =====================================================================
+// THE CAR HANDBOOK: found in the parts box. The cover, then its pages: no fuse diagram anywhere
+// =====================================================================
+const HANDBOOK_NAME = 'Car handbook';
+const HANDBOOK_BLUE = hex('#1e3060');
+const HANDBOOK_TITLE = 'Vauxhall Zafira 1.6 Life / Club Automatic';
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const GAME_DAY0 = [2026, 10, 16];                                  // day 0 of the game: Monday 16 November 2026 (day 1 is a Tuesday)
+// The date on game day d, written out ("15 November 2026")
+function dateOfDay(d) {
+  const [y, m, day] = GAME_DAY0;
+  const when = new Date(y, m, day + d);
+  return when.getDate() + ' ' + MONTHS[when.getMonth()] + ' ' + when.getFullYear();
+}
+// The pages after the cover: [heading, words]
+function handbookPages() {
+  return [
+    ['Contents', 'Welcome to your new Vauxhall.\n\nYour warranty … page 2\nYour radio … page 3\nEverything else … see your dealer'],
+    ['Your warranty', 'Warranty until ' + dateOfDay(S.day - 2) + '.\n\nThat was two days ago.'],
+    ['Your radio', 'Radio security code: 1234\n\nKeep this book in a safe place.'],
+    ['Notes', 'Nothing about fuses. Not a diagram, not a word. You look twice.']
+  ];
+}
+SCREENS.handbook = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, C.bench, 0.1, 71);                                         // on the workbench
+    const page = S.hbPage || 0;
+    if (page === 0) {                                                            // the cover: the title, and a picture of the car
+      rbox(150, 26, 180, 228, 6, HANDBOOK_BLUE); rect(156, 32, 168, 216, shade(HANDBOOK_BLUE, 1.15));
+      rect(150, 26, 10, 228, shade(HANDBOOK_BLUE, 0.7));                         // the spine
+      rect(170, 150, 140, 80, hex('#c8d8e8'));                                   // the photo's sky…
+      rect(170, 205, 140, 25, C.drive);                                          // …and the road
+      ISO.ox = 236; ISO.oy = 162;
+      isoCar(0, 0, 1.25, C.car, { alongX: true, lampState: { left: false, right: false } });   // our blue car, new, with both headlights
+      LABELS.push(`<div class="hbcover" style="left:${160 / W * 100}%;top:${46 / H * 100}%;width:${160 / W * 100}%">VAUXHALL<br><b>${esc(HANDBOOK_TITLE)}</b><br><i>Owner's Manual</i></div>`);
+    }
+    tip('The car handbook', page === 0 ? 'Turn the page to read it.' : 'Page ' + page + ' of ' + handbookPages().length + '.', 1, 8);
+    hud();
+  },
+  overlay() {
+    const page = S.hbPage || 0, pages = handbookPages();
+    const prev = page > 0 ? '<button class="flip" data-act="hbpage:-1">◀</button>' : '<span class="flip"></span>';
+    const next = page < pages.length ? '<button class="flip" data-act="hbpage:1">▶</button>' : '<span class="flip"></span>';
+    if (page === 0) return `<div class="ov hbnav">${prev}<span>Cover</span>${next}</div>`;
+    const [head, words] = pages[page - 1];
+    return `<div class="ov book"><div class="pg"><h3>${esc(head)}</h3><p>${esc(words).replace(/\n/g, '<br>')}</p></div>`
+      + `<div class="pg"><p class="faint">${'— '.repeat(30)}</p><div class="pgnav">${prev}<span>Page ${page} of ${pages.length}</span>${next}</div></div></div>`;
+  },
+  actions() { return [{ label: 'Put it down', act: 'hbclose' }]; }
 };
 SCREENS.fish = {
   size: [480, 270],
