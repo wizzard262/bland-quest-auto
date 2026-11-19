@@ -74,6 +74,7 @@ function keeperHead() {
 
 // ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
 const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [250, 300, 350], size: 3 };   // people drawn 3x here, to suit the stools   // the bar's top, the floor, the barman, the stools (yours first)
+const PUB_FLOOR_AT = [196, 250];                                     // where he lands when he falls off his stool
 const PUB_SEAT_Y = 223;                                       // where someone sat on a stool is drawn from (their hips on the seat)
 function pubScene(shut) {
   // the back wall: dark wood panels, a big mirror, shelves of drinks
@@ -115,6 +116,7 @@ function pubScene(shut) {
   }
   PUNTERS.forEach((p, k) => man(PUB.stools[k + 1], PUB_SEAT_Y, 'sit', PUB.size, 0, p.look));
   if (S.flags.pubSat) man(PUB.stools[0], PUB_SEAT_Y, 'sit', PUB.size);
+  else if (S.flags.pubFloor) { if (!(ANIM && ANIM.kind === 'stoolFall')) man(PUB_FLOOR_AT[0], PUB_FLOOR_AT[1], 'lie', PUB.size); }   // flat out by his stool
   else man(80, PUB.floor + 6, 'stand', PUB.size);
   // the way out: a see-through door on the left
   const d = [[16, 140], [56, 140]];
@@ -396,9 +398,27 @@ function shopExterior(name, shut) {
   ibox(20, 46, 28, 52, 0, 12, C.tree2);
   ibox(-20, 60, -17, 63, 0, 70, C.greyDark); ibox(-24, 58, -10, 66, 70, 74, C.greyDark); onLeft(66, -22, -12, 69, 70, C.warm);
   if (name === 'Post Office') postQueueOutside();                                                                     // before it opens: the queue along the pavement
+  if (pub && S.flags.sick === S.day) sickPuddle(1);                                                                   // where he was sick (it's there all day)
+  if (pub && S.flags.pickup === S.day && !(ANIM && ANIM.kind === 'pickup')) isoCar(PICKUP_STOP, 72, 1, C.red, { alongX: true, shape: 'city' });   // her sister's little car, waiting
   // your car (blue), parked at the kerb
   isoCarX(40, 72, 1, C.car);
-  if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+  if (!(ANIM && ['walk', 'sick'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+}
+// ---------- outside the pub, after too many ----------
+const PICKUP_STOP = 98;                                              // where her car stops at the kerb (in front of yours)
+const SICK = hex('#a8b040'), SICK_DARK = hex('#7c8428');             // sick (sorry)
+// The puddle on the pavement in front of him; grow = 0 (none yet) to 1 (all of it)
+function sickPuddle(grow) {
+  if (grow <= 0) return;
+  const [x, y] = manSpot('place'), m = P(x, y);
+  const cx = m[0] + 16, cy = m[1] + 1;                               // just in front of his feet
+  ellipse(cx, cy, Math.round(7 * grow), Math.round(3 * grow), SICK_DARK);
+  ellipse(cx, cy, Math.round(5 * grow), Math.round(2 * grow), SICK);
+}
+// Where her head is, in her car's window (for her speech bubble)
+function pickupWindow() {
+  const [ox, oy] = OUTSIDE_VIEW, x = PICKUP_STOP + 22, y = 84, z = 18;
+  return [ox + x - y, oy + (x + y) / 2 - z];
 }
 
 // =====================================================================

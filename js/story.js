@@ -172,6 +172,62 @@ function pubLate() {
   textMsg('The wife', 'Husband. Where are you? It\'s gone ten. Come home. x');
 }
 
+// =====================================================================
+// TOO MANY DRINKS: more than three and you're off your stool, thrown out, sick in the street,
+// and the wife comes in her sister's car to fetch you. No driving till the morning.
+// =====================================================================
+const PUB_LIMIT = 3;                                                   // the most the barman puts up with
+const SOBER_AT = 7 * 60;                                               // you're fit to drive again at 7 the next morning
+const nowAbs = () => S.day * 1440 + S.mins;                            // the time, counted from the start of the game
+// One more drink today: returns how many that makes
+function haveADrink() {
+  if (!S.drinks || S.drinks.day !== S.day) S.drinks = { day: S.day, n: 0 };   // a new day: start counting again
+  S.drinks.n += 1;
+  return S.drinks.n;
+}
+// Still drunk? (from being thrown out until 7 the next morning, or a night's sleep)
+const isDrunk = () => !!S.flags.drunkTill && nowAbs() < S.flags.drunkTill;
+// The fourth drink: you slide off your bar stool onto the floor
+function fallOffStool() {
+  S.flags.pubSat = false;                                              // off the stool…
+  S.flags.pubFloor = true;                                             // …and on the floor
+  moment('stoolFall', 1800); sfx('thud');
+  SPEAKER = keeperHead();
+  say('The Hesketh Tavern', '"Right. That\'s your fourth, and you\'re on my floor. Out."', [{ label: 'OK', run: thrownOut }]);
+}
+// Out on the pavement, and sick in the gutter
+function thrownOut() {
+  S.flags.pubFloor = false;
+  S.inside = false;                                                    // outside the pub
+  S.spot.outside = [150, 52];                                          // by the door, where he landed
+  const tomorrow = S.mins >= SOBER_AT ? S.day + 1 : S.day;             // the next 7am
+  S.flags.drunkTill = tomorrow * 1440 + SOBER_AT;
+  S.flags.sick = S.day;                                                // the puddle stays on the pavement all day
+  anger(10);
+  sfx('door');
+  moment('sick', 2600);
+  say('Outside the pub', 'The door slams behind you. The pavement comes up to meet you, and you\'re sick in the gutter.\n\nA man walking his dog crosses the road.', [{ label: 'OK', run: wifePicksUp }]);
+}
+// The barman rings her; she comes in her sister's little car
+function wifePicksUp() {
+  pass(20);
+  S.flags.pickup = S.day;                                              // her car stays at the kerb while she talks
+  moment('pickup', 3000); sfx('car');
+  SPEAKER = pickupWindow();
+  say('The wife', '"The barman rang me. Get in, Husband. My sister\'s bringing your car home."', [{ label: 'OK', run: takenHome }]);
+}
+// Home in silence; she's hidden the car keys
+function takenHome() {
+  delete S.flags.pickup;
+  visit('Home');
+  say('Home', 'She doesn\'t say a word all the way home. She doesn\'t need to.\n\nShe\'s hidden the car keys. No driving till the morning.');
+}
+// Trying to drive while drunk: no keys
+function noKeys() {
+  anger(3);
+  say('The car keys', 'Not on the hook. Not in your coat. She\'s hidden them, and she\'s right: you\'re in no state to drive.\n\nBest sleep it off.');
+}
+
 // The barman's advice (no help at all)
 const BARMAN = [
   '"Have you tried turning it off and on again?"',
@@ -259,7 +315,10 @@ const TALK = {
       SPEAKER = keeperHead();
       if (!spend(price)) return say(name, '"Card machine says no, mate."');
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
-      say(name, `He pulls you a ${drink}. ${taste}\n\n${BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]}`);
+      const drinks = haveADrink();                                     // how many you've had today, this one included
+      if (drinks > PUB_LIMIT) return say(name, `He pulls you a ${drink}. ${taste}\n\nYou drink it far too fast. The bar starts to tilt.`, [{ label: 'OK', run: fallOffStool }]);
+      const steady = drinks === PUB_LIMIT ? '\n\n"That\'s your third, mate. Steady on."' : '';   // the last one he'll let go
+      say(name, `He pulls you a ${drink}. ${taste}\n\n${BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]}${steady}`);
     } });
     S.flags.pubSat = true;                                              // you sit up at the bar to order
     say(name, '"Evening. What\'ll it be?"', [

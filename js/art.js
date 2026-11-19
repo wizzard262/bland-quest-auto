@@ -406,6 +406,14 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     L(1, -14, 2, -11, K.shirt); D(2, -10, K.skin);
     return;
   }
+  if (pose === 'bend') {                                 // bent double, head down to the right (being sick)
+    L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);           // his legs, as standing
+    R(0, -10, 2, 1, K.jeans);
+    R(1, -12, 5, 2, K.shirt); R(1, -11, 5, 1, K.shirtDark);           // his back, flat across
+    R(6, -11, 2, 3, K.skin); R(6, -11, 1, 2, K.hair);                 // his head, hanging down
+    L(4, -10, 4, -6, K.shirt); D(4, -5, K.skin);                       // an arm, hand on his knee
+    return;
+  }
   if (pose === 'walk') {                                 // mid-stride: legs and arms swing opposite ways; phase = how far through the step
     const sw = Math.round(Math.sin(phase) * 2), up = Math.abs(Math.sin(phase)) < 0.4 ? 0 : 1;
     const Y = d => d - up;                               // a little bob on each step

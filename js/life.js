@@ -619,4 +619,36 @@ MOMENTS.rage = function (p) {                                        // he runs 
     rect(x, y, 2, 1 + (k % 2), k % 3 ? hex('#c8e0f0') : C.white);
   }
 };
+// ----- too many drinks -----
+MOMENTS.stoolFall = function (p) {                                   // he sways on his stool, tips over, and lands flat on the floor
+  const seat = [PUB.stools[0], PUB_SEAT_Y], floor = PUB_FLOOR_AT;
+  if (p < 0.45) {                                                     // swaying, more and more
+    const sway = Math.round(Math.sin(p * 40) * p * 8);
+    return man(seat[0] + sway, seat[1], 'sit', PUB.size);
+  }
+  if (p < 0.7) {                                                      // going over: down and back
+    const q = ease((p - 0.45) / 0.25);
+    return man(lerp(seat[0], floor[0], q), lerp(seat[1], floor[1], q * q), q < 0.5 ? 'sit' : 'lie', PUB.size);
+  }
+  man(floor[0], floor[1], 'lie', PUB.size);                           // flat out
+};
+MOMENTS.sick = function (p) {                                        // bent double on the pavement, and sick in the gutter
+  ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
+  const [x, y] = manSpot('place'), m = P(x, y);
+  man(m[0], m[1], p < 0.85 ? 'bend' : 'stand', 2);
+  if (p > 0.25 && p < 0.75) {                                         // it comes up, and down onto the pavement
+    for (let k = 0; k < 8; k++) {
+      const q = ((p - 0.25) * 6 + k / 8) % 1;                         // each drop, part way down
+      rect(m[0] + 15 + Math.round(q * 2), m[1] - 18 + Math.round(q * 18), 2, 2, k % 2 ? SICK : SICK_DARK);
+    }
+  }
+  sickPuddle(Math.max(0, Math.min(1, (p - 0.3) / 0.45)));             // the puddle grows
+};
+MOMENTS.pickup = function (p) {                                      // her sister's little red car pulls up at the kerb
+  ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
+  const x = lerp(-360, PICKUP_STOP, ease(Math.min(1, p / 0.8)));
+  isoCar(x, 72, 1, C.red, { alongX: true, shape: 'city' });
+  const [mx, my] = manSpot('place'), m = P(mx, my);
+  man(m[0], m[1], 'stand', 2);                                        // him, still on the pavement (in front of the car)
+};
 Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments
