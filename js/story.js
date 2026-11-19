@@ -156,6 +156,82 @@ function wifeComesIn() {
   ]);
 }
 
+// =====================================================================
+// THE CAR HANDBOOK: the wife says look in it; it isn't on the shelf; it's at the bottom of a parts box
+// =====================================================================
+function handbookTip() {
+  S.flags.handbookTip = true;
+  job('handbook', 'Find the car handbook', null);
+  lead('handbook', 'handbook-shelf', 'Look on the manuals shelf', 'the wife', 'obviously', 'shelf');
+}
+// At the manuals shelf, looking for it: every book but that one
+function handbookNotOnShelf() {
+  const looking = leadOpen('handbook-shelf') || leadOpen('fusebook');
+  if (S.inv.handbook || !looking || S.flags.handbookNotShelf) return;
+  S.flags.handbookNotShelf = true;
+  job('handbook', 'Find the car handbook', null);
+  closeLead('handbook-shelf', 'x', 'Not on the manuals shelf');
+  lead('handbook', 'handbook-box', 'Try the parts boxes', 'you', 'hopeful', 'partsbox');
+  say('The manuals shelf', 'Every car manual but yours. The handbook isn\'t here.');
+}
+// Found it, under everything in the parts box
+function takeHandbook(j) {
+  S.inv.handbook = true;
+  PILE.splice(PILE.indexOf(j), 1);
+  sfx('pop');
+  closeLead('handbook-shelf', 'x');
+  closeLead('handbook-box', 'ok');
+  finishJob('handbook', 'Found it at the bottom of a parts box');
+  say('The car handbook', 'There it is, under half a sandwich: the car\'s handbook, in its plastic wallet.', [
+    { label: 'Read it', run: openHandbook },
+    { label: 'Later (it goes on the garage shelf)', run() { render(); } }
+  ]);
+}
+// Open it at the cover; reading it, you find there's nothing about fuses
+function openHandbook() {
+  S.hbPage = 0;
+  pass(5);
+  show('handbook');
+  if (leadOpen('fusebook')) {
+    closeLead('fusebook', 'x', 'Owner\'s handbook: no fuse diagram at all');
+    lead('meaning', 'fusediagram', 'Find the fuse box diagram online', 'you', 'hopeful', 'app:TechDocs');
+  }
+}
+// Turn a page (the radio page: the code goes in the notebook)
+function handbookPage(d) {
+  S.hbPage = Math.max(0, Math.min(handbookPages().length, (S.hbPage || 0) + d));
+  sfx('click');
+  if (S.hbPage === 3) radioCodeNoted('it\'s in the handbook');
+}
+
+// =====================================================================
+// THE BATTERY LEADS: each comes off by itself; with either off there's no power at all,
+// the engine dies, and the radio forgets its code
+// =====================================================================
+function batteryLead(side) {
+  S.battery = S.battery || { plus: true, minus: true };
+  const name = side === 'plus' ? 'the + (red)' : 'the − (black)';
+  pass(5);
+  sfx('ratchet');
+  if (batteryLeadOn(side)) {                                          // take it off
+    S.battery[side] = false;
+    S.flags.running = false;                                          // the engine stops dead
+    radioForgets();
+    return say('The battery', `You undo ${name} lead and lift it off the post.`);
+  }
+  S.battery[side] = true;                                             // put it back
+  const other = side === 'plus' ? 'minus' : 'plus';
+  const rest = batteryLeadOn(other) ? 'Both leads are on. There should be power again.' : 'The other lead is still off.';
+  say('The battery', `You put ${name} lead back on and tighten it. ${rest}`);
+}
+// No power: the radio loses its code, and asks for it again
+function radioForgets() {
+  const R = radioState();
+  R.unlocked = false; R.on = false; R.digits = [null, null, null, null]; R.pos = 0;
+  const j = findJob('radio');
+  if (j && j.status === 'done') { j.status = 'open'; note('radio', 'The battery was off: it wants the code again', 'info'); }
+}
+
 // The radio code: once you know it, it goes in the notebook (under a job to get the radio working)
 function radioJob() { if (!findJob('radio')) job('radio', 'Get the radio working (it wants a code)', null); }
 function radioCodeNoted(how) {
@@ -445,6 +521,7 @@ function wifeLine() {
 }
 // …and now and then, something that actually helps (whatever you're stuck on)
 function wifeTip() {
+  if (!S.inv.handbook && !S.flags.handbookTip) { handbookTip(); return '"Have you looked in the car handbook, Husband? It\'ll all be in the handbook."'; }
   if (!S.flags.codes) return '"Can\'t you plug something into it? Gaz had a gadget that reads the codes."';
   if (S.flags.needHammer && !S.inv.hammer) return '"Your brother never gave your hammer back. The Hardware Shop will have one, whatever they tell you."';
   if (leadOpen('fusebook') || leadOpen('fusediagram')) return '"Have you checked the fuses? My dad always checked the fuses first."';
@@ -467,6 +544,7 @@ function closedReason(name) {
 // Arriving at a place: open, or closed (with a reason)
 function arriveAt(name) {
   S.spot = S.spot || {};
+  S.counter = null;                                                // not up at anyone's counter yet
   S.spot.place = [105, 140];                                       // you come in at the door
   S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
   S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
@@ -697,6 +775,7 @@ const SCREEN_ENTER = {
     delete S.flags.wifeWalksIn;                                       // she's in ahead of you
     if (S.flags.drunkHome) drunkCollapse();                            // home from the pub: he doesn't get far
   },
+  shelf() { handbookNotOnShelf(); },                                // looking for the handbook: not here
   pc() { pass(5); },
   phone() { for (const m of S.msgs) m.read = true; }
 };
@@ -708,7 +787,17 @@ const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
   keytry() { keyTry(); },                                               // the car door: try the key in the lock
-  talk() { talk(S.place); },
+  handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
+  hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
+  hbclose() { show('garage'); },                                        // put it down, back in the garage
+  batlead(side) { batteryLead(side); },                                 // under the bonnet: a battery lead off, or back on
+  // the shopkeeper: you go up to the counter (a close-up of him), then he talks
+  talk() {
+    const queueing = S.place === 'Post Office' && !postFirst();       // at the back of the post office queue: you shout from there
+    if (hasCounter(S.place) && !queueing) S.counter = S.place;        // up to the counter
+    talk(S.place);
+  },
+  counteroff() { S.counter = null; },                                  // step back from the counter, into the shop
   // a regular at the bar: their advice, round and round
   punter(k) {
     const p = PUNTERS[+k];
@@ -848,6 +937,7 @@ const ACTIONS = {
   },
   leave() {
     S.flags.pubSat = false;                                             // off your bar stool
+    S.counter = null;                                                   // and away from the counter
     const unpaid = basketHere().length;
     S.basket = (S.basket || []).filter(b => b.place !== S.place);     // you can't walk out with it
     S.inside = false; S.spot.outside = [162, 52]; sfx('bell');
@@ -876,7 +966,11 @@ const ACTIONS = {
   },
   // ----- the dashboard: tap the key to turn it one click -----
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
-  horn() { sfx('hornnear'); moment('horn', 500); },                    // parp! (the horn works with the key off, like a real car)
+  // parp! (the horn works with the key off, like a real car; not with a battery lead off)
+  horn() {
+    if (!carPowered()) { sfx('click'); return say('The horn', 'Nothing. Not a squeak.'); }   // no power
+    sfx('hornnear'); moment('horn', 500);
+  },
   turnkey() {
     if (S.flags.running) {                                               // running: switch it all off
       S.flags.running = false;
@@ -908,6 +1002,7 @@ const ACTIONS = {
   },
   // the radio's three buttons: dir -1 = ◀, 0 = the middle one, 1 = ▶
   radio(dir) {
+    if (!carPowered()) return say('Radio', 'Nothing. Not even the clock. No power.');
     if (S.key < 1) return say('Radio', 'Nothing. The radio needs the key at I.');
     const R = radioState();
     const d = +dir;
@@ -945,6 +1040,11 @@ const ACTIONS = {
     S.key = +pos;
     S.flags.running = false;
     if (S.key === 0) radioState().on = false;                            // the key off turns the radio off
+    if (S.key === 3 && !carPowered()) {                                  // no power: the starter doesn't even click
+      S.key = 2;
+      sfx('click');
+      return say('Start it', 'Nothing. No lights, no starter, no nothing.');
+    }
     if (S.key === 3) {
       S.key = 2;
       S.flags.running = true;
@@ -957,6 +1057,7 @@ const ACTIONS = {
   },
   plug(which) {
     S.flags.hatch = true;                                                // the port is behind the hatch: open it
+    if (!carPowered()) return say('Code reader', 'Nothing. There\'s no power anywhere in the car.');
     if (S.key < 2) return say('Code reader', 'Nothing. The key needs to be at II for the reader to wake up.');
     pass(10);
     sfx('beep');
@@ -1042,7 +1143,7 @@ const ACTIONS = {
     pass(10);
     sfx('click'); sfx('click', 0.3);
     if (!S.flags.knowF23) {                                         // which one is it? the lid says see the manual; the manual's not much help
-      lead('meaning', 'fusebook', 'Note 7: the owner\'s manual on the shelf', 'the fuse box lid', 'sure', 'shelf');
+      lead('meaning', 'fusebook', 'Note 7: the owner\'s handbook', 'the fuse box lid', 'sure', 'act:handbook');
       return say('The fuses', 'Thirty fuses. Which one is the gearbox? The lid says F23 "Instr. (see note 7)". Note 7 says "see owner\'s manual".');
     }
     closeLead('fuses', 'x', 'Fuse F23 is fine'); closeLead('checkf23', 'x');

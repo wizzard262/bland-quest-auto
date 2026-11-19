@@ -66,11 +66,57 @@ const COUNTER = [40, 50, 170, 70];             // x0, y0, x1, y1
 // Where the shopkeeper's head is on screen (for the speech bubble's arrow)
 function keeperHead() {
   if (placeStyle(S.place) === 'pub') return pubKeeperHead();        // the pub is drawn flat, side on
+  if (atCounter()) return counterKeeperHead();                      // at the counter: the close-up of him
   ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
   const style = placeStyle(S.place);
   const at = style === 'house' ? [78, 46] : KEEPER_AT, p = P(at[0], at[1]);
   return [p[0] + 2, p[1] - 40];
 }
+
+// ---------- at the counter: a flat close-up of the shopkeeper (a plain stand-in until Steve's picture) ----------
+const COUNTER_VIEW = { top: 200, keeper: 240, size: 5 };            // the counter's top edge, where he stands, how big he's drawn
+// Shops with a counter to go up to (not the pub, not a house's doorstep)
+function hasCounter(name) {
+  const style = placeStyle(name);                                   // what kind of place it is
+  return style !== 'pub' && style !== 'house';                      // the pub has its own flat bar; a house has a door
+}
+// Are you up at the counter, looking at the shopkeeper close up?
+function atCounter() {
+  if (!S.inside || S.counter !== S.place) return false;             // not in, or not up at this place's counter
+  if (!hasCounter(S.place)) return false;                           // no counter here
+  return !closedReason(S.place);                                    // shut: nobody behind it
+}
+// The close-up: the back wall, the shopkeeper, the counter across the front, the till
+function counterScene(name) {
+  const i = placeIndex(name);                                       // which place on the map
+  const cat = i >= 0 ? PLACES[i][1] : 'other';                      // its kind (for its colour)
+  const col = hex(CAT[cat][1]);                                     // the shop's own colour
+  const look = KEEPER[placeStyle(name)];                            // the shopkeeper's clothes
+  rect(0, 18, W, H - 18, shade(col, 0.8));                          // the back wall
+  rect(0, 18, W, 30, col);                                          // a band along the top, with the shop's name
+  LABELS.push(`<div class="front" style="left:0;top:${22 / H * 100}%;width:100%;height:${24 / H * 100}%;font-size:${14 / W * 100}cqw;line-height:${24 / W * 100}cqw;text-align:center;transform:none">${esc(name)}</div>`);
+  for (const sy of [90, 130]) {                                     // two shelves of stock behind him
+    rect(60, sy, 360, 3, C.wood);                                   // the shelf
+    for (let bx = 66, n = 0; bx < 410; bx += 14, n++) rect(bx, sy - 14 + (n % 2) * 3, 10, 14 - (n % 2) * 3, shade(col, 0.55 + (n % 3) * 0.2));   // boxes on it
+  }
+  man(COUNTER_VIEW.keeper, COUNTER_VIEW.top + 10, 'stand', COUNTER_VIEW.size, 0, look);   // him, behind the counter (it hides his legs)
+  rect(30, COUNTER_VIEW.top, W - 60, 6, C.benchTop);                // the counter top
+  rect(34, COUNTER_VIEW.top + 6, W - 68, H - COUNTER_VIEW.top - 6, C.bench);   // its front
+  rect(330, COUNTER_VIEW.top - 26, 44, 26, C.steel);                // the till
+  rect(334, COUNTER_VIEW.top - 22, 36, 10, hex('#0a2a20'));         // its screen
+  rect(340, COUNTER_VIEW.top - 34, 24, 8, C.steel2);                // the receipt roll on top
+}
+// What you can tap at the counter
+function counterSpots(name) {
+  const [hx, hy] = counterKeeperHead();                             // where his head is
+  const person = (PLACE_INFO[name] || {}).person || 'the shopkeeper';   // who he is
+  spot('Talk to ' + esc(person), [hx - 26, hy - 6, 52, 96], 'act:talk');
+  if (SHELF_STYLES.includes(placeStyle(name))) {                    // a shop with a basket: pay at the till
+    spot('Till: pay' + (basketHere().length ? ' £' + basketTotal().toFixed(2) : ''), [326, COUNTER_VIEW.top - 36, 52, 38], 'act:checkout');
+  }
+}
+// Where his head is in the close-up (for the speech bubble's arrow)
+const counterKeeperHead = () => [COUNTER_VIEW.keeper + 4, COUNTER_VIEW.top + 10 - 20 * COUNTER_VIEW.size];
 
 // ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
 const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [250, 300, 350], size: 3 };   // people drawn 3x here, to suit the stools   // the bar's top, the floor, the barman, the stools (yours first)

@@ -125,7 +125,7 @@ const BOOKS = [
   ['Car Electrics Made Simple (1987)', ['Chapter 1: What is electricity?', 'Chapter 2: Points and condensers.', 'Chapter 9: "Computers in cars? A fad."']],
   ['The Complete Gearbox', ['412 pages on manual gearboxes.', 'One paragraph on automatics: "These are best left to specialists."', 'The specialists are three months away.']],
   ['Zafira 1.6 Plus (Deutsch)', ['Ihr Fahrzeug ist mit einem Wählhebelsensor ausgestattet…', 'It\'s exactly your car. It\'s in German.', 'There\'s a lovely clear diagram. All the labels are in German too.']],
-  ['Zafira Owner\'s Handbook', ['Fuses: "The fuse box is behind the battery. See the fuse allocation table on page 62." Pages 61 to 64 have been torn out.', 'Just a scrap of page 62 is left in the binding: "…F2" and half of a "3".', 'Radio: "Your security code is on the card in this wallet." The wallet is empty.']],
+  ['Ford Sierra 1982–93', ['Not your car. Not even close.', 'Someone has done every job in it, in pencil, with the dates.', 'The last entry: "Sold it. Bought a Zafira. Mistake."']],
   ['Practical Car Maintenance', ['Lovely pictures of a 1972 Cortina.', '"Always use the correct tool."', '"If in doubt, consult your dealer." The dealer is £120 an hour.']],
   ['Wiring Diagrams Vol. 2', ['Volume 2 starts at circuit 214.', 'Volume 1 is missing.', 'Circuit 214: "Continued from Volume 1."']],
   ['Motor Repair for Beginners', ['Step 1: Take it to a mechanic.', 'Step 2: See step 1.', 'Index: "Gearbox, see Mechanic."']],
@@ -207,9 +207,19 @@ function makePile() {
     const x = bx + 14 + hash(n + seed, 41) * (bw - 28), y = by + 14 + hash(41, n + seed) * (bh - 28);
     PILE.push({ x, y, a: hash(n + seed, 7) * 6.28, k: Math.floor(hash(n + seed, 13) * JUNK.length), box });
   }
+  if (!S.inv.handbook) PILE.unshift({ x: 120, y: 150, a: 0.35, k: 0, box: 0, handbook: true });   // the car's handbook, right at the bottom
+}
+// The handbook in the parts box: a little blue booklet, turned by a
+function drawHandbookSmall(j) {
+  const { x, y, a } = j, c = Math.cos(a), s = Math.sin(a);
+  const corner = (u, v) => [x + u * c - v * s, y + u * s + v * c];
+  poly([corner(-15, -11), corner(15, -11), corner(15, 11), corner(-15, 11)], HANDBOOK_BLUE);   // the cover
+  poly([corner(-12, -8), corner(12, -8), corner(12, -4), corner(-12, -4)], C.white);            // its title strip
+  poly([corner(-6, 0), corner(6, 0), corner(6, 5), corner(-6, 5)], C.car);                      // the little picture of the car
 }
 // One bit of junk at x, y, turned by a
 function drawJunk(j) {
+  if (j.handbook) return drawHandbookSmall(j);
   const { x, y, a } = j, kind = JUNK[j.k][1];
   const c = Math.cos(a), s = Math.sin(a);
   const along = (d, w, col) => pipe(x - c * d, y - s * d, x + c * d, y + s * d, w, col);   // a bar through the middle
@@ -276,7 +286,8 @@ function rummageEnd() {
   const { x, y, moved } = RUMMAGE;
   RUMMAGE = null;
   if (moved > 4) return;
-  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < 10);
+  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook ? 16 : 10));
+  if (top && top.handbook) return takeHandbook(top);                             // the handbook!
   if (top) { say(JUNK[top.k][0], 'Not what you need.'); render(); }
 }
 
@@ -413,6 +424,7 @@ function storeList() {
     list.push([it.name, ITEM_KIND[id] || 'box', 1]);
   }
   if (S.inv.hammer && !(S.bought && S.bought['Claw hammer'])) list.push(['Claw hammer', 'hammer', 1]);   // bought before there was a basket
+  if (S.inv.handbook) list.push([HANDBOOK_NAME, 'handbook', 1]);                     // found in the parts box
   const lamps = spareLamps();                                                       // spare headlights, waiting for a side to break
   if (lamps.left) list.push(['Headlight (Zafira, left)', 'box', lamps.left]);
   if (lamps.right) list.push(['Headlight (Zafira, right)', 'box', lamps.right]);
@@ -456,6 +468,7 @@ SCREENS.stores = {
 };
 // A little picture of a thing, in a 32 x 32 slot
 function drawIcon(kind, x, y, n) {
+  if (kind === 'handbook') { rbox(x + 7, y + 4, 18, 25, 2, HANDBOOK_BLUE); rect(x + 9, y + 7, 14, 4, C.white); rect(x + 11, y + 15, 10, 5, C.car); return; }
   if (kind === 'hammer') { pipe(x + 9, y + 27, x + 21, y + 11, 3, C.wood); poly([[x + 12, y + 5], [x + 26, y + 15], [x + 23, y + 19], [x + 9, y + 9]], C.tool); return; }
   if (kind === 'spanners') { pipe(x + 7, y + 25, x + 24, y + 8, 3, C.steel); ring(x + 26, y + 6, 4, C.steel2); ring(x + 5, y + 27, 3, C.steel2); return; }
   if (kind === 'drivers') { pipe(x + 6, y + 26, x + 13, y + 19, 5, C.red); pipe(x + 14, y + 18, x + 26, y + 6, 2, C.steel); return; }
@@ -511,10 +524,6 @@ Object.assign(ACTIONS, {
     S.book = i; S.bookPage = 0; pass(5); sfx('drawer');
     BOOK_MOVE = { i, out: true };                                                 // off the shelf, then it opens
     moment('book', 550);
-    if (i === 7 && leadOpen('fusebook')) {
-      closeLead('fusebook', 'x', 'Owner\'s handbook: the fuse pages are torn out');
-      lead('meaning', 'fusediagram', 'Find the fuse box diagram online', 'you', 'hopeful', 'app:TechDocs');
-    }
   },
   // flick through the pages
   bookpage(d) {
@@ -559,6 +568,7 @@ Object.assign(ACTIONS, {
   storelook(k) {
     const [name, , n] = storeList()[+k] || [];
     if (!name) return;
+    if (name === HANDBOOK_NAME) return openHandbook();               // the handbook: read it
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it

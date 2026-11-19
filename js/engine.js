@@ -213,6 +213,7 @@ function goTo(target) {
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
+  if (target === 'city' && S.screen !== 'city' && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
   if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && drinksToday() > 0) return keyStart();   // had a drink or three: get the key in the door first
   show(target);
@@ -367,7 +368,7 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger, .hbcover').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
