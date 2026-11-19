@@ -445,7 +445,7 @@ function shopExterior(name, shut) {
   onLeft(40, 148, 176, 0, 50, C.white); onLeft(40, 150, 174, 0, 48, shade(col, 0.6)); onLeft(40, 152, 172, 18, 46, C.glass);   // the door
   { const k = P(170, 40, 24); rect(k[0], k[1], 2, 2, C.steel); }
   // the sign on the door: OPEN, CLOSED, gone, or on holiday
-  const doorSign = info.gone ? 'TO LET' : info.holiday ? 'HOLIDAY' : shut ? 'CLOSED' : 'OPEN';
+  const doorSign = info.gone ? 'TO LET' : info.holiday ? 'HOLIDAY' : shut && info.byAppointment ? 'APPT' : shut ? 'CLOSED' : 'OPEN';   // the yard: by appointment
   onLeft(40, 154, 170, 28, 34, C.white);
   { const t = P(155, 40, 33); text(doorSign.slice(0, 4), t[0] + 1, t[1] + 2, doorSign === 'OPEN' ? hex('#2a8a3a') : C.red); }
   if (info.gone) {                                                                                                   // boarded up

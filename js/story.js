@@ -107,7 +107,7 @@ const PLACE_INFO = {
   'Hardware Shop': { open: [9 * 60, 17 * 60 + 30], person: 'an old man in a brown coat', shop: ['extractor-good', 'fuses'] },
   'Motor Factors': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
   'Parts 4 Less': { open: [9 * 60, 16 * 60 + 30], person: 'a woman on the phone' },
-  'Breakers Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog' },
+  'Breakers Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog', byAppointment: true },   // only in a slot you've booked by phone
   'MOT Test Centre': { open: [8 * 60, 17 * 60 + 30], person: 'the tester' },
   'Trusty Autos': { gone: true },
   "Dave's Garage": { holiday: true },
@@ -529,11 +529,95 @@ function wifeTip() {
   return '"Have a cup of tea first, Husband. Then scrap it."';
 }
 
+// =====================================================================
+// THE BREAKERS YARD: by appointment only. The number's on a card on the gate;
+// ring it and book a 2-hour slot, and only in that slot will they let you in
+// =====================================================================
+const YARD = 'Breakers Yard';
+const YARD_PHONE = '01632 960451';                                 // a made-up number (01632 960 numbers are kept for drama)
+const YARD_SLOT = 120;                                             // a slot lasts 2 hours
+// Is your booked slot on right now?
+function yardSlotNow() {
+  const slot = S.yardSlot;                                         // the slot you booked, if any: { day, from }
+  if (!slot || slot.day !== S.day) return false;                   // none, or not today
+  return S.mins >= slot.from && S.mins < slot.from + YARD_SLOT;    // inside its two hours?
+}
+// Has your booked slot been and gone?
+function yardSlotMissed() {
+  const slot = S.yardSlot;
+  if (!slot) return false;                                         // nothing booked
+  if (slot.day < S.day) return true;                               // it was on an earlier day
+  return slot.day === S.day && S.mins >= slot.from + YARD_SLOT;    // it was earlier today
+}
+// A slot's day in words: today, tomorrow, yesterday, or the day's name
+function slotDay(slot) {
+  if (slot.day === S.day) return 'today';
+  if (slot.day === S.day + 1) return 'tomorrow';
+  if (slot.day === S.day - 1) return 'yesterday';
+  return DAYS[slot.day % 7];
+}
+// A slot written out: "tomorrow 09:00–11:00" (or, for the notebook, "WED 09:00–11:00", which doesn't go out of date)
+function slotText(slot, byName) {
+  const day = byName ? DAYS[slot.day % 7] : slotDay(slot);
+  return `${day} ${hhmm(slot.from)}–${hhmm(slot.from + YARD_SLOT)}`;
+}
+// Why the yard won't let you in (null: your slot is on, so it's open)
+function yardShut() {
+  if (yardSlotNow()) return null;                                  // your slot: in you go
+  if (yardSlotMissed()) return `By appointment only. Your slot was ${slotText(S.yardSlot)}. You missed it. Ring ${YARD_PHONE} to book another.`;
+  if (S.yardSlot) return `By appointment only. Your slot is ${slotText(S.yardSlot)}. Not before.`;
+  return `By appointment only. A card on the gate says: "Ring ${YARD_PHONE} to book."`;
+}
+// At the gate: the number goes in your phone (the first time), and a job to get in
+function yardGate() {
+  if (S.flags.yardNumber) return '';                               // you've already got it
+  S.flags.yardNumber = true;                                       // it's in the phone now
+  job('yard', 'Get into the Breakers Yard (by appointment only)', null);
+  lead('yard', 'yard-ring', 'Ring the Breakers Yard to book a slot', 'the card on the gate', 'sure', 'phone');
+  return '\n\nYou put the number in your phone.';
+}
+// The slots he offers: today's next one (if there's time), and tomorrow morning and afternoon
+function yardSlotsOffered() {
+  const [open, shut] = PLACE_INFO[YARD].open;                      // the yard's hours: slots fit inside them
+  const offered = [];
+  const soonest = Math.ceil((S.mins + 60) / 60) * 60;              // today: on the hour, an hour from now at the earliest
+  const today = Math.max(open, soonest);
+  if (today + YARD_SLOT <= shut) offered.push({ day: S.day, from: today });
+  offered.push({ day: S.day + 1, from: open });                    // tomorrow morning
+  offered.push({ day: S.day + 1, from: shut - YARD_SLOT });        // tomorrow afternoon
+  return offered;
+}
+// Ringing the yard: an answerphone out of hours; otherwise pick a slot
+function ringYard() {
+  const [open, shut] = PLACE_INFO[YARD].open;
+  if (S.mins < open || S.mins >= shut) {                           // out of hours: nobody's there
+    return say('Ringing the Breakers Yard', `An answerphone: "Breakers Yard. Office ${hhmm(open)} till ${hhmm(shut)}. Strictly by appointment." Beep.`);
+  }
+  const slots = yardSlotsOffered().map(slot => ({ label: 'Book ' + slotText(slot), run() { bookYard(slot); } }));
+  say('Ringing the Breakers Yard', '"Yard. Appointment, is it? Two-hour slots. When d\'you want?"\n\nA dog barks the whole time.', slots.concat([{ label: 'Never mind', run() {} }]));
+}
+// Book a slot (a new one replaces the old one)
+function bookYard(slot) {
+  S.yardSlot = slot;
+  job('yard', 'Get into the Breakers Yard (by appointment only)', null);
+  closeLead('yard-ring', 'ok');                                     // rang them
+  note('yard', 'Booked a slot: ' + slotText(slot, true), 'ok');     // in the notebook, by the day's name
+  lead('yard', 'yard-go', 'Go to the Breakers Yard in your slot', 'the man at the yard', 'sure', 'place:' + YARD);
+  say('Ringing the Breakers Yard', `"${slotText(slot)}. Don't be late. The dog doesn't like late."`);
+}
+// In through the gate in your slot
+function yardIn() {
+  if (S.place !== YARD) return;
+  closeLead('yard-go', 'ok');
+  finishJob('yard', 'In through the gate, in my slot');
+}
+
 // Is a place open right now? Returns null if open, or the reason it isn't
 function closedReason(name) {
   const info = PLACE_INFO[name] || {};
   if (info.gone) return 'Boarded up. OUT OF BUSINESS. The website still takes bookings.';
   if (info.holiday) return 'A sign on the door: "On holiday. Back in 3 weeks. Sorry for any inconvenience."';
+  if (info.byAppointment) return yardShut();                       // the yard: only in a slot you've booked
   if (info.closedDays && info.closedDays.includes(weekday())) return `Closed on ${weekday()}s.`;
   const [from, to] = info.open || [9 * 60, 17 * 60 + 30];
   if (S.mins < from) return `Closed. Opens at ${hhmm(from)}.`;
@@ -926,7 +1010,11 @@ const ACTIONS = {
   // ----- in a shop -----
   enter() {
     const shut = closedReason(S.place);
-    if (shut) { sfx('door'); anger(3); return say(S.place, shut); }
+    if (shut) {
+      sfx('door'); anger(3);
+      const gate = (PLACE_INFO[S.place] || {}).byAppointment ? yardGate() : '';   // by appointment: the number goes in your phone
+      return say(S.place, shut + gate);
+    }
     // the post office: queued outside since before 9? you go in when it's your turn (9 if you were first, else 10), and you're served
     if (S.place === 'Post Office' && poInQueue()) {
       if (S.mins < poServedAt()) { anger(3); return say('Post Office', 'The queue is shuffling in, one at a time. Not your turn yet: about ' + hhmm(poServedAt()) + '.'); }
@@ -934,6 +1022,7 @@ const ACTIONS = {
     }
     S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
     if (placeStyle(S.place) === 'pub') pubCallLater();                  // the pub: the wife will ring
+    yardIn();                                                           // the yard: in, in your slot
   },
   leave() {
     S.flags.pubSat = false;                                             // off your bar stool
@@ -1233,6 +1322,7 @@ const ACTIONS = {
   // ----- the phone -----
   ring(who) {
     pass(5);
+    if (who === 'Yard') return ringYard();                              // the Breakers Yard: book a slot
     if (who === 'Wife') {                                              // she says just what she'd say to your face
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();

@@ -1162,7 +1162,7 @@ test('in a shop there is no Back button: you leave by the wireframe door at the 
 test('the breakers yard: look round the wrecks; your exact car has had the part taken', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', 'light'); lead('new-sensor', 'breakers', 'Breakers', 'Gaz', 'maybe', 'place:Breakers Yard'); S.mins = 10 * 60; });
+  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', 'light'); lead('new-sensor', 'breakers', 'Breakers', 'Gaz', 'maybe', 'place:Breakers Yard'); S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; });   // a slot booked for now
   await goPlace(page, 'Breakers Yard');
   await talk(page);
   await choose(page, 'Look round the yard');
@@ -1583,5 +1583,51 @@ test('tap the shopkeeper: a flat close-up of him at the counter, where he talks 
   await talk(page); await ok(page);                                     // leaving the shop leaves the counter too
   await page.evaluate(() => act('leave')); await ok(page);
   expect(await page.evaluate(() => [S.inside, S.counter])).toEqual([false, null]);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the Breakers Yard: by appointment only ----------
+test('the breakers yard is by appointment only: the number on the gate goes in your phone; ring and book a 2-hour slot; only then is it open', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 9 * 60 + 40; });
+  await goPlace(page, 'Breakers Yard');                                   // 10:00 by the time you're there
+  await expect(page.locator('.tip')).toContainText('By appointment only');
+  await tap(page, 'act:enter');                                           // the gate: shut, with a card on it
+  const gate = await dialogText(page);
+  expect(gate).toContain('01632 960451');
+  expect(gate).toContain('in your phone');
+  await ok(page);
+  expect(await page.evaluate(() => [S.inside, S.flags.yardNumber, leadOpen('yard-ring')])).toEqual([false, true, true]);
+  await page.evaluate(() => { S.mins = 9 * 60 + 50; });                    // 9:55 once it rings: the next slot today starts at 11
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="ring:Yard"]').click();                   // ring them from the phone
+  const offer = await dialogText(page);
+  expect(offer).toContain('Two-hour slots');
+  await expect(page.locator('.dlg button', { hasText: 'Book today 11:00–13:00' })).toHaveCount(1);
+  await expect(page.locator('.dlg button', { hasText: 'Book tomorrow 09:00–11:00' })).toHaveCount(1);
+  await expect(page.locator('.dlg button', { hasText: 'Book tomorrow 14:00–16:00' })).toHaveCount(1);
+  await choose(page, 'Book today 11:00–13:00');
+  expect(await page.evaluate(() => S.yardSlot)).toEqual(await page.evaluate(() => ({ day: S.day, from: 11 * 60 })));
+  expect(await page.evaluate(() => JSON.stringify(findJob('yard').notes))).toContain('11:00–13:00');
+  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toContain('Not before');   // too early still
+  await page.evaluate(() => { S.mins = 11 * 60 + 30; S.screen = 'place'; S.inside = false; render(); });   // in the slot
+  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toBe(null);
+  await tap(page, 'act:enter'); await idle(page);
+  expect(await page.evaluate(() => [S.inside, findJob('yard').status])).toEqual([true, 'done']);
+  await page.evaluate(() => { S.mins = 13 * 60; });                       // the slot's over: shut again
+  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toContain('You missed it');
+  await page.evaluate(() => { S.mins = 20 * 60; S.screen = 'garage'; render(); });   // out of hours: the answerphone
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="ring:Yard"]').click();
+  expect(await dialogText(page)).toContain('answerphone');
+  expect(errors).toEqual([]);
+});
+
+test('before you have been to the gate, the phone has no number for the breakers yard', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await expect(page.locator('[data-act="ring:Yard"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
