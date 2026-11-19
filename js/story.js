@@ -107,7 +107,7 @@ const PLACE_INFO = {
   'Hardware Shop': { open: [9 * 60, 17 * 60 + 30], person: 'an old man in a brown coat', shop: ['extractor-good', 'fuses'] },
   'Motor Factors': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
   'Parts 4 Less': { open: [9 * 60, 16 * 60 + 30], person: 'a woman on the phone' },
-  'Breakers Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog', byAppointment: true },   // only in a slot you've booked by phone
+  'Scrap Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog', byAppointment: true },   // only in a slot you've booked by phone
   'MOT Test Centre': { open: [8 * 60, 17 * 60 + 30], person: 'the tester' },
   'Trusty Autos': { gone: true },
   "Dave's Garage": { holiday: true },
@@ -141,7 +141,7 @@ function needHeadlight() {
   if (brokeOpen('headlight2') && !have.right) return 'right';
   return null;
 }
-// From the Breakers Yard: one for the side you need (or a left one, if nothing's smashed)
+// From the Scrap Yard: one for the side you need (or a left one, if nothing's smashed)
 function gotHeadlight() { addLamp(needHeadlight() || 'left'); }
 // Which night it is (after midnight still counts as the evening before)
 const nightOf = () => S.mins < 7 * 60 ? S.day - 1 : S.day;
@@ -344,8 +344,7 @@ function sleepItOff() {
 //   It rings for 10 seconds. Answer: she talks from the phone in your hand. Leave it: a missed call, then a text 10 seconds later
 const CALL_TIMES = { after: 4000, ring: 10000, text: 10000 };         // ms: how long after you go in she rings; how long it rings; the text after a missed call
 const WIFE_PUB_CALL = 'Where are you? Are you at the pub again? Don\'t drink too much!';
-const RINGING = '📞 The wife';                                         // the ringing call's title
-let CALL = null;                                                       // the call ringing now: { bell, timer }
+let CALL = null;                                                       // the call ringing now: { who, bell, timer }
 let ON_PHONE = false;                                                  // he's holding the phone to his ear (drawn in the pub)
 const inPub = () => S.screen === 'place' && S.inside && placeStyle(S.place) === 'pub';
 // Going into the pub: she'll ring in a moment (once a day; not once she's asleep)
@@ -360,15 +359,13 @@ function tryRinging() {
   if (DIALOG || ANIM) return setTimeout(tryRinging, 1000);
   incomingCall();
 }
-// The phone rings: answer it, or leave it
+// The phone rings: it glows and rattles in your pocket (bottom right). Tap it to answer, or leave it
 function incomingCall() {
-  sfx('ringtone');
-  const bell = setInterval(() => sfx('ringtone'), 1500);              // it keeps ringing
-  CALL = { bell, timer: setTimeout(missedCall, CALL_TIMES.ring) };
-  say(RINGING, 'Your phone is ringing. It\'s the wife.', [
-    { label: 'Answer it', run: answerCall },
-    { label: 'Leave it ringing', run() {} }
-  ]);
+  const ring = () => { sfx('ringtone'); sfx('buzz'); };                // the ringtone, and the buzz of it vibrating
+  ring();
+  const bell = setInterval(ring, 1500);                                // it keeps ringing
+  CALL = { who: 'The wife', bell, timer: setTimeout(missedCall, CALL_TIMES.ring) };
+  render();                                                            // the still phone comes out of the picture: the ringing one moves
 }
 // Stop the ringing (answered, or rung off)
 function stopRinging() {
@@ -376,6 +373,7 @@ function stopRinging() {
   clearInterval(CALL.bell);
   clearTimeout(CALL.timer);
   CALL = null;
+  render();                                                            // the phone goes still again
 }
 // Answered: phone to his ear, and her voice comes out of it
 function answerCall() {
@@ -386,9 +384,7 @@ function answerCall() {
 }
 // Not answered: a missed call, and then she texts
 function missedCall() {
-  const stillShowing = DIALOG && DIALOG.title === RINGING;
   stopRinging();
-  if (stillShowing) DIALOG = null;
   S.msgs.unshift({ from: 'The wife', body: 'Missed call', when: clockText(), read: false });
   sfx('buzz');
   save(); render();
@@ -533,7 +529,7 @@ function wifeTip() {
 // THE BREAKERS YARD: by appointment only. The number's on a card on the gate;
 // ring it and book a 2-hour slot, and only in that slot will they let you in
 // =====================================================================
-const YARD = 'Breakers Yard';
+const YARD = 'Scrap Yard';
 const YARD_PHONE = '01632 960451';                                 // a made-up number (01632 960 numbers are kept for drama)
 const YARD_SLOT = 120;                                             // a slot lasts 2 hours
 // Is your booked slot on right now?
@@ -572,8 +568,8 @@ function yardShut() {
 function yardGate() {
   if (S.flags.yardNumber) return '';                               // you've already got it
   S.flags.yardNumber = true;                                       // it's in the phone now
-  job('yard', 'Get into the Breakers Yard (by appointment only)', null);
-  lead('yard', 'yard-ring', 'Ring the Breakers Yard to book a slot', 'the card on the gate', 'sure', 'phone');
+  job('yard', 'Get into the Scrap Yard (by appointment only)', null);
+  lead('yard', 'yard-ring', 'Ring the Scrap Yard to book a slot', 'the card on the gate', 'sure', 'phone');
   return '\n\nYou put the number in your phone.';
 }
 // The slots he offers: today's next one (if there's time), and tomorrow morning and afternoon
@@ -591,19 +587,19 @@ function yardSlotsOffered() {
 function ringYard() {
   const [open, shut] = PLACE_INFO[YARD].open;
   if (S.mins < open || S.mins >= shut) {                           // out of hours: nobody's there
-    return say('Ringing the Breakers Yard', `An answerphone: "Breakers Yard. Office ${hhmm(open)} till ${hhmm(shut)}. Strictly by appointment." Beep.`);
+    return say('Ringing the Scrap Yard', `An answerphone: "Scrap Yard. Office ${hhmm(open)} till ${hhmm(shut)}. Strictly by appointment." Beep.`);
   }
   const slots = yardSlotsOffered().map(slot => ({ label: 'Book ' + slotText(slot), run() { bookYard(slot); } }));
-  say('Ringing the Breakers Yard', '"Yard. Appointment, is it? Two-hour slots. When d\'you want?"\n\nA dog barks the whole time.', slots.concat([{ label: 'Never mind', run() {} }]));
+  say('Ringing the Scrap Yard', '"Yard. Appointment, is it? Two-hour slots. When d\'you want?"\n\nA dog barks the whole time.', slots.concat([{ label: 'Never mind', run() {} }]));
 }
 // Book a slot (a new one replaces the old one)
 function bookYard(slot) {
   S.yardSlot = slot;
-  job('yard', 'Get into the Breakers Yard (by appointment only)', null);
+  job('yard', 'Get into the Scrap Yard (by appointment only)', null);
   closeLead('yard-ring', 'ok');                                     // rang them
   note('yard', 'Booked a slot: ' + slotText(slot, true), 'ok');     // in the notebook, by the day's name
-  lead('yard', 'yard-go', 'Go to the Breakers Yard in your slot', 'the man at the yard', 'sure', 'place:' + YARD);
-  say('Ringing the Breakers Yard', `"${slotText(slot)}. Don't be late. The dog doesn't like late."`);
+  lead('yard', 'yard-go', 'Go to the Scrap Yard in your slot', 'the man at the yard', 'sure', 'place:' + YARD);
+  say('Ringing the Scrap Yard', `"${slotText(slot)}. Don't be late. The dog doesn't like late."`);
 }
 // In through the gate in your slot
 function yardIn() {
@@ -792,13 +788,13 @@ const TALK = {
       { label: 'Not now', run() {} }
     ]);
   },
-  'Breakers Yard'() {
+  'Scrap Yard'() {
     if (brokeOpen('wiper')) {
-      finishJob('broke-wiper', 'A wiper arm from the Breakers Yard: £2'); closeLead('wiper', 'ok'); spend(2);
-      return say('Breakers Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
+      finishJob('broke-wiper', 'A wiper arm from the Scrap Yard: £2'); closeLead('wiper', 'ok'); spend(2);
+      return say('Scrap Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
     }
-    if (!findJob('new-sensor')) return say('Breakers Yard', '"Got all sorts. What are you after?"');
-    say('Breakers Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."', [
+    if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"');
+    say('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."', [
       { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
       { label: 'Not today', run() {} }
     ]);
@@ -1037,7 +1033,7 @@ const ACTIONS = {
   },
   browse() { pass(5); say('The stock', BROWSE[placeStyle(S.place)]); },
   posters() { const [a, b] = POSTERS[placeStyle(S.place)] || ['', '']; pass(2); say('The posters', `"${a}" (${b}). And one that just says SALE. It's from 2017.`); },
-  // ----- the breakers yard: look at each wreck -----
+  // ----- the scrap yard: look at each wreck -----
   wreck(n) {
     const i = +n;
     pass(10);
@@ -1045,7 +1041,7 @@ const ACTIONS = {
     if (i === 4) { anger(10); sfx('sad'); } else { anger(3); sfx('clink'); }
     const seen = WRECKS.slice(0, MAYBE_YOURS).filter((w, k) => S.flags['wreck' + k]).length;   // only the six that might be yours count
     const allSeen = i < MAYBE_YOURS && seen === MAYBE_YOURS;
-    if (allSeen) closeLead('breakers', 'x', 'Breakers Yard: six Zafiras (nearly), not one sensor');
+    if (allSeen) closeLead('breakers', 'x', 'Scrap Yard: six Zafiras (nearly), not one sensor');
     const text = WRECKS[i][4] + (allSeen ? '\n\nThat\'s all six that might have been yours.' : '');
     const side = needHeadlight();                                     // which headlight you still need (if any)
     if (i === 2 && side) {                                            // a Zafira just like yours: its headlights are fine
@@ -1274,7 +1270,7 @@ const ACTIONS = {
     note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
     lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
     lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
-    lead('new-sensor', 'breakers', 'The Breakers Yard has a Zafira', 'Gaz', 'maybe', 'place:Breakers Yard');
+    lead('new-sensor', 'breakers', 'The Scrap Yard has a Zafira', 'Gaz', 'maybe', 'place:Scrap Yard');
     say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
   },
   pick(id) { S.bench = { part: id, rotated: false, state: 'over' }; },
@@ -1325,7 +1321,7 @@ const ACTIONS = {
   // ----- the phone -----
   ring(who) {
     pass(5);
-    if (who === 'Yard') return ringYard();                              // the Breakers Yard: book a slot
+    if (who === 'Yard') return ringYard();                              // the Scrap Yard: book a slot
     if (who === 'Wife') {                                              // she says just what she'd say to your face
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();

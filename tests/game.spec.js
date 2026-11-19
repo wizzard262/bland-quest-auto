@@ -878,9 +878,13 @@ test('at the pub the wife rings: answer and she talks from the phone at your ear
   await page.evaluate(() => { S.mins = 18 * 60; CALL_TIMES.after = 300; CALL_TIMES.ring = 1500; CALL_TIMES.text = 1500; });
   await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
-  // it rings: answer it
-  await expect(page.locator('.dlg')).toContainText('phone is ringing');
-  await page.locator('.dlg button', { hasText: 'Answer it' }).click();
+  // it rings: the phone glows and rattles (no message box); tap it to answer
+  await page.waitForFunction(() => CALL && CALL.who === 'The wife');
+  await expect(page.locator('.dlg')).toHaveCount(0);
+  const still = await page.evaluate(() => { const c = document.querySelector('#c'); return c.toDataURL(); });
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => document.querySelector('#c').toDataURL())).not.toBe(still);   // it's moving
+  await page.click('.go[data-go="phone"]');
   expect(await dialogText(page)).toContain('Are you at the pub again?');
   expect(await page.evaluate(() => [ON_PHONE, DIALOG.at !== null, DIALOG.title])).toEqual([true, true, 'The wife']);
   await page.locator('.dlg').click();
@@ -894,8 +898,7 @@ test('at the pub the wife rings: answer and she talks from the phone at your ear
   await page.evaluate(() => { S.day += 1; S.mins = 18 * 60; });
   await tap(page, 'act:leave'); await idle(page);
   await tap(page, 'act:enter'); await idle(page);
-  await expect(page.locator('.dlg')).toContainText('phone is ringing');
-  await page.locator('.dlg button', { hasText: 'Leave it ringing' }).click();
+  await page.waitForFunction(() => CALL && CALL.who === 'The wife');   // ringing: leave it
   await page.waitForFunction(() => S.msgs[0].body === 'Missed call');
   await page.waitForFunction(() => S.msgs[0].body.includes("Don't drink too much!"));
   expect(await page.evaluate(() => [S.msgs[0].from, S.msgs[1].body])).toEqual(['The wife', 'Missed call']);
@@ -1015,7 +1018,7 @@ test('going into the garage: the roller door rolls up first', async ({ page }) =
   expect(errors).toEqual([]);
 });
 
-test('after kicking the headlight it stays smashed: the TheeBay one is the wrong side; the Breakers Yard has one; fit it under the bonnet', async ({ page }) => {
+test('after kicking the headlight it stays smashed: the TheeBay one is the wrong side; the Scrap Yard has one; fit it under the bonnet', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
@@ -1024,7 +1027,7 @@ test('after kicking the headlight it stays smashed: the TheeBay one is the wrong
   await page.evaluate(() => { openParcel('headlight-bay'); render(); });
   expect(await dialogText(page)).toContain('other side');
   await ok(page);
-  await page.evaluate(() => { S.screen = 'yard'; S.place = 'Breakers Yard'; render(); ACTIONS.wreck('2'); render(); });
+  await page.evaluate(() => { S.screen = 'yard'; S.place = 'Scrap Yard'; render(); ACTIONS.wreck('2'); render(); });
   await choose(page, 'Take its headlight');
   expect(await page.evaluate(() => S.lamps.left)).toBe(1);
   await page.evaluate(() => { S.screen = 'bonnet'; render(); });
@@ -1159,11 +1162,11 @@ test('in a shop there is no Back button: you leave by the wireframe door at the 
   expect(errors).toEqual([]);
 });
 
-test('the breakers yard: look round the wrecks; your exact car has had the part taken', async ({ page }) => {
+test('the scrap yard: look round the wrecks; your exact car has had the part taken', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', 'light'); lead('new-sensor', 'breakers', 'Breakers', 'Gaz', 'maybe', 'place:Breakers Yard'); S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; });   // a slot booked for now
-  await goPlace(page, 'Breakers Yard');
+  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', 'light'); lead('new-sensor', 'breakers', 'Breakers', 'Gaz', 'maybe', 'place:Scrap Yard'); S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; });   // a slot booked for now
+  await goPlace(page, 'Scrap Yard');
   await talk(page);
   await choose(page, 'Look round the yard');
   expect(await page.evaluate(() => S.screen)).toBe('yard');
@@ -1586,12 +1589,12 @@ test('tap the shopkeeper: a flat close-up of him at the counter, where he talks 
   expect(errors).toEqual([]);
 });
 
-// ---------- the Breakers Yard: by appointment only ----------
-test('the breakers yard is by appointment only: the number on the gate goes in your phone; ring and book a 2-hour slot; only then is it open', async ({ page }) => {
+// ---------- the Scrap Yard: by appointment only ----------
+test('the scrap yard is by appointment only: the number on the gate goes in your phone; ring and book a 2-hour slot; only then is it open', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.mins = 9 * 60 + 40; });
-  await goPlace(page, 'Breakers Yard');                                   // 10:00 by the time you're there
+  await goPlace(page, 'Scrap Yard');                                   // 10:00 by the time you're there
   await expect(page.locator('.tip')).toContainText('By appointment only');
   await tap(page, 'act:enter');                                           // the gate: shut, with a card on it
   const gate = await dialogText(page);
@@ -1610,13 +1613,13 @@ test('the breakers yard is by appointment only: the number on the gate goes in y
   await choose(page, 'Book today 11:00–13:00');
   expect(await page.evaluate(() => S.yardSlot)).toEqual(await page.evaluate(() => ({ day: S.day, from: 11 * 60 })));
   expect(await page.evaluate(() => JSON.stringify(findJob('yard').notes))).toContain('11:00–13:00');
-  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toContain('Not before');   // too early still
+  expect(await page.evaluate(() => closedReason('Scrap Yard'))).toContain('Not before');   // too early still
   await page.evaluate(() => { S.mins = 11 * 60 + 30; S.screen = 'place'; S.inside = false; render(); });   // in the slot
-  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toBe(null);
+  expect(await page.evaluate(() => closedReason('Scrap Yard'))).toBe(null);
   await tap(page, 'act:enter'); await idle(page);
   expect(await page.evaluate(() => [S.inside, findJob('yard').status])).toEqual([true, 'done']);
   await page.evaluate(() => { S.mins = 13 * 60; });                       // the slot's over: shut again
-  expect(await page.evaluate(() => closedReason('Breakers Yard'))).toContain('You missed it');
+  expect(await page.evaluate(() => closedReason('Scrap Yard'))).toContain('You missed it');
   await page.evaluate(() => { S.mins = 20 * 60; S.screen = 'garage'; render(); });   // out of hours: the answerphone
   await page.click('.go[data-go="phone"]'); await idle(page);
   await page.locator('[data-act="ring:Yard"]').click();
@@ -1624,7 +1627,7 @@ test('the breakers yard is by appointment only: the number on the gate goes in y
   expect(errors).toEqual([]);
 });
 
-test('before you have been to the gate, the phone has no number for the breakers yard', async ({ page }) => {
+test('before you have been to the gate, the phone has no number for the scrap yard', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.click('.go[data-go="phone"]'); await idle(page);

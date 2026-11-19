@@ -11,9 +11,9 @@
 // A smashed one is a job until you fit a new one (and then it can be kicked in again)
 const LAMP_BREAKS = {
   left: { id: 'headlight', title: 'Replace the smashed left headlight (you kicked it)', what: 'You run at the car and kick the left headlight in. Glass everywhere.',
-    lead: ['headlight', 'A new left headlight: the parts shop (dear), online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] },
+    lead: ['headlight', 'A new left headlight: the parts shop (dear), online, or the Scrap Yard', 'you', 'sure', 'place:Scrap Yard'] },
   right: { id: 'headlight2', title: 'Replace the smashed right headlight (you kicked it)', what: 'You run round the other side and kick the right headlight in. Now they match.',
-    lead: ['headlight2', 'A new right headlight: online, or the Breakers Yard', 'you', 'sure', 'place:Breakers Yard'] }
+    lead: ['headlight2', 'A new right headlight: online, or the Scrap Yard', 'you', 'sure', 'place:Scrap Yard'] }
 };
 // When a headlight's already smashed, losing it breaks something else instead, one at a time; each is a small job to fix
 const CAR_BREAKS = [
@@ -24,7 +24,7 @@ const CAR_BREAKS = [
   { id: 'stay', title: 'Straighten the bonnet stay (you slammed the bonnet)', what: 'You slam the bonnet. The bonnet stay bends like a paperclip.',
     lead: ['vice', 'Straighten it in the vice on the workbench', 'you', 'sure', 'bench'] },
   { id: 'wiper', title: 'Fix the wiper (you thumped the windscreen)', what: 'You thump the windscreen. A wiper arm snaps off.',
-    lead: ['wiper', 'Any old wiper arm will do: the Breakers Yard', 'you', 'fairly sure', 'place:Breakers Yard'] }
+    lead: ['wiper', 'Any old wiper arm will do: the Scrap Yard', 'you', 'fairly sure', 'place:Scrap Yard'] }
 ];
 // =====================================================================
 const RAGE = { from: 'home', shook: false, done: false };

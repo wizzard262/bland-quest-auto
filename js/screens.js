@@ -227,13 +227,13 @@ const PLACES = [
   ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Library (free Wi-Fi)', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
   ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
   ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
-  ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Breakers Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
+  ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Scrap Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Makerspace (3D printer)', 'other'], ['Café', 'other'],
   ['Home', 'home'], ["Neighbour Ken's", 'people'], ['Wired Up Auto Electric', 'elec'], ['Trusty Autos', 'mech'], ['Pattern Parts', 'parts'], ['Hardware Shop', 'tools'], ['Pound Shop', 'other']
 ];
 const CAT = {
   parts: ['Parts shops', '#e08830'], mech: ['Mechanics', '#3c78c8'], elec: ['Auto electrics', '#f0c830'],
-  trans: ['Auto transmission', '#9a5ac8'], tools: ['Tool shops', '#c84040'], big: ['Big box stores', '#a8aab0'], yard: ['Breakers yard', '#8a6a4a'],
+  trans: ['Auto transmission', '#9a5ac8'], tools: ['Tool shops', '#c84040'], big: ['Big box stores', '#a8aab0'], yard: ['Scrap yard', '#8a6a4a'],
   people: ['Family and friends', '#e070a8'], other: ['Everything else', '#40a090'], home: ['Home', '#f4f4f0']
 };
 const BLOCK = 100, STREET = 30;                          // each block: a 30-wide street, then a 70-wide lot
@@ -273,7 +273,7 @@ function building(lot) {
   const x0 = lot.bi * BLOCK + STREET, y0 = lot.bj * BLOCK + STREET, x1 = x0 + 70, y1 = y0 + 70;
   const cat = lot.place[1], col = hex(CAT[cat][1]);
   ground(x0, y0, x1, y1, C.concrete);
-  if (cat === 'yard') {                                    // breakers yard: wrecks, two stacked, a tyre pile
+  if (cat === 'yard') {                                    // scrap yard: wrecks, two stacked, a tyre pile
     const paint = [hex('#9a5ac8'), C.red, C.warm, C.steel2, C.tree2];   // no blue: blue is your car
     for (let n = 0; n < 6; n++) {
       const cx = x0 + 6 + (n % 3) * 21, cy = y0 + 6 + Math.floor(n / 3) * 32;
@@ -582,7 +582,7 @@ SCREENS.phone = {
   overlay() {
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
-      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div>${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Breakers Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
+      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div>${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
 };

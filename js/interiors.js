@@ -1,4 +1,4 @@
-// The Thankless Task: inside the places in town, and the breakers yard.
+// The Thankless Task: inside the places in town, and the scrap yard.
 // Each kind of shop has its own stock, posters and shopkeeper. You walk round; tap the shopkeeper to talk.
 
 // ---------- what kind of inside each place has ----------
@@ -381,8 +381,8 @@ SCREENS.yard = {
       const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
       spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + k.L, 0, k.rz + (stacked ? 12 : 0)), 'act:wreck:' + i, [x + 30, y + 30]);
     });
-    spot('Back to the office', isoArea(170, -50, 214, -20, 0, 34), 'place:Breakers Yard', [190, 0]);
-    tip('Breakers Yard', 'Six of them might be yours. Look at each.', 1, 8);
+    spot('Back to the office', isoArea(170, -50, 214, -20, 0, 34), 'place:Scrap Yard', [190, 0]);
+    tip('Scrap Yard', 'Six of them might be yours. Look at each.', 1, 8);
     hud();
   },
   actions() { return [{ label: 'Back to the map', act: 'go:city' }]; }

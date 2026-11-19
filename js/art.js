@@ -113,6 +113,33 @@ function panel(lines, x, y, colour = C.ui) {
   lines.forEach((ln, i) => text(ln, x + 4, y + 4 + i * 8, i === 0 ? C.mint : colour));
 }
 
+// Where the phone sits in the strip (bottom right)
+function phoneIconAt(s) { return [W - 18 * s, H - 23 * s]; }
+// The phone icon at x, y; unread = how many texts you haven't read (a red dot)
+function phoneIcon(x, y, s, unread, screenCol = C.glass) {
+  rect(x, y, 11 * s, 17 * s, C.ink);                                // the case
+  rect(x + s, y + s, 9 * s, 15 * s, C.ui);                          // the bezel
+  rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, screenCol);             // the screen
+  if (unread) { disc(x + 10 * s, y + s, 3 * s, C.red); text(String(Math.min(unread, 9)), x + 9 * s, y - s, C.white, s); }
+}
+// The phone ringing: it glows, rattles about in bursts (in time with the ringtone), and says who it is
+function ringingPhone(t) {
+  const s = W > 500 ? 2 : 1;                                        // the town map is drawn twice size
+  const [x, y] = phoneIconAt(s);
+  const buzzing = (t % 1.5) < 0.7;                                  // a burst of rattling with each ring
+  const dx = buzzing ? Math.round(Math.sin(t * 70) * 2) * s : 0;    // shaking side to side…
+  const dy = buzzing ? Math.round(Math.cos(t * 53)) * s : 0;        // …and a little up and down
+  const glow = (2 + Math.round((Math.sin(t * 8) + 1) * 1.5)) * s;   // the glow round it pulses in and out (2 to 5 pixels)
+  rect(x - glow, y - glow, 11 * s + glow * 2, 17 * s + glow * 2, C.warm);   // a warm glow behind it…
+  rect(x - s, y - s, 13 * s, 19 * s, shade(C.warm, 1.3));                   // …brightest close to it
+  phoneIcon(x + dx, y + dy, s, 0, (t % 0.5) < 0.25 ? C.warm : C.white);     // the phone, rattling; its screen flashes
+  if (buzzing) for (const ty of [4, 9]) {                           // little rattle marks either side
+    rect(x - 4 * s, y + ty * s, 2 * s, s, C.warm);
+    rect(x + 13 * s, y + ty * s, 2 * s, s, C.warm);
+  }
+  const who = CALL.who.toUpperCase();                               // who's ringing: above it, kept on screen
+  text(who, W - 3 * s - textW(who) * s, y - 12 * s, C.warm, s);
+}
 // The anger bar: green, then orange, then red; it shakes when it goes up, and all the time over half (faster the angrier)
 let ANGER_UP = 0;                                           // when anger last went up (performance.now())
 function angerBar(anger, x, y, w, h) {
@@ -123,7 +150,9 @@ function angerBar(anger, x, y, w, h) {
 }
 // ---------- the same strip on every world screen: time, task, anger, phone ----------
 // s = how big the pixels of the strip are (2 on the bigger city picture, so it reads the same)
+let HUD_SHOWN = false;                                      // does the screen now showing have the strip (and so the phone)?
 function hud() {
+  HUD_SHOWN = true;
   const info = hudInfo();                                  // from the game: clock, current job, anger 0-100, unread texts
   const s = W > 500 ? 2 : 1;                               // the town map is bigger: draw the strip twice size there
   rect(0, 0, W, 18 * s, C.ink);
@@ -131,10 +160,9 @@ function hud() {
   text('JOB: ' + info.task, 4 * s, 10 * s, C.ui, s);
   text('ANGER', W - 74 * s, 3 * s, C.dim, s);
   angerBar(info.anger, W - 50 * s, 3 * s, 46 * s, 5 * s);           // the anger bar (it shakes when you're wound up)
-  // phone in your pocket, with a red dot for unread texts
-  const x = W - 18 * s, y = H - 23 * s;
-  rect(x, y, 11 * s, 17 * s, C.ink); rect(x + s, y + s, 9 * s, 15 * s, C.ui); rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, C.glass);
-  if (info.unread) { disc(x + 10 * s, y + s, 3 * s, C.red); text(String(Math.min(info.unread, 9)), x + 9 * s, y - s, C.white, s); }
+  // phone in your pocket, with a red dot for unread texts (while it rings, it's drawn moving instead: ringingPhone)
+  const [x, y] = phoneIconAt(s);
+  if (!CALL) phoneIcon(x, y, s, info.unread);
   link('phone', x - s, y - 4 * s, 14 * s, 22 * s);
   // notebook in your other pocket: the list of jobs and leads
   const nx = W - 34 * s;

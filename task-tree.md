@@ -81,7 +81,7 @@ The game picks from these at random, so the same task goes differently each time
   - "That's a dealer job"; "Don't let the dealer near it"; "Ours is the same, just a different shape"
   - "Twenty years I've done this and I've never heard of that" (you read about it yesterday)
 - **Out of stock**: "due in Thursday" (every Thursday); "one left" on the website, none on the shelf
-- **Discontinued**: no longer made; the replacement part is also discontinued; the last one in the country was sold yesterday; "try a breakers yard"
+- **Discontinued**: no longer made; the replacement part is also discontinued; the last one in the country was sold yesterday; "try a scrap yard"
 - **Orders that take ages**: "2–3 working days" becomes 3 weeks; stuck at customs; the tracking says "in transit" for a fortnight; it goes to the depot, then back to the sender ⏳⏳
 - **Misdelivered parcel**: "delivered" to a house 3 streets away, behind a bin, to a neighbour on holiday, or to the right street in another town; the photo proof shows someone else's door
 - **Useless books on the shelf**: the manual for the diesel, the old model, the wrong language; the page you need is missing or stuck down with oil
@@ -203,7 +203,7 @@ The game picks from these at random, so the same task goes differently each time
     - Drive there: the car doesn't work ✖ 😡
     - Ask the seller to post it: "no" ✖
   - Bid on one: outbid in the last second ✖ 😡
-- **Breakers yard**. 📍 City › Breakers Yard
+- **Scrap yard**. 📍 City › Scrap Yard
   - Someone is breaking your exact car
     - Take it off yourself: bring your own tools → **Tools**
     - The part is a square peg; your hole is round ✖
@@ -382,7 +382,7 @@ The game picks from these at random, so the same task goes differently each time
   - Parts shops (Motor Factors, Parts 4 Less, Bits & Bobs Auto, Car Spares Direct, Pattern Parts): the other branch, shut at 4:30, wrong size
   - Tool shops (Tool Shop, Tool Hire, Hardware Shop): kits, extractors, taps, proof of address
   - Big box stores (Megastore, DIY Warehouse): ramps out of stock, the wrong axle stands
-  - Breakers Yard: the exact car, the wrong-shaped part
+  - Scrap Yard: the exact car, the wrong-shaped part
   - Machine Shop, Makerspace: make your own
   - Post Office, Courier Depot, Bank, Library, Phone Shop, PC Shop: the admin (and fixing the crashed computer)
   - Family and friends (Mum & Dad's, Brother's, Mate Gaz's, Neighbour Ken's, Auntie Jean's): favours that cost favours

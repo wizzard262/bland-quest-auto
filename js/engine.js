@@ -212,6 +212,7 @@ function goTo(target) {
   if (target.startsWith('act:')) return act(target.slice(4));
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
+  if (target === 'phone' && CALL) return answerCall();                // the phone's ringing: tapping it answers
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
   if (target === 'city' && S.screen !== 'city' && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
@@ -316,7 +317,8 @@ function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
-      S = Object.assign(freshState(), JSON.parse(raw));
+      const renamed = raw.split('Breakers Yard').join('Scrap Yard');   // saved before the Breakers Yard was renamed the Scrap Yard
+      S = Object.assign(freshState(), JSON.parse(renamed));
       delete S.flags.onFloor;                                          // reloaded while asleep on the floor: he's up
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
       if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
@@ -362,7 +364,8 @@ function render() {
   canvas.width = W; canvas.height = H;
   img = ctx.createImageData(W, H);
   LABELS = [];
-  OUR_LAMPS = [];                                                   // the car's cracked headlights on this screen (the paint finds them)
+  OUR_LAMPS = [];
+  HUD_SHOWN = false;                                                // the screen's paint says if it has the strip                                                   // the car's cracked headlights on this screen (the paint finds them)
   canvas.style.transform = S.screen === 'rage' && RAGE.mirror ? 'scaleX(-1)' : '';   // kicking the right headlight: the whole scene mirrored
   scr.paint();
   BG = img.data.slice();
@@ -421,6 +424,7 @@ function drawFrame(nowMs) {
   const dark = darkness();
   if (dark > 0 && scr.night) scr.night(dark);                     // evening: outside gets dark and the lights come on
   flickerLamps(t);                                                // a kicked headlight flickers while the lights are on
+  if (CALL && HUD_SHOWN) ringingPhone(t);                          // the phone's ringing: it glows and rattles in the strip
   ctx.putImageData(img, 0, 0);
 }
 // About 30 frames a second; when a moment ends, show what it was holding back (its dialog)
