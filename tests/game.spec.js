@@ -54,6 +54,8 @@ async function tap(page, go) {
 }
 // In a tool shop: the hammer is in the middle of shelf 2; into the basket, then pay at the till
 async function buyHammer(page) {
+  await idle(page);
+  if (await page.evaluate(() => atCounter())) await act(page, 'Step back');   // up at the counter: step back to see the shelves
   await tap(page, 'act:shelfzoom:1');
   await tap(page, 'act:shelfitem:1:4');
   await act(page, 'Step back');
@@ -1385,6 +1387,7 @@ test('a shop shelf, close up: the hammer they said they had not got is on the mi
   await goPlace(page, 'Hardware Shop'); await talk(page);
   expect(await dialogText(page)).toContain('Not got any');
   await ok(page);
+  await act(page, 'Step back');                                         // away from the counter, to see the shelves
   await tap(page, 'act:shelfzoom:0');
   expect(await page.locator('.lab', { hasText: 'Claw hammer' }).count()).toBe(0);   // not on the first shelf
   await act(page, 'Step back');
@@ -1515,5 +1518,32 @@ test('battery leads: each comes off by itself; with either off there is no power
   expect(await dialogText(page)).toContain('still off');
   await ok(page);
   expect(await power()).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the shopkeeper close up ----------
+test('tap the shopkeeper: a flat close-up of him at the counter, where he talks and you can pay; Step back goes back into the shop', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Hardware Shop');
+  await talk(page);                                                     // walk over and talk: up to the counter
+  expect(await page.evaluate(() => atCounter())).toBe(true);
+  await expect(page.locator('.dlg.bubble')).toBeVisible();              // he talks in a speech bubble…
+  const [bx, by] = await page.evaluate(() => keeperHead());
+  expect([bx, by]).toEqual(await page.evaluate(() => counterKeeperHead()));   // …from his head in the close-up
+  await ok(page);
+  await expect(page.locator('.hs[data-go="act:checkout"]')).toHaveCount(1);   // the till is on the counter
+  await expect(page.locator('.hs[data-go="act:shelfzoom:0"]')).toHaveCount(0); // the shelves aren't in view
+  await tap(page, 'act:talk');                                          // talk again, right there
+  await expect(page.locator('.dlg')).toHaveCount(1);
+  await ok(page);
+  await act(page, 'Step back');
+  expect(await page.evaluate(() => atCounter())).toBe(false);
+  await expect(page.locator('.hs[data-go="act:shelfzoom:0"]')).toHaveCount(1); // back in the shop
+  await expect(page.locator('.acts button', { hasText: 'Step back' })).toHaveCount(0);
+  await talk(page); await ok(page);                                     // leaving the shop leaves the counter too
+  await page.evaluate(() => act('leave')); await ok(page);
+  expect(await page.evaluate(() => [S.inside, S.counter])).toEqual([false, null]);
   expect(errors).toEqual([]);
 });

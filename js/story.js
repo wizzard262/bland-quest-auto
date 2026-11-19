@@ -544,6 +544,7 @@ function closedReason(name) {
 // Arriving at a place: open, or closed (with a reason)
 function arriveAt(name) {
   S.spot = S.spot || {};
+  S.counter = null;                                                // not up at anyone's counter yet
   S.spot.place = [105, 140];                                       // you come in at the door
   S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
   S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
@@ -790,7 +791,13 @@ const ACTIONS = {
   hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
   hbclose() { show('garage'); },                                        // put it down, back in the garage
   batlead(side) { batteryLead(side); },                                 // under the bonnet: a battery lead off, or back on
-  talk() { talk(S.place); },
+  // the shopkeeper: you go up to the counter (a close-up of him), then he talks
+  talk() {
+    const queueing = S.place === 'Post Office' && !postFirst();       // at the back of the post office queue: you shout from there
+    if (hasCounter(S.place) && !queueing) S.counter = S.place;        // up to the counter
+    talk(S.place);
+  },
+  counteroff() { S.counter = null; },                                  // step back from the counter, into the shop
   // a regular at the bar: their advice, round and round
   punter(k) {
     const p = PUNTERS[+k];
@@ -927,6 +934,7 @@ const ACTIONS = {
   },
   leave() {
     S.flags.pubSat = false;                                             // off your bar stool
+    S.counter = null;                                                   // and away from the counter
     const unpaid = basketHere().length;
     S.basket = (S.basket || []).filter(b => b.place !== S.place);     // you can't walk out with it
     S.inside = false; S.spot.outside = [162, 52]; sfx('bell');

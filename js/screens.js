@@ -448,6 +448,12 @@ SCREENS.place = {
       tip(name, shut ? esc(shut) : 'Tap the barman to order. The regulars will tell you what\'s wrong with your car.', 1, 8);
       return hud();
     }
+    if (atCounter()) {                                             // up at the counter: a flat close-up of the shopkeeper
+      counterScene(name);
+      counterSpots(name);
+      tip(name, 'Tap him to talk.', 1, 8);
+      return hud();
+    }
     shopInterior(name, shut);
     ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
     const person = (PLACE_INFO[name] || {}).person || (style === 'house' ? name.replace("'s", '') : 'the shopkeeper');
@@ -472,7 +478,7 @@ SCREENS.place = {
     tip(name, shut ? esc(shut) : 'Tap the ' + (style === 'house' ? 'door' : 'shopkeeper') + ' to talk. Walk round and look at things.', 1, 8);
     hud();
   },
-  actions() { return []; }                                         // to wait, tap the watch (bottom left)
+  actions() { return atCounter() ? [{ label: 'Step back', act: 'counteroff' }] : []; }   // at the counter: step back into the shop (to wait, tap the watch)
 };
 
 // =====================================================================
