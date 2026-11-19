@@ -583,7 +583,7 @@ test('the house: a room with the computer on a chair, the bed and the kettle; th
 test('the pub: open in the evening; sit at the bar, pick a beer; the two regulars give useless advice', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.mins = 21 * 60; });
+  await page.evaluate(() => { S.mins = 21 * 60; S.flags.pubCall = S.day; });
   await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
   const [money, anger] = await page.evaluate(() => [S.money, S.anger]);
@@ -677,7 +677,7 @@ test('at night the wife wears her nightie, asks you to bed and follows you there
   const after = await page.evaluate(() => Math.hypot(WIFE.pos[0] - BEDSIDE[0], WIFE.pos[1] - BEDSIDE[1]));
   expect(after).toBeLessThan(before);
   await ok(page);
-  await page.evaluate(() => { S.mins = 22 * 60 + 10; });
+  await page.evaluate(() => { S.mins = 22 * 60 + 10; S.flags.pubCall = S.day; });
   await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
   await tap(page, 'act:talk');
@@ -686,23 +686,30 @@ test('at night the wife wears her nightie, asks you to bed and follows you there
   expect(errors).toEqual([]);
 });
 
-test('more than three drinks: off your stool, thrown out, sick in the street, the wife fetches you, and no driving till morning', async ({ page }) => {
-  const errors = [];
-  await start(page, errors);
-  await page.evaluate(() => { S.mins = 18 * 60; S.money = 100; });
-  await goPlace(page, 'The Hesketh Tavern');
-  await tap(page, 'act:enter'); await idle(page);
-  // three drinks: the third gets a warning, and you're still at the bar
-  for (let k = 0; k < 3; k++) {
+// Drink n lagers at the bar (the dialog left open on the last one)
+async function lagers(page, n) {
+  for (let k = 0; k < n; k++) {
     await tap(page, 'act:talk');
     await page.locator('.dlg button', { hasText: 'Lager' }).click();
-    if (k === 2) expect(await dialogText(page)).toContain('your third');
-    await ok(page);
+    if (k < n - 1) await ok(page);
   }
+}
+test('more than three drinks: off your stool, thrown out, sick, the wife fetches you by your car, home you stagger and sleep on the floor', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; S.money = 100; S.flags.pubCall = S.day; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  // the barman warns you from the first drink, and more firmly each time
+  await lagers(page, 1);
+  expect(await dialogText(page)).toContain('Go steady');
+  await ok(page);
+  await lagers(page, 2);
+  expect(await dialogText(page)).toContain('your third, and your last');
+  await ok(page);
   expect(await page.evaluate(() => [S.drinks.n, S.inside, S.flags.pubSat])).toEqual([3, true, true]);
   // the fourth: the bar tilts…
-  await tap(page, 'act:talk');
-  await page.locator('.dlg button', { hasText: 'Lager' }).click();
+  await lagers(page, 1);
   expect(await dialogText(page)).toContain('tilt');
   await page.locator('.dlg').click();
   // …off the stool and onto the floor; the barman throws you out
@@ -713,26 +720,156 @@ test('more than three drinks: off your stool, thrown out, sick in the street, th
   expect(await dialogText(page)).toContain('sick in the gutter');
   expect(await page.evaluate(() => [S.inside, S.flags.sick === S.day, isDrunk()])).toEqual([false, true, true]);
   await page.locator('.dlg').click();
-  // the wife pulls up in her sister's car
-  expect(await dialogText(page)).toContain('Get in, Husband');
-  expect(await page.evaluate(() => S.flags.pickup === S.day)).toBe(true);
+  // she's there by your car, in her dress (no car of her own): NOT AGAIN, GET IN!
+  expect(await dialogText(page)).toContain('NOT AGAIN, GET IN!');
+  expect(await page.evaluate(() => [S.flags.pickup === S.day, DIALOG.at !== null])).toEqual([true, true]);
   await page.locator('.dlg').click();
-  // home, and the keys are hidden: no driving into town
+  // home: she walks in; all he can do is follow her in
   expect(await dialogText(page)).toContain('car keys');
-  expect(await page.evaluate(() => S.screen)).toBe('home');
+  expect(await page.evaluate(() => [S.screen, !!S.flags.wifeWalksIn])).toEqual(['home', true]);
   await ok(page);
-  await tap(page, 'city');
-  expect(await dialogText(page)).toContain('hidden them');
+  await expect(page.locator('.hs[data-go="city"]')).toHaveCount(0);
+  await expect(page.locator('.hs[data-go="garage"]')).toHaveCount(0);
+  await tap(page, 'room');
+  // in the house: halfway across the room, and down on the carpet asleep
+  expect(await dialogText(page)).toContain('fold up on the carpet');
+  expect(await page.evaluate(() => [S.screen, S.flags.onFloor, S.spot.room.join() === COLLAPSE_AT.join()])).toEqual(['room', true, true]);
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('face down on the carpet');
   await ok(page);
-  expect(await page.evaluate(() => S.screen)).toBe('home');
-  // sleep it off: in the morning you can drive again, and the count starts again
-  await sleep(page);
-  await ok(page);
-  expect(await page.evaluate(() => isDrunk())).toBe(false);
-  await page.evaluate(() => { S.screen = 'home'; render(); });
+  expect(await page.evaluate(() => [isDrunk(), !!S.flags.onFloor, S.mins])).toEqual([false, false, 8 * 60]);
+  // sober: the car's back, and the barman remembers last time
+  await page.evaluate(() => { S.mins = 18 * 60; S.flags.pubCall = S.day; S.screen = 'home'; render(); });
   await tap(page, 'city');
   await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('city');
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  await lagers(page, 1);
+  expect(await dialogText(page)).toContain('last time');
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
+test('a drink or three, and the key will not go in the car door: it wobbles about; tap when it is in the lock', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; S.flags.pubCall = S.day; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  await lagers(page, 2);
+  await ok(page);
+  await tap(page, 'act:leave'); await idle(page);
+  await tap(page, 'city');
+  await idle(page);
+  expect(await page.evaluate(() => [S.screen, KEY.drinks])).toEqual(['keyhole', 2]);
+  // aim well away from the lock and tap: a scratch, still at the door
+  const box = await page.locator('#c').boundingBox();
+  const at = (x, y) => [box.x + x / 480 * box.width, box.y + y / 270 * box.height];
+  await page.mouse.move(...at(100, 220));
+  await page.waitForTimeout(100);
+  await page.mouse.click(...at(100, 220));
+  expect(await page.evaluate(() => [S.screen, KEY.scratches.length])).toEqual(['keyhole', 1]);
+  // aim at the lock and keep trying: it goes in sooner or later
+  await page.mouse.move(...at(300, 150));
+  for (let k = 0; k < 300; k++) {
+    const near = await page.evaluate(() => Math.hypot(KEY.pos[0] - KEYHOLE[0], KEY.pos[1] - KEYHOLE[1]) <= KEY_FIT - 1);
+    if (near) { await page.mouse.click(...at(300, 150)); break; }
+    await page.waitForTimeout(20);
+  }
+  expect(await dialogText(page)).toContain('It goes in at last');
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('Blue lights');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('breath');
+  // sober (no drinks today): straight into the car
+  await page.evaluate(() => { S.drinks = null; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'city');
+  await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('city');
+  expect(errors).toEqual([]);
+});
+
+// Press and hold on the breathalyser for `ms`, then let go
+async function blow(page, ms) {
+  await idle(page);
+  const box = await page.locator('#c').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.waitForTimeout(ms);
+  await page.mouse.up();
+}
+test('driving off after a drink, the police breath test you: hold to blow; one drink is half way and a pass; two is red, three beeps, again, and a £300 fine', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 20 * 60; S.place = 'The Hesketh Tavern'; S.drinks = { day: S.day, n: 1 }; BREATH_TIME.secs = 0.6; breathStart(); });
+  expect(await page.evaluate(() => S.screen)).toBe('breath');
+  // let go too soon: blow again
+  await blow(page, 150);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => [BREATH.short, !!DIALOG])).toEqual([true, false]);
+  // one drink: the lights stop half way, and it's a pass
+  await blow(page, 900);
+  expect(await page.evaluate(() => BREATH.lit)).toBe(5);
+  expect(await dialogText(page)).toContain('Just under');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('city');
+  // two drinks: all the way to red; a fail, blow again, a fail, and the fine on paper
+  const money = await page.evaluate(() => { S.drinks = { day: S.day, n: 2 }; breathStart(); return S.money; });
+  await blow(page, 900);
+  expect(await page.evaluate(() => [BREATH.lit, BREATH.beeped])).toEqual([10, true]);
+  expect(await dialogText(page)).toContain('do it again');
+  await page.locator('.dlg').click();
+  await blow(page, 900);
+  expect(await dialogText(page)).toContain('£300 fine');
+  expect(await page.evaluate(() => [BREATH.ticket, S.money])).toEqual([true, money - 300]);
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('long walk home');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, isDrunk()])).toEqual(['home', true]);
+  expect(errors).toEqual([]);
+});
+
+test('at the pub the wife rings: answer and she talks from the phone at your ear; leave it and it is a missed call, then a text', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; CALL_TIMES.after = 300; CALL_TIMES.ring = 1500; CALL_TIMES.text = 1500; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  // it rings: answer it
+  await expect(page.locator('.dlg')).toContainText('phone is ringing');
+  await page.locator('.dlg button', { hasText: 'Answer it' }).click();
+  expect(await dialogText(page)).toContain('Are you at the pub again?');
+  expect(await page.evaluate(() => [ON_PHONE, DIALOG.at !== null, DIALOG.title])).toEqual([true, true, 'The wife']);
+  await page.locator('.dlg').click();
+  expect(await page.evaluate(() => ON_PHONE)).toBe(false);
+  // only once a day
+  await tap(page, 'act:leave'); await idle(page);
+  await tap(page, 'act:enter'); await idle(page);
+  await page.waitForTimeout(800);
+  await expect(page.locator('.dlg')).toHaveCount(0);
+  // the next day she rings again: leave it ringing
+  await page.evaluate(() => { S.day += 1; S.mins = 18 * 60; });
+  await tap(page, 'act:leave'); await idle(page);
+  await tap(page, 'act:enter'); await idle(page);
+  await expect(page.locator('.dlg')).toContainText('phone is ringing');
+  await page.locator('.dlg button', { hasText: 'Leave it ringing' }).click();
+  await page.waitForFunction(() => S.msgs[0].body === 'Missed call');
+  await page.waitForFunction(() => S.msgs[0].body.includes("Don't drink too much!"));
+  expect(await page.evaluate(() => [S.msgs[0].from, S.msgs[1].body])).toEqual(['The wife', 'Missed call']);
+  expect(errors).toEqual([]);
+});
+
+test('the card machine light blinks on the card machine inside a shop, not on the pavement outside', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 11 * 60; });
+  await goPlace(page, 'Hardware Shop');
+  expect(await page.evaluate(() => tillLightAt())).toBe(null);               // outside: no light floating about
+  await tap(page, 'act:enter'); await idle(page);
+  const [light, machine] = await page.evaluate(() => { ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1]; return [tillLightAt(), P(78, 61, 24)]; });
+  expect(light).toEqual(machine);                                           // inside: on the card machine by the till
   expect(errors).toEqual([]);
 });
 
@@ -1210,6 +1347,26 @@ test('the fuses: the lid says see the manual, the manual pages are torn out, the
   await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
   await act(page, 'Check every fuse');
   expect(await dialogText(page)).toContain('F23');
+  expect(errors).toEqual([]);
+});
+
+test('fill a basket and walk out without paying: you leave without the things, and the basket is empty', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Hardware Shop');
+  await tap(page, 'act:enter'); await idle(page);
+  await tap(page, 'act:shelfzoom:1');
+  await tap(page, 'act:shelfitem:1:4');                                  // the hammer, into the basket
+  await act(page, 'Step back');
+  expect(await page.evaluate(() => basketHere().length)).toBe(1);
+  const money = await page.evaluate(() => S.money);
+  await tap(page, 'act:leave');                                          // out of the door, not to the till
+  expect(await dialogText(page)).toContain("haven't paid");
+  await ok(page);
+  expect(await page.evaluate(() => [basketHere().length, !!S.inv.hammer, S.money])).toEqual([0, false, money]);
+  await tap(page, 'act:enter'); await idle(page);
+  expect(await page.evaluate(() => basketHere().length)).toBe(0);         // back in: the basket's still empty
   expect(errors).toEqual([]);
 });
 

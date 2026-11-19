@@ -88,7 +88,10 @@ const SOUNDS = {
   door(t) { tone(t, [200, 80], 0.2, 0.3); hiss(t, 500, 0.1, 0.2, 'lowpass'); },
   car(t) { hiss(t, [200, 400], 0.6, 0.08, 'lowpass'); tone(t, [70, 90], 0.6, 0.06, 'sawtooth'); },
   sad(t) { tone(t, [440, 415], 0.3, 0.12, 'triangle'); tone(t + 0.3, [392, 370], 0.5, 0.12, 'triangle'); },
-  fanfare(t) { [523, 659, 784, 1046].forEach((f, i) => tone(t + i * 0.12, f, 0.35, 0.15, 'triangle')); }
+  fanfare(t) { [523, 659, 784, 1046].forEach((f, i) => tone(t + i * 0.12, f, 0.35, 0.15, 'triangle')); },
+  siren(t) { for (let i = 0; i < 4; i++) tone(t + i * 0.45, i % 2 ? 700 : 950, 0.42, 0.08, 'triangle'); },   // nee-naw
+  beep3(t) { for (let i = 0; i < 3; i++) tone(t + i * 0.25, 2000, 0.12, 0.14, 'square'); },                     // the breathalyser at red
+  ringtone(t) { for (let i = 0; i < 6; i++) tone(t + i * 0.08, i % 2 ? 1320 : 1040, 0.07, 0.1, 'square'); }   // a mobile ringing (one burst)
 };
 function thudLater(t) { tone(t, [100, 45], 0.25, 0.4); hiss(t, 300, 0.15, 0.3, 'lowpass'); }
 

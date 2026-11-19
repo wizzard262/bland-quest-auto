@@ -185,6 +185,8 @@ function haveADrink() {
   S.drinks.n += 1;
   return S.drinks.n;
 }
+// How many drinks you've had today
+const drinksToday = () => (S.drinks && S.drinks.day === S.day ? S.drinks.n : 0);
 // Still drunk? (from being thrown out until 7 the next morning, or a night's sleep)
 const isDrunk = () => !!S.flags.drunkTill && nowAbs() < S.flags.drunkTill;
 // The fourth drink: you slide off your bar stool onto the floor
@@ -195,6 +197,24 @@ function fallOffStool() {
   SPEAKER = keeperHead();
   say('The Hesketh Tavern', '"Right. That\'s your fourth, and you\'re on my floor. Out."', [{ label: 'OK', run: thrownOut }]);
 }
+// The barman warns you with every drink, firmer each time; if you've been thrown out before, he brings it up
+const BARMAN_WARNS = [
+  '"Go steady, mate. Three\'s the limit in here. Any more and you\'re out."',
+  '"That\'s two. Easy does it, mate. I\'m counting."',
+  '"That\'s your third, and your last. One more and you\'re out on your ear. I mean it."'
+];
+const BARMAN_LAST_TIME = [
+  '"And none of what happened last time. Off my stool, sick on my step, and your missus fetching you home."',
+  '"I\'ve still got the mop out from last time."',
+  '"Remember last time? Your missus does."'
+];
+function barmanWarning(drinks) {
+  const k = Math.min(drinks, PUB_LIMIT) - 1;                           // first, second or third
+  const before = S.flags.thrownOutDay !== undefined && S.flags.thrownOutDay < S.day;   // thrown out on an earlier day
+  const warning = BARMAN_WARNS[k];
+  if (!before) return warning;
+  return warning + '\n\n' + BARMAN_LAST_TIME[k];
+}
 // Out on the pavement, and sick in the gutter
 function thrownOut() {
   S.flags.pubFloor = false;
@@ -203,29 +223,196 @@ function thrownOut() {
   const tomorrow = S.mins >= SOBER_AT ? S.day + 1 : S.day;             // the next 7am
   S.flags.drunkTill = tomorrow * 1440 + SOBER_AT;
   S.flags.sick = S.day;                                                // the puddle stays on the pavement all day
+  S.flags.thrownOutDay = S.day;                                        // the barman won't forget
   anger(10);
   sfx('door');
   moment('sick', 2600);
   say('Outside the pub', 'The door slams behind you. The pavement comes up to meet you, and you\'re sick in the gutter.\n\nA man walking his dog crosses the road.', [{ label: 'OK', run: wifePicksUp }]);
 }
-// The barman rings her; she comes in her sister's little car
+// The barman rings her; twenty minutes later she's there, by your car, in her dress
 function wifePicksUp() {
   pass(20);
-  S.flags.pickup = S.day;                                              // her car stays at the kerb while she talks
-  moment('pickup', 3000); sfx('car');
-  SPEAKER = pickupWindow();
-  say('The wife', '"The barman rang me. Get in, Husband. My sister\'s bringing your car home."', [{ label: 'OK', run: takenHome }]);
+  S.flags.pickup = S.day;                                              // she stands by the car while she has her say
+  SPEAKER = wifeHead();
+  say('The wife', '"NOT AGAIN, GET IN!"', [{ label: 'OK', run: takenHome }]);
 }
-// Home in silence; she's hidden the car keys
+// She drives you home in your car; she goes in, and all you can manage is to follow her
 function takenHome() {
   delete S.flags.pickup;
+  S.flags.drunkHome = true;                                            // too drunk to do anything but go in
+  S.flags.wifeWalksIn = true;                                          // she walks into the house ahead of you
+  S.spot.home = [96, 96];                                              // out of the car, on the drive
   visit('Home');
-  say('Home', 'She doesn\'t say a word all the way home. She doesn\'t need to.\n\nShe\'s hidden the car keys. No driving till the morning.');
+  say('Home', 'She drives you home in your car, in silence. She doesn\'t need to say a word.\n\nShe goes in, and takes the car keys with her.');
 }
+// Through the door: he staggers halfway across the room and folds up on the floor, asleep
+const COLLAPSE_AT = [100, 78];                                         // halfway across the room
+function drunkCollapse() {
+  delete S.flags.drunkHome;
+  S.spot.room = [105, 130];                                            // in through the door
+  walkTo(COLLAPSE_AT[0], COLLAPSE_AT[1], () => {
+    S.flags.onFloor = true;                                            // flat out on the carpet
+    moment('collapse', 1400); sfx('thud');
+    say('Zzzz', 'You stagger halfway across the room… and fold up on the carpet, fast asleep.', [{ label: 'OK', run: sleepItOff }]);
+  });
+}
+// The night goes by on the floor; the morning is not kind
+function sleepItOff() {
+  sleepUntilMorning();
+  anger(15);                                                           // a hangover
+  moment('night', 3200);
+  say('Next morning', `It's ${weekday()} morning. You wake up face down on the carpet. Your head is pounding, and your mouth tastes of the pub floor.`, [{ label: 'OK', run() { delete S.flags.onFloor; } }]);
+}
+
+// ---------- the wife rings you at the pub (once a day) ----------
+//   It rings for 10 seconds. Answer: she talks from the phone in your hand. Leave it: a missed call, then a text 10 seconds later
+const CALL_TIMES = { after: 4000, ring: 10000, text: 10000 };         // ms: how long after you go in she rings; how long it rings; the text after a missed call
+const WIFE_PUB_CALL = 'Where are you? Are you at the pub again? Don\'t drink too much!';
+const RINGING = '📞 The wife';                                         // the ringing call's title
+let CALL = null;                                                       // the call ringing now: { bell, timer }
+let ON_PHONE = false;                                                  // he's holding the phone to his ear (drawn in the pub)
+const inPub = () => S.screen === 'place' && S.inside && placeStyle(S.place) === 'pub';
+// Going into the pub: she'll ring in a moment (once a day; not once she's asleep)
+function pubCallLater() {
+  if (S.flags.pubCall === S.day || isAsleep()) return;
+  S.flags.pubCall = S.day;
+  setTimeout(tryRinging, CALL_TIMES.after);
+}
+// Ring now, unless he's left (no call) or something's on screen (try again in a second)
+function tryRinging() {
+  if (!inPub()) return;
+  if (DIALOG || ANIM) return setTimeout(tryRinging, 1000);
+  incomingCall();
+}
+// The phone rings: answer it, or leave it
+function incomingCall() {
+  sfx('ringtone');
+  const bell = setInterval(() => sfx('ringtone'), 1500);              // it keeps ringing
+  CALL = { bell, timer: setTimeout(missedCall, CALL_TIMES.ring) };
+  say(RINGING, 'Your phone is ringing. It\'s the wife.', [
+    { label: 'Answer it', run: answerCall },
+    { label: 'Leave it ringing', run() {} }
+  ]);
+}
+// Stop the ringing (answered, or rung off)
+function stopRinging() {
+  if (!CALL) return;
+  clearInterval(CALL.bell);
+  clearTimeout(CALL.timer);
+  CALL = null;
+}
+// Answered: phone to his ear, and her voice comes out of it
+function answerCall() {
+  stopRinging();
+  ON_PHONE = true;
+  SPEAKER = phoneInHand();
+  say('The wife', '"' + WIFE_PUB_CALL + '"', [{ label: 'OK', run() { ON_PHONE = false; } }]);
+}
+// Not answered: a missed call, and then she texts
+function missedCall() {
+  const stillShowing = DIALOG && DIALOG.title === RINGING;
+  stopRinging();
+  if (stillShowing) DIALOG = null;
+  S.msgs.unshift({ from: 'The wife', body: 'Missed call', when: clockText(), read: false });
+  sfx('buzz');
+  save(); render();
+  setTimeout(() => { textMsg('The wife', WIFE_PUB_CALL + ' x'); save(); render(); }, CALL_TIMES.text);
+}
+// After a drink or three: the key in the car door (a little game: the key wobbles and drifts about)
+function keyStart() {
+  KEY.drinks = drinksToday();
+  KEY.scratches = [];
+  KEY.aim = [KEYHOLE[0] + 120, KEYHOLE[1] + 60];                       // his hand starts off to one side
+  show('keyhole');
+}
+// Tap: is the tip of the key in the lock?
+function keyTry() {
+  const [kx, ky] = KEY.pos;
+  const inLock = Math.hypot(kx - KEYHOLE[0], ky - KEYHOLE[1]) <= KEY_FIT;
+  if (!inLock) {                                                       // missed: a scratch on the paintwork
+    KEY.scratches.push([kx, ky]);
+    sfx('slip');
+    anger(2);
+    return render();
+  }
+  sfx('click');
+  const tries = KEY.scratches.length;
+  const scratched = tries ? ` (and ${tries} new scratch${tries > 1 ? 'es' : ''} round the lock)` : '';
+  say('The car door', `Click. It goes in at last${scratched}. You get in and sit very still for a minute.`, [{ label: 'OK', run: policeStop }]);
+}
+// Driving off after a drink: you always get pulled over
+function policeStop() {
+  sfx('siren');
+  say('Blue lights', 'You get as far as the end of the road. Blue lights in the mirror.\n\nA policeman taps on your window. "Evening, sir. Had a drink tonight, have we? Blow into this, please."', [{ label: 'OK', run: breathStart }]);
+}
+// The breath test: hold to blow for about 6 seconds; the lights climb from green to red
+//   1 drink: half way, a pass. 2 or 3: all the way to red, three beeps, a fail; blow again, fail again, and a £300 fine
+const BREATH_TIME = { secs: 6 };                                       // how long you have to blow for
+const BREATH_LEDS = 10;                                                // the row of lights on the breathalyser
+const BREATH_FINE = 300;
+const BREATH = { drinks: 1, t0: null, lit: 0, tries: 0, beeped: false, ticket: false };
+function breathStart() {
+  BREATH.drinks = drinksToday();
+  BREATH.tries = 0;
+  BREATH.ticket = false;
+  breathReset();
+  show('breath');
+}
+// Ready for a (fresh) blow
+function breathReset() { BREATH.t0 = null; BREATH.lit = 0; BREATH.beeped = false; BREATH.short = false; }
+// How far up the lights go for him (1 drink: half; more: all the way)
+const breathTop = () => (BREATH.drinks <= 1 ? BREATH_LEDS / 2 : BREATH_LEDS);
+// Press and hold: he starts blowing
+function breathDown() {
+  if (BREATH.ticket) return;
+  breathReset();
+  BREATH.t0 = performance.now();
+  sfx('pour');
+}
+// Each frame while blowing: light the row up to how long he's blown for
+function breathTick() {
+  if (BREATH.t0 === null) return;
+  const held = (performance.now() - BREATH.t0) / 1000 / BREATH_TIME.secs;   // 0 to 1 (and on)
+  BREATH.lit = Math.min(breathTop(), Math.floor(held * breathTop() + 0.001));
+  if (BREATH.lit >= BREATH_LEDS && !BREATH.beeped) { BREATH.beeped = true; sfx('beep3'); }   // red: beep beep beep
+}
+// Let go: long enough? then the result; too short, blow again
+function breathUp() {
+  if (BREATH.t0 === null) return;
+  breathTick();
+  const held = (performance.now() - BREATH.t0) / 1000;
+  BREATH.t0 = null;
+  if (held < BREATH_TIME.secs) {                                        // stopped too soon
+    BREATH.short = true; BREATH.lit = 0;
+    return render();
+  }
+  if (BREATH.drinks <= 1) {                                             // half way: under the limit
+    return say('The policeman', '"Green and amber. Just under, sir. Drive carefully now."', [{ label: 'OK', run() { show('city'); } }]);
+  }
+  BREATH.tries += 1;
+  anger(10);
+  if (BREATH.tries < 2) {                                               // a fail: they make you do it again
+    return say('The policeman', '"All the way to red, sir. That\'s a fail. We\'ll do it again, just to be sure."', [{ label: 'OK', run() { breathReset(); render(); } }]);
+  }
+  // failed again: the fine, on paper
+  BREATH.ticket = true;
+  S.money -= BREATH_FINE;
+  anger(15);
+  render();
+  say('The policeman', `"Red again, sir." He writes you a ticket and hands it through the window: a £${BREATH_FINE} fine.\n\n"Leave the car here and walk home. And don't let me see you behind the wheel tonight."`, [{ label: 'OK', run: walkHomeFined }]);
+}
+// After the fine: you walk home; the car's left where they stopped you, until the morning
+function walkHomeFined() {
+  pass(40);
+  S.flags.drunkTill = (S.mins >= SOBER_AT ? S.day + 1 : S.day) * 1440 + SOBER_AT;   // no driving till morning
+  visit('Home');
+  say('Home', 'A long walk home, with the ticket in your pocket.');
+}
+
 // Trying to drive while drunk: no keys
 function noKeys() {
   anger(3);
-  say('The car keys', 'Not on the hook. Not in your coat. She\'s hidden them, and she\'s right: you\'re in no state to drive.\n\nBest sleep it off.');
+  say('The car', "Not tonight. You're in no state to drive, and you know it. Best sleep it off.");
 }
 
 // The barman's advice (no help at all)
@@ -317,8 +504,7 @@ const TALK = {
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
       const drinks = haveADrink();                                     // how many you've had today, this one included
       if (drinks > PUB_LIMIT) return say(name, `He pulls you a ${drink}. ${taste}\n\nYou drink it far too fast. The bar starts to tilt.`, [{ label: 'OK', run: fallOffStool }]);
-      const steady = drinks === PUB_LIMIT ? '\n\n"That\'s your third, mate. Steady on."' : '';   // the last one he'll let go
-      say(name, `He pulls you a ${drink}. ${taste}\n\n${BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]}${steady}`);
+      say(name, `He pulls you a ${drink}. ${taste}\n\n${barmanWarning(drinks)}`);   // every drink: a warning, firmer each time
     } });
     S.flags.pubSat = true;                                              // you sit up at the bar to order
     say(name, '"Evening. What\'ll it be?"', [
@@ -507,6 +693,10 @@ const SCREEN_ENTER = {
     job('sensor-off', 'Get the old sensor off', 'light');
     note('sensor-off', 'It\'s fixed into a box. 2 bolts and a nut hold the box on.', 'info');
   },
+  room() {
+    delete S.flags.wifeWalksIn;                                       // she's in ahead of you
+    if (S.flags.drunkHome) drunkCollapse();                            // home from the pub: he doesn't get far
+  },
   pc() { pass(5); },
   phone() { for (const m of S.msgs) m.read = true; }
 };
@@ -517,6 +707,7 @@ const SCREEN_ENTER = {
 const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
+  keytry() { keyTry(); },                                               // the car door: try the key in the lock
   talk() { talk(S.place); },
   // a regular at the bar: their advice, round and round
   punter(k) {
@@ -650,6 +841,7 @@ const ACTIONS = {
       S.flags.poFirst = S.day;
     }
     S.inside = true; S.spot.place = S.place === 'Post Office' ? (postFirst() ? [104, 76] : [118, 146]) : [105, 140]; sfx('bell');
+    if (placeStyle(S.place) === 'pub') pubCallLater();                  // the pub: the wife will ring
   },
   leave() {
     S.flags.pubSat = false;                                             // off your bar stool

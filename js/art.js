@@ -555,6 +555,11 @@ function wifeTop(K, x, y, facing, hip, sitting, ph) {
 }
 // Where her head is on screen (for her speech bubble's arrow)
 function wifeHead() {
+  if (S.screen === 'place' && S.flags.pickup === S.day) {             // outside the pub, by the car, come to fetch him
+    [ISO.ox, ISO.oy] = OUTSIDE_VIEW;
+    const q = P(...PICKUP_AT);
+    return [q[0] + 2, q[1] - 42];
+  }
   if (S.screen === 'home' && FOLLOW.pos) {                             // she's followed him outside
     [ISO.ox, ISO.oy] = VIEW.home;
     const q = P(...FOLLOW.pos);

@@ -78,6 +78,10 @@ SCREENS.home = {
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
     kerbMailbox(S.doorstep.length > 0);                                                   // the mailbox at the kerb: a parcel sticks out when there is one
     standingMan('home');
+    if (S.flags.drunkHome) {                                          // home from the pub: all he can manage is the front door
+      spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
+      return hud();
+    }
     spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
@@ -1338,6 +1342,77 @@ function fishWin() {
   sfx('ding');
   say('Got it!', 'The nut rolls out into the light. You grab it before it can go anywhere else, and put it somewhere safe.', [{ label: 'Back to the garage', run() { show('garage'); } }]);
 }
+// =====================================================================
+// THE CAR DOOR, CLOSE UP: after a drink or three the key won't go in the lock
+// =====================================================================
+const KEYHOLE = [300, 150];                                       // the slot in the lock (picture pixels)
+const KEY_FIT = 5;                                                // how close the tip has to be to go in
+const KEY_WOBBLE = [0, 10, 18, 26];                               // how far the key drifts, by drinks today
+const KEY = { aim: [420, 210], pos: [420, 210], drinks: 1, scratches: [] };
+// The pointer moved: that's where his hand is trying to put the key
+function keyAim(x, y) { KEY.aim = [x, y]; }
+// Where the key's tip actually is now: where he's aiming, plus a drunken drift and a shake
+function keyDrift(t) {
+  const a = KEY_WOBBLE[Math.min(KEY.drinks, KEY_WOBBLE.length - 1)];
+  const dx = Math.sin(t * 1.3) + Math.sin(t * 3.1 + 1) * 0.5 + (Math.random() - 0.5) * 0.3;
+  const dy = Math.cos(t * 1.7) + Math.sin(t * 2.3 + 2) * 0.5 + (Math.random() - 0.5) * 0.3;
+  return [KEY.aim[0] + dx * a, KEY.aim[1] + dy * a];
+}
+SCREENS.keyhole = {
+  size: [480, 270],
+  paint() {
+    const night = darkness() > 0.3;
+    rect(0, 0, W, H, shade(C.car, night ? 0.55 : 1));                          // the blue door
+    rect(0, 0, W, 60, night ? hex('#141a28') : C.glass);                       // the window above
+    rect(0, 58, W, 4, C.ink);                                                  // its rubber seal
+    rect(0, 236, W, 3, shade(C.car, 0.7));                                     // a crease along the bottom
+    rbox(170, 120, 100, 22, 6, C.steel2); rbox(176, 124, 88, 14, 4, C.ink);    // the door handle and its recess
+    disc(KEYHOLE[0], KEYHOLE[1], 11, C.steel2); disc(KEYHOLE[0], KEYHOLE[1], 9, C.steel);   // the lock
+    rect(KEYHOLE[0] - 1, KEYHOLE[1] - 6, 3, 12, C.ink);                         // its slot
+    for (const [x, y] of KEY.scratches) line(x - 6, y - 2, x + 7, y + 3, shade(C.car, 1.5));   // where he missed
+    spot('Try the key', [0, 18, W, H - 18], 'act:keytry');
+    tip('Your car door', 'Get the key in the lock. It won\'t keep still. Tap when the tip is in the slot.', 1, 8);
+    hud();
+  },
+  animate(t) {
+    KEY.pos = keyDrift(t);
+    const [x, y] = KEY.pos;
+    rect(x, y - 2, 30, 4, C.steel); rect(x + 6, y + 2, 4, 2, C.steel); rect(x + 14, y + 2, 4, 2, C.steel);   // the blade, with its teeth
+    disc(x + 40, y, 10, C.steel); disc(x + 40, y, 3, shade(C.car, 0.6));      // the bow (and its hole)
+    rect(x + 44, y - 12, 26, 24, C.skin); rect(x + 46, y - 14, 20, 4, C.skin); // his hand holding it
+  }
+};
+// =====================================================================
+// THE BREATH TEST: hold to blow; the lights climb from green to red
+// =====================================================================
+const BREATH_BOX = [140, 70, 200, 150];                          // the breathalyser: x, y, w, h
+const breathLedAt = k => [BREATH_BOX[0] + 22 + k * 16, BREATH_BOX[1] + 80];   // light k, left (green) to right (red)
+const BREATH_COLOURS = [hex('#30c040'), hex('#30c040'), hex('#60d040'), hex('#a0d030'), hex('#d8d020'), hex('#f0b020'), hex('#f08020'), hex('#f05020'), hex('#e02020'), hex('#e02020')];
+SCREENS.breath = {
+  size: [480, 270],
+  paint() {
+    rect(0, 0, W, H, hex('#101420'));                                          // night, through the car window
+    for (let k = 0; k < 6; k++) disc(40 + k * 80, 40, 3, k % 2 ? hex('#3050ff') : hex('#5070ff'));   // blue lights, out there
+    const [x, y, w, h] = BREATH_BOX;
+    rect(x + w / 2 - 8, y - 40, 16, 44, C.white);                              // the mouthpiece
+    rbox(x, y, w, h, 12, hex('#e8c020')); rbox(x + 8, y + 8, w - 16, 50, 6, C.ink);   // the breathalyser and its screen
+    text('BLOW', x + 70, y + 26, hex('#40c070'), 2);
+    for (let k = 0; k < BREATH_LEDS; k++) { const [lx, ly] = breathLedAt(k); disc(lx, ly, 5, C.ink); disc(lx, ly, 4, shade(BREATH_COLOURS[k], 0.3)); }   // the lights, off
+    rect(x + 30, y + h, 60, 40, C.skin); rect(x + 26, y + h + 30, 70, 30, hex('#202838'));   // the policeman's hand, his sleeve
+    if (BREATH.ticket) {                                                       // the fine, on paper
+      rect(344, 150, 130, 100, C.white); rect(344, 150, 130, 14, C.red);
+      text('FIXED PENALTY', 352, 154, C.white);
+      text('£' + BREATH_FINE, 372, 190, C.ink, 3);
+    }
+    const msg = BREATH.ticket ? 'You\'ve been fined.' : BREATH.short ? 'Not long enough! Press and hold to blow, and keep going.' : 'Press and hold to blow into it. Keep going till he says stop (about ' + BREATH_TIME.secs + ' seconds).';
+    tip('The breath test', msg, 1, 8);
+    hud();
+  },
+  animate() {
+    breathTick();
+    for (let k = 0; k < BREATH.lit; k++) { const [lx, ly] = breathLedAt(k); disc(lx, ly, 4, BREATH_COLOURS[k]); }   // lit, green to red
+  }
+};
 SCREENS.fish = {
   size: [480, 270],
   paint() {

@@ -100,6 +100,7 @@ SCREENS.home.animate = function (t) {
   }
   if (GARAGE_OPENING && S.screen === 'home') garageDoorDraw();                                                         // the garage door going up as he walks over
   if (wifeFollowing()) followDraw(t);                                                                                  // late: she's followed him out of the garage
+  if (S.flags.wifeWalksIn) walkInDraw(t);                                                                              // home from the pub: she walks into the house
   ISO.ox = 250; ISO.oy = 96;
   for (let k = 0; k < 2; k++) {                                                                                        // two birds
     const x = ((t * 22 + k * 260) % 560) - 40, y = 34 + k * 14 + Math.sin(t * 2 + k) * 3, w = Math.floor(t * 6 + k) % 2 ? 2 : 1;
@@ -156,6 +157,10 @@ function wifeMove(t) {
 }
 SCREENS.room.animate = function (t) {
   ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
+  if (S.flags.onFloor && !(ANIM && ANIM.kind === 'collapse')) {       // asleep on the floor: Zs rising off him
+    const [x, y] = manSpot('room'), m = P(x, y);
+    sleepZs(t, m[0] + 2, m[1] - 10);
+  }
   const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed: she's beside you as before
   if (isAsleep() && !goingToBed) {                                    // late: she's in bed, fast asleep
     sleepingWife(t);
@@ -207,6 +212,18 @@ function moveWifeTap(pos, walkBy) {
   if (label) { label.style.left = (l + w / 2) / W * 100 + '%'; label.style.top = tp / H * 100 + '%'; }
 }
 
+// Home from the pub: she gets out of the car and walks into the house (and waits while a message is up)
+const WALK_IN = { from: [94, 78], to: [46, 60], t0: null, last: 0 };
+function walkInDraw(t) {
+  if (WALK_IN.t0 === null) { WALK_IN.t0 = t; WALK_IN.last = t; }
+  if (DIALOG) WALK_IN.t0 += t - WALK_IN.last;                          // she waits till you've read it
+  WALK_IN.last = t;
+  const { from, to } = WALK_IN;
+  const q = (t - WALK_IN.t0) * WIFE_SPEED / Math.hypot(to[0] - from[0], to[1] - from[1]);   // how far she's got
+  if (q >= 1) { delete S.flags.wifeWalksIn; WALK_IN.t0 = null; return; }   // in through the front door
+  ISO.ox = VIEW.home[0]; ISO.oy = VIEW.home[1];
+  wife(lerp(from[0], to[0], q), lerp(from[1], to[1], q), S.wifeLook || 'navy', { walk: t * 9, facing: facingFor(from, to) });
+}
 // Late at night she came to fetch you from the garage; walk out and she follows you outside
 const FOLLOW = { pos: null, last: 0, walk: undefined, facing: 'front' };
 const FOLLOW_FROM = [115, 62];                                        // the garage door, on the home screen
@@ -273,10 +290,17 @@ SCREENS.place.animate = function (t) {
     for (let k = 0; k < 4; k++) rect(406 + k * 10, 150, 6, 4, Math.floor(t * 4 + k) % 2 ? C.warm : C.red);
     return;
   }
-  ISO.ox = 230; ISO.oy = 96;
-  const i = placeIndex(S.place), cat = i >= 0 ? PLACES[i][1] : 'other';
-  if (cat !== 'people' && !closedReason(S.place)) { const q = P(150, 56, 23); rect(q[0], q[1], 3, 2, Math.floor(t * 2) % 2 ? C.red : hex('#40a060')); }   // the till light
+  const q = tillLightAt();
+  if (q) rect(q[0], q[1], 2, 1, Math.floor(t * 2) % 2 ? C.red : hex('#40a060'));                                    // the card machine's light, blinking
 };
+// Where the card machine's light is: inside an open shop, on the card machine by the till (none on the pavement or at a house)
+const TILL_LIGHT = [78, 61, 24];
+function tillLightAt() {
+  if (S.screen !== 'place' || !S.inside) return null;
+  if (placeStyle(S.place) === 'house' || closedReason(S.place)) return null;
+  ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
+  return P(...TILL_LIGHT);
+}
 SCREENS.garage.animate = function (t) {
   ISO.ox = 230; ISO.oy = 106;
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
@@ -368,8 +392,9 @@ function meHead() {
 }
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
-  if (ANIM && ANIM.kind === 'walk') return;
+  if (ANIM && ['walk', 'collapse'].includes(ANIM.kind)) return;
   const [x, y] = manSpot(screen), m = P(x, y);
+  if (screen === 'room' && S.flags.onFloor) return man(m[0], m[1], 'lie', MAN_SIZE.room);   // asleep on the floor
   man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
 }
 // Walk from where he is to a spot, then do `then` (open the screen he walked to)
@@ -382,8 +407,13 @@ function crossesBed(a, b) {
   }
   return false;
 }
-function walkTo(x, y, then) {
+function walkTo(x, y, then, steady) {
   const screen = S.screen, key = spotKey(screen), from = manSpot(screen);
+  if (key === 'home' && isDrunk() && !steady) {                     // drunk outside: he wanders off somewhere else first
+    const wx = Math.max(-10, Math.min(150, x + (Math.random() - 0.5) * 60));
+    const wy = Math.max(66, Math.min(120, y + 10 + (Math.random() - 0.5) * 40));
+    return walkTo(wx, wy, () => walkTo(x, y, then, true), true);
+  }
   if (key === 'room') {
     x = Math.max(22, Math.min(176, x)); y = Math.max(26, Math.min(136, y));   // on the floor
     if (x < BED_AREA[2] && y > BED_AREA[1] && y < BED_AREA[3]) x = BED_AREA[2];   // beside the bed, not on it
@@ -408,7 +438,9 @@ const MOMENTS = {
   walk(p) {                                                           // the man walks across to what you tapped
     const a = ANIM, [vx, vy] = VIEW[a.screen];
     ISO.ox = vx; ISO.oy = vy;
-    const x = lerp(a.from[0], a.to[0], p), y = lerp(a.from[1], a.to[1], p), m = P(x, y);
+    let x = lerp(a.from[0], a.to[0], p), y = lerp(a.from[1], a.to[1], p);
+    if (isDrunk()) { x += Math.sin(p * 22) * 4; y += Math.cos(p * 17) * 3; }   // drunk: he weaves about
+    const m = P(x, y);
     man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90);
   },
   bolt1Out(p) {                                                       // the bolt winds out and comes free
@@ -644,11 +676,11 @@ MOMENTS.sick = function (p) {                                        // bent dou
   }
   sickPuddle(Math.max(0, Math.min(1, (p - 0.3) / 0.45)));             // the puddle grows
 };
-MOMENTS.pickup = function (p) {                                      // her sister's little red car pulls up at the kerb
-  ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
-  const x = lerp(-360, PICKUP_STOP, ease(Math.min(1, p / 0.8)));
-  isoCar(x, 72, 1, C.red, { alongX: true, shape: 'city' });
-  const [mx, my] = manSpot('place'), m = P(mx, my);
-  man(m[0], m[1], 'stand', 2);                                        // him, still on the pavement (in front of the car)
+MOMENTS.collapse = function (p) {                                    // he sways, folds in half, and goes down flat
+  ISO.ox = VIEW.room[0]; ISO.oy = VIEW.room[1];
+  const [x, y] = manSpot('room'), m = P(x, y);
+  if (p < 0.4) return man(m[0] + Math.round(Math.sin(p * 30) * 2), m[1], 'stand', MAN_SIZE.room);
+  if (p < 0.7) return man(m[0], m[1], 'bend', MAN_SIZE.room);
+  man(m[0], m[1], 'lie', MAN_SIZE.room);
 };
 Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments

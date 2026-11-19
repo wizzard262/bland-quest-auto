@@ -214,6 +214,7 @@ function goTo(target) {
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
+  if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && drinksToday() > 0) return keyStart();   // had a drink or three: get the key in the door first
   show(target);
 }
 // The garage's roller door rattles up, then you're inside
@@ -315,6 +316,7 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       S = Object.assign(freshState(), JSON.parse(raw));
+      delete S.flags.onFloor;                                          // reloaded while asleep on the floor: he's up
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
       if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
       if (S.inv['headlight-r']) { addLamp('right'); delete S.inv['headlight-r']; }
@@ -369,7 +371,7 @@ function render() {
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
-  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone'].includes(S.screen);   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
+  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath'].includes(S.screen);   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
   if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
@@ -479,6 +481,15 @@ function pickOption(i) {
   render();
 }
 
+// The car door: the pointer aims the key (which won't keep still)
+stage.addEventListener('pointermove', e => {
+  if (S.screen !== 'keyhole' || DIALOG) return;
+  const r = canvas.getBoundingClientRect();
+  keyAim((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H);
+});
+// The breath test: press and hold to blow; let go and it reads (after the click, so the click doesn't close what it says)
+stage.addEventListener('pointerdown', e => { if (S.screen === 'breath' && !DIALOG && !ANIM && !e.target.closest('button, .dlg')) breathDown(); });
+addEventListener('pointerup', () => { if (S.screen === 'breath') setTimeout(breathUp, 0); });
 // Under the tool chest: the pointer moves the stick
 stage.addEventListener('pointermove', e => {
   if (S.screen !== 'fish' || DIALOG) return;
