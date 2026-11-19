@@ -785,11 +785,11 @@ const SCREEN_ENTER = {
 const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
-  keytry() { keyTry(); },
+  keytry() { keyTry(); },                                               // the car door: try the key in the lock
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
-  hbpage(d) { handbookPage(+d); },
-  hbclose() { show('garage'); },
-  batlead(side) { batteryLead(side); },                                               // the car door: try the key in the lock
+  hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
+  hbclose() { show('garage'); },                                        // put it down, back in the garage
+  batlead(side) { batteryLead(side); },                                 // under the bonnet: a battery lead off, or back on
   talk() { talk(S.place); },
   // a regular at the bar: their advice, round and round
   punter(k) {
@@ -955,10 +955,11 @@ const ACTIONS = {
   },
   // ----- the dashboard: tap the key to turn it one click -----
   rev() { if (!S.flags.running) return; engineRev(); moment('rev', 1600); },
+  // parp! (the horn works with the key off, like a real car; not with a battery lead off)
   horn() {
     if (!carPowered()) { sfx('click'); return say('The horn', 'Nothing. Not a squeak.'); }   // no power
     sfx('hornnear'); moment('horn', 500);
-  },                    // parp! (the horn works with the key off, like a real car)
+  },
   turnkey() {
     if (S.flags.running) {                                               // running: switch it all off
       S.flags.running = false;

@@ -809,10 +809,10 @@ function batteryLeads() {
     rect(x - 2, y - 2, 4, 4, C.steel2);                                         // the post
     if (on) {
       rect(x - 6, y - 4, 12, 8, col);                                            // the clamp, on the post
-      pipe(x, y - 4, x - 10, y - 40, 4, col);                                    // its cable
+      pipe(x, y - 4, x + 10, y - 40, 4, col);                                    // its cable, up and away from the brake fluid
     } else {
-      rect(x - 18, y - 22, 12, 8, col);                                          // lifted off, to one side
-      pipe(x - 12, y - 22, x - 16, y - 46, 4, col);
+      rect(x + 4, y - 24, 12, 8, col);                                           // lifted off, to one side
+      pipe(x + 10, y - 24, x + 14, y - 46, 4, col);
     }
     text(side === 'plus' ? '+' : '-', x - 2, y + 6, C.white);
   }
@@ -843,10 +843,10 @@ SCREENS.bonnet = {
     disc(420, 222, 7, C.car); ring(420, 222, 7, C.carDark);
     for (const [x0, y0, x1, y1] of [[160, 160, 340, 170], [330, 170, 352, 180], [322, 120, 354, 120]]) pipe(x0, y0, x1, y1, 4, C.ink);
     for (let x = 180; x < 330; x += 22) rect(x, 158, 3, 10, hex('#3a3a3a'));
-    zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 106, 72, 40, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 40, 36, false, 'act:look:Brake fluid']]);
+    zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 106, 72, 40, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 34, 36, false, 'act:look:Brake fluid']]);
     for (const side of ['plus', 'minus']) {                                     // each lead comes off (and goes back on) by itself
       const [x, y] = BATTERY_POST[side], on = batteryLeadOn(side);
-      spot((side === 'plus' ? '+ lead' : '− lead') + (on ? ': take it off' : ': put it back on'), [x - 8, y - 14, 24, 22], 'act:batlead:' + side);
+      spot((side === 'plus' ? '+ lead' : '− lead') + (on ? ': take it off' : ': put it back on'), [x - 4, y - 26, 22, 34], 'act:batlead:' + side);
     }
     hud();
   },

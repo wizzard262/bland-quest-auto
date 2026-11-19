@@ -172,7 +172,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -281,7 +281,7 @@ test('your wife: she wants it scrapped, but every third time she says something 
   const said = [];
   for (let k = 0; k < 3; k++) { await tap(page, 'act:wife'); said.push(await dialogText(page)); await ok(page); }
   expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);
-  expect(said[2]).toMatch(/codes|hammer|fuses|1234|tea/);
+  expect(said[2]).toMatch(/handbook|codes|hammer|fuses|1234|tea/);
   await expect(page.locator('.dlg')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -772,9 +772,10 @@ test('a drink or three, and the key will not go in the car door: it wobbles abou
   expect(await page.evaluate(() => [S.screen, KEY.scratches.length])).toEqual(['keyhole', 1]);
   // aim at the lock and keep trying: it goes in sooner or later
   await page.mouse.move(...at(300, 150));
-  for (let k = 0; k < 300; k++) {
+  for (let k = 0; k < 1000; k++) {
     const near = await page.evaluate(() => Math.hypot(KEY.pos[0] - KEYHOLE[0], KEY.pos[1] - KEYHOLE[1]) <= KEY_FIT - 1);
-    if (near) { await page.mouse.click(...at(300, 150)); break; }
+    if (near) await page.mouse.click(...at(300, 150));
+    if (await page.locator('.dlg').count()) break;                     // in: it says so (a miss just scratches: keep trying)
     await page.waitForTimeout(20);
   }
   expect(await dialogText(page)).toContain('It goes in at last');
@@ -926,7 +927,7 @@ test('ring the wife on the phone: she says what she would say in person', async 
   expect(await page.evaluate(() => PITCHES[PITCHES.length - 1])).toBe(pitches[0]);
   await ok(page);
   expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);               // the same as in person: scrap it…
-  expect(said[2]).toMatch(/codes|hammer|fuses|1234|tea/);              // …and every third time something useful
+  expect(said[2]).toMatch(/handbook|codes|hammer|fuses|1234|tea/);     // …and every third time something useful
   await page.evaluate(() => { S.mins = 22 * 60; });
   await ringWife();
   expect(await dialogText(page)).toContain('bed');                      // late: come to bed
@@ -1322,22 +1323,29 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
   expect(await page.locator('.spine').count()).toBe(19);
   await page.locator('.hs[data-go="act:book:7"]').click();
-  await expect(page.locator('.book')).toContainText('torn out');
+  await expect(page.locator('.book')).toContainText('Sierra');           // not your car's handbook: that's in the parts box
   await act(page, 'Put it back');
   await expect(page.locator('.book')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('the fuses: the lid says see the manual, the manual pages are torn out, the diagram online says F23', async ({ page }) => {
+test('the fuses: the lid says see the owner\'s handbook, the handbook has no fuse diagram, the diagram online says F23', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); S.screen = 'fuseZoom'; render(); });
   await act(page, 'Check every fuse');
   expect(await dialogText(page)).toContain('see owner');
   await ok(page);
-  await page.evaluate(() => { S.screen = 'shelf'; render(); });
-  await page.locator('.hs[data-go="act:book:7"]').click();               // the owner's handbook
-  await expect(page.locator('.book')).toContainText('torn out');
+  const note7 = async () => { await page.click('.go[data-go="notebook"]'); await page.locator('.lead', { hasText: 'Note 7' }).click(); };
+  await note7();                                                           // the lead: the handbook, which you haven't got
+  expect(await page.evaluate(() => S.screen)).toBe('shelf');
+  expect(await dialogText(page)).toContain('isn\'t here');                 // not on the shelf
+  await ok(page);
+  await page.evaluate(() => { S.inv.handbook = true; render(); });        // (found it in the parts box)
+  await note7();                                                           // now the lead opens it
+  expect(await page.evaluate(() => S.screen)).toBe('handbook');
+  expect(await page.evaluate(() => leadOpen('fusebook'))).toBe(false);
+  expect(await page.evaluate(() => JSON.stringify(findJob('meaning').notes))).toContain('no fuse diagram');
   expect(await page.evaluate(() => leadOpen('fusediagram'))).toBe(true);
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await goRoom(page); await tap(page, 'pc'); await idle(page);
@@ -1384,5 +1392,128 @@ test('a shop shelf, close up: the hammer they said they had not got is on the mi
   expect(await dialogText(page)).toContain("Didn't know we had one");
   await ok(page);
   expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the car handbook ----------
+// In the parts box: rummage the junk off the handbook, then tap it
+async function findHandbook(page) {
+  await page.evaluate(() => { S.screen = 'partsbox'; render(); });
+  await idle(page);
+  const at = await page.evaluate(() => {
+    const hb = PILE.find(j => j.handbook);
+    for (const j of PILE) if (!j.handbook && Math.hypot(j.x - hb.x, j.y - hb.y) < 30) { j.x = 220; j.y = 60; }   // the junk on top of it, pushed aside
+    render();
+    return [hb.x, hb.y];
+  });
+  const box = await page.locator('#stage canvas').boundingBox();
+  await page.mouse.click(box.x + at[0] / 480 * box.width, box.y + at[1] / 270 * box.height);
+}
+
+test('the car handbook: the wife says look in it; not on the shelf; found in the parts box; cover, warranty ran out 2 days ago, radio code 1234, no fuse diagram', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  for (let k = 0; k < 3; k++) { await tap(page, 'act:wife'); if (k < 2) await ok(page); }
+  expect(await dialogText(page)).toContain('car handbook');               // the third time: something useful
+  await ok(page);
+  await page.click('.go[data-go="notebook"]');
+  await page.locator('.lead', { hasText: 'manuals shelf' }).click();      // her lead: the manuals shelf
+  expect(await page.evaluate(() => S.screen)).toBe('shelf');
+  expect(await dialogText(page)).toContain('isn\'t here');
+  await ok(page);
+  expect(await page.evaluate(() => leadOpen('handbook-box'))).toBe(true); // try the parts boxes
+  await findHandbook(page);
+  expect(await dialogText(page)).toContain('There it is');
+  await choose(page, 'Read it');
+  expect(await page.evaluate(() => [S.inv.handbook, S.screen, findJob('handbook').status])).toEqual([true, 'handbook', 'done']);
+  await expect(page.locator('.hbcover')).toContainText('Vauxhall Zafira 1.6 Life / Club Automatic');   // the cover
+  const turn = () => page.locator('[data-act="hbpage:1"]').click();
+  await turn();
+  await expect(page.locator('.book')).toContainText('Contents');
+  await turn();
+  const expiry = await page.evaluate(() => dateOfDay(S.day - 2));
+  expect(expiry).toBe('15 November 2026');                                 // day 1 is Tuesday 17 November: two days before
+  await expect(page.locator('.book')).toContainText('Warranty until ' + expiry);
+  await turn();
+  await expect(page.locator('.book')).toContainText('1234');
+  expect(await page.evaluate(() => JSON.stringify(findJob('radio')))).toContain('1234');   // the code goes in the notebook
+  await turn();
+  await expect(page.locator('.book')).toContainText('Nothing about fuses');
+  await expect(page.locator('[data-act="hbpage:1"]')).toHaveCount(0);     // the last page
+  await act(page, 'Put it down');
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  await page.evaluate(() => { S.day += 1; S.screen = 'partsbox'; render(); });   // it's not back in the box the next day
+  expect(await page.evaluate(() => PILE.some(j => j.handbook))).toBe(false);
+  await page.evaluate(() => { S.screen = 'stores'; render(); });          // it's on the garage shelf, and opens from there
+  const i = await page.evaluate(() => storeList().findIndex(r => r[0] === HANDBOOK_NAME));
+  expect(i).toBeGreaterThanOrEqual(0);
+  await page.evaluate(k => ACTIONS.storelook(String(k)), i);
+  expect(await page.evaluate(() => S.screen)).toBe('handbook');
+  expect(errors).toEqual([]);
+});
+
+test('the handbook found and put off till later goes on the garage shelf', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await findHandbook(page);
+  await choose(page, 'Later');
+  expect(await page.evaluate(() => [S.inv.handbook, S.screen])).toEqual([true, 'partsbox']);
+  expect(await page.evaluate(() => storeList().map(r => r[0]))).toContain('Car handbook');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the battery leads ----------
+test('battery leads: each comes off by itself; with either off there is no power, the engine dies, the radio forgets its code and the car will not go', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const lead = side => page.evaluate(k => batteryLeadOn(k), side);
+  const power = () => page.evaluate(() => carPowered());
+  for (const side of ['plus', 'minus']) {
+    await page.evaluate(() => { S.screen = 'dash'; S.key = 1; radioState().unlocked = true; render(); });   // the radio working…
+    await startCar(page); await ok(page);
+    expect(await flag(page, 'running')).toBe(true);                        // …and the engine running
+    await page.evaluate(() => { S.screen = 'bonnet'; render(); });
+    await tap(page, 'act:batlead:' + side);                                // take this lead off
+    expect(await dialogText(page)).toContain('lift it off');
+    await ok(page);
+    expect([await lead(side), await power()]).toEqual([false, false]);
+    expect(await lead(side === 'plus' ? 'minus' : 'plus')).toBe(true);     // the other one is still on
+    expect(await flag(page, 'running')).toBe(false);                       // the engine stopped dead
+    expect(await page.evaluate(() => radioState().unlocked)).toBe(false); // and the radio forgot its code
+    await page.evaluate(() => { S.screen = 'dash'; S.key = 1; render(); });
+    await expect(page.locator('.scr.radio')).toHaveCount(0);              // no power: the radio's dark
+    await tap(page, 'act:radio:0');
+    expect(await dialogText(page)).toContain('No power');
+    await ok(page);
+    await tap(page, 'act:turnkey'); await ok(page);                        // II
+    await tap(page, 'act:turnkey');                                        // start: nothing
+    expect(await dialogText(page)).toContain('No lights');
+    await ok(page);
+    expect(await flag(page, 'running')).toBe(false);
+    await tap(page, 'act:horn');
+    expect(await dialogText(page)).toContain('Not a squeak');
+    await ok(page);
+    await page.evaluate(() => { S.key = 0; S.screen = 'home'; render(); });
+    await tap(page, 'city'); await idle(page);                             // the car won't take you to town
+    expect(await dialogText(page)).toContain('battery lead');
+    await ok(page);
+    expect(await page.evaluate(() => S.screen)).toBe('home');
+    await page.evaluate(() => { S.screen = 'bonnet'; render(); });
+    await tap(page, 'act:batlead:' + side);                                // put it back on
+    expect(await dialogText(page)).toContain('Both leads are on');
+    await ok(page);
+    expect(await power()).toBe(true);
+    await page.evaluate(() => { S.screen = 'dash'; S.key = 1; render(); });
+    await expect(page.locator('.scr.radio')).toContainText('CODE');       // power back: the radio wants its code again
+    await page.evaluate(() => { S.key = 0; render(); });
+  }
+  await page.evaluate(() => { S.screen = 'bonnet'; render(); });           // both off: one back on isn't enough
+  await tap(page, 'act:batlead:plus'); await ok(page);
+  await tap(page, 'act:batlead:minus'); await ok(page);
+  await tap(page, 'act:batlead:plus');
+  expect(await dialogText(page)).toContain('still off');
+  await ok(page);
+  expect(await power()).toBe(false);
   expect(errors).toEqual([]);
 });
