@@ -174,7 +174,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -1629,5 +1629,23 @@ test('before you have been to the gate, the phone has no number for the breakers
   await start(page, errors);
   await page.click('.go[data-go="phone"]'); await idle(page);
   await expect(page.locator('[data-act="ring:Yard"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the glove box ----------
+test('the glove box in the car opens on useless things: a snapped ice scraper, a gauge reading 0, a dead torch, the wrong charger', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await tap(page, 'act:glovebox');
+  expect(await page.evaluate(() => S.screen)).toBe('glovebox');
+  const said = [];
+  for (let k = 0; k < 4; k++) { await tap(page, 'act:glove:' + k); said.push(await dialogText(page)); await ok(page); }
+  expect(said[0]).toContain('snapped');
+  expect(said[1]).toContain('0 PSI');
+  expect(said[2]).toContain('batteries');
+  expect(said[3]).toContain('2009');
+  await act(page, 'Shut it');
+  expect(await page.evaluate(() => S.screen)).toBe('dash');
   expect(errors).toEqual([]);
 });

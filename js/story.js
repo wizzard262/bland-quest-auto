@@ -874,7 +874,10 @@ const ACTIONS = {
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
   hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
   hbclose() { show('garage'); },                                        // put it down, back in the garage
-  batlead(side) { batteryLead(side); },                                 // under the bonnet: a battery lead off, or back on
+  batlead(side) { batteryLead(side); },
+  glovebox() { sfx('click'); show('glovebox'); },                       // the driver's seat: open the glove box
+  glove(k) { const [name, line] = GLOVE_THINGS[+k] || []; if (name) say(name, line); },   // look at a thing in it
+  gloveshut() { sfx('click'); show('dash'); },                          // shut it, back in the driver's seat                                 // under the bonnet: a battery lead off, or back on
   // the shopkeeper: you go up to the counter (a close-up of him), then he talks
   talk() {
     const queueing = S.place === 'Post Office' && !postFirst();       // at the back of the post office queue: you shout from there

@@ -1076,6 +1076,8 @@ SCREENS.dash = {
     poly([[wx - 9, 243], [wx - 3, 243], [wx + 7, 238], [wx + 7, 254], [wx - 3, 249], [wx - 9, 249]], C.dim);
     // the hatch under the steering wheel: shut, or open on the diagnostic port
     obdHatch(!!S.flags.hatch);
+    // the glove box, on the far left
+    gloveBoxLid();
     // the accelerator pedal, down in the footwell
     accelPedal(false);
     // the key turned to its position
@@ -1113,6 +1115,7 @@ SCREENS.dash = {
     spot(radioState().unlocked ? 'Radio: on / off' : 'Change the number', [bm - 7, 153, 14, 14], 'act:radio:0', null, below);
     spot('Radio: right', [br - 7, 153, 14, 14], 'act:radio:1', null, below);
     spot('Door handle: get out', DOOR_HANDLE, 'garage');
+    spot('Glove box', GLOVE_BOX, 'act:glovebox');
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
   },
@@ -1549,6 +1552,57 @@ SCREENS.handbook = {
   },
   actions() { return [{ label: 'Put it down', act: 'hbclose' }]; }
 };
+// =====================================================================
+// THE GLOVE BOX: on the far left of the dashboard. Open it: useless car things, each with a line when you tap it
+// =====================================================================
+const GLOVE_BOX = [4, 116, 50, 40];                                 // its lid, on the dashboard: x, y, w, h
+// What's inside: [name, what you find, where it lies in the close-up (x, y, w, h)]
+const GLOVE_THINGS = [
+  ['Ice scraper', 'An ice scraper, snapped clean in half. Both halves are here. Neither half scrapes.', [84, 112, 92, 60]],
+  ['Tyre pressure gauge', 'A tyre pressure gauge. You press it on a tyre: 0 PSI. You press it on your thumb: 0 PSI.', [190, 104, 84, 50]],
+  ['Torch', 'A torch. Click. Nothing. Click click. The batteries inside have gone furry.', [286, 116, 92, 40]],
+  ['Phone charger', 'A phone charger. It fits a phone you had in 2009.', [196, 160, 120, 40]]
+];
+// The glove box's lid on the dashboard, shut
+function gloveBoxLid() {
+  const [x, y, w, h] = GLOVE_BOX;
+  rbox(x, y, w, h, 4, hex('#24262a'));                              // the lid
+  rect(x + 2, y + 2, w - 4, 2, hex('#34363b'));                     // a shine along its top edge
+  rbox(x + w / 2 - 9, y + 8, 18, 6, 2, hex('#121214'));             // the catch
+}
+SCREENS.glovebox = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, hex('#2c2e33'), 0.12, 57);                    // the dashboard round it
+    rbox(60, 70, 360, 150, 8, hex('#101113'));                      // the inside, dark
+    rect(66, 76, 348, 6, hex('#1a1b1e'));                           // its top edge, in shadow
+    rbox(50, 214, 380, 40, 6, hex('#24262a'));                      // the lid, dropped open towards you
+    rbox(230, 222, 20, 8, 2, hex('#121214'));                       // its catch
+    // the snapped ice scraper: two blue halves
+    poly([[90, 150], [130, 128], [138, 140], [98, 162]], hex('#3070c0'));
+    poly([[140, 146], [170, 120], [176, 130], [148, 158]], hex('#3070c0'));
+    rect(128, 132, 4, 6, hex('#e8e0c0'));                           // the broken edges
+    rect(142, 142, 4, 6, hex('#e8e0c0'));
+    // the tyre pressure gauge: a silver stick with a little dial reading 0
+    pipe(200, 140, 262, 116, 6, C.steel2);
+    disc(264, 115, 10, C.white); ring(264, 115, 10, C.steel);
+    line(264, 115, 264, 108, C.red);                                // the needle, on 0
+    // the torch with dead batteries
+    pipe(296, 136, 356, 136, 12, hex('#1c1c1c'));
+    rect(354, 128, 16, 16, hex('#d0a020'));                         // its head
+    rect(368, 131, 3, 10, hex('#5a5a40'));                          // the glass, no light
+    rect(318, 130, 6, 3, C.red);                                    // the switch
+    // the phone charger: a white plug and its cable, in a tangle
+    rbox(206, 170, 22, 18, 3, C.white);
+    for (let k = 0; k < 5; k++) ring(250 + k * 12, 182, 7, hex('#d8d8d8'));
+    rect(306, 180, 8, 4, C.steel2);                                 // the old, wrong-shaped plug on the end
+    GLOVE_THINGS.forEach(([name, , area], k) => spot(name, area, 'act:glove:' + k));
+    tip('The glove box', 'Tap a thing to look at it.', 1, 8);
+    hud();
+  },
+  actions() { return [{ label: 'Shut it', act: 'gloveshut' }]; }
+};
+
 SCREENS.fish = {
   size: [480, 270],
   paint() {
