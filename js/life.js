@@ -1,4 +1,4 @@
-// The Thankless Task: things that move.
+// Bland Quest Auto: things that move.
 //   animate(t): small things on each screen that keep moving (t = seconds)
 //   MOMENTS:    short animations for the big events (p goes from 0 to 1); dialogs wait for them
 // Drawn every frame over a copy of the screen's still picture (see drawFrame in engine.js).

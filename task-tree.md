@@ -1,4 +1,4 @@
-# The Thankless Task: the tree of tasks
+# Bland Quest Auto: the tree of tasks
 
 How one simple job turns into many. Every task opens more tasks. Some branches end for good, some loop back, and a few actually move you forward. Each task says **where** in the game you do it, so the tree links every screen and every place on the city map.
 

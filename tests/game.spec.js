@@ -1,4 +1,4 @@
-// The Thankless Task: tests that play the game by tapping, like a player would.
+// Bland Quest Auto: tests that play the game by tapping, like a player would.
 // The game's own variables (S = the game state) are read straight from the page to check the results.
 const { test, expect } = require('@playwright/test');
 const path = require('path');

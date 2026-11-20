@@ -1,4 +1,4 @@
-// The Thankless Task: the story. Branch 1: the red light on the dash.
+// Bland Quest Auto: the story. Branch 1: the red light on the dash.
 // Who says what, what each action does, what's for sale, and the leads each thing gives.
 // Lead targets: a screen ('garage', 'under', 'underZoom', 'dash', 'fuseZoom', 'bench', 'city'),
 // a place in town ('place:Motor Factors') or a computer app ('app:Forum').

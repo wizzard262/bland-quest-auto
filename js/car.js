@@ -1,4 +1,4 @@
-// The Thankless Task: the car itself, close up. The boot (spare wheel, jack, brace), under the bonnet (the battery
+// Bland Quest Auto: the car itself, close up. The boot (spare wheel, jack, brace), under the bonnet (the battery
 // leads, the fuse box), the driver's seat (dials, key, radio, the hatch and the diagnostic port, the ECU panel,
 // the glove box). Loaded after screens.js; drawn with the kit in art.js.
 // =====================================================================

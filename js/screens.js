@@ -1,4 +1,4 @@
-// The Thankless Task: every screen. Each one has
+// Bland Quest Auto: every screen. Each one has
 //   size     the picture size in pixels
 //   paint()  draws the picture from the game state (S), adding labels and tap areas
 //   actions() the buttons under the picture: [{ label, act }]

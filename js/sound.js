@@ -1,9 +1,10 @@
-// The Thankless Task: sound effects, all made up in the browser (no sound files).
+// Bland Quest Auto: sound effects, all made up in the browser (no sound files).
 // sfx('clink') plays one; sfx('clink', 0.4) plays it 0.4 seconds from now.
 // The browser only allows sound after the first tap, so the first sfx() call starts it up.
 
 let AC = null, MASTER = null, NOISE = null;
 let MUTED = false;
+// (the browser keys keep the game's old name, so settings and saved games carry over to Bland Quest Auto)
 try { MUTED = localStorage.getItem('thankless-task-muted') === '1'; } catch (e) { /* no storage: sound on */ }
 
 // Start the sound system (once), on the first tap

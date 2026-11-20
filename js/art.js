@@ -1,4 +1,4 @@
-// The Thankless Task: drawing kit. Everything is painted pixel by pixel into one image buffer, then scaled up with hard edges.
+// Bland Quest Auto: drawing kit. Everything is painted pixel by pixel into one image buffer, then scaled up with hard edges.
 // Shared by every screen (screens.js). No game rules in here.
 
 let W = 480, H = 270;                                    // picture size; some screens use a bigger one

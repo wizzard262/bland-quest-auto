@@ -1,4 +1,4 @@
-// The Thankless Task: inside the places in town, and the scrap yard.
+// Bland Quest Auto: inside the places in town, and the scrap yard.
 // Each kind of shop has its own stock, posters and shopkeeper. You walk round; tap the shopkeeper to talk.
 
 // ---------- what kind of inside each place has ----------

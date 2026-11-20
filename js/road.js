@@ -1,4 +1,4 @@
-// The Thankless Task: road snags.
+// Bland Quest Auto: road snags.
 // Now and then on the way home from town (once a game): BANG, a puncture on Mill Lane.
 //   The spare in the boot is flat. You ring for help: the phone dies. You walk home: it rains, the sky
 //   goes grey, and a car drives through a puddle and soaks you. At home the wife says get a wheel from the

@@ -1,4 +1,4 @@
-// The Thankless Task: the cutscenes page (big 80s anime-style stills) opens, draws both scenes, and the Pixel look works
+// Bland Quest Auto: the cutscenes page (big 80s anime-style stills) opens, draws both scenes, and the Pixel look works
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 const { pathToFileURL } = require('url');

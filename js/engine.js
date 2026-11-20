@@ -1,4 +1,4 @@
-// The Thankless Task: the game engine.
+// Bland Quest Auto: the game engine.
 // Holds the game state (time, money, anger, jobs, leads, things you own), moves between screens,
 // shows dialogs and the action buttons, and saves the game in the browser.
 // The story itself (who says what, what each action does) lives in story.js.
@@ -7,7 +7,7 @@
 // STATE
 // =====================================================================
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const SAVE_KEY = 'thankless-task-save-v1';
+const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
 
 // A brand-new game
 function freshState() {

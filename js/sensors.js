@@ -1,4 +1,4 @@
-// The Thankless Task: every gearbox sensor you can try in the box's hole on the workbench, and the soldering game.
+// Bland Quest Auto: every gearbox sensor you can try in the box's hole on the workbench, and the soldering game.
 // Lots of them are wrong, each in its own way: square, octagonal, hexagonal, too fat (they touch the hole and won't go in),
 // too thin (rattles), too long (sticks up), too short (sinks), or the two lug teeth in the wrong place.
 // One from the eBuy job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.

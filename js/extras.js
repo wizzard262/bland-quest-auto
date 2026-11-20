@@ -1,4 +1,4 @@
-// The Thankless Task: more things to do.
+// Bland Quest Auto: more things to do.
 //   Anger: ways to calm down, and when you lose it you break something on the car (a new job)
 //   The manuals shelf: read each book's spine, pull one down and look inside
 //   Shop shelves: zoom in on a shelf to see what's really on it (the hammer they said they hadn't got)
