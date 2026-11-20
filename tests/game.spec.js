@@ -2878,3 +2878,17 @@ test('the phone torch puts the phone away even with a message still up behind it
   expect(await page.evaluate(() => [S.screen, S.flags.phoneTorch])).toEqual(['room', true]);
   expect(errors).toEqual([]);
 });
+
+test("leaving a place for the town map (however you got there), the map is centred on it", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.cam = { ox: -999, oy: -999 }; visit("Mate Gaz's"); DIALOG = null; S.inside = false; show('city'); });   // as if from a lead in the notebook
+  const off = await page.evaluate(() => {
+    const i = placeIndex("Mate Gaz's"), cx = (i % 7) * BLOCK + STREET + 35, cy = Math.floor(i / 7) * BLOCK + STREET + 35;
+    [ISO.ox, ISO.oy] = [S.cam.ox, S.cam.oy];
+    const p = P(cx, cy);
+    return [Math.round(p[0] - 291), Math.round(p[1] - 172)];
+  });
+  expect(off).toEqual([0, 0]);
+  expect(errors).toEqual([]);
+});

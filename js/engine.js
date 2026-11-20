@@ -256,7 +256,7 @@ function garageDoorUp() {
 function show(screen) {
   if (screen !== S.screen) S.history.push(S.screen);
   if (S.history.length > 30) S.history.shift();
-  if (screen === 'city' && S.screen !== 'city') travelFrom();
+  if (screen === 'city' && S.screen !== 'city') { travelFrom(); camOnPlace(S.place || 'Home'); }   // into town: the map centred on where your car is
   if (screen === 'home' && S.place) { pass(20); S.place = null; }
   if (['city', 'room', 'garage'].includes(screen)) delete S.flags.wifeOut;   // she only follows him round the front of the house
   S.screen = screen;

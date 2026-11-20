@@ -80,6 +80,12 @@ const HUNCHES = {
   'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Motor Factors'); }
 };
 
+// The town map, centred on a place (its block): where your car's parked
+function camOnPlace(name) {
+  const i = placeIndex(name);
+  if (i < 0) return;
+  ACTIONS.cam(`${i % 7},${Math.floor(i / 7)}`);
+}
 // =====================================================================
 // THE CODES
 // =====================================================================
