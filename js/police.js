@@ -173,7 +173,7 @@ function payFineAtPost() {
   const clamp = S.fine.clamped ? ` and £${CLAMP_FEE} to take the clamp off` : '';
   say('Post Office', `"Fines? Window 3, love. Nobody's ever in this queue."\n\nThat's £${owed}: the fine${clamp}.`, [
     { label: `Pay £${owed}`, run() {
-      if (!spend(owed)) { anger(10); return say('Post Office', 'Card declined.\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
+      if (!spend(owed)) { anger(10); return say('Post Office', DECLINED + '\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
       S.fine.paid = true;
       sfx('kerching');                                                 // window 3's till
       finishJob('fine', `Paid: £${owed}`);
