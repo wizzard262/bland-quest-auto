@@ -175,7 +175,7 @@ function payFineAtPost() {
     { label: `Pay £${owed}`, run() {
       if (!spend(owed)) { anger(10); return say('Post Office', 'Card declined.\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
       S.fine.paid = true;
-      sfx('beep');
+      sfx('kerching');                                                 // window 3's till
       finishJob('fine', `Paid: £${owed}`);
       if (S.fine.clamped) { S.fine.unclamp = true; S.fine.clamped = false; }   // someone's on his way to take it off
       say('Post Office', '"That\'s paid. Don\'t do it again."' + (S.fine.unclamp ? '\n\n"Someone\'s on their way to take the clamp off."' : ''));

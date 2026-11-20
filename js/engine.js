@@ -108,10 +108,7 @@ function kickSomething() {
   const thing = broken[(S.day + S.mins) % broken.length];
   S.anger = 50;
   moment('kick', 1300); sfx('kick');
-  const id = 'kicked-' + now();
-  job(id, 'Fix ' + thing + ' (you kicked it)', null);
-  note(id, 'It broke. Of course it did.', 'x');
-  queueDialog('You kick ' + thing, `You've had enough. You kick ${thing}. It breaks.\n\nThat's a new job in the notebook.`);
+  queueDialog('You kick ' + thing, `You've had enough. You kick ${thing}. It doesn't help.`);
 }
 
 // =====================================================================
@@ -358,6 +355,7 @@ function load() {
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
       if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
       if (S.inv['headlight-r']) { addLamp('right'); delete S.inv['headlight-r']; }
+      for (const j of S.jobs) if (j.status === 'open' && /^(broke-(mirror|lens|stay|wiper)|kicked-)/.test(j.id)) j.status = 'done';   // saved when anger broke more than the headlights
       return true;
     }
   } catch (e) { /* nothing saved or storage blocked */ }

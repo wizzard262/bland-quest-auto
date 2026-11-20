@@ -876,7 +876,7 @@ function benchScrews(f) {
   for (const n of [1, 2, 3]) {
     const [x, y] = BOX_SCREWS[n];
     const c = P(x, y, 40);                                             // on the box's top face
-    if (f.sheared === n) {                                             // snapped off: the stub, shiny where it broke
+    if (f.sheared === n && !f.stubOut) {                               // snapped off: the stub, shiny where it broke (till the extractor gets it out)
       disc(c[0], c[1], 2, C.white); ring(c[0], c[1], 3, C.greyDark);
       continue;
     }
@@ -948,7 +948,7 @@ SCREENS.bench = {
     const b = boxHere ? S.bench : null;
     if (b && b.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
     if (b && b.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
-    if (brokeOpen('stay')) a.push({ label: 'Straighten the bonnet stay in the vice', act: 'straighten' });
+    if (boxHere && f.sheared && !f.stubOut && (S.inv['extractor-cheap'] || S.inv['extractor-good'])) a.push({ label: 'Use the extractor on the snapped screw', act: 'stubout' });   // the stub has to come out
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
   }
@@ -1132,7 +1132,6 @@ SCREENS.toolbox = {
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
     if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
     if (S.drawer === 5) a.push({ label: 'Test the multimeter', act: 'meter' }, { label: 'Take the torch', act: 'takeTorch' });
-    if (S.drawer === 4 && brokeOpen('mirror')) a.push({ label: 'Tape the wing mirror back on', act: 'tapemirror' });
     if (S.drawer === 6 && leadOpen('hammer-box')) a.push({ label: 'Look for the hammer', act: 'hammerbox' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
@@ -1190,12 +1189,21 @@ function insideTray(x0, x1, yTop, yBot, draw) {
   }
 }
 
+// How big a sign's words can be (picture pixels) to fit `len` across and `tall` high: measured in the sign's own font
+const SIGN_FONT = "bold 100px Tahoma, 'Segoe UI', sans-serif";
+let SIGN_RULER = null;                                                   // a canvas for measuring words (made the first time)
+function signFontSize(words, len, tall) {
+  SIGN_RULER = SIGN_RULER || document.createElement('canvas').getContext('2d');
+  SIGN_RULER.font = SIGN_FONT;
+  const perPixel = SIGN_RULER.measureText(words).width / 100;            // how wide the words are for each pixel of font size
+  return Math.min(tall * 0.8, (len * 0.92) / Math.max(perPixel, 0.01));  // a little margin at the ends
+}
 // A shop's name written along a wall that faces down-left (at y = yf): it starts at world x, top at height z,
 // runs `len` along the wall and is `tall` pixels high. Real text, slanted to lie on the wall
 function frontSign(name, x, yf, len, z, tall) {
   const [sx, sy] = P(x, yf, z);
   if (sx > W || sx + len < 0 || sy > H || sy + len / 2 + tall < 0) return;
-  const fit = Math.min(tall * 0.8, len / (name.length * 0.56));          // shrink long names to fit the board
+  const fit = signFontSize(name, len, tall);                              // as big as fits the board
   LABELS.push(`<div class="front" style="left:${sx / W * 100}%;top:${sy / H * 100}%;width:${len / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw">${esc(name)}</div>`);
 }
 
@@ -1303,6 +1311,7 @@ SCREENS.breath = {
     rect(x + w / 2 - 8, y - 40, 16, 44, C.white);                              // the mouthpiece
     rbox(x, y, w, h, 12, hex('#e8c020')); rbox(x + 8, y + 8, w - 16, 50, 6, C.ink);   // the breathalyser and its screen
     text('BLOW', x + 70, y + 26, hex('#40c070'), 2);
+    if (!BREATH.ticket) spot('Press and hold to blow', [x + 8, y + 8, w - 16, 50], 'act:blowhere');   // the box shows where to press (pressing anywhere works)
     for (let k = 0; k < BREATH_LEDS; k++) { const [lx, ly] = breathLedAt(k); disc(lx, ly, 5, C.ink); disc(lx, ly, 4, shade(BREATH_COLOURS[k], 0.3)); }   // the lights, off
     rect(x + 30, y + h, 60, 40, C.skin); rect(x + 26, y + h + 30, 70, 30, hex('#202838'));   // the policeman's hand, his sleeve
     if (BREATH.ticket) {                                                       // the fine, on paper: up top, clear of what he says

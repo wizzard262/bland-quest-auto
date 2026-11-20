@@ -478,6 +478,8 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Rotate'); await ok(page);
   await act(page, 'Push'); await ok(page);
   expect(await flag(page, 'fits')).toBe(true);
+  await act(page, 'Use the extractor on the snapped screw'); await ok(page);   // the snapped screw's stub, out with the proper extractor
+  expect(await flag(page, 'stubOut')).toBe(true);
 
   // fit it and start the car: the red light goes off… and the ABS light comes on
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
@@ -514,16 +516,16 @@ test('a big moment plays before its message: the nut drops and rolls away', asyn
   expect(errors).toEqual([]);
 });
 
-test('losing it at 100 anger shakes the screen and adds a job; once the car is broken six ways, it is the wheelie bin', async ({ page }) => {
+test('losing it at 100 anger: he kicks a headlight in (a job to replace it); only the headlights ever break', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('rage');
   await ok(page);
-  expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('broke-')))).toBe(true);
-  for (let i = 0; i < 6; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // five more car breaks, then the bin
-  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).length)).toBe(6);
-  expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(true);
+  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).map(j => j.id))).toEqual(['broke-headlight']);
+  for (let i = 0; i < 4; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // the other one, then nothing new
+  expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).map(j => j.id).sort())).toEqual(['broke-headlight', 'broke-headlight2']);
+  expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -2593,7 +2595,7 @@ test('soaked by the puddle: he sighs, his shoulders drop, and he trudges on head
   expect(levels).toEqual([1, 2, 3, 4, 0]);
   // half pace: the trudge covers the rest of the pavement in about twice the time the plain walk would
   const ratio = await page.evaluate(() => {
-    const rest = WALK.to - lerp(WALK.from, WALK.to, WALK_SPLASH);                // what's left of the pavement
+    const rest = WALK.to - lerp(WALK.from, WALK.to, WALK_HIT);                   // what's left of the pavement (from where the splash got him)
     const plainSpeed = (WALK.to - WALK.from) / WALK_MS;                          // his normal pace
     const trudgeSpeed = rest / (WALK_AFTER_MS * (1 - WALK_SINK));               // after the sigh and the sinking
     return trudgeSpeed / plainSpeed;
@@ -2730,5 +2732,42 @@ test("drunk and locked out at the pub: a taxi home; the car stays at the pub; th
   await tap(page, 'city');
   expect(await dialogText(page)).toContain('The bus into town');
   expect(await page.evaluate(() => [S.screen, S.place, S.flags.carAt, carAway()])).toEqual(['city', 'The Hesketh Tavern', undefined, false]);
+  expect(errors).toEqual([]);
+});
+
+test('the breath test shows a box on BLOW where you press', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; boozeAdd(2); breathStart(); });
+  await expect(page.locator('.hs[data-go="act:blowhere"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test("two snapped fixings need the stud extractor: bolt 2 under the car, and the screw's stub on the bench (the box won't go back on with the stub in)", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
+  await act(page, 'Undo screw 3'); await ok(page);                          // it shears
+  expect(await page.evaluate(() => [S.flags.sheared, !!findJob('stub')])).toEqual([3, true]);
+  await page.evaluate(() => { S.flags.sensorOut = true; S.flags.fits = true; S.flags.n3found = true; ACTIONS.fit(); });
+  expect(await dialogText(page)).toContain('stub still in the box');      // not with the stub in
+  await ok(page);
+  await page.evaluate(() => { S.inv['extractor-cheap'] = true; render(); });
+  await act(page, 'Use the extractor on the snapped screw');
+  expect(await dialogText(page)).toContain('snaps');                       // the cheap one snaps, as on bolt 2
+  await ok(page);
+  await page.evaluate(() => { S.inv['extractor-good'] = true; render(); });
+  await act(page, 'Use the extractor on the snapped screw');
+  expect(await dialogText(page)).toContain('winds out');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.stubOut, findJob('stub').status])).toEqual([true, 'done']);
+  expect(errors).toEqual([]);
+});
+
+test('the splash: as the car hits the puddle he is level with it, and stops dead in it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const [at, puddle] = await page.evaluate(() => [lerp(WALK.from, WALK.to, WALK_HIT), WALK.puddle[0]]);
+  expect(Math.abs(at - puddle)).toBeLessThan(6);                             // right beside it
   expect(errors).toEqual([]);
 });

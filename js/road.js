@@ -171,7 +171,7 @@ function isoStreet() {
 // =====================================================================
 // THE WALK HOME: grey and gloomy, rain, and a car through a puddle
 // =====================================================================
-const WALK = { y: 54, from: -130, to: 380, puddle: [120, 70], size: 2 };   // along the pavement (x), and the puddle in the gutter
+const WALK = { y: 54, from: -130, to: 380, puddle: [125, 70], size: 2 };   // along the pavement (x), and the puddle in the gutter, right beside where he is at the hit
 SCREENS.walkhome = {
   size: [480, 270],
   paint() {
@@ -190,18 +190,19 @@ SCREENS.walkhome = {
 const SOAKED = { shirt: hex('#8a3028'), shirtDark: hex('#6a2018'), jeans: hex('#283a68'), jeansDark: hex('#1c2a50'), hair: hex('#402810') };
 const WALK_MS = 7000;                                                  // the whole walk home
 const WALK_SPLASH = 0.6;                                               // how far through it: the water has hit him (it lands at 0.5)
-const WALK_AFTER_MS = 7500;                                            // after the splash: a sigh, then on at half pace
+const WALK_AFTER_MS = 8500;                                            // after the splash: a sigh, then on at half pace
+const WALK_HIT = 0.5;                                                  // how far through the walk the car hits the puddle (he's level with it)
 const WALK_SIGH = 0.12, WALK_SINK = 0.22;                              // how far through the rest of it: the sigh ends; the sinking ends
 let WALK_PART = [0, 1];                                                // the part of the walk this moment plays
 MOMENTS.walkhome = function (part) {
   [ISO.ox, ISO.oy] = ROAD_STREET_VIEW;
   const after = WALK_PART[0] >= WALK_SPLASH;                           // the rest of the walk, after the splash
   const p = after ? WALK_SPLASH + part * WALK_AFTER_MS / WALK_MS : lerp(WALK_PART[0], WALK_PART[1], part);   // the time so far, as a share of the plain walk (the car and the splash go by it)
-  const hit = 0.5;                                                  // when the car hits the puddle
+  const hit = WALK_HIT;                                              // when the car hits the puddle
   const wet = p > hit;
   const look = wet ? SOAKED : null;
-  let wx = lerp(WALK.from, WALK.to, Math.min(p, WALK_SPLASH));       // him, along the pavement (stopped where the splash got him)
-  let pose = 'walk', phase = p * 90;
+  let wx = lerp(WALK.from, WALK.to, Math.min(p, hit));               // him, along the pavement: he stops dead where the splash gets him
+  let pose = p > hit && !after ? 'stand' : 'walk', phase = p * 90;   // (stood in it, being drenched)
   if (after && part < WALK_SIGH) pose = 'stand';                     // he stands there, dripping, and sighs
   else if (after && part < WALK_SINK) pose = 'trudge';               // his shoulders drop
   else if (after) {                                                 // and trudges on home, head down, at half his pace
@@ -212,18 +213,18 @@ MOMENTS.walkhome = function (part) {
   man(m[0], m[1], pose, WALK.size, phase, look);
   if (wet) for (let k = 0; k < 4; k++) rect(m[0] + 1 + k * 2, m[1] - 4 + ((p * 400 + k * 13) % 8), 1, 2, hex('#b8c4d0'));   // dripping
   // the car: along the road from the left, through the puddle, off to the right
-  const carX = lerp(-400, 566, (p - 0.35) / 0.3);                    // its front wheel (37 along it) reaches the puddle at 0.5, as the water goes up
+  const carX = lerp(-395, 571, (p - 0.35) / 0.3);                    // its front wheel (37 along it) reaches the puddle at 0.5, as the water goes up
   if (p > 0.35 && p < 0.65) isoCar(carX, 70, 1, hex('#c8c8c0'), { alongX: true, shape: 'saloon' });
   // the splash: a wall of water, up over the pavement and him
   if (p > hit && p < hit + 0.16) {                                  // a huge wave of it: a sheet of water and a spray of drops, up and over him
     const q = (p - hit) / 0.16, rise = Math.sin(q * 3.1);
     const c = P(WALK.puddle[0], WALK.puddle[1]);
     for (let k = 0; k < 14; k++) {                                   // the sheet: a fan of thick streaks off the wheel
-      const a = -0.5 - k * 0.16, r = rise * (40 + hash(k, 3) * 30);
+      const a = 0.1 - k * 0.13, r = rise * (40 + hash(k, 3) * 34);   // up and towards the pavement (up and to the right): at him
       pipe(c[0], c[1] - 2, c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3, 3, k % 2 ? hex('#a8c0d8') : hex('#d8e8f4'));
     }
     for (let k = 0; k < 260; k++) {                                  // the spray: drops flung far and wide
-      const a = -0.3 - hash(k, 7) * 2.6, r = rise * (20 + hash(7, k) * 95);
+      const a = 0.2 - hash(k, 7) * 2.0, r = rise * (20 + hash(7, k) * 95);   // mostly up and over him, some back over the road
       const s2 = k % 5 ? 2 : 3;
       rect(c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3 + q * q * 30 * hash(k, 9), s2, s2, k % 3 ? hex('#a8c0d8') : C.white);   // falling back as it goes
     }
@@ -267,7 +268,7 @@ function buyWheel(place) {
   const price = yard ? 10 : 35;
   if (!spend(price)) { anger(10); return say(place, 'Card declined.'); }
   S.inv.wheel = place;
-  sfx('beep');
+  sfx('kerching');                                                     // the till
   closeLead(yard ? 'wheel-yard' : 'wheel-shop', 'ok', `A wheel from the ${place}: £${price}`);
   closeLead(yard ? 'wheel-shop' : 'wheel-yard', 'skip');
   lead('tyre', 'fitwheel', `Fit the wheel on ${ROADSIDE}`, 'you', 'sure', 'act:toroad');
@@ -374,7 +375,7 @@ function spareAt(place) {
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
   if (!spend(price)) { anger(10); say(place, 'Card declined.'); return true; }
-  sfx('beep');
+  sfx('kerching');                                                     // the till
   if (yard) {                                                           // off a wreck: straight in the boot
     S.spare = 'good';
     closeLead('spare-yard', 'ok');

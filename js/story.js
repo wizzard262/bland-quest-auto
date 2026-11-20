@@ -895,12 +895,8 @@ const TALK = {
     shopCounter('Hardware Shop', '"Yes?"');
   },
   'Car Spares Direct'() {
-    if (!brokeOpen('lens') && csdSensor()) return;                     // after a sensor: "we can order it in" (sensors.js)
-    if (!brokeOpen('lens')) return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
-    say('Car Spares Direct', '"Indicator lens? Got one in the back. £4."', [
-      { label: 'Pay £4', run() { if (!spend(4)) return say('Car Spares Direct', 'Card declined.'); finishJob('broke-lens', 'New indicator lens: £4'); closeLead('lens', 'ok'); say('Car Spares Direct', '"Mind how you go."'); } },
-      { label: 'Not now', run() {} }
-    ]);
+    if (csdSensor()) return;                                            // after a sensor: "we can order it in" (sensors.js)
+    return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
   },
   'Motor Factors'() {
     if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Motor Factors', '"It\'s at the other branch, like I said."');
@@ -934,10 +930,6 @@ const TALK = {
   'Scrap Yard'() {
     if (wheelWanted()) return buyWheel('Scrap Yard');                   // your car's on a flat: a wheel off a wreck
     if (spareAt('Scrap Yard')) return;                                  // the flat spare: one off a wreck (road.js)
-    if (brokeOpen('wiper')) {
-      finishJob('broke-wiper', 'A wiper arm from the Scrap Yard: £2'); closeLead('wiper', 'ok'); spend(2);
-      return say('Scrap Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
-    }
     if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"\n\nRows of dead cars. Any of them might be good for parts one day.');
     say('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."\n\nRows of dead cars. Any of them might be good for other parts one day.', [
       { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
@@ -960,7 +952,7 @@ function buy(id, place) {
   if (item.none) { anger(5); return say(place, '"A 9? There\'s no such thing as a 9, mate."'); }
   if (!spend(item.price)) { anger(10); return say(place, 'Card declined.'); }
   S.inv[id] = true;
-  sfx('beep');
+  sfx('kerching');                                                     // the till
   if (id === 'extractor-cheap') closeLead('extractor', 'ok');
   if (id === 'extractor-good') closeLead('extractor2', 'ok');
   if (id === 'fuses') note('meaning', 'Bought fuses: all the wrong amps', 'x');
@@ -1014,6 +1006,7 @@ const ACTIONS = {
   go(target) { goTo(target); },
   keytry() { keyTry(); },                                               // the car door: try the key in the lock
   keygiveup() { keyStuck(); },
+  blowhere() {},                                                        // the breath test's BLOW box: the press itself does the blowing
   dicedown() { takeDiceDown(); },
   unplug() { unplugReader(); },                                         // the driver's seat: the code reader out of the port                                       // the driver's seat: the dice off the mirror (extras.js)                                          // the car door: give up on the lock
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
@@ -1419,6 +1412,7 @@ const ACTIONS = {
   fit() {
     if (!S.flags.fits) return say('Fit it', S.flags.boxOff ? 'The box is on the workbench, and there\'s no sensor in it that fits yet.' : 'You haven\'t got one that fits yet.');
     if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
+    if (S.flags.sheared && !S.flags.stubOut) return say('Fit it', 'Not with the snapped screw\'s stub still in the box: the sensor\'s only held by two. Get the stub out with the extractor first.');
     pass(30);
     S.flags.fitted = true;
     moment('sensorFit', 1300); sfx('clink', 0.8); sfx('ratchet', 0.95);
@@ -1467,7 +1461,25 @@ const ACTIONS = {
     moment('screwShear', 1100); sfx('creak'); sfx('snap', 0.6);
     stillAfter('snap');                                                // the screw head flying off
     note('sensor-out', `Screw ${n} sheared off: its stub is stuck in the box`, 'x');
+    job('stub', 'Get the snapped screw\'s stub out of the box', null);   // it'll have to come out before the box goes back on
+    lead('stub', 'stub-extractor', 'The stud extractor (like bolt 2)', 'you', 'sure', 'bench');
     say(`Screw ${n}`, 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
+  },
+  // the snapped screw's stub: the proper extractor gets it out; the cheap one snaps (as on bolt 2)
+  stubout() {
+    pass(10);
+    if (S.inv['extractor-good']) {
+      S.flags.stubOut = true;
+      moment('screwOut', 900); sfx('creak'); sfx('pop', 0.7);
+      finishJob('stub', 'The proper extractor got the stub out');
+      return say('The stub', 'Tap the extractor in, a slow quarter turn… and the stub winds out. A clean hole. The third screw can go in.');
+    }
+    delete S.inv['extractor-cheap'];
+    anger(15);
+    sfx('creak'); sfx('snap', 0.6);
+    note('stub', 'The cheap extractor snapped off in the stub', 'x');
+    lead('stub', 'stub-extractor2', 'A proper extractor from the Hardware Shop', 'you', 'very sure', 'place:Hardware Shop');
+    say('The stub', 'The cheap extractor twists… and snaps. Now there\'s a bit of extractor in the stub as well.');
   },
   // lift the old sensor out of the box (once all three screws are out, or snapped)
   boxout() {
@@ -1511,7 +1523,8 @@ const ACTIONS = {
     finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
     closeLead('try-p4l', 'ok'); closeLead('try-soldered', 'ok');
     lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
-    say('Push', 'Click. It fits. It actually fits.\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it, so two will have to do.\n\nNow fit the box back on the car.');
+    const stub = S.flags.sheared && !S.flags.stubOut ? '\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it: get that out with the extractor, then the third screw can go in.' : '\n\nAll three screws hold it in.';
+    say('Push', 'Click. It fits. It actually fits.' + stub + '\n\nThen fit the box back on the car.');
   },
   pullpart() {
     const b = S.bench;

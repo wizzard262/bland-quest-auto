@@ -374,6 +374,12 @@ SOUNDS.splash = t => {                                               // a car th
   tone(t, [140, 60], 0.3, 0.12, 'sine');
   for (let i = 0; i < 14; i++) hiss(t + 0.35 + i * 0.06 + Math.random() * 0.04, 3000 + Math.random() * 2500, 0.05, 0.06, 'bandpass', 4);
 };
+SOUNDS.kerching = t => {                                             // an old cash register: the keys, the bell, the drawer shooting out
+  for (let i = 0; i < 3; i++) hiss(t + i * 0.05, 2600, 0.03, 0.08, 'bandpass', 6);   // ker- (the keys)
+  for (const [f, v] of [[2093, 0.12], [2637, 0.08], [3136, 0.05]]) tone(t + 0.16, f, 0.9, v);   // -CHING (the bell, ringing on)
+  hiss(t + 0.18, [900, 300], 0.25, 0.12, 'lowpass');                  // the drawer, sliding out
+  tone(t + 0.4, 140, 0.08, 0.1, 'square');                            // and its clunk
+};
 SOUNDS.drip = t => tone(t, [1800 + Math.random() * 1400, 900], 0.05, 0.03);   // a drop off a gutter
 SOUNDS.sigh = t => { hiss(t, [900, 260], 1.3, 0.07, 'bandpass', 1.5); tone(t, [190, 120], 1.1, 0.02); };   // a long, heavy sigh
 SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };

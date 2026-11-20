@@ -15,17 +15,6 @@ const LAMP_BREAKS = {
   right: { id: 'headlight2', title: 'Replace the smashed right headlight (you kicked it)', what: 'You run round the other side and kick the right headlight in. Now they match.',
     lead: ['headlight2', 'A new right headlight: online, or the Scrap Yard', 'you', 'sure', 'place:Scrap Yard'] }
 };
-// When a headlight's already smashed, losing it breaks something else instead, one at a time; each is a small job to fix
-const CAR_BREAKS = [
-  { id: 'mirror', title: 'Fix the wing mirror (you knocked it off)', what: 'You slam the car door so hard the wing mirror falls off.',
-    lead: ['tape', 'Tape it back on: there\'s tape in drawer 4 of the toolbox', 'you', 'fairly sure', 'toolbox'] },
-  { id: 'lens', title: 'Replace the cracked indicator lens (you kicked it)', what: 'You kick the front of the car. The indicator lens cracks.',
-    lead: ['lens', 'Car Spares Direct might have one', 'you', 'maybe', 'place:Car Spares Direct'] },
-  { id: 'stay', title: 'Straighten the bonnet stay (you slammed the bonnet)', what: 'You slam the bonnet. The bonnet stay bends like a paperclip.',
-    lead: ['vice', 'Straighten it in the vice on the workbench', 'you', 'sure', 'bench'] },
-  { id: 'wiper', title: 'Fix the wiper (you thumped the windscreen)', what: 'You thump the windscreen. A wiper arm snaps off.',
-    lead: ['wiper', 'Any old wiper arm will do: the Scrap Yard', 'you', 'fairly sure', 'place:Scrap Yard'] }
-];
 // =====================================================================
 const RAGE = { from: 'home', shook: false, done: false };
 // The kick scene: your car drawn the same way as everywhere else (isometric), big, its nose towards him
@@ -74,23 +63,16 @@ function rageCutscene(side) {
   render();
 }
 
-// Lose your temper: he kicks a headlight (left, right, left…); if that one's already smashed, something else breaks
+// Lose your temper: he kicks a headlight (left, right, left…). Only the headlights break; one that's smashed already just gets kicked again
 function breakSomething() {
   S.anger = 40;
   S.kicks = (S.kicks || 0) + 1;
-  const side = S.kicks % 2 ? 'left' : 'right';                          // kicks 1, 3, 5… the left; 2, 4, 6… the right
+  let side = S.kicks % 2 ? 'left' : 'right';                            // kicks 1, 3, 5… the left; 2, 4, 6… the right
+  if (kickedLamps()[side] && !kickedLamps()[side === 'left' ? 'right' : 'left']) side = side === 'left' ? 'right' : 'left';   // the whole one, if there is one
   const wasWhole = !kickedLamps()[side];
   rageCutscene(side);                                                    // wherever you are: he runs at the car and kicks it
   if (wasWhole) return breakLamp(side);
-  const b = CAR_BREAKS.find(x => !S.flags['broke-' + x.id]);
-  if (!b) {
-    job('kicked-' + now(), 'Fix the wheelie bin (you kicked it)', null);
-    return queueDialog('You lose it', 'You kick the wheelie bin. It breaks. Of course it does.\n\nThat\'s a new job in the notebook.');
-  }
-  S.flags['broke-' + b.id] = true;
-  job('broke-' + b.id, b.title, null);
-  lead('broke-' + b.id, ...b.lead);
-  queueDialog('You lose it', b.what + '\n\nYou feel better. For a second. That\'s a new job in the notebook.');
+  queueDialog('You lose it', 'You kick the headlight again. It\'s in bits already. It doesn\'t help.');   // both smashed: nothing new breaks
 }
 const brokeOpen = id => { const j = findJob('broke-' + id); return !!j && j.status === 'open'; };
 // A headlight kicked in: a job to replace it (the same job again if you'd replaced it before)
@@ -702,7 +684,7 @@ Object.assign(ACTIONS, {
     const total = basketTotal();
     if (!spend(total)) return say('The till', '£' + total.toFixed(2) + '. Card declined.');
     pass(5);
-    sfx('beep');
+    sfx('kerching');                                                    // the till
     S.bought = S.bought || {};
     for (const b of items) {
       if (b.name.startsWith('Headlight')) { addLamp(b.name.includes('right') ? 'right' : 'left'); continue; }   // a headlight: a spare, on the shelf
@@ -727,8 +709,6 @@ Object.assign(ACTIONS, {
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it
-  tapemirror() { pass(10); sfx('drawer'); finishJob('broke-mirror', 'Taped back on. It wobbles.'); closeLead('tape', 'ok'); say('The wing mirror', 'Half a roll of tape later, the mirror is back on. It points at the sky.'); },
-  straighten() { pass(15); sfx('creak'); finishJob('broke-stay', 'Straightened in the vice. Nearly straight.'); closeLead('vice', 'ok'); say('The bonnet stay', 'Into the vice, a lot of leaning, and it\'s… nearly straight.'); },
   // the hammer and the stuck part
   tapit() {
     pass(5); sfx('thud'); sfx('thud', 0.3); sfx('clink', 0.6);
