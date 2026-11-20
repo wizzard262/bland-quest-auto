@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: the last screw in the sensor box shears off. A big still in the same 1980s action-anime look as the kick.
+     Flashed up in the game when the screw snaps on the workbench; also on cutscenes.html. -->
+<svg id="snap" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Close up: the screwdriver turns, the screw head shears off and flies, sparks">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <radialGradient id="n-burst" cx="470" cy="300" r="520" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6c8"/><stop offset=".3" stop-color="#ffb860"/><stop offset="1" stop-color="#8a2a5a"/></radialGradient>
+    <linearGradient id="n-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0e4ec"/><stop offset="1" stop-color="#7a808c"/></linearGradient>
+    <radialGradient id="n-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".55"/></radialGradient>
+    <filter id="n-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- a burst behind it all, and speed lines out from the snap -->
+  <rect width="960" height="540" fill="url(#n-burst)"/>
+  <g fill="#fff" opacity=".55">
+    <polygon points="470,300 980,180 980,220"/><polygon points="470,300 980,330 980,380"/><polygon points="470,300 820,560 760,560"/>
+    <polygon points="470,300 300,560 240,560"/><polygon points="470,300 -20,420 -20,370"/><polygon points="470,300 -20,150 -20,110"/>
+    <polygon points="470,300 200,-20 250,-20"/><polygon points="470,300 640,-20 700,-20"/>
+  </g>
+
+  <!-- the top of the sensor box, its alloy, the screw hole -->
+  <path class="o" fill="url(#n-steel)" d="M60,420 L560,330 L960,400 L960,560 L60,560 Z"/>
+  <ellipse cx="470" cy="392" rx="54" ry="20" fill="#5a5e68" class="o"/>
+  <ellipse cx="470" cy="392" rx="30" ry="11" fill="#2a2a32" class="o"/>
+  <!-- the stub of the screw, left in the hole, bright where it sheared -->
+  <ellipse cx="470" cy="386" rx="22" ry="8" fill="#f4f8ff" class="o"/>
+  <path class="t" d="M456,384 L484,388 M462,390 L478,382"/>
+
+  <!-- the screwdriver, his hand on it, twisting -->
+  <path class="o" fill="url(#n-steel)" d="M452,360 L488,360 L500,120 L440,120 Z"/>
+  <path class="o" fill="#e04838" d="M420,120 L520,120 L530,-20 L410,-20 Z"/>
+  <path class="t" stroke="#a83020" d="M440,110 L436,-10 M470,110 L470,-10 M500,110 L504,-10"/>
+  <path class="o" fill="#e8b090" d="M380,60 C380,20 420,0 470,0 C520,0 560,20 560,60 C560,100 530,120 470,120 C410,120 380,100 380,60 Z" opacity=".95"/>
+  <path class="t" d="M400,50 L540,50 M396,76 L544,76"/>
+  <path class="o" fill="#e04838" d="M370,30 L380,-20 L560,-20 L566,30 C540,10 400,10 370,30 Z"/>
+  <path fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".7" d="M350,80 C320,60 320,30 340,10 M590,80 C620,60 620,30 600,10"/>
+
+  <!-- the screw head, flying off -->
+  <g transform="rotate(-30 700 220)">
+    <ellipse cx="700" cy="220" rx="40" ry="16" fill="url(#n-steel)" class="o"/>
+    <path class="o" fill="url(#n-steel)" d="M660,220 L660,240 C680,254 720,254 740,240 L740,220"/>
+    <path class="t" stroke-width="5" d="M676,218 L724,222"/>
+  </g>
+  <path fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8" d="M520,330 C580,300 630,270 660,250 M530,350 C590,320 640,290 670,266"/>
+
+  <!-- sparks -->
+  <g class="t" stroke="#ffe14a" stroke-width="5">
+    <path d="M470,370 L420,330 M470,370 L530,320 M470,370 L560,370 M470,370 L380,380 M470,370 L440,310 M470,370 L510,300"/>
+  </g>
+  <g fill="#ffe14a" class="t">
+    <circle cx="410" cy="320" r="6"/><circle cx="540" cy="310" r="5"/><circle cx="570" cy="372" r="5"/><circle cx="370" cy="384" r="4"/>
+  </g>
+
+  <!-- the sound of it -->
+  <text x="610" y="470" transform="rotate(-8 610 470)" font-family="Impact, 'Arial Black', sans-serif" font-size="120" font-style="italic" fill="#ff5fa8" opacity=".9">SNAP!</text>
+  <text x="602" y="462" transform="rotate(-8 602 462)" font-family="Impact, 'Arial Black', sans-serif" font-size="120" font-style="italic" fill="#ffe14a" stroke="#1c1028" stroke-width="7" paint-order="stroke">SNAP!</text>
+
+  <rect width="960" height="540" filter="url(#n-grain)"/>
+  <rect width="960" height="540" fill="url(#n-vig)"/>
+</svg>

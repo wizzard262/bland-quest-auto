@@ -12,6 +12,9 @@ test('cutscenes: the kick and the wife are drawn, and the Pixel look redraws the
   await expect(page.locator('img#kick')).toBeVisible();                       // both pictures are there (the kick from its file, stills/kick.svg)
   expect(await page.locator('img#kick').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   await expect(page.locator('svg#wife')).toBeVisible();
+  for (const name of ['pubfloor', 'sick', 'asleep', 'breath', 'breathpass', 'splash', 'tea', 'snap', 'click', 'abs']) {   // the other big moments' stills, from their files
+    expect(await page.locator('img#' + name).evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  }
   expect(await page.locator('#w-blinds rect').count()).toBeGreaterThan(10);    // the blinds' slats
   await page.click('#pixel');                                                  // the Pixel look on…
   await expect(page.locator('#pixel')).toHaveText('Pixel look: on');

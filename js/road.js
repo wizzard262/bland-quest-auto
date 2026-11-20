@@ -70,7 +70,7 @@ SCREENS.roadside = {
     man(m[0], m[1], 'stand', 2);                                    // you, on the pavement
     // what you can tap
     if (S.road) {
-      spot('Boot: the spare wheel', isoArea(ROAD_CAR[0] - 4, 72, ROAD_CAR[0] + 8, 96, 4, 20), 'act:roadspare', [ROAD_CAR[0] - 6, 66]);
+      spot('Boot: open it', isoArea(ROAD_CAR[0] - 4, 72, ROAD_CAR[0] + 8, 96, 4, 20), 'act:roadboot', [ROAD_CAR[0] - 6, 66]);
       spot('The flat tyre', isoArea(ROAD_CAR[0] + 30, 92, ROAD_CAR[0] + 42, 98, 0, 10), 'act:roadtyre', [ROAD_CAR[0] + 36, 100]);
     }
     tip(ROADSIDE, roadsideTip(), 1, 8);
@@ -81,7 +81,7 @@ SCREENS.roadside = {
     if (!S.road) return [{ label: 'Drive home', act: 'roadhome' }];
     if (S.inv.wheel) a.push({ label: 'Fit the wheel', act: 'fitwheel' });
     if (!S.road.walked) {
-      if (!S.road.spare) a.push({ label: 'Put the spare on', act: 'roadspare' });
+      if (!S.road.spare) a.push({ label: 'Open the boot', act: 'roadboot' });
       else if (!S.flags.phoneDead) a.push({ label: 'Ring for help', act: 'roadring' });
       else a.push({ label: 'Walk home', act: 'walkhome' });
     } else a.push({ label: "Drive home (in her car)", act: 'roadhome' });
@@ -93,7 +93,7 @@ function roadsideTip() {
   if (!S.road) return 'Your car, with four good tyres. For now.';
   if (S.inv.wheel) return 'You\'ve got a wheel. Fit it.';
   if (S.road.walked) return 'Your car, still on a flat. Get a wheel from the Scrap Yard or a car shop.';
-  if (!S.road.spare) return 'A flat front tyre. There\'s a spare in the boot.';
+  if (!S.road.spare) return 'A flat front tyre. There\'s a spare in the boot: open it.';
   if (!S.flags.phoneDead) return 'The spare\'s flat too. Ring for help?';
   return 'No spare, no phone. It\'s a long walk home.';
 }
@@ -221,6 +221,7 @@ Object.assign(ACTIONS, {
     note('tyre', 'The spare is flat too (probably since 2019)', 'x');
     say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat. Completely flat. There\'s a screw in it. It has probably been flat since 2019.');
   },
+  roadboot() { sfx('click'); show('boot'); },                          // open the boot: the spare, the jack, the brace
   roadtyre() { say('The flat tyre', 'Front left. Flat as a pancake, with a screw in it. Of course there\'s a screw in it.'); },
   // ring for help: the phone dies
   roadring() {
@@ -235,7 +236,7 @@ Object.assign(ACTIONS, {
     show('walkhome');
     sfx('carpass', 3.2);
     moment('walkhome', 7000);
-    ANIM.then = homeSoaked;
+    ANIM.then = () => flashStill('splash', homeSoaked);                // the splash, big; then home
   },
   // back to the car (her car, with the wheel)
   toroad() {

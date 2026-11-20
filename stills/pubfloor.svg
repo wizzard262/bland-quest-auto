@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: one too many, off the bar stool and flat on the pub floor. A big still in the same 1980s action-anime
+     look as the kick. Flashed up in the game when he falls off his stool in The Hesketh Tavern; also on cutscenes.html. -->
+<svg id="pubfloor" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Off the bar stool and flat on the pub floor, his pint flying, the regulars looking on">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="p-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1a2a"/><stop offset="1" stop-color="#6a2e3a"/></linearGradient>
+    <linearGradient id="p-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a4a2a"/><stop offset="1" stop-color="#a8683a"/></linearGradient>
+    <linearGradient id="p-bar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a4a24"/><stop offset="1" stop-color="#5a2e14"/></linearGradient>
+    <linearGradient id="p-beer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd25a"/><stop offset="1" stop-color="#d08a20"/></linearGradient>
+    <radialGradient id="p-light" cx="480" cy="40" r="520" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffe4a0" stop-opacity=".55"/><stop offset="1" stop-color="#ffe4a0" stop-opacity="0"/></radialGradient>
+    <linearGradient id="p-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <radialGradient id="p-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".6"/></radialGradient>
+    <filter id="p-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- the pub: dark red walls, shelves of bottles behind the bar, the warm light over it -->
+  <rect width="960" height="540" fill="url(#p-wall)"/>
+  <rect x="0" y="70" width="960" height="12" fill="#2a1418" class="o"/>
+  <rect x="0" y="150" width="960" height="12" fill="#2a1418" class="o"/>
+  <g class="t">
+    <rect x="40" y="36" width="16" height="34" fill="#4a9a5a"/><rect x="66" y="40" width="16" height="30" fill="#c8a040"/><rect x="92" y="32" width="16" height="38" fill="#7a3a8a"/>
+    <rect x="300" y="36" width="16" height="34" fill="#c84a3a"/><rect x="326" y="42" width="16" height="28" fill="#4a7ac8"/><rect x="352" y="34" width="16" height="36" fill="#4a9a5a"/>
+    <rect x="610" y="38" width="16" height="32" fill="#c8a040"/><rect x="636" y="32" width="16" height="38" fill="#c84a3a"/><rect x="662" y="40" width="16" height="30" fill="#7a3a8a"/>
+    <rect x="140" y="116" width="16" height="34" fill="#c8a040"/><rect x="166" y="120" width="16" height="30" fill="#4a7ac8"/>
+    <rect x="460" y="114" width="16" height="36" fill="#4a9a5a"/><rect x="486" y="120" width="16" height="30" fill="#c84a3a"/>
+    <rect x="800" y="116" width="16" height="34" fill="#7a3a8a"/><rect x="826" y="120" width="16" height="30" fill="#c8a040"/>
+  </g>
+  <rect width="960" height="540" fill="url(#p-light)"/>
+  <!-- the bar itself, its brass rail, and the floorboards -->
+  <path class="o" fill="url(#p-bar)" d="M-10,200 L970,200 L970,330 L-10,330 Z"/>
+  <rect x="-10" y="192" width="980" height="14" fill="#a8683a" class="o"/>
+  <path class="t" stroke="#3a1a0a" d="M120,206 V330 M320,206 V330 M520,206 V330 M720,206 V330 M920,206 V330"/>
+  <rect x="-10" y="312" width="980" height="8" fill="#e0b050" class="o"/>
+  <path class="o" fill="url(#p-floor)" d="M-10,330 L970,330 L970,550 L-10,550 Z"/>
+  <path class="t" stroke="#5a3418" d="M-10,380 H970 M-10,440 H970 M-10,500 H970 M200,330 L180,380 M520,380 L510,440 M80,440 L70,500 M760,330 L770,380 M380,440 L392,500 M860,440 L874,500"/>
+
+  <!-- the regulars at the bar, looking round: Old Ron (flat cap) and Dodgy Dave (beard) -->
+  <g>
+    <path class="o" fill="#5a5a3a" d="M90,330 L96,214 C110,196 150,196 166,214 L170,330 Z"/>
+    <path class="o" fill="#e8b090" d="M106,150 C106,130 120,120 132,120 C146,120 158,130 158,150 C158,170 146,184 132,184 C118,184 106,170 106,150 Z"/>
+    <path class="o" fill="#6a5a3a" d="M100,134 C104,116 122,108 138,110 C152,112 164,120 170,132 C150,128 124,128 100,134 Z"/>
+    <path class="t" d="M120,154 L128,154 M140,154 L148,154 M126,170 C132,174 138,174 144,170"/>
+    <path class="t" stroke="#fff" stroke-width="3" d="M174,140 L186,132 M176,154 L192,154 M174,168 L186,176"/>
+  </g>
+  <g>
+    <path class="o" fill="#3a3a5a" d="M226,330 L232,214 C246,196 286,196 302,214 L306,330 Z"/>
+    <path class="o" fill="#e8b090" d="M242,150 C242,130 256,120 268,120 C282,120 294,130 294,150 C294,170 282,184 268,184 C254,184 242,170 242,150 Z"/>
+    <path class="o" fill="#3a2414" d="M242,160 C244,182 258,196 268,196 C280,196 292,182 294,160 C286,170 276,174 268,174 C258,174 248,170 242,160 Z"/>
+    <path class="o" fill="#3a2414" d="M240,142 C240,122 256,112 270,112 C286,112 298,124 296,142 C286,132 254,132 240,142 Z"/>
+    <circle cx="258" cy="152" r="5" fill="#fff" class="t"/><circle cx="280" cy="152" r="5" fill="#fff" class="t"/>
+    <circle cx="258" cy="153" r="2" fill="#1c1028"/><circle cx="280" cy="153" r="2" fill="#1c1028"/>
+  </g>
+
+  <!-- his bar stool, going over -->
+  <g transform="rotate(32 600 330)">
+    <ellipse cx="600" cy="230" rx="44" ry="12" fill="#c84a3a" class="o"/>
+    <path class="o" fill="none" stroke-width="6" d="M572,236 L560,330 M628,236 L640,330 M600,240 L600,330"/>
+    <path class="t" stroke-width="4" d="M566,290 L634,290"/>
+  </g>
+
+  <!-- the pint, flying, beer everywhere -->
+  <g transform="rotate(-38 780 140)">
+    <path class="o" fill="url(#p-beer)" d="M756,110 L804,110 L798,180 L762,180 Z"/>
+    <path class="o" fill="#fff8e8" d="M752,100 C760,92 800,92 808,100 L806,114 L754,114 Z"/>
+    <path fill="#fff" opacity=".5" d="M766,120 L772,120 L770,170 L766,170 Z"/>
+  </g>
+  <path class="o" fill="#ffd25a" opacity=".9" d="M720,168 C700,190 690,214 700,232 C716,214 726,196 744,184 Z"/>
+  <circle cx="690" cy="250" r="8" fill="#ffd25a" class="t"/><circle cx="716" cy="262" r="5" fill="#ffd25a" class="t"/><circle cx="740" cy="210" r="6" fill="#fff8e8" class="t"/>
+  <circle cx="660" cy="200" r="5" fill="#ffd25a" class="t"/><circle cx="830" cy="200" r="7" fill="#fff8e8" class="t"/>
+
+  <!-- him: flat on his back on the floorboards, arms and legs out, aviators skewed, little birds round his head -->
+  <g id="p-hero">
+    <!-- legs, up on the fallen stool's side -->
+    <path class="o" fill="#304a88" d="M480,428 C520,400 556,370 590,348 L604,368 C572,392 536,420 498,446 Z"/>
+    <path class="o" fill="#5a2e14" d="M588,336 L612,326 C624,330 628,344 620,354 L600,368 Z"/>
+    <path class="o" fill="#4060a8" d="M486,452 C536,446 586,444 636,450 L636,476 C586,474 536,476 488,480 Z"/>
+    <path class="o" fill="#5a2e14" d="M632,444 L666,446 C674,454 674,470 664,478 L632,478 Z"/>
+    <path fill="none" stroke="#86a4e8" stroke-width="3" stroke-linecap="round" d="M500,456 C540,452 590,450 628,454"/>
+    <!-- seat and belt -->
+    <path class="o" fill="#4060a8" d="M420,436 C440,420 476,418 494,432 C504,450 496,474 474,482 C452,488 428,484 418,472 Z"/>
+    <path class="o" fill="#2a1810" d="M420,432 C426,424 432,420 440,418 L448,428 C440,430 434,434 428,440 Z"/>
+    <!-- body: red shirt, flat out -->
+    <path class="o" fill="#e04838" d="M250,430 C300,412 370,410 426,424 C440,440 440,466 426,482 C370,494 300,492 250,478 C240,462 240,444 250,430 Z"/>
+    <path fill="#a83020" d="M252,474 C300,488 370,490 424,478 L428,470 C372,480 302,478 254,466 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M266,424 C320,414 380,414 418,426"/>
+    <circle cx="300" cy="438" r="2.5" fill="#f4f4f0"/><circle cx="330" cy="436" r="2.5" fill="#f4f4f0"/><circle cx="360" cy="436" r="2.5" fill="#f4f4f0"/>
+    <!-- arms flung out: one up towards the bar, one along the floor -->
+    <path class="o" fill="#e8b090" d="M300,426 C306,398 316,372 330,350 L350,360 C338,382 330,404 324,430 Z"/>
+    <rect x="326" y="334" width="28" height="24" rx="9" fill="#e8b090" class="o"/>
+    <path class="o" fill="#e8b090" d="M360,490 C400,500 440,506 480,508 L480,526 C438,526 396,520 356,508 Z"/>
+    <rect x="476" y="502" width="26" height="22" rx="8" fill="#e8b090" class="o"/>
+    <!-- his head on the floor, face up, eyes spinning -->
+    <path class="o" fill="#e8b090" d="M180,428 C182,406 200,392 222,392 C244,392 260,408 260,430 C260,452 244,468 222,468 C200,468 180,452 180,428 Z"/>
+    <path class="o" fill="#603818" d="M180,428 C176,404 192,384 214,382 C200,392 192,408 192,428 C192,448 200,462 212,470 C194,468 182,452 180,428 Z"/>
+    <path class="o" fill="#f4f4f0" d="M196,388 C192,408 192,448 198,470 L188,472 C180,450 180,408 186,386 Z"/>
+    <path class="t" d="M226,412 C232,406 240,410 236,416 C232,420 226,416 230,412 M226,440 C232,434 240,438 236,444 C232,448 226,444 230,440"/>
+    <path class="o" fill="#5a1a1a" d="M246,422 C252,422 254,430 252,436 C248,438 244,436 244,430 Z"/>
+    <!-- the aviators, knocked off his nose -->
+    <g transform="rotate(64 230 470)">
+      <path class="o" fill="url(#p-shades)" stroke-width="3" d="M212,462 C220,458 228,458 232,464 C232,472 226,478 220,476 C214,474 212,468 212,462 Z"/>
+      <path class="o" fill="url(#p-shades)" stroke-width="3" d="M238,464 C246,460 254,460 258,466 C258,474 252,480 246,478 C240,476 238,470 238,464 Z"/>
+      <path class="t" d="M232,464 L238,464"/>
+    </g>
+    <!-- little birds and stars, round and round -->
+    <path class="t" stroke="#ffe14a" stroke-width="4" d="M168,378 C190,356 250,356 270,380 C282,396 262,402 250,394"/>
+    <path fill="#ffe14a" class="t" d="M160,366 L166,378 L178,380 L168,388 L172,400 L160,392 L148,400 L152,388 L142,380 L154,378 Z"/>
+    <path fill="#46e0ff" class="t" d="M270,356 C276,348 286,348 290,356 C296,350 304,352 306,358 C298,360 292,364 288,370 C282,364 276,360 270,356 Z"/>
+    <path fill="#ff9ad0" class="t" d="M214,346 C220,338 230,338 234,346 C240,340 248,342 250,348 C242,350 236,354 232,360 C226,354 220,350 214,346 Z"/>
+  </g>
+
+  <!-- the sound of it -->
+  <text x="400" y="246" transform="rotate(-9 400 246)" font-family="Impact, 'Arial Black', sans-serif" font-size="104" font-style="italic" fill="#ff5fa8" opacity=".9">THUD!</text>
+  <text x="392" y="238" transform="rotate(-9 392 238)" font-family="Impact, 'Arial Black', sans-serif" font-size="104" font-style="italic" fill="#ffe14a" stroke="#1c1028" stroke-width="7" paint-order="stroke">THUD!</text>
+
+  <rect width="960" height="540" filter="url(#p-grain)"/>
+  <rect width="960" height="540" fill="url(#p-vig)"/>
+</svg>

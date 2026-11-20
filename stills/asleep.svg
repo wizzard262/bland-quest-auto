@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: home from the pub, face down on the living room carpet, fast asleep. A big still in the same
+     1980s action-anime look as the kick. Flashed up in the game when he folds up on the floor; also on cutscenes.html. -->
+<svg id="asleep" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Face down on the living room carpet, fast asleep, Zs rising">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="a-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22184a"/><stop offset="1" stop-color="#3a2a6a"/></linearGradient>
+    <linearGradient id="a-carpet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a3a6a"/><stop offset="1" stop-color="#9a5a8a"/></linearGradient>
+    <pattern id="a-pile" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="1.6" fill="#b87aa8"/><circle cx="13" cy="12" r="1.4" fill="#4a2a4a"/></pattern>
+    <radialGradient id="a-lamp" cx="150" cy="200" r="380" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd8a0" stop-opacity=".75"/><stop offset=".4" stop-color="#ff9ec8" stop-opacity=".25"/><stop offset="1" stop-color="#ff9ec8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="a-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <radialGradient id="a-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".6"/></radialGradient>
+    <filter id="a-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- the living room at night: the wall, the window with the moon behind the blind, the lamp, the carpet -->
+  <rect width="960" height="540" fill="url(#a-wall)"/>
+  <rect x="620" y="50" width="220" height="170" rx="4" fill="#0e0a24" class="o"/>
+  <circle cx="770" cy="110" r="34" fill="#fff4d8"/>
+  <g fill="#f6dccb" opacity=".9">
+    <rect x="626" y="60" width="208" height="8"/><rect x="626" y="80" width="208" height="8"/><rect x="626" y="100" width="208" height="8"/>
+    <rect x="626" y="120" width="208" height="8"/><rect x="626" y="140" width="208" height="8"/><rect x="626" y="160" width="208" height="8"/>
+    <rect x="626" y="180" width="208" height="8"/><rect x="626" y="200" width="208" height="8"/>
+  </g>
+  <rect x="110" y="150" width="14" height="140" fill="#2a1a3a" class="o"/>
+  <path class="o" fill="#ff9ec8" d="M80,100 L154,100 L170,156 L64,156 Z"/>
+  <rect width="960" height="540" fill="url(#a-lamp)"/>
+  <rect x="0" y="292" width="960" height="12" fill="#5a3a5a" class="o"/>
+  <path class="o" fill="url(#a-carpet)" d="M-10,304 L970,304 L970,550 L-10,550 Z"/>
+  <path fill="url(#a-pile)" d="M-10,304 L970,304 L970,550 L-10,550 Z" opacity=".7"/>
+  <!-- the sofa's end, on the left -->
+  <path class="o" fill="#3a5a8a" d="M-10,200 L90,200 C110,200 118,214 118,232 L118,330 L-10,330 Z"/>
+  <path class="o" fill="#2a4a78" d="M-10,300 L118,300 L118,330 L-10,330 Z"/>
+
+  <!-- the boot that came off, on its side -->
+  <path class="o" fill="#5a2e14" d="M160,440 L206,440 C220,444 226,456 222,466 L156,468 C150,460 152,448 160,440 Z"/>
+  <path class="t" stroke="#c88a50" d="M168,450 L190,450"/>
+
+  <!-- him, face down across the carpet: one boot on, one sock -->
+  <g id="a-hero">
+    <!-- the legs, the near one with its sock (the boot's over there) -->
+    <path class="o" fill="#304a88" d="M250,392 C300,380 360,378 420,382 L424,410 C362,410 304,414 254,420 Z"/>
+    <path class="o" fill="#5a2e14" d="M214,384 L254,388 L256,422 L216,426 C206,416 206,394 214,384 Z"/>
+    <path class="o" fill="#4060a8" d="M262,424 C318,414 376,412 430,414 L432,446 C376,448 318,452 266,456 Z"/>
+    <path class="o" fill="#e8e4f4" d="M226,426 L266,424 L268,456 L230,460 C220,450 218,436 226,426 Z"/>
+    <path class="t" stroke="#b0a8c8" d="M238,434 L238,452 M248,432 L248,454"/>
+    <path fill="none" stroke="#86a4e8" stroke-width="3" stroke-linecap="round" d="M290,426 C340,420 390,418 424,420"/>
+    <!-- seat, belt -->
+    <path class="o" fill="#4060a8" d="M410,380 C440,370 476,372 494,388 C502,408 494,432 470,442 C448,448 424,446 412,438 Z"/>
+    <path class="o" fill="#2a1810" d="M478,376 C490,382 498,394 500,408 L488,410 C486,398 480,390 470,384 Z"/>
+    <!-- the back: red shirt, ridden up -->
+    <path class="o" fill="#e04838" d="M484,372 C540,360 610,362 660,376 C676,392 676,420 660,436 C610,446 540,446 486,438 C496,418 496,392 484,372 Z"/>
+    <path fill="#a83020" d="M490,432 C540,440 610,440 660,432 L664,424 C612,430 548,430 494,422 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M500,378 C560,368 616,370 650,382"/>
+    <path class="o" fill="#e8b090" d="M484,372 C488,366 496,364 504,366 L500,378 C494,378 488,376 484,372 Z"/>
+    <!-- the far arm, along his side -->
+    <path class="o" fill="#e8b090" d="M520,442 C560,452 600,456 640,452 L642,466 C600,472 556,468 518,458 Z"/>
+    <rect x="636" y="448" width="26" height="22" rx="8" fill="#e8b090" class="o"/>
+    <!-- the near arm, flung out past his head -->
+    <path class="o" fill="#e04838" d="M640,372 C664,360 690,352 716,346 L722,368 C698,374 674,384 654,394 Z"/>
+    <path class="o" fill="#e8b090" d="M714,344 C752,334 790,328 828,326 L830,350 C792,352 756,358 722,368 Z"/>
+    <path class="o" fill="#e8b090" d="M826,322 C840,318 854,320 860,330 C862,342 854,352 840,352 L828,352 Z"/>
+    <path class="t" d="M842,326 L846,348 M850,326 L854,346"/>
+    <!-- his head, face down in the carpet: the back of it, the headband, the hair -->
+    <path class="o" fill="#c88a6e" d="M656,384 L680,378 L684,404 L660,410 Z"/>
+    <path class="o" fill="#e8b090" d="M672,372 C690,354 724,352 744,370 C760,386 758,414 740,428 C720,442 690,440 676,424 C662,410 660,388 672,372 Z"/>
+    <path class="o" fill="#603818" d="M674,376 C684,356 712,348 734,358 C752,366 760,384 756,400 C746,388 730,380 712,380 C698,380 686,384 674,376 Z"/>
+    <path class="o" fill="#f4f4f0" d="M678,372 C700,358 732,358 752,374 L746,384 C730,370 700,370 682,384 Z"/>
+    <path class="o" fill="#f4f4f0" d="M684,380 C676,396 670,410 674,424 C682,412 688,398 692,384 Z"/>
+    <!-- drool on the carpet -->
+    <path fill="#9fe8ff" opacity=".85" class="t" d="M748,428 C758,432 770,432 778,428 C770,438 756,440 748,428 Z"/>
+  </g>
+
+  <!-- the aviators, fallen off beside him -->
+  <g transform="rotate(-14 800 420)">
+    <path class="o" fill="url(#a-shades)" stroke-width="3" d="M780,408 C790,404 800,404 804,410 C804,420 798,426 790,424 C784,422 780,416 780,408 Z"/>
+    <path class="o" fill="url(#a-shades)" stroke-width="3" d="M812,410 C820,406 830,406 834,412 C834,422 828,428 820,426 C814,424 812,418 812,410 Z"/>
+    <path class="t" d="M804,410 L812,410 M780,410 L766,404 M834,412 L848,408"/>
+  </g>
+
+  <!-- her: pink satin and fluffy slippers, standing over him, arms folded (out of the picture) -->
+  <path class="o" fill="#ff9ec8" d="M846,-10 L912,-10 C914,80 922,220 940,340 C920,346 880,348 852,342 C850,220 846,100 846,-10 Z"/>
+  <path fill="#ffd0e8" opacity=".7" d="M864,-10 L878,-10 L898,336 L888,338 Z"/>
+  <path class="t" stroke="#d8689a" d="M858,250 C880,262 904,262 926,252"/>
+  <path class="o" fill="#e8b090" d="M872,342 L884,342 L884,452 L870,452 Z"/>
+  <path class="o" fill="#e8b090" d="M906,342 L918,342 L920,450 L906,450 Z"/>
+  <ellipse cx="872" cy="462" rx="30" ry="14" fill="#ffd0e8" class="o"/>
+  <ellipse cx="918" cy="460" rx="30" ry="14" fill="#ffd0e8" class="o"/>
+  <path class="t" stroke="#ff9ec8" d="M852,456 C858,450 866,450 872,454 M898,454 C904,448 912,448 918,452"/>
+
+  <!-- the Zs, rising -->
+  <text x="704" y="300" transform="rotate(-8 704 300)" font-family="Impact, 'Arial Black', sans-serif" font-size="60" font-style="italic" fill="#46e0ff" stroke="#1c1028" stroke-width="6" paint-order="stroke">Z</text>
+  <text x="748" y="246" transform="rotate(-12 748 246)" font-family="Impact, 'Arial Black', sans-serif" font-size="86" font-style="italic" fill="#ff5fa8" stroke="#1c1028" stroke-width="7" paint-order="stroke">Z</text>
+  <text x="560" y="190" transform="rotate(-8 560 190)" font-family="Impact, 'Arial Black', sans-serif" font-size="118" font-style="italic" fill="#ff5fa8" opacity=".9">ZZZ…</text>
+  <text x="552" y="182" transform="rotate(-8 552 182)" font-family="Impact, 'Arial Black', sans-serif" font-size="118" font-style="italic" fill="#ffe14a" stroke="#1c1028" stroke-width="7" paint-order="stroke">ZZZ…</text>
+
+  <rect width="960" height="540" filter="url(#a-grain)"/>
+  <rect width="960" height="540" fill="url(#a-vig)"/>
+</svg>

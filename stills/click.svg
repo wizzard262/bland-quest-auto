@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: the new sensor finally clicks into the box. A big still in the same 1980s action-anime look as the kick.
+     Flashed up in the game when a sensor fits on the workbench; also on cutscenes.html. -->
+<svg id="click" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Close up: his thumb pushes the sensor home into the box; a ring of light; it fits">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <radialGradient id="c-burst" cx="480" cy="300" r="560" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f4fff8"/><stop offset=".35" stop-color="#9ff3d0"/><stop offset="1" stop-color="#2a5a8a"/></radialGradient>
+    <linearGradient id="c-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0e4ec"/><stop offset="1" stop-color="#7a808c"/></linearGradient>
+    <linearGradient id="c-sensor" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a3a50"/><stop offset=".35" stop-color="#6a7c98"/><stop offset="1" stop-color="#2a3a50"/></linearGradient>
+    <radialGradient id="c-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".5"/></radialGradient>
+    <filter id="c-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .14"/></feComponentTransfer></filter>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#c-burst)"/>
+  <g fill="#fff" opacity=".5">
+    <polygon points="480,330 980,200 980,250"/><polygon points="480,330 980,420 980,470"/><polygon points="480,330 -20,200 -20,250"/>
+    <polygon points="480,330 -20,420 -20,470"/><polygon points="480,330 300,-20 360,-20"/><polygon points="480,330 600,-20 660,-20"/>
+  </g>
+
+  <!-- the box top, and the ring of light where it seats -->
+  <path class="o" fill="url(#c-steel)" d="M0,420 L480,350 L960,420 L960,560 L0,560 Z"/>
+  <ellipse cx="480" cy="400" rx="150" ry="44" fill="none" stroke="#fff" stroke-width="10" opacity=".85"/>
+  <ellipse cx="480" cy="400" rx="200" ry="60" fill="none" stroke="#fff" stroke-width="5" opacity=".5"/>
+  <ellipse cx="480" cy="400" rx="110" ry="34" fill="#4a4e58" class="o"/>
+  <!-- the sensor, home in its hole, the lugs lined up, its plug and coloured wires -->
+  <path class="o" fill="url(#c-sensor)" d="M390,180 L570,180 L570,400 C570,420 530,430 480,430 C430,430 390,420 390,400 Z"/>
+  <ellipse cx="480" cy="180" rx="90" ry="28" fill="#5a6c88" class="o"/>
+  <ellipse cx="480" cy="180" rx="60" ry="18" fill="#8a9cb8" class="o"/>
+  <rect x="340" y="370" width="54" height="16" rx="4" fill="#5a5e68" class="o"/>
+  <rect x="566" y="370" width="54" height="16" rx="4" fill="#5a5e68" class="o"/>
+  <rect x="560" y="200" width="90" height="56" rx="8" fill="#30302c" class="o"/>
+  <rect x="580" y="186" width="44" height="16" fill="#f8d038" class="o"/>
+  <path fill="none" stroke="#e04838" stroke-width="10" stroke-linecap="round" d="M650,212 C720,212 780,240 840,300"/>
+  <path fill="none" stroke="#f8d038" stroke-width="10" stroke-linecap="round" d="M650,228 C716,230 770,260 820,320"/>
+  <path fill="none" stroke="#40a060" stroke-width="10" stroke-linecap="round" d="M650,244 C712,248 760,280 800,340"/>
+
+  <!-- his thumb, pressing it home from above -->
+  <path class="o" fill="#e8b090" d="M380,60 C380,20 420,-10 480,-10 C540,-10 580,20 580,60 L570,150 C566,176 530,190 480,190 C430,190 394,176 390,150 Z"/>
+  <path class="o" fill="#f4d8c8" d="M420,120 C420,96 446,84 480,84 C514,84 540,96 540,120 C540,148 514,164 480,164 C446,164 420,148 420,120 Z"/>
+  <path fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".7" d="M350,120 C320,110 310,80 320,60 M610,120 C640,110 650,80 640,60"/>
+
+  <!-- sparkles -->
+  <g fill="#fff" class="t">
+    <path d="M250,300 L258,316 L274,318 L262,328 L266,344 L250,336 L234,344 L238,328 L226,318 L242,316 Z"/>
+    <path d="M720,350 L726,362 L738,364 L728,372 L732,384 L720,378 L708,384 L712,372 L702,364 L714,362 Z"/>
+  </g>
+
+  <!-- the sound of it -->
+  <text x="120" y="150" transform="rotate(-8 120 150)" font-family="Impact, 'Arial Black', sans-serif" font-size="124" font-style="italic" fill="#46e0ff" opacity=".9">CLICK!</text>
+  <text x="112" y="142" transform="rotate(-8 112 142)" font-family="Impact, 'Arial Black', sans-serif" font-size="124" font-style="italic" fill="#ffe14a" stroke="#1c1028" stroke-width="7" paint-order="stroke">CLICK!</text>
+
+  <rect width="960" height="540" filter="url(#c-grain)"/>
+  <rect width="960" height="540" fill="url(#c-vig)"/>
+</svg>

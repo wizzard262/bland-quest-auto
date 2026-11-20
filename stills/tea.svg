@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: a cup of tea at the kettle, the one calm moment. A big still in the same 1980s action-anime look
+     as the kick. Flashed up in the game when he makes a tea; also on cutscenes.html. -->
+<svg id="tea" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="At the kettle, eyes closed, a mug of tea in both hands, steam rising">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="e-wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe6c8"/><stop offset="1" stop-color="#ffb8c8"/></linearGradient>
+    <radialGradient id="e-calm" cx="430" cy="300" r="420" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff8e8" stop-opacity="1"/><stop offset=".5" stop-color="#fff0d8" stop-opacity=".5"/><stop offset="1" stop-color="#fff0d8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="e-tea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c88a50"/><stop offset="1" stop-color="#8a5a2a"/></linearGradient>
+    <linearGradient id="e-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <radialGradient id="e-vig" cx=".5" cy=".5" r=".75"><stop offset=".6" stop-color="#5a2a4a" stop-opacity="0"/><stop offset="1" stop-color="#5a2a4a" stop-opacity=".45"/></radialGradient>
+    <filter id="e-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .14"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- the kitchen: warm wall, tiles, the worktop, the kettle (still steaming), a calm glow round him -->
+  <rect width="960" height="540" fill="url(#e-wall)"/>
+  <g stroke="#e8a8a8" stroke-width="2" opacity=".6">
+    <path d="M0,240 H960 M0,280 H960 M0,320 H960"/>
+    <path d="M40,240 V340 M120,240 V340 M200,240 V340 M680,240 V340 M760,240 V340 M840,240 V340 M920,240 V340"/>
+  </g>
+  <path class="o" fill="#f4f0e8" d="M-10,340 L970,340 L970,372 L-10,372 Z"/>
+  <path class="o" fill="#7a9ac8" d="M-10,372 L970,372 L970,550 L-10,550 Z"/>
+  <path class="t" stroke="#5a7aa8" d="M240,372 V550 M480,372 V550 M720,372 V550"/>
+  <!-- the kettle, on the worktop, right -->
+  <path class="o" fill="#e04838" d="M760,340 L760,250 C760,226 780,212 810,212 C840,212 860,226 860,250 L860,340 Z"/>
+  <path class="o" fill="#e04838" d="M860,262 C890,262 900,286 892,310 C886,326 872,332 860,330 L860,312 C874,312 878,300 878,290 C878,280 872,278 860,280 Z"/>
+  <path class="o" fill="#e04838" d="M760,266 L726,250 L730,264 L760,286 Z"/>
+  <rect x="790" y="198" width="40" height="16" rx="6" fill="#3a3a44" class="o"/>
+  <path fill="#fff" opacity=".45" d="M776,240 C776,232 784,226 792,226 L792,330 L776,330 Z"/>
+  <path fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".7" d="M724,240 C712,214 732,196 716,170"/>
+  <!-- a box of tea bags and the milk -->
+  <rect x="610" y="280" width="70" height="60" fill="#40a090" class="o"/>
+  <text x="645" y="316" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="14" fill="#f4f4f0">TEA</text>
+  <path class="o" fill="#f4f4f0" d="M100,340 L100,266 L120,248 L150,248 L150,340 Z"/>
+  <rect x="100" y="286" width="50" height="20" fill="#3a6ad0"/>
+
+  <rect width="960" height="540" fill="url(#e-calm)"/>
+
+  <!-- him: eyes closed, both hands round the mug, shoulders down at last -->
+  <g id="e-hero">
+    <!-- shoulders and body: red shirt -->
+    <path class="o" fill="#e04838" d="M290,560 C290,470 320,420 380,404 C420,394 460,394 500,404 C560,420 590,470 590,560 Z"/>
+    <path fill="#a83020" d="M300,560 C302,490 322,446 360,424 C340,460 330,510 330,560 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M396,410 C430,402 470,402 500,412"/>
+    <path class="o" fill="#e8b090" d="M408,404 L440,446 L472,404 Z"/>
+    <!-- neck and head -->
+    <path class="o" fill="#c88a6e" d="M416,360 L464,360 L462,408 L418,408 Z"/>
+    <path class="o" fill="#e8b090" d="M378,270 C378,222 406,196 440,196 C474,196 502,222 502,270 C502,318 476,356 440,356 C404,356 378,318 378,270 Z"/>
+    <path fill="#603818" opacity=".35" d="M392,312 C404,340 424,354 440,354 C458,354 478,340 488,312 C474,326 458,332 440,332 C422,332 404,326 392,312 Z"/>
+    <path class="o" fill="#603818" d="M374,262 C368,214 400,184 440,184 C482,184 512,214 506,262 C496,238 474,226 440,226 C406,226 384,238 374,262 Z"/>
+    <path class="o" fill="#f4f4f0" d="M378,236 C400,220 480,220 502,236 L500,250 C478,236 402,236 380,250 Z"/>
+    <!-- the aviators pushed up on his head -->
+    <path class="o" fill="url(#e-shades)" stroke-width="3" d="M404,214 C414,208 428,208 434,216 C432,226 424,230 414,228 C406,226 402,220 404,214 Z"/>
+    <path class="o" fill="url(#e-shades)" stroke-width="3" d="M446,216 C452,208 466,208 476,214 C478,220 474,226 466,228 C456,230 448,226 446,216 Z"/>
+    <path class="t" d="M434,216 L446,216"/>
+    <!-- eyes closed, a little smile, a happy blush -->
+    <path class="t" stroke-width="3.5" d="M404,276 C412,284 424,284 430,276 M450,276 C456,284 468,284 476,276"/>
+    <path class="t" stroke-width="3" d="M424,316 C432,324 448,324 456,316"/>
+    <ellipse cx="404" cy="300" rx="12" ry="6" fill="#ff9ec8" opacity=".6"/>
+    <ellipse cx="476" cy="300" rx="12" ry="6" fill="#ff9ec8" opacity=".6"/>
+    <!-- the mug, both hands round it -->
+    <path class="o" fill="#f4f4f0" d="M396,416 L484,416 L478,500 C478,512 470,518 460,518 L420,518 C410,518 402,512 402,500 Z"/>
+    <path class="o" fill="none" stroke-width="10" d="M484,436 C512,436 518,476 482,484"/>
+    <path class="o" fill="none" stroke="#f4f4f0" stroke-width="5" d="M484,436 C512,436 518,476 482,484"/>
+    <ellipse cx="440" cy="418" rx="44" ry="10" fill="url(#e-tea)" class="t"/>
+    <text x="440" y="476" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="18" fill="#e04838">#1 DAD</text>
+    <path class="o" fill="#e8b090" d="M360,520 C364,488 380,460 404,448 L414,474 C398,486 392,500 392,520 Z"/>
+    <rect x="388" y="452" width="30" height="40" rx="12" fill="#e8b090" class="o"/>
+    <path class="o" fill="#e8b090" d="M520,520 C516,488 500,460 476,448 L466,474 C482,486 488,500 488,520 Z"/>
+    <rect x="462" y="452" width="30" height="40" rx="12" fill="#e8b090" class="o"/>
+    <!-- the steam, curling up past his face -->
+    <path fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".85" d="M420,404 C404,380 430,364 414,340 C402,322 420,304 410,284"/>
+    <path fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7" d="M452,404 C470,384 446,366 462,344 C474,328 458,312 468,296"/>
+  </g>
+
+  <!-- calm: soft bubbles and sparkles, and the word for it -->
+  <circle cx="260" cy="160" r="16" fill="#fff" opacity=".6" class="t"/><circle cx="300" cy="110" r="10" fill="#fff" opacity=".6" class="t"/>
+  <circle cx="610" cy="160" r="12" fill="#fff" opacity=".6" class="t"/><circle cx="650" cy="110" r="8" fill="#fff" opacity=".6" class="t"/>
+  <path fill="#ffe14a" class="t" d="M226,240 L232,252 L244,254 L234,262 L238,274 L226,266 L214,274 L218,262 L208,254 L220,252 Z"/>
+  <path fill="#46e0ff" class="t" d="M650,220 L654,228 L662,230 L656,236 L658,244 L650,240 L642,244 L644,236 L638,230 L646,228 Z"/>
+  <text x="560" y="120" transform="rotate(-6 560 120)" font-family="Impact, 'Arial Black', sans-serif" font-size="96" font-style="italic" fill="#ff9ec8" opacity=".9">AHHH…</text>
+  <text x="552" y="112" transform="rotate(-6 552 112)" font-family="Impact, 'Arial Black', sans-serif" font-size="96" font-style="italic" fill="#fff8e8" stroke="#1c1028" stroke-width="7" paint-order="stroke">AHHH…</text>
+
+  <rect width="960" height="540" filter="url(#e-grain)"/>
+  <rect width="960" height="540" fill="url(#e-vig)"/>
+</svg>

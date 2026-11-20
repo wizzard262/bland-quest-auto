@@ -390,6 +390,7 @@ function render() {
   stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger, .hbcover, .partno').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
+  if (STILL) stage.insertAdjacentHTML('beforeend', stillHtml());   // a big still, flashed up over everything
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
   const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath'].includes(S.screen);   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
   if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
@@ -419,6 +420,36 @@ function render() {
 // MOVING PICTURES: life on every screen, and short animated moments
 // =====================================================================
 let ANIM = null;                        // the moment playing now: { kind, t0, dur }
+// =====================================================================
+// THE STILLS: a big picture (stills/<name>.svg) flashed up after a big moment, like a comic-book cut:
+// a white flash, it punches in small and tilted, then slowly zooms and turns. Dialogs wait for it
+// =====================================================================
+let STILL = null;                                                  // the still showing now: { name, mirror }
+const STILL_MS = 1800;                                             // how long it stays up
+// Flash a still up now; then carry on (then: what happens next, if anything)
+function flashStill(name, then, mirror = false) {
+  STILL = { name, mirror };
+  moment('still', STILL_MS);
+  ANIM.then = () => {
+    STILL = null;
+    if (then) then();
+  };
+}
+// Flash a still up once the moment playing now has finished (or straight away, if nothing is playing)
+function stillAfter(name, mirror = false) {
+  if (!ANIM) return flashStill(name, null, mirror);
+  const before = ANIM.then;                                        // whatever the moment was going to do when it ends
+  ANIM.then = () => {
+    if (before) before();
+    flashStill(name, null, mirror);
+  };
+}
+// The still's HTML (flipped when the scene is mirrored)
+function stillHtml() {
+  const flip = STILL.mirror ? ' mirror' : '';
+  return `<div class="ov still${flip}"><img src="stills/${STILL.name}.svg" alt=""></div>`;
+}
+
 // Play a moment (an animation in MOMENTS, screens.js) for `dur` milliseconds; dialogs wait for it
 function moment(kind, dur) {
   ANIM = { kind, t0: performance.now(), dur };
@@ -511,6 +542,13 @@ stage.addEventListener('pointermove', e => {
 // The breath test: press and hold to blow; let go and it reads (after the click, so the click doesn't close what it says)
 stage.addEventListener('pointerdown', e => { if (S.screen === 'breath' && !DIALOG && !ANIM && !e.target.closest('button, .dlg')) breathDown(); });
 addEventListener('pointerup', () => { if (S.screen === 'breath') setTimeout(breathUp, 0); });
+// Looking under something: the pointer aims the torch beam
+stage.addEventListener('pointermove', e => {
+  if (S.screen !== 'lookunder' || DIALOG) return;
+  const [x, y] = picturePoint(e);
+  BEAM = { x: Math.max(0, Math.min(W, x)), y: Math.max(150, Math.min(H, y)) };   // on the floor
+  underBeamMoved();
+});
 // Under the tool chest: the pointer moves the stick
 stage.addEventListener('pointermove', e => {
   if (S.screen !== 'fish' || DIALOG) return;

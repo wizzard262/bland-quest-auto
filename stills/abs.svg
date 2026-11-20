@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: the end of the job. The red light goes off… and the ABS light comes on. A big still in the same 1980s
+     action-anime look as the kick. Flashed up in the game at the end of branch 1; also on cutscenes.html. -->
+<svg id="abs" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="In the driver's seat, hands on his head: the red light is off, and the ABS light has come on">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="d-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1550"/><stop offset="1" stop-color="#5a1a3a"/></linearGradient>
+    <radialGradient id="d-abs" cx="700" cy="400" r="380" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffb030" stop-opacity=".95"/><stop offset=".3" stop-color="#ff8a20" stop-opacity=".45"/><stop offset="1" stop-color="#ff8a20" stop-opacity="0"/></radialGradient>
+    <linearGradient id="d-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <radialGradient id="d-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".6"/></radialGradient>
+    <filter id="d-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#d-bg)"/>
+  <rect width="960" height="540" fill="url(#d-abs)"/>
+  <!-- dramatic lines down behind him -->
+  <g stroke="#1c1028" stroke-width="3" opacity=".35">
+    <path d="M60,0 V300 M110,0 V260 M160,0 V320 M800,0 V280 M850,0 V250 M900,0 V310"/>
+  </g>
+
+  <!-- him in the driver's seat, both hands on his head, mouth wide -->
+  <g id="d-hero">
+    <path class="o" fill="#e04838" d="M240,560 C240,450 290,400 360,384 L480,376 L600,384 C670,400 720,450 720,560 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M380,388 C440,378 520,378 580,388"/>
+    <path class="o" fill="#e8b090" d="M440,376 L480,420 L520,376 Z"/>
+    <path class="o" fill="#c88a6e" d="M448,320 L512,320 L508,380 L452,380 Z"/>
+    <!-- the arms up, hands clamped on his head -->
+    <path class="o" fill="#e04838" d="M300,420 C280,360 290,280 330,220 L366,236 C336,286 330,346 340,404 Z"/>
+    <path class="o" fill="#e04838" d="M660,420 C680,360 670,280 630,220 L594,236 C624,286 630,346 620,404 Z"/>
+    <path class="o" fill="#e8b090" d="M400,220 C400,160 436,120 480,120 C524,120 560,160 560,220 C560,282 528,326 480,326 C432,326 400,282 400,220 Z"/>
+    <path class="o" fill="#603818" d="M396,212 C392,152 430,112 480,112 C530,112 568,152 564,212 C552,180 520,164 480,164 C440,164 408,180 396,212 Z"/>
+    <path class="o" fill="#f4f4f0" d="M400,184 C430,166 530,166 560,184 L558,198 C528,182 432,182 402,198 Z"/>
+    <rect x="320" y="180" width="80" height="64" rx="22" fill="#e8b090" class="o"/>
+    <rect x="560" y="180" width="80" height="64" rx="22" fill="#e8b090" class="o"/>
+    <path class="t" d="M340,196 L392,192 M340,212 L392,210 M620,196 L568,192 M620,212 L568,210"/>
+    <!-- aviators, and a single tear running out from under them -->
+    <path class="o" fill="url(#d-shades)" stroke-width="3" d="M418,216 C432,206 458,206 466,218 C464,234 452,242 438,240 C424,238 416,228 418,216 Z"/>
+    <path class="o" fill="url(#d-shades)" stroke-width="3" d="M494,218 C502,206 528,206 542,216 C544,228 536,238 522,240 C508,242 496,234 494,218 Z"/>
+    <path class="t" d="M466,218 L494,218"/>
+    <path fill="#fff" opacity=".5" d="M424,222 L446,218 L426,234 Z"/>
+    <path class="o" fill="#9fe8ff" d="M440,244 C436,262 434,272 440,278 C446,272 446,262 440,244 Z"/>
+    <!-- mouth wide open -->
+    <path class="o" fill="#5a1a1a" d="M450,276 C460,266 500,266 510,276 C510,298 500,310 480,310 C460,310 450,298 450,276 Z"/>
+    <path fill="#f4f4f0" d="M456,276 C466,270 494,270 504,276 L502,282 C492,278 468,278 458,282 Z"/>
+  </g>
+
+  <!-- the dashboard in front: the red light off, the ABS light glowing -->
+  <path class="o" fill="#18191c" d="M-10,430 C200,400 760,400 970,430 L970,560 L-10,560 Z"/>
+  <circle cx="300" cy="480" r="36" fill="#2a1a1a" class="o"/>
+  <path class="t" stroke="#5a2a2a" stroke-width="5" d="M282,486 L300,466 L318,486 M290,494 L310,494"/>
+  <text x="300" y="540" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="16" fill="#5a5a6a">OFF</text>
+  <circle cx="700" cy="476" r="46" fill="#ffb030" class="o"/>
+  <circle cx="700" cy="476" r="64" fill="none" stroke="#ffb030" stroke-width="6" opacity=".5"/>
+  <circle cx="700" cy="476" r="30" fill="none" class="t" stroke-width="5"/>
+  <text x="700" y="485" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="22" fill="#1c1028">ABS</text>
+  <path class="t" stroke-width="5" d="M650,446 C640,460 640,492 650,506 M750,446 C760,460 760,492 750,506"/>
+
+  <!-- the sound of it -->
+  <text x="60" y="120" transform="rotate(-8 60 120)" font-family="Impact, 'Arial Black', sans-serif" font-size="110" font-style="italic" fill="#ff5fa8" opacity=".9">NOOOO!</text>
+  <text x="52" y="112" transform="rotate(-8 52 112)" font-family="Impact, 'Arial Black', sans-serif" font-size="110" font-style="italic" fill="#ffb030" stroke="#1c1028" stroke-width="7" paint-order="stroke">NOOOO!</text>
+
+  <rect width="960" height="540" filter="url(#d-grain)"/>
+  <rect width="960" height="540" fill="url(#d-vig)"/>
+</svg>

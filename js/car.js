@@ -7,8 +7,14 @@
 SCREENS.boot = {
   size: [480, 270],
   paint() {
-    grime(0, 0, W, H, C.concrete, 0.1, 41);                            // the garage wall behind
-    rect(0, 236, W, 34, C.floor);                                       // the garage floor
+    const roadside = !!S.road;                                          // open on Mill Lane, with a puncture (road.js)
+    if (roadside) {
+      grime(0, 0, W, H, C.grassDark, 0.12, 43);                         // the verge behind
+      rect(0, 236, W, 34, C.road);                                      // the road
+    } else {
+      grime(0, 0, W, H, C.concrete, 0.1, 41);                           // the garage wall behind
+      rect(0, 236, W, 34, C.floor);                                     // the garage floor
+    }
     // the lid, swung up, with its rear window
     rbox(60, 2, 360, 34, 8, C.car);
     rbox(80, 8, 320, 20, 4, C.glass);
@@ -21,7 +27,8 @@ SCREENS.boot = {
     grime(66, 48, 348, 178, hex('#2a2a30'), 0.25, 42);
     // the spare wheel, lying flat in its round well, bolted down in the middle (or not there: at the Tyre Place)
     disc(240, 136, 66, hex('#18181c'));                                 // the well
-    if (S.spare !== 'away') {
+    const spareOut = S.spare === 'away' || (S.road && S.road.spare);   // at the Tyre Place, or heaved out onto the verge
+    if (!spareOut) {
       disc(240, 136, 60, C.tyre);                                       // the tyre
       for (let a = 0; a < 6.28; a += 0.2) px(240 + Math.cos(a) * 54, 136 + Math.sin(a) * 54, hex('#34343a'));   // tread
       disc(240, 136, 36, C.rim);                                        // the steel wheel
@@ -44,10 +51,14 @@ SCREENS.boot = {
     rbox(24, 238, 432, 24, 6, C.carDark);
     rbox(196, 242, 88, 16, 2, C.warm);
     text('TT85 KIK', 210, 247, C.ink);
-    zoomZones([['Spare wheel', 172, 68, 136, 136], ['Jack', 78, 88, 90, 104], ['Wheel brace', 320, 80, 96, 120]]);
+    const spareGo = S.road && !S.road.spare ? 'act:roadspare' : null;   // at the roadside: heave it out
+    zoomZones([['Spare wheel', 172, 68, 136, 136, false, spareGo], ['Jack', 78, 88, 90, 104], ['Wheel brace', 320, 80, 96, 120]]);
     hud();
   },
-  actions() { return [{ label: 'Close the boot', act: 'go:garage' }]; }
+  actions() {
+    if (S.road) return [{ label: 'Close the boot', act: 'go:roadside' }];   // back to the roadside
+    return [{ label: 'Close the boot', act: 'go:garage' }];
+  }
 };
 
 // =====================================================================

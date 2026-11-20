@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: pulled over after one drink, blowing into the breathalyser: a pass. A big still in the same 1980s action-anime
+     look as the kick. Flashed up in the game when the breath test is a pass; also on cutscenes.html. -->
+<svg id="breathpass" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cheeks puffed out, blowing into the police breathalyser; its lights stop at amber: a pass">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="b-night" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#10184a"/><stop offset="1" stop-color="#2a0e3a"/></linearGradient>
+    <radialGradient id="b-blue" cx="180" cy="120" r="420" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#46a0ff" stop-opacity=".95"/><stop offset=".4" stop-color="#2a5aff" stop-opacity=".35"/><stop offset="1" stop-color="#2a5aff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b-red" cx="820" cy="90" r="320" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff4a6a" stop-opacity=".7"/><stop offset="1" stop-color="#ff4a6a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="b-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <pattern id="b-check" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#f4f4f0"/><rect width="12" height="12" fill="#1c3a8a"/><rect x="12" y="12" width="12" height="12" fill="#1c3a8a"/></pattern>
+    <radialGradient id="b-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".6"/></radialGradient>
+    <filter id="b-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- night, and the police lights flashing blue and red -->
+  <rect width="960" height="540" fill="url(#b-night)"/>
+  <rect width="960" height="540" fill="url(#b-blue)"/>
+  <rect width="960" height="540" fill="url(#b-red)"/>
+  <g stroke="#9fd0ff" stroke-width="6" stroke-linecap="round" opacity=".55">
+    <path d="M180,120 L60,40 M180,120 L40,150 M180,120 L120,260 M180,120 L300,30 M180,120 L330,180"/>
+  </g>
+
+  <!-- his car door: he's sat in the driver's seat, window down -->
+  <path class="o" fill="#3c78c8" d="M300,560 L320,300 C324,280 340,268 360,268 L960,268 L960,560 Z"/>
+  <path class="o" fill="#203048" d="M330,300 C334,286 346,280 360,280 L960,280 L960,296 L330,312 Z"/>
+  <path class="t" stroke="#285094" d="M340,420 L960,410"/>
+
+  <!-- him: leaning out, cheeks puffed out, blowing for all he's worth -->
+  <g id="b-hero">
+    <path class="o" fill="#e04838" d="M420,560 C420,470 450,420 520,404 C580,392 640,404 680,440 L700,560 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M530,412 C570,404 620,410 660,436"/>
+    <path class="o" fill="#c88a6e" d="M520,352 L576,352 L572,410 L524,410 Z"/>
+    <path class="o" fill="#e8b090" d="M466,250 C466,196 504,164 548,164 C594,164 630,198 630,250 C630,304 598,350 548,350 C498,350 466,304 466,250 Z"/>
+    <!-- the cheeks, blown out round as balloons -->
+    <circle cx="498" cy="290" r="38" fill="#f0a888" class="o"/>
+    <circle cx="600" cy="290" r="38" fill="#f0a888" class="o"/>
+    <ellipse cx="486" cy="278" rx="12" ry="7" fill="#fff" opacity=".45"/>
+    <ellipse cx="588" cy="278" rx="12" ry="7" fill="#fff" opacity=".45"/>
+    <path class="o" fill="#603818" d="M462,240 C456,186 496,150 548,150 C602,150 640,186 634,240 C620,212 590,196 548,196 C506,196 476,212 462,240 Z"/>
+    <path class="o" fill="#f4f4f0" d="M466,214 C494,194 602,194 630,214 L628,230 C600,212 496,212 468,230 Z"/>
+    <!-- the aviators, steamed up -->
+    <path class="o" fill="url(#b-shades)" stroke-width="3" d="M492,238 C506,230 528,230 536,240 C534,256 524,264 510,262 C498,260 490,250 492,238 Z"/>
+    <path class="o" fill="url(#b-shades)" stroke-width="3" d="M560,240 C568,230 590,230 604,238 C606,250 598,260 586,262 C572,264 562,256 560,240 Z"/>
+    <path class="t" d="M536,240 L560,240"/>
+    <path fill="#fff" opacity=".5" d="M498,244 L520,240 L500,256 Z M566,244 L588,240 L568,256 Z"/>
+    <!-- sweat -->
+    <path class="o" fill="#9fe8ff" d="M462,206 C456,220 456,228 462,232 C468,228 468,220 462,206 Z"/>
+    <path class="o" fill="#9fe8ff" d="M640,224 C634,238 634,246 640,250 C646,246 646,238 640,224 Z"/>
+  </g>
+
+  <!-- the policeman's arm, from the left: black sleeve, chequered cuff band, holding the breathalyser to his lips -->
+  <path class="o" fill="#1a1a24" d="M-20,380 C80,360 220,330 380,318 L392,360 C240,374 100,410 -20,440 Z"/>
+  <path fill="url(#b-check)" class="t" d="M300,326 L330,322 L338,364 L308,368 Z"/>
+  <rect x="368" y="300" width="54" height="56" rx="14" fill="#e8b090" class="o"/>
+  <!-- the breathalyser: yellow, a row of lights from green to red, its mouthpiece in his mouth -->
+  <rect x="404" y="270" width="96" height="70" rx="12" fill="#f8d038" class="o"/>
+  <rect x="414" y="282" width="76" height="26" rx="5" fill="#0a2a20" class="t"/>
+  <circle cx="424" cy="295" r="5" fill="#40e070"/><circle cx="438" cy="295" r="5" fill="#a0e040"/><circle cx="452" cy="295" r="5" fill="#f8d038"/>
+  <circle cx="466" cy="295" r="5" fill="#3a2a1a"/><circle cx="480" cy="295" r="5" fill="#3a2a1a"/>
+  <circle cx="452" cy="295" r="12" fill="#f8d038" opacity=".35"/>
+  <text x="452" y="330" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="14" fill="#1c1028">PASS</text>
+  <path class="o" fill="#f4f4f0" d="M498,296 L540,300 L540,312 L498,316 Z"/>
+
+  <!-- the sound of it -->
+  <text x="610" y="130" transform="rotate(-8 610 130)" font-family="Impact, 'Arial Black', sans-serif" font-size="100" font-style="italic" fill="#40c070" opacity=".9">PHEW!</text>
+  <text x="602" y="122" transform="rotate(-8 602 122)" font-family="Impact, 'Arial Black', sans-serif" font-size="100" font-style="italic" fill="#a0f0a0" stroke="#1c1028" stroke-width="7" paint-order="stroke">PHEW!</text>
+
+  <rect width="960" height="540" filter="url(#b-grain)"/>
+  <rect width="960" height="540" fill="url(#b-vig)"/>
+</svg>

@@ -50,14 +50,8 @@ SCREENS.rage = {
     rageCar(RAGE.done || RAGE.already);                                                // once he's kicked it, it stays smashed
     if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
   },
-  // the still of the kick (stills/kick.svg), flashed up after it like a comic-book cut; flipped for the other headlight
-  overlay() {
-    if (!RAGE.still) return '';
-    return `<div class="ov still${RAGE.mirror ? ' mirror' : ''}"><img src="stills/kick.svg" alt="He flying-kicks the headlight; glass explodes"></div>`;
-  },
   actions() { return []; }
 };
-const KICK_STILL_MS = 1800;                                   // how long the still of the kick stays up
 // Start the cutscene from wherever you are; when it's over (and he's sworn), you're back where you were
 // side: the headlight he kicks; the right one is the whole scene mirrored (he runs in from the other side)
 function rageCutscene(side) {
@@ -70,15 +64,12 @@ function rageCutscene(side) {
   moment('rage', 2400);
   ANIM.then = () => {
     RAGE.done = true;
-    RAGE.still = true;                                                    // the still of the kick flashes up…
     sfx('thud');
-    moment('kickstill', KICK_STILL_MS);
-    ANIM.then = () => {                                                   // …and then he swears
-      RAGE.still = false;
+    flashStill('kick', () => {                                            // the still of the kick flashes up (flipped for the right headlight)… then he swears
       const head = [RAGE_MAN.standX + 5, RAGE_CAR[1] - 95];               // his head, where he stands after the kick
       const at = RAGE.mirror ? [W - head[0], head[1]] : head;             // his head (on the other side when the scene's mirrored)
       DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at, options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
-    };
+    }, RAGE.mirror);
   };
   render();
 }

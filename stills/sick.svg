@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Thankless Task: thrown out of the pub, sick in the gutter. A big still in the same 1980s action-anime look as the kick.
+     Flashed up in the game after he's sick outside The Hesketh Tavern; also on cutscenes.html. -->
+<svg id="sick" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Thrown out of the pub at night, bent double and sick in the gutter">
+  <style>
+    .o { stroke: #1c1028; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .t { stroke: #1c1028; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+  </style>
+  <defs>
+    <linearGradient id="s-night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0e34"/><stop offset="1" stop-color="#4a1f5e"/></linearGradient>
+    <pattern id="s-bricks" width="60" height="30" patternUnits="userSpaceOnUse">
+      <rect width="60" height="30" fill="#5a2a3a"/>
+      <path d="M0,0 H60 M0,15 H60 M0,30 H60 M30,0 V15 M0,15 V30 M60,15 V30" stroke="#3a1828" stroke-width="3"/>
+    </pattern>
+    <radialGradient id="s-window" cx=".5" cy=".5" r=".7"><stop offset="0" stop-color="#fff2b0"/><stop offset=".6" stop-color="#ffb84a"/><stop offset="1" stop-color="#e06a2a"/></radialGradient>
+    <radialGradient id="s-glow" cx="0" cy="0" r="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#ffe9a0" stop-opacity=".8"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="s-lamp" cx="830" cy="80" r="260" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff4c8" stop-opacity=".9"/><stop offset=".3" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="s-shades" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fa8"/><stop offset=".5" stop-color="#2a1550"/><stop offset="1" stop-color="#46e0ff"/></linearGradient>
+    <linearGradient id="s-sick" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8e860"/><stop offset="1" stop-color="#8aa830"/></linearGradient>
+    <radialGradient id="s-vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#140a28" stop-opacity="0"/><stop offset="1" stop-color="#140a28" stop-opacity=".6"/></radialGradient>
+    <filter id="s-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .16"/></feComponentTransfer></filter>
+  </defs>
+
+  <!-- the night, the pub's brick wall, its glowing window and door, and its neon sign -->
+  <rect width="960" height="540" fill="url(#s-night)"/>
+  <rect x="0" y="40" width="960" height="330" fill="url(#s-bricks)"/>
+  <rect x="0" y="40" width="960" height="330" fill="#1a0e34" opacity=".35"/>
+  <rect x="40" y="130" width="230" height="160" rx="6" fill="url(#s-window)" class="o"/>
+  <path class="t" stroke-width="6" d="M155,130 V290 M40,210 H270"/>
+  <ellipse cx="155" cy="210" rx="190" ry="140" fill="url(#s-glow)" opacity=".5"/>
+  <rect x="300" y="150" width="96" height="220" fill="#2a1418" class="o"/>
+  <rect x="312" y="164" width="72" height="80" fill="#ffb84a" opacity=".8" class="t"/>
+  <text x="184" y="98" text-anchor="middle" font-family="Impact, 'Arial Black', sans-serif" font-size="46" font-style="italic" fill="none" stroke="#ff5fa8" stroke-width="10" opacity=".35">THE HESKETH</text>
+  <text x="184" y="98" text-anchor="middle" font-family="Impact, 'Arial Black', sans-serif" font-size="46" font-style="italic" fill="#ffd0e8" stroke="#ff5fa8" stroke-width="2.5">THE HESKETH</text>
+
+  <!-- the street lamp, and its pool of light -->
+  <rect width="960" height="540" fill="url(#s-lamp)"/>
+  <rect x="850" y="80" width="14" height="300" fill="#2a2a3a" class="o"/>
+  <path class="o" fill="#2a2a3a" d="M830,70 L884,70 L874,90 L840,90 Z"/>
+  <ellipse cx="857" cy="92" rx="18" ry="6" fill="#fff4c8"/>
+
+  <!-- the pavement, the kerb and the road -->
+  <path class="o" fill="#6a6a88" d="M-10,370 L970,370 L970,452 L-10,452 Z"/>
+  <path class="t" stroke="#4a4a68" d="M120,370 L100,452 M300,370 L290,452 M480,370 L480,452 M660,370 L670,452 M840,370 L860,452"/>
+  <rect x="-10" y="452" width="980" height="14" fill="#9a9ab8" class="o"/>
+  <rect x="-10" y="466" width="980" height="90" fill="#26203a"/>
+  <path fill="#46e0ff" opacity=".18" d="M560,476 C620,470 700,472 760,478 C700,486 620,486 560,482 Z"/>
+
+  <!-- across the road, small: a man walking his dog, crossing over -->
+  <g opacity=".85">
+    <path fill="#140a28" d="M96,500 C96,474 104,458 112,452 C120,458 126,474 126,500 Z"/>
+    <circle cx="112" cy="444" r="9" fill="#140a28"/>
+    <path stroke="#140a28" stroke-width="3" fill="none" d="M124,470 C140,480 150,486 160,488"/>
+    <path fill="#140a28" d="M156,488 L190,486 L196,496 L190,506 L184,500 L164,502 L160,508 L154,500 Z"/>
+  </g>
+
+  <!-- him: bent double on the pavement, hands on his knees -->
+  <g id="s-hero">
+    <!-- the back leg -->
+    <path class="o" fill="#304a88" d="M452,300 C440,340 432,380 426,420 L452,424 C460,386 470,350 484,312 Z"/>
+    <path class="o" fill="#5a2e14" d="M424,418 L456,420 C462,428 462,438 454,442 L410,442 C404,434 410,424 424,418 Z"/>
+    <!-- the front leg, bent at the knee -->
+    <path class="o" fill="#4060a8" d="M470,296 C500,330 520,352 540,370 C536,392 532,410 530,424 L504,424 C506,404 510,388 514,374 C494,354 474,330 456,312 Z"/>
+    <path class="o" fill="#5a2e14" d="M502,420 L534,420 C542,428 542,438 534,442 L492,442 C488,434 492,426 502,420 Z"/>
+    <path fill="none" stroke="#86a4e8" stroke-width="3" stroke-linecap="round" d="M478,306 C496,326 512,342 528,358"/>
+    <!-- jeans seat and belt -->
+    <path class="o" fill="#4060a8" d="M430,284 C440,262 470,256 492,268 C504,282 500,306 482,316 C462,322 440,314 432,302 Z"/>
+    <path class="o" fill="#2a1810" d="M478,266 C492,270 502,280 504,290 L492,294 C490,284 482,276 470,272 Z"/>
+    <!-- his back: red shirt, leaning right over -->
+    <path class="o" fill="#e04838" d="M478,268 C520,246 580,252 626,280 C644,292 650,312 640,326 C604,330 556,318 498,302 Z"/>
+    <path fill="#a83020" d="M500,300 C556,316 604,328 640,326 C644,318 644,312 642,306 C600,312 556,302 506,286 Z"/>
+    <path fill="none" stroke="#ff8a70" stroke-width="4" stroke-linecap="round" d="M506,262 C548,252 592,258 620,276"/>
+    <!-- the near arm, straight down, hand on the knee -->
+    <path class="o" fill="#e04838" d="M600,292 C596,304 592,316 588,326 L566,320 C572,310 578,298 584,288 Z"/>
+    <path class="o" fill="#e8b090" d="M586,322 C580,338 568,356 552,368 L540,360 C552,350 562,334 568,318 Z"/>
+    <rect x="530" y="354" width="26" height="22" rx="8" fill="#e8b090" class="o"/>
+    <!-- neck and head, hanging down over the gutter -->
+    <path class="o" fill="#c88a6e" d="M632,300 L652,312 L646,330 L628,320 Z"/>
+    <path class="o" fill="#e8b090" d="M640,318 C652,302 676,300 692,314 C706,328 708,350 698,366 C688,380 668,384 654,374 C640,364 632,340 640,318 Z"/>
+    <path fill="#c08068" opacity=".7" d="M698,366 C688,380 668,384 654,374 C664,372 680,366 690,356 Z"/>
+    <path class="o" fill="#603818" d="M640,318 C648,298 672,292 692,304 C700,310 704,318 704,326 C690,316 670,314 652,322 Z"/>
+    <path class="o" fill="#f4f4f0" d="M644,312 C664,302 688,304 704,318 L700,326 C684,314 662,312 646,322 Z"/>
+    <path class="o" fill="#f4f4f0" d="M646,316 C628,308 612,312 598,302 C612,318 628,322 644,322 Z"/>
+    <!-- the aviators, knocked crooked -->
+    <path class="o" fill="url(#s-shades)" stroke-width="3" d="M670,340 C680,336 690,338 694,344 C692,354 684,358 676,354 C670,350 668,346 670,340 Z" transform="rotate(18 682 346)"/>
+    <path class="t" d="M664,338 L652,330"/>
+    <!-- the mouth, open, and it all coming up -->
+    <path class="o" fill="#5a1a1a" d="M682,366 C688,364 694,368 694,374 C690,378 684,378 680,374 Z"/>
+    <path class="o" fill="url(#s-sick)" d="M688,372 C704,380 718,396 726,418 C732,436 740,450 752,460 C730,462 712,454 704,440 C698,426 694,404 682,384 Z"/>
+    <path class="o" fill="url(#s-sick)" d="M690,450 C730,444 790,446 830,456 C800,470 740,472 700,466 Z"/>
+    <circle cx="744" cy="420" r="6" fill="#d8e860" class="t"/><circle cx="764" cy="438" r="4" fill="#d8e860" class="t"/><circle cx="720" cy="402" r="4" fill="#8aa830" class="t"/>
+    <!-- sweat, and the world spinning round his head -->
+    <path class="o" fill="#9fe8ff" d="M636,288 C632,298 632,304 636,306 C640,304 640,298 636,288 Z"/>
+    <path class="o" fill="#9fe8ff" d="M712,312 C708,322 708,328 712,330 C716,328 716,322 712,312 Z"/>
+    <path class="t" stroke="#ffe14a" stroke-width="4" d="M640,262 C660,248 700,250 716,270 C728,288 712,300 696,292"/>
+    <path fill="#ffe14a" class="t" d="M620,250 L626,262 L638,264 L628,272 L632,284 L620,276 L608,284 L612,272 L602,264 L614,262 Z"/>
+    <path fill="#ff9ad0" class="t" d="M730,256 L734,264 L742,266 L736,272 L738,280 L730,276 L722,280 L724,272 L718,266 L726,264 Z"/>
+  </g>
+
+  <!-- the sound of it -->
+  <text x="606" y="150" transform="rotate(-10 606 150)" font-family="Impact, 'Arial Black', sans-serif" font-size="96" font-style="italic" fill="#ff5fa8" opacity=".9">HUURGH!</text>
+  <text x="598" y="142" transform="rotate(-10 598 142)" font-family="Impact, 'Arial Black', sans-serif" font-size="96" font-style="italic" fill="#d8e860" stroke="#1c1028" stroke-width="7" paint-order="stroke">HUURGH!</text>
+
+  <rect width="960" height="540" filter="url(#s-grain)"/>
+  <rect width="960" height="540" fill="url(#s-vig)"/>
+</svg>

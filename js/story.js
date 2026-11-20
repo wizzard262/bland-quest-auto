@@ -277,6 +277,7 @@ function fallOffStool() {
   S.flags.pubSat = false;                                              // off the stool…
   S.flags.pubFloor = true;                                             // …and on the floor
   moment('stoolFall', 1800); sfx('thud');
+  stillAfter('pubfloor');                                              // flat on the pub floor
   SPEAKER = keeperHead();
   say('The Hesketh Tavern', '"Right. That\'s your fourth, and you\'re on my floor. Out."', [{ label: 'OK', run: thrownOut }]);
 }
@@ -310,6 +311,7 @@ function thrownOut() {
   anger(10);
   sfx('door');
   moment('sick', 2600);
+  stillAfter('sick');                                                  // sick in the gutter
   say('Outside the pub', 'The door slams behind you. The pavement comes up to meet you, and you\'re sick in the gutter.\n\nA man walking his dog crosses the road.', [{ label: 'OK', run: wifePicksUp }]);
 }
 // The barman rings her; twenty minutes later she's there, by your car, in her dress
@@ -336,6 +338,7 @@ function drunkCollapse() {
   walkTo(COLLAPSE_AT[0], COLLAPSE_AT[1], () => {
     S.flags.onFloor = true;                                            // flat out on the carpet
     moment('collapse', 1400); sfx('thud');
+    stillAfter('asleep');                                              // face down on the carpet
     say('Zzzz', 'You stagger halfway across the room… and fold up on the carpet, fast asleep.', [{ label: 'OK', run: sleepItOff }]);
   });
 }
@@ -466,11 +469,13 @@ function breathUp() {
     return render();
   }
   if (BREATH.drinks <= 1) {                                             // half way: under the limit
+    flashStill('breathpass');                                           // green and amber: a pass
     return say('The policeman', '"Green and amber. Just under, sir. Drive carefully now."', [{ label: 'OK', run() { show('city'); } }]);
   }
   BREATH.tries += 1;
   anger(10);
   if (BREATH.tries < 2) {                                               // a fail: they make you do it again
+    flashStill('breath');                                               // all the way to red
     return say('The policeman', '"All the way to red, sir. That\'s a fail. We\'ll do it again, just to be sure."', [{ label: 'OK', run() { breathReset(); render(); } }]);
   }
   // failed again: the fine, on paper
@@ -972,7 +977,7 @@ const ACTIONS = {
     S.cam.oy = 172 - (cx + cy) / 2;
   },
   // ----- home -----
-  tea() { pass(10); anger(-15); moment('tea', 1400); sfx('pour'); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
+  tea() { pass(10); anger(-15); moment('tea', 1400); stillAfter('tea'); sfx('pour'); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
   bed() {
     sfx('door');
     S.flags.bedLate = isBedtime();                                     // late: she's in her nightie and comes too (it's morning by the time you wake)
@@ -998,27 +1003,28 @@ const ACTIONS = {
       if (hunting) lead('nut3', 'torch', 'A torch: there was one in the toolbox (or your phone has one)', 'you', 'fairly sure', 'toolbox');
       return say('Under ' + where, 'Pitch black under there. You need a light. Your phone has a torch.');
     }
-    if (hunting) closeLead('search', 'ok');
-    const noNut = hunting ? ' No nut.' : '';                           // only say "no nut" when you're looking for it
+    if (hunting) { closeLead('search', 'ok'); anger(3); }
+    BEAM = { x: BEAM_START.x, y: BEAM_START.y };                       // the torch starts pointing down by your hand
+    UNDER_SEEN = {};
+    UNDER_SPIDER = Math.random() < SPIDER_CHANCE ? { x: 250 + Math.random() * 180, y: 172 + Math.random() * 50 } : null;   // now and then, a spider somewhere in the dark
+    render();
     if (where === 'the workbench' && !S.flags.screwsSpilt) {
       S.flags.screwsSpilt = true; anger(10); moment('screws', 1500); sfx('screws');
-      return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere.' + noNut);
+      return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere.');
     }
-    if (where !== 'the tool chest' || !hunting) {                      // nothing much down there
-      const found = { 'the car': 'A 1996 coin, a sweet wrapper and an oil stain shaped like France.', 'the parts boxes': 'Old parts, a dead spider and half a sandwich.', 'the shelves': 'Dust. A lot of dust.', 'the workbench': 'Screws, everywhere.', 'the tool chest': 'Dust, and a lot more of it than you\'d like.' };
-      if (hunting) anger(3);
-      const spider = Math.random() < SPIDER_CHANCE;                    // now and then, a spider at the edge of the light
-      if (spider) moment('spider', 1600);                              // it scurries off into the dark (the dialog waits for it)
-      const spiderText = spider ? ' Something at the edge of the light, half lit, scurries off into the dark. A spider. A big one.' : '';
-      return say('Under ' + where, (found[where] || 'Nothing.') + spiderText + noNut);
-    }
-    S.flags.nutSeen = true;
-    if (!S.inv.stick) {
-      lead('nut3', 'stick', 'Something long and thin to hook it out', 'you', 'hopeful', 'home');
-      return say('Under the tool chest', 'THERE. A glint, right at the back under the tool chest. Your fingers don\'t reach. Not even close.');
-    }
-    say('Under the tool chest', 'You lie on the floor with the torch in your teeth and the stick in your hand…', [{ label: 'Hook it out', run() { fishStart(); show('fish'); } }]);
   },
+  // tap a thing on the floor: what it is, if the beam's on it
+  underlook(n) {
+    const where = S.under || 'the tool chest';
+    const finds = (UNDER_FINDS[where] || []).filter(([, , k]) => k !== 'nut' || (S.flags.n3lost && !S.flags.n3found));
+    const f = finds[+n];
+    if (!f) return;
+    if (!haveLight()) return say('Under ' + where, 'Pitch black under there. You need a light.');
+    if (!inTorchLight(f[0], f[1])) return say('Under ' + where, 'Too dark to see what that is. Point the torch at it.');
+    if (f[2] === 'nut') return nutSpotted();
+    say('Under ' + where, UNDER_LINES[f[2]] || 'Nothing much.');
+  },
+  hooknut() { fishStart(); show('fish'); },                             // with the stick: hook the nut out
   takeTorch() {
     if (S.inv.torch) return say('The torch', 'You\'ve got it.');
     S.inv.torch = true; sfx('click');
@@ -1321,6 +1327,7 @@ const ACTIONS = {
     f.sheared = +n;                                                    // the last one: the head snaps off, the stub stays in the box
     anger(15);
     moment('screwShear', 1100); sfx('creak'); sfx('snap', 0.6);
+    stillAfter('snap');                                                // the screw head flying off
     note('sensor-out', `Screw ${n} sheared off: its stub is stuck in the box`, 'x');
     say(`Screw ${n}`, 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
   },
@@ -1362,6 +1369,7 @@ const ACTIONS = {
     S.flags.fits = true;
     S.flags.fittedPart = b.part;                                       // the one that fits (the Parts 4 Less one, or the soldered one)
     moment('benchFit', 1000); sfx('clink', 0.65); sfx('ding', 0.8);
+    stillAfter('click');                                               // it fits!
     finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
     closeLead('try-p4l', 'ok'); closeLead('try-soldered', 'ok');
     lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
@@ -1497,6 +1505,31 @@ function lookAtThing(list, k) {
   const [name, words] = list[+k] || [];
   if (name) say(name, words);
 }
+// The torch beam has moved (the pointer, under something): a spider in it runs; the lost nut in it glints
+function underBeamMoved() {
+  if (S.screen !== 'lookunder' || !haveLight() || ANIM || DIALOG) return;
+  const hunting = S.flags.n3lost && !S.flags.n3found;
+  if (S.under === 'the tool chest' && hunting && !UNDER_SEEN.nut) {   // the lost nut first: it's what you're after
+    const [nx, ny] = UNDER_FINDS['the tool chest'][0];
+    if (inTorchLight(nx, ny)) { UNDER_SEEN.nut = true; nutSpotted(); return; }
+  }
+  if (UNDER_SPIDER && inTorchLight(UNDER_SPIDER.x, UNDER_SPIDER.y)) {   // caught in the light: it runs for the dark
+    SPIDER_RUN = UNDER_SPIDER;
+    UNDER_SPIDER = null;
+    sfx('creak');
+    moment('spider', 1600);
+    say('Under ' + S.under, 'Something in the beam moves. A spider. A big one. It scurries off into the dark.');
+  }
+}
+// The beam's on the lost nut: there it is
+function nutSpotted() {
+  S.flags.nutSeen = true;
+  if (!S.inv.stick) {
+    lead('nut3', 'stick', 'Something long and thin to hook it out', 'you', 'hopeful', 'home');
+    return say('Under the tool chest', 'THERE. A glint, right at the back under the tool chest. Your fingers don\'t reach. Not even close.');
+  }
+  say('Under the tool chest', 'THERE it is. You lie on the floor with the torch in your teeth and the stick in your hand…', [{ label: 'Hook it out', run() { fishStart(); show('fish'); } }]);
+}
 // A reader's plug tried in the port (after its moment): the wrong ones don't fit; the right one goes in
 function plugTried(id) {
   const first = !S.flags['tried-' + id];                               // the first go makes you cross; after that you knew
@@ -1574,6 +1607,7 @@ const LOOKS = {
 };
 // The end of branch 1: the red light goes off, and another one comes on
 function finishBranch() {
+  stillAfter('abs');                                                   // the red light off… the ABS light on
   finishJob('light', 'THE RED LIGHT IS OFF!');
   closeLead('test', 'ok');
   job('abs', 'Get the ABS light off', null);

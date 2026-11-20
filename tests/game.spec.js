@@ -128,6 +128,15 @@ async function garageTap(page, where) {
   await tap(page, 'act:search:' + where.replace('Search under ', ''));         // 'Search under the car' and so on
 }
 const flag = (page, f) => page.evaluate(k => !!S.flags[k], f);
+// Under something, with a light: move the pointer to aim the torch beam at a point (picture pixels)
+async function aimTorch(page, x, y) {
+  await idle(page);
+  const box = await page.locator('#stage canvas').boundingBox();
+  await page.mouse.move(box.x + 2, box.y + box.height - 2);           // off to one corner first, so the move below always registers
+  await page.mouse.move(box.x + x / 480 * box.width, box.y + y / 270 * box.height);   // then straight there (not sweeping across)
+}
+// Where the lost nut lies under the tool chest
+const NUT_SPOT = [330, 168];
 
 // ---------- the tests ----------
 test('the game starts at the MOT Test Centre: lovely car, but the red light is a fail; ask him anything and it is no idea, mate', async ({ page }) => {
@@ -268,32 +277,43 @@ test('look under the garage things any time: black without a light, lit with the
   await ok(page);
   await act(page, 'Get up');
   await page.evaluate(() => { S.flags.phoneTorch = true; render(); });
-  await tap(page, 'act:search:the tool chest');
+  await tap(page, 'act:search:the tool chest'); await idle(page);        // he walks over and gets down
+  expect(await page.evaluate(() => [S.screen, !!UNDER_LIT])).toEqual(['lookunder', true]);   // lit: aim the beam about
+  expect(await page.locator('.dlg').count()).toBe(0);
+  await page.evaluate(() => { BEAM = { x: 400, y: 250 }; act('underlook:0'); });   // the dust, with the beam elsewhere: too dark to see
+  expect(await dialogText(page)).toContain('Too dark');
+  await ok(page);
+  await tap(page, 'act:underlook:0');                                   // tap it: the beam goes where you point
   const said = await dialogText(page);
-  expect(said).toContain('Dust');                                       // nut 3 isn't lost yet: nothing to find…
+  expect(said).toContain('Dust');                                       // nut 3 isn't lost yet: just dust…
   expect(said).not.toContain('nut');                                    // …and no talk of a nut
   await ok(page);
-  expect(await page.evaluate(() => S.screen)).toBe('lookunder');
   expect(errors).toEqual([]);
 });
 
-test('look under a garage thing with a light: now and then a half-lit spider scurries off', async ({ page }) => {
+test('look under a garage thing with a light: a spider sits in the dark now and then, and runs only when the beam finds it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'garage'; S.flags.phoneTorch = true; render(); });
-  await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0; });   // make the spider come out this time
-  await tap(page, 'act:search:the shelves');
-  await page.waitForFunction(() => ANIM && ANIM.kind === 'spider');      // after he walks over, it runs while the dialog waits
+  await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0; });   // a spider this time, at (250, 172)
+  await tap(page, 'act:search:the shelves'); await idle(page);
+  await page.evaluate(() => { Math.random = window.realRandom; });
+  expect(await page.evaluate(() => UNDER_SPIDER)).toEqual({ x: 250, y: 172 });
+  await aimTorch(page, 120, 240);                                       // the beam elsewhere: it stays put
+  expect(await page.evaluate(() => [!!ANIM, !!UNDER_SPIDER])).toEqual([false, true]);
+  await aimTorch(page, 250, 172);                                       // the beam on it: it runs for the dark
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'spider');
   expect(await dialogText(page)).toContain('scurries off into the dark');
   await ok(page);
+  expect(await page.evaluate(() => UNDER_SPIDER)).toBe(null);
   await act(page, 'Get up');
-  await page.evaluate(() => { Math.random = () => 0.99; });            // and this time it doesn't
-  await tap(page, 'act:search:the shelves');
-  const said = await dialogText(page);
-  expect(said).toContain('Dust');
-  expect(said).not.toContain('spider');
+  await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });   // and this time there's none
+  await tap(page, 'act:search:the shelves'); await idle(page);
   await page.evaluate(() => { Math.random = window.realRandom; });
-  // the spider's colours: brown in the torchlight, nearly black outside it
+  await aimTorch(page, 250, 172);
+  expect(await page.evaluate(() => [!!ANIM, UNDER_SPIDER])).toEqual([false, null]);
+  // the beam: lit inside its pool, dark outside it
+  await page.evaluate(() => { BEAM = { x: 240, y: 205 }; });
   expect(await page.evaluate(() => [inTorchLight(240, 205), inTorchLight(470, 180)])).toEqual([true, false]);
   expect(errors).toEqual([]);
 });
@@ -408,12 +428,14 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await goRoom(page); await act(page, 'Look for batteries'); await ok(page);
   await garage(page);
-  await garageTap(page, 'Search under the tool chest'); await ok(page);
+  await garageTap(page, 'Search under the tool chest');
+  await aimTorch(page, ...NUT_SPOT); await ok(page);                                     // the beam finds it
   await act(page, 'Get up');
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await act(page, 'Get a long stick'); await ok(page);
   await garage(page);
-  await garageTap(page, 'Search under the tool chest'); await choose(page, 'Hook it out');
+  await garageTap(page, 'Search under the tool chest');
+  await aimTorch(page, ...NUT_SPOT); await choose(page, 'Hook it out');
   expect(await page.evaluate(() => S.screen)).toBe('fish');
   await hookNut(page);
   await ok(page);
@@ -666,9 +688,10 @@ test('the phone shows over the screen you were on; its torch lights up under the
   await page.click('.go[data-go="phone"]'); await idle(page);
   await page.locator('[data-act="phonetorch"]').click();
   expect(await page.evaluate(() => [S.flags.phoneTorch, S.screen])).toEqual([true, 'garage']);
-  await tap(page, 'act:search:the tool chest');
-  expect(await dialogText(page)).toContain('THERE');
+  await tap(page, 'act:search:the tool chest'); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('lookunder');
+  await aimTorch(page, ...NUT_SPOT);                                    // the phone's torch on the back corner: the nut glints
+  expect(await dialogText(page)).toContain('THERE');
   await ok(page);
   expect(errors).toEqual([]);
 });
@@ -1844,9 +1867,13 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await dialogText(page)).toContain('stuck on Mill Lane');
   await ok(page);
   // the spare: flat
-  await act(page, 'Put the spare on');
+  await act(page, 'Open the boot');                                    // the boot opens on its close-up, at the roadside
+  expect(await page.evaluate(() => S.screen)).toBe('boot');
+  await tap(page, 'act:roadspare');                                    // tap the spare: heave it out
   expect(await dialogText(page)).toContain('flat since 2019');
   await ok(page);
+  await act(page, 'Close the boot');                                   // back to the roadside
+  expect(await page.evaluate(() => S.screen)).toBe('roadside');
   // ring for help: the phone dies (and stays dead)
   await act(page, 'Ring for help');
   expect(await dialogText(page)).toContain('screen goes black');
@@ -1981,8 +2008,9 @@ test('a torch off a shop shelf: batteries not included; with AAs from the shop i
   await ok(page);
   expect(await flag(page, 'torchLit')).toBe(true);
   await page.evaluate(() => { S.screen = 'garage'; render(); });
-  await tap(page, 'act:search:the tool chest');
-  expect(await dialogText(page)).not.toContain('Pitch black');             // lit by the torch, not the phone
+  await tap(page, 'act:search:the tool chest'); await idle(page);
+  expect(await page.evaluate(() => [S.screen, !!UNDER_LIT])).toEqual(['lookunder', true]);   // lit by the torch, not the phone
+  expect(await page.locator('.dlg').count()).toBe(0);
   expect(await flag(page, 'phoneTorch')).toBe(false);
   expect(errors).toEqual([]);
 });
@@ -2132,7 +2160,7 @@ test('after the kick, the still of it flashes up (zooming and turning), mirrored
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
-  await page.waitForFunction(() => ANIM && ANIM.kind === 'kickstill');   // the kick plays, then the still
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'still');   // the kick plays, then the still
   const still = page.locator('.still img');
   await expect(still).toHaveAttribute('src', 'stills/kick.svg');
   await expect(page.locator('.still.mirror')).toHaveCount(0);             // the left headlight: as drawn
@@ -2142,8 +2170,42 @@ test('after the kick, the still of it flashes up (zooming and turning), mirrored
   await expect(page.locator('.still')).toHaveCount(0);                    // gone by then
   await ok(page);
   await page.evaluate(() => { anger(100); render(); });                  // the next kick: the right headlight, mirrored
-  await page.waitForFunction(() => ANIM && ANIM.kind === 'kickstill');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'still');
   await expect(page.locator('.still.mirror')).toHaveCount(1);
   await ok(page);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the other stills: each big moment flashes up its own ----------
+test('big moments flash up their stills: a cup of tea, the screw snapping; then what is said', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  await tap(page, 'act:tea');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'still');
+  await expect(page.locator('.still img')).toHaveAttribute('src', 'stills/tea.svg');
+  expect(await page.locator('.still img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  expect(await dialogText(page)).toContain('tea');                        // what's said comes after it
+  await expect(page.locator('.still')).toHaveCount(0);
+  await ok(page);
+  // the third screw on the bench: SNAP
+  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
+  await act(page, 'Undo screw 3');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'still');
+  await expect(page.locator('.still img')).toHaveAttribute('src', 'stills/snap.svg');
+  expect(await dialogText(page)).toContain('SNAP');
+  expect(errors).toEqual([]);
+});
+
+test('every still on its own: each picture file loads', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  for (const name of ['kick', 'pubfloor', 'sick', 'asleep', 'breath', 'breathpass', 'splash', 'tea', 'snap', 'click', 'abs']) {
+    await page.evaluate(n => { flashStill(n); render(); }, name);
+    const img = page.locator('.still img');
+    await expect(img).toHaveAttribute('src', `stills/${name}.svg`);
+    await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth > 0)).toBe(true);
+    await idle(page);
+  }
   expect(errors).toEqual([]);
 });

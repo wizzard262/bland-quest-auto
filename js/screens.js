@@ -944,7 +944,9 @@ SCREENS.bench = {
 };
 
 // =====================================================================
-// LOOKING UNDER SOMETHING IN THE GARAGE: lying on the floor; black, unless you've got a torch on
+// LOOKING UNDER SOMETHING IN THE GARAGE: lying on the floor in the dark. With a light, a beam you aim
+// with the pointer: only what's in the beam can be seen. A spider sits somewhere in the dark now and then,
+// and runs off only when the beam finds it; under the tool chest, the lost nut glints when the beam reaches it
 // =====================================================================
 const UNDER_FINDS = {                                                 // what's down there: [x, y, what] on the floor
   'the car': [[150, 200, 'coin'], [300, 220, 'wrapper'], [240, 180, 'stain']],
@@ -953,33 +955,88 @@ const UNDER_FINDS = {                                                 // what's 
   'the workbench': [[140, 200, 'screw'], [200, 220, 'screw'], [260, 190, 'screw'], [320, 215, 'screw'], [360, 200, 'screw']],
   'the tool chest': [[330, 168, 'nut'], [160, 210, 'dust']]
 };
-const SPIDER_CHANCE = 0.3;                                            // how often a spider scurries off when you look under something with a light
-const UNDER_POOL = { x: 240, y: 205, rx: 210, ry: 60 };                // the torch's pool of light on the floor
-// Is this point inside the torch's pool of light?
+// What you find when the beam's on it, and you tap it
+const UNDER_LINES = {
+  coin: 'A 1996 coin. 2p. Not worth getting up for.', wrapper: 'A sweet wrapper. Empty, of course.', stain: 'An oil stain shaped like France.',
+  dust: 'Dust. A lot of dust.', spider: 'A dead spider, on its back. Its legs in the air.', sandwich: 'Half a sandwich. You don\'t remember the other half.',
+  screw: 'Screws. Hundreds of them. Everywhere.', nut: 'Your nut! Right at the back.'
+};
+const SPIDER_CHANCE = 0.3;                                            // how often a spider is sitting somewhere under there
+const BEAM_SIZE = { rx: 70, ry: 30 };                                 // the torch beam's pool of light on the floor
+const BEAM_START = { x: 120, y: 226 };                                // where it points to start with: down by your hand
+let BEAM = { x: BEAM_START.x, y: BEAM_START.y };                      // where the beam is pointing now (follows the pointer)
+let UNDER_LIT = null;                                                 // the whole scene as it looks lit (the beam shows a pool of it)
+let UNDER_SPIDER = null;                                              // a spider sitting in the dark this time: { x, y }, or null
+let UNDER_SEEN = {};                                                  // what the beam has found this time (so each says its piece once)
+// Is this point in the torch beam?
 function inTorchLight(x, y) {
-  const dx = (x - UNDER_POOL.x) / UNDER_POOL.rx;                        // how far across the pool, 0 = the middle, 1 = its edge
-  const dy = (y - UNDER_POOL.y) / UNDER_POOL.ry;                        // how far up or down the pool
+  const dx = (x - BEAM.x) / BEAM_SIZE.rx;                             // how far across the pool, 0 = the middle, 1 = its edge
+  const dy = (y - BEAM.y) / BEAM_SIZE.ry;                             // how far up or down it
   return dx * dx + dy * dy < 1;
+}
+const UNDER_FLOOR_DARK = hex('#141416'), BEAM_GLOW = hex('#2a2820');   // the dark floor, and the faint beam over it
+// Is there a light to see by?
+const haveLight = () => !!(S.flags.torchLit || S.flags.phoneTorch);
+// Lying on the floor, looking under it: the underneath just above your head, its legs, the floor going back
+function underScene(lit) {
+  rect(0, 0, W, H, hex('#08080a'));
+  rect(0, 18, W, 120, lit ? hex('#3a3a40') : hex('#1a1a1e'));        // the underneath of it, just above your head
+  for (const x of [40, 430]) rect(x, 18, 12, 150, lit ? hex('#4a4a52') : hex('#222226'));   // its legs (or wheels)
+  if (!lit) return rect(0, 150, W, 120, UNDER_FLOOR_DARK);           // the floor, going back into the dark
+  for (let y = 150; y < H; y++) rect(0, y, W, 1, shade(hex('#8a826a'), 0.7 + (y - 150) / 400));   // the floor, lit
 }
 SCREENS.lookunder = {
   size: [480, 270],
   paint() {
     const where = S.under || 'the tool chest';
-    const lit = S.flags.torchLit || S.flags.phoneTorch;
-    rect(0, 0, W, H, hex('#08080a'));
-    rect(0, 18, W, 120, hex('#1a1a1e'));                             // the underneath of it, just above your head
-    for (const x of [40, 430]) rect(x, 18, 12, 150, hex('#222226'));    // its legs (or wheels)
-    rect(0, 150, W, 120, hex('#141416'));                            // the floor, going back into the dark
-    if (lit) {
-      ellipse(UNDER_POOL.x, UNDER_POOL.y, UNDER_POOL.rx, UNDER_POOL.ry, hex('#6a6450'));   // the torch's pool of light
-      ellipse(240, 205, 150, 42, hex('#8a826a'));
-      for (const [x, y, k] of UNDER_FINDS[where] || []) underFind(k, x, y);
+    const finds = (UNDER_FINDS[where] || []).filter(([, , k]) => k !== 'nut' || (S.flags.n3lost && !S.flags.n3found));
+    UNDER_LIT = null;
+    if (haveLight()) {                                                // first the scene lit up, kept for the beam to show…
+      underScene(true);
+      for (const [x, y, k] of finds) underFind(k, x, y);
+      if (UNDER_SPIDER) spiderSitting(UNDER_SPIDER.x, UNDER_SPIDER.y);
+      UNDER_LIT = IMG32.slice();
     }
-    tip('Under ' + esc(where), lit ? 'Lying on the cold floor with a light.' : 'Pitch black. You need a light.', 1, 8);
+    underScene(false);                                                // …then the dark, which is what you see outside the beam
+    finds.forEach(([x, y, k], n) => spot(haveLight() ? 'Look at it' : 'Too dark to see', [x - 12, y - 10, 24, 20], 'act:underlook:' + n, null, 'opacity:0'));
+    const tipText = haveLight() ? 'Move the pointer to aim the torch. Tap a thing in the beam to look at it.' : 'Pitch black. You need a light.';
+    tip('Under ' + esc(where), tipText, 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Get up', act: 'go:garage' }]; }
+  // the beam, every frame: the lit scene shows through in a pool where it points, and the torch's cone of light up to it
+  animate() {
+    if (!UNDER_LIT) return;
+    const { rx, ry } = BEAM_SIZE;
+    for (let dy = -ry; dy <= ry; dy++) {
+      const y = Math.round(BEAM.y + dy);
+      if (y < 0 || y >= H) continue;
+      const half = Math.round(rx * Math.sqrt(1 - (dy * dy) / (ry * ry)));   // how wide the pool is on this row
+      const a = Math.max(0, Math.round(BEAM.x) - half), b = Math.min(W, Math.round(BEAM.x) + half);
+      if (a < b) IMG32.set(UNDER_LIT.subarray(y * W + a, y * W + b), y * W + a);
+    }
+    const glow = BEAM_GLOW;                                            // the beam itself, faint, from your hand to the pool
+    const dark = colour32(UNDER_FLOOR_DARK);
+    for (let y = Math.round(BEAM.y + ry); y < H; y += 2) {
+      const q = (y - BEAM.y - ry) / Math.max(1, H - BEAM.y - ry);      // 0 at the pool, 1 at your hand
+      const cx = lerp(BEAM.x, 300, q), half = lerp(rx * 0.6, 6, q);
+      for (let x = Math.round(cx - half) + (y % 4 ? 1 : 0); x < cx + half; x += 2) if (x >= 0 && x < W && IMG32[y * W + x] === dark) px(x, y, glow);
+    }
+    rbox(290, 254, 22, 16, 4, hex('#1c1c1c'));                         // the torch in your hand
+  },
+  actions() {
+    const a = [];
+    if (S.under === 'the tool chest' && S.flags.nutSeen && S.inv.stick && S.flags.n3lost && !S.flags.n3found) a.push({ label: 'Hook it out', act: 'hooknut' });
+    a.push({ label: 'Get up', act: 'go:garage' });
+    return a;
+  }
 };
+// A spider sitting still on the floor, in the lit picture (so the beam can find it)
+function spiderSitting(x, y) {
+  const aim = BEAM;
+  BEAM = { x, y };                                                    // drawn as if lit (spiderAt colours it by the beam)
+  spiderAt(x, y, 0);
+  BEAM = aim;
+}
 // One thing on the floor under there
 function underFind(k, x, y) {
   if (k === 'nut') { if (!S.flags.n3lost || S.flags.n3found) return; nutAt(x, y, 6, 0.3, C.steel2); disc(x, y, 2, C.ink); px(x - 3, y - 4, C.white); px(x - 2, y - 5, C.white); return; }   // a glint

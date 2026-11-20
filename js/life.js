@@ -680,10 +680,11 @@ MOMENTS.collapse = function (p) {                                    // he sways
   if (p < 0.7) return man(m[0], m[1], 'bend', MAN_SIZE.room);
   man(m[0], m[1], 'lie', MAN_SIZE.room);
 };
-MOMENTS.spider = function (p) {                                      // under something: a spider at the edge of the torchlight scurries off into the dark
+let SPIDER_RUN = { x: 400, y: 214 };                                  // where the spider was when the beam caught it
+MOMENTS.spider = function (p) {                                      // under something: a spider caught in the torch beam scurries off into the dark
   const run = ease(p);                                                 // how far it has run (quick start, slowing as it goes)
-  const x = lerp(400, 500, run);                                       // from just inside the light, off to the right…
-  const y = lerp(214, 176, run) + Math.sin(p * 18) * 2;                // …and back into the dark, zig-zagging a little
+  const x = lerp(SPIDER_RUN.x, SPIDER_RUN.x + 140, run);               // from where it sat, off to the right…
+  const y = lerp(SPIDER_RUN.y, SPIDER_RUN.y - 40, run) + Math.sin(p * 18) * 2;   // …and back into the dark, zig-zagging a little
   spiderAt(x, y, p * 40);
 };
 Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments
