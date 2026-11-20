@@ -505,6 +505,11 @@ function boughtHammer() {
   lead('new-sensor', 'tap', 'Tap the stuck part with the hammer', 'you', 'sure', 'bench');
   return '\n\nThe hammer: "Oh. Didn\'t know we had one of them."';
 }
+// Open the notebook at its last page: the fuse diagram you copied off TechDocs
+function showFuseCopy() {
+  S.nbPage = 999;                                                       // as far as it goes (the notebook stops at its last spread)
+  show('notebook');
+}
 
 // =====================================================================
 // NEW ACTIONS
@@ -586,11 +591,15 @@ Object.assign(ACTIONS, {
     lead('hammer', 'hammer-shop', 'Buy a hammer at the Hardware Shop', 'you', 'sure', 'place:Hardware Shop');
     say('Drawer 6', 'A hammer-shaped gap. Your brother borrowed it in 2019.');
   },
+  // the fuse diagram online: copy it by hand onto a page of the notebook (the handbook's page was ripped out)
   fusenote() {
-    if (S.flags.knowF23) return;
-    pass(20); S.flags.knowF23 = true;
-    closeLead('fusediagram', 'ok', 'Fuse diagram online: F23 is the instrument cluster and the gearbox sensor (probably)');
+    if (S.flags.fuseCopy) return showFuseCopy();                         // copied already: look at it
+    pass(20);
+    S.flags.knowF23 = true;
+    S.flags.fuseCopy = true;
+    closeLead('fusediagram', 'ok', 'Fuse diagram copied into the back of this notebook: F23 is the instrument cluster and the gearbox sensor (probably)');
     lead('meaning', 'checkf23', 'Check fuse F23', 'TechDocs', 'fairly sure', 'fuseZoom');
-    say('The fuse diagram', 'Half of it makes sense. The other half is codes. But F23 says "IPC / TCM sensor supply". That\'s probably it.');
+    showFuseCopy();
+    say('The fuse diagram', 'Twenty minutes with a biro. Half of it makes sense. The other half is codes. But F23 says "IPC / TCM sensor supply". That\'s probably it.\n\nIt\'s on the last page of your notebook now.');
   }
 });

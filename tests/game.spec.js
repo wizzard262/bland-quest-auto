@@ -1406,7 +1406,7 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   expect(errors).toEqual([]);
 });
 
-test('the fuses: the lid says see the owner\'s handbook, the handbook has no fuse diagram, the diagram online says F23', async ({ page }) => {
+test('the fuses: the lid says see the owner\'s handbook, its fuse page is ripped out, the diagram online is copied onto a page of the notebook and says F23', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); S.screen = 'fuseZoom'; render(); });
@@ -1419,16 +1419,24 @@ test('the fuses: the lid says see the owner\'s handbook, the handbook has no fus
   expect(await dialogText(page)).toContain('isn\'t here');                 // not on the shelf
   await ok(page);
   await page.evaluate(() => { S.inv.handbook = true; render(); });        // (found it in the parts box)
-  await note7();                                                           // now the lead opens it
-  expect(await page.evaluate(() => S.screen)).toBe('handbook');
+  await note7();                                                           // now the lead opens it, at the fuse page: ripped out
+  expect(await page.evaluate(() => [S.screen, S.hbPage])).toEqual(['handbook', 4]);
+  await expect(page.locator('.book .torn .stub')).toHaveCount(1);
+  await expect(page.locator('.book')).toContainText('ripped out');
   expect(await page.evaluate(() => leadOpen('fusebook'))).toBe(false);
-  expect(await page.evaluate(() => JSON.stringify(findJob('meaning').notes))).toContain('no fuse diagram');
+  expect(await page.evaluate(() => JSON.stringify(findJob('meaning').notes))).toContain('ripped out');
   expect(await page.evaluate(() => leadOpen('fusediagram'))).toBe(true);
+  // online: copy the diagram into the notebook, on a page of its own (the notebook opens at it)
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await goRoom(page); await tap(page, 'pc'); await idle(page);
   await page.click('[data-app="TechDocs"]');
-  await page.locator('button', { hasText: 'Note it down' }).click(); await ok(page);
-  expect(await flag(page, 'knowF23')).toBe(true);
+  await page.locator('button', { hasText: 'Copy it into your notebook' }).click();
+  expect(await dialogText(page)).toContain('last page of your notebook');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.knowF23, S.flags.fuseCopy, S.screen])).toEqual([true, true, 'notebook']);
+  await expect(page.locator('.nb .copied svg')).toHaveCount(1);
+  await expect(page.locator('.nb .copied')).toContainText('F23 IPC / TCM sensor supply');
+  await expect(page.locator('.nb .copied svg')).toBeInViewport();          // it's the page showing
   await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
   await act(page, 'Check every fuse');
   expect(await dialogText(page)).toContain('F23');
@@ -1488,7 +1496,7 @@ async function findHandbook(page) {
   await page.mouse.click(box.x + at[0] / 480 * box.width, box.y + at[1] / 270 * box.height);
 }
 
-test('the car handbook: the wife says look in it; not on the shelf; found in the parts box; cover, warranty ran out 2 days ago, radio code 1234, no fuse diagram', async ({ page }) => {
+test('the car handbook: the wife says look in it; not on the shelf; found in the parts box; cover, warranty ran out 2 days ago, radio code 1234, the fuse page ripped out', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await goRoom(page);
@@ -1517,7 +1525,8 @@ test('the car handbook: the wife says look in it; not on the shelf; found in the
   await expect(page.locator('.book')).toContainText('1234');
   expect(await page.evaluate(() => JSON.stringify(findJob('radio')))).toContain('1234');   // the code goes in the notebook
   await turn();
-  await expect(page.locator('.book')).toContainText('Nothing about fuses');
+  await expect(page.locator('.book')).toContainText('ripped out');            // the fuse page
+
   await expect(page.locator('[data-act="hbpage:1"]')).toHaveCount(0);     // the last page
   await act(page, 'Put it down');
   expect(await page.evaluate(() => S.screen)).toBe('garage');

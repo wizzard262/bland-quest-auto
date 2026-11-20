@@ -190,19 +190,25 @@ function takeHandbook(j) {
 }
 // Open it at the cover; reading it, you find there's nothing about fuses
 function openHandbook() {
-  S.hbPage = 0;
+  const lookingForFuses = leadOpen('fusebook');                    // the fuse box lid sent you here: straight to the fuse page
+  S.hbPage = lookingForFuses ? HANDBOOK_FUSE_PAGE : 0;
   pass(5);
   show('handbook');
-  if (leadOpen('fusebook')) {
-    closeLead('fusebook', 'x', 'Owner\'s handbook: no fuse diagram at all');
-    lead('meaning', 'fusediagram', 'Find the fuse box diagram online', 'you', 'hopeful', 'app:TechDocs');
-  }
+  handbookFusePageSeen();
+}
+// The fuse page: ripped out. The diagram must be online; copy it into the notebook from there
+function handbookFusePageSeen() {
+  if (S.hbPage !== HANDBOOK_FUSE_PAGE || !leadOpen('fusebook')) return;
+  anger(5);
+  closeLead('fusebook', 'x', 'Owner\'s handbook: the fuse page has been ripped out');
+  lead('meaning', 'fusediagram', 'Find the fuse box diagram online, and copy it into the notebook', 'you', 'hopeful', 'app:TechDocs');
 }
 // Turn a page (the radio page: the code goes in the notebook)
 function handbookPage(d) {
   S.hbPage = Math.max(0, Math.min(handbookPages().length, (S.hbPage || 0) + d));
   sfx('click');
   if (S.hbPage === 3) radioCodeNoted('it\'s in the handbook');
+  handbookFusePageSeen();                                          // the fuse page: ripped out
 }
 
 // =====================================================================

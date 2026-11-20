@@ -569,7 +569,7 @@ function appHTML(app) {
       <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
       <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
       <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
-      <p><button data-act="fusenote">Note it down (20 min)</button></p>` : ''}</div></div>`;
+      <p><button data-act="fusenote">${S.flags.fuseCopy ? 'Copied into your notebook' : 'Copy it into your notebook (20 min)'}</button></p>` : ''}</div></div>`;
 }
 // A product row with a Buy button
 function product(id, extra) {
@@ -598,6 +598,26 @@ SCREENS.phone = {
 // =====================================================================
 // THE NOTEBOOK: jobs as a tree, with notes and leads
 // =====================================================================
+// The fuse box diagram, copied by hand off TechDocs onto a page of its own: the grid of fuses in pen,
+// F23 ringed in red, and what the website said about the ones that matter
+function fuseCopyHtml() {
+  let cells = '';
+  for (let n = 1; n <= 30; n++) {
+    const x = 8 + ((n - 1) % 6) * 31;                                  // six across…
+    const y = 8 + Math.floor((n - 1) / 6) * 24;                        // …five down
+    const tilt = (hash(n, 3) - 0.5) * 1.6;                             // drawn by hand: never quite straight
+    const empty = n === 27 || n === 28;
+    cells += `<rect x="${x}" y="${y}" width="26" height="18" rx="2" fill="none" stroke="#20304a" stroke-width="${empty ? 0.6 : 1.1}" stroke-dasharray="${empty ? '2 2' : 'none'}" transform="rotate(${tilt.toFixed(2)} ${x + 13} ${y + 9})"/>`;
+    cells += `<text x="${x + 13}" y="${y + 12.5}" font-size="8" text-anchor="middle" fill="#20304a">F${n}</text>`;
+  }
+  const [rx, ry] = [8 + 4 * 31 + 13, 8 + 3 * 24 + 9];                 // F23: ringed in red, with an arrow and a note
+  const ringed = `<ellipse cx="${rx}" cy="${ry}" rx="19" ry="14" fill="none" stroke="#b02020" stroke-width="1.6" transform="rotate(-8 ${rx} ${ry})"/>`
+    + `<path d="M ${rx + 30} ${ry + 34} Q ${rx + 26} ${ry + 18} ${rx + 16} ${ry + 12}" fill="none" stroke="#b02020" stroke-width="1.3"/>`
+    + `<text x="${rx + 8}" y="${ry + 44}" font-size="9" fill="#b02020">TCM?!</text>`;
+  return `<div class="copied"><h3>Fuse box (engine bay), copied off TechDocs</h3>`
+    + `<svg viewBox="0 0 196 140" aria-label="The fuse box diagram, drawn by hand">${cells}${ringed}</svg>`
+    + `<div class="scrawl">F21 radio · F22 ECM (table 4-2??) · <b>F23 IPC / TCM sensor supply</b> · F26 ABS · F27–28 spare · F29 "not used" (used)</div></div>`;
+}
 SCREENS.notebook = {
   size: [480, 270],
   paint() {
@@ -624,7 +644,9 @@ SCREENS.notebook = {
       return h;
     };
     const roots = S.jobs.filter(j => !j.parent);
-    const html = roots.map(r => block(r, 0)).join('');
+    const jobsHtml = roots.map(r => block(r, 0)).join('');
+    const copied = S.flags.fuseCopy ? fuseCopyHtml() : '';            // the fuse diagram, copied off the internet onto a page of its own
+    const html = jobsHtml + copied;
     return `<div class="ov nb"><div class="cols">${html}</div></div>`
       + '<button class="ov nbflip prev" data-act="nbpage:-1">◀</button><button class="ov nbflip next" data-act="nbpage:1">▶</button>';
   },
@@ -1546,6 +1568,7 @@ SCREENS.breath = {
 const HANDBOOK_NAME = 'Car handbook';
 const HANDBOOK_BLUE = hex('#1e3060');
 const HANDBOOK_TITLE = 'Vauxhall Zafira 1.6 Life / Club Automatic';
+const HANDBOOK_FUSE_PAGE = 4;                                       // the fuse page (ripped out)
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const GAME_DAY0 = [2026, 10, 16];                                  // day 0 of the game: Monday 16 November 2026 (day 1 is a Tuesday)
 // The date on game day d, written out ("15 November 2026")
@@ -1554,13 +1577,13 @@ function dateOfDay(d) {
   const when = new Date(y, m, day + d);
   return when.getDate() + ' ' + MONTHS[when.getMonth()] + ' ' + when.getFullYear();
 }
-// The pages after the cover: [heading, words]
+// The pages after the cover: [heading, words, torn]. The fuse page has been ripped out: just a jagged stub
 function handbookPages() {
   return [
-    ['Contents', 'Welcome to your new Vauxhall.\n\nYour warranty … page 2\nYour radio … page 3\nEverything else … see your dealer'],
+    ['Contents', 'Welcome to your new Vauxhall.\n\nYour warranty … page 2\nYour radio … page 3\nFuses … page 4\nEverything else … see your dealer'],
     ['Your warranty', 'Warranty until ' + dateOfDay(S.day - 2) + '.\n\nThat was two days ago.'],
     ['Your radio', 'Radio security code: 1234\n\nKeep this book in a safe place.'],
-    ['Notes', 'Nothing about fuses. Not a diagram, not a word. You look twice.']
+    ['Fuses', 'Page 4, Fuses, has been ripped out. All that\'s left is a jagged edge down the binding.\n\nThe diagram must be online somewhere.', true]
   ];
 }
 SCREENS.handbook = {
@@ -1585,9 +1608,15 @@ SCREENS.handbook = {
     const prev = page > 0 ? '<button class="flip" data-act="hbpage:-1">◀</button>' : '<span class="flip"></span>';
     const next = page < pages.length ? '<button class="flip" data-act="hbpage:1">▶</button>' : '<span class="flip"></span>';
     if (page === 0) return `<div class="ov hbnav">${prev}<span>Cover</span>${next}</div>`;
-    const [head, words] = pages[page - 1];
-    return `<div class="ov book"><div class="pg"><h3>${esc(head)}</h3><p>${esc(words).replace(/\n/g, '<br>')}</p></div>`
-      + `<div class="pg"><p class="faint">${'— '.repeat(30)}</p><div class="pgnav">${prev}<span>Page ${page} of ${pages.length}</span>${next}</div></div></div>`;
+    const [head, words, torn] = pages[page - 1];
+    const nav = `<div class="pgnav">${prev}<span>Page ${page} of ${pages.length}</span>${next}</div>`;
+    const lines = esc(words).replace(/\n/g, '<br>');
+    if (torn) {                                                                  // ripped out: a stub on the left; what's missing, on the right
+      return `<div class="ov book"><div class="pg torn"><div class="stub"></div></div>`
+        + `<div class="pg"><h3>${esc(head)}?</h3><p>${lines}</p>${nav}</div></div>`;
+    }
+    return `<div class="ov book"><div class="pg"><h3>${esc(head)}</h3><p>${lines}</p></div>`
+      + `<div class="pg"><p class="faint">${'— '.repeat(30)}</p>${nav}</div></div>`;
   },
   actions() { return [{ label: 'Put it down', act: 'hbclose' }]; }
 };
