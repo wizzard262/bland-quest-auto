@@ -412,12 +412,13 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   expect(await flag(page, 'boxOff')).toBe(true);
   expect(await flag(page, 'sensorOut')).toBe(false);
 
-  // on the workbench: undo the box's 3 screws (the last one shears), then lift the old sensor out
+  // on the workbench: undo the 4 screws round the sensor (the last one shears), then lift the old sensor out
   await garage(page, 'Workbench');
   await act(page, 'Undo screw 1'); await ok(page);
   await act(page, 'Undo screw 2'); await ok(page);
   await act(page, 'Undo screw 3'); await ok(page);
-  expect(await page.evaluate(() => S.flags.sheared)).toBe(3);
+  await act(page, 'Undo screw 4'); await ok(page);
+  expect(await page.evaluate(() => S.flags.sheared)).toBe(4);
   await act(page, 'Lift the old sensor out'); await ok(page);
   expect(await flag(page, 'sensorOut')).toBe(true);
 
@@ -1023,6 +1024,7 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   expect(await flag(page, 'sensorOut')).toBe(false);
   await tap(page, 'act:screw:2'); await ok(page);                       // the screws can be tapped in the picture too
   await act(page, 'Undo screw 3'); await ok(page);
+  await act(page, 'Undo screw 4'); await ok(page);                      // the back one, by feel
   await act(page, 'Undo screw 1');
   expect(await dialogText(page)).toContain('SNAP');                     // the last one always shears
   await ok(page);
@@ -2205,8 +2207,8 @@ test('big moments flash up their stills: a cup of tea, the screw snapping; then 
   expect(await dialogText(page)).toContain('tea');                        // what's said comes after it
   await expect(page.locator('.still')).toHaveCount(0);
   await ok(page);
-  // the third screw on the bench: SNAP
-  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
+  // the last screw on the bench: SNAP
+  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2, 4]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
   await act(page, 'Undo screw 3');
   await page.waitForFunction(() => ANIM && ANIM.kind === 'still');
   await expect(page.locator('.still img')).toHaveAttribute('src', 'stills/snap.svg');
@@ -2747,9 +2749,9 @@ test('the breath test shows a box on BLOW where you press', async ({ page }) => 
 test("two snapped fixings need the stud extractor: bolt 2 under the car, and the screw's stub on the bench (the box won't go back on with the stub in)", async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
-  await act(page, 'Undo screw 3'); await ok(page);                          // it shears
-  expect(await page.evaluate(() => [S.flags.sheared, !!findJob('stub')])).toEqual([3, true]);
+  await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2, 3]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
+  await act(page, 'Undo screw 4'); await ok(page);                          // the back one: it shears
+  expect(await page.evaluate(() => [S.flags.sheared, !!findJob('stub')])).toEqual([4, true]);
   await page.evaluate(() => { S.flags.sensorOut = true; S.flags.fits = true; S.flags.n3found = true; ACTIONS.fit(); });
   expect(await dialogText(page)).toContain('stub still in the box');      // not with the stub in
   await ok(page);
@@ -2799,7 +2801,7 @@ test('the screw jar: once the stub is out you need a third screw; the jar on the
   expect(await dialogText(page)).toContain('too long');
   await ok(page);
   await tap(page, 'act:trayscrew:7');
-  expect(await dialogText(page)).toContain('Three screws');
+  expect(await dialogText(page)).toContain('All four screws');
   expect(await page.evaluate(() => [S.flags.screw3, findJob('screw3').status, S.screen])).toEqual([true, 'done', 'bench']);
   expect(errors).toEqual([]);
 });

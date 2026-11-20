@@ -1412,8 +1412,8 @@ const ACTIONS = {
   fit() {
     if (!S.flags.fits) return say('Fit it', S.flags.boxOff ? 'The box is on the workbench, and there\'s no sensor in it that fits yet.' : 'You haven\'t got one that fits yet.');
     if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
-    if (S.flags.sheared && !S.flags.stubOut) return say('Fit it', 'Not with the snapped screw\'s stub still in the box: the sensor\'s only held by two. Get the stub out with the extractor first.');
-    if (S.flags.sheared && !S.flags.screw3) return say('Fit it', 'The sensor\'s only held by two screws. Find a third that matches: the screw jar on the garage shelf.');
+    if (S.flags.sheared && !S.flags.stubOut) return say('Fit it', 'Not with the snapped screw\'s stub still in the box: the sensor\'s only held by three. Get the stub out with the extractor first.');
+    if (S.flags.sheared && !S.flags.screw3) return say('Fit it', 'The sensor\'s only held by three screws. Find a fourth that matches: the screw jar on the garage shelf.');
     pass(30);
     S.flags.fitted = true;
     moment('sensorFit', 1300); sfx('clink', 0.8); sfx('ratchet', 0.95);
@@ -1448,14 +1448,15 @@ const ACTIONS = {
   // a screw holding the old sensor in the box: the first two come out; the last one always shears off
   screw(n) {
     const f = S.flags;
-    f.screws = f.screws || [];                                         // the screws out so far (1, 2, 3)
+    f.screws = f.screws || [];                                         // the screws out so far (of 4)
     if (f.screws.includes(+n)) return;                                 // already out
     pass(5);
     f.screws.push(+n);
-    if (f.screws.length < 3) {                                         // not the last one: out it comes
+    const back = +n === 4 ? 'The one at the back, behind the sensor. You can\'t see it: you find it with the screwdriver by feel.\n\n' : '';
+    if (f.screws.length < SENSOR_SCREWS) {                             // not the last one: out it comes
       moment('screwOut', 900); sfx('ratchet');
       note('sensor-out', `Screw ${n} out`, 'ok');
-      return say(`Screw ${n}`, f.screws.length === 1 ? 'It comes out. Nice and easy.' : 'That one too. This is going well. Suspiciously well.');
+      return say(`Screw ${n}`, back + ['It comes out. Nice and easy.', 'That one too. This is going well.', 'And that one. Suspiciously well.'][f.screws.length - 1]);
     }
     f.sheared = +n;                                                    // the last one: the head snaps off, the stub stays in the box
     anger(15);
@@ -1464,7 +1465,7 @@ const ACTIONS = {
     note('sensor-out', `Screw ${n} sheared off: its stub is stuck in the box`, 'x');
     job('stub', 'Get the snapped screw\'s stub out of the box', null);   // it'll have to come out before the box goes back on
     lead('stub', 'stub-extractor', 'The stud extractor (like bolt 2)', 'you', 'sure', 'bench');
-    say(`Screw ${n}`, 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
+    say(`Screw ${n}`, (+n === 4 ? 'The one at the back, behind the sensor. You can\'t see it: you find it by feel. ' : '') + 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
   },
   // the snapped screw's stub: the proper extractor gets it out; the cheap one snaps (as on bolt 2)
   stubout() {
@@ -1485,7 +1486,7 @@ const ACTIONS = {
   },
   // lift the old sensor out of the box (once all three screws are out, or snapped)
   boxout() {
-    if ((S.flags.screws || []).length < 3) return say('The old sensor', 'It won\'t come out. There are still screws holding it in.');
+    if ((S.flags.screws || []).length < SENSOR_SCREWS) return say('The old sensor', 'It won\'t come out. There are still screws holding it in.');
     pass(5);
     S.flags.sensorOut = true;                                          // the box is empty: parts can be tried in its hole
     S.inv['old-sensor'] = true;
@@ -1525,8 +1526,8 @@ const ACTIONS = {
     finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
     closeLead('try-p4l', 'ok'); closeLead('try-soldered', 'ok');
     lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
-    const stub = S.flags.sheared && !S.flags.stubOut ? '\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it: get that out with the extractor, then find a third screw.'
-      : S.flags.sheared && !S.flags.screw3 ? '\n\nTwo screws hold it in. The third hole needs a screw that matches: the jar on the garage shelf.' : '\n\nAll three screws hold it in.';
+    const stub = S.flags.sheared && !S.flags.stubOut ? '\n\nThree screws hold it in. The fourth hole still has the stub of the snapped screw in it: get that out with the extractor, then find a screw for it.'
+      : S.flags.sheared && !S.flags.screw3 ? '\n\nThree screws hold it in. The fourth hole needs a screw that matches: the jar on the garage shelf.' : '\n\nAll four screws hold it in.';
     say('Push', 'Click. It fits. It actually fits.' + stub + '\n\nThen fit the box back on the car.');
   },
   pullpart() {

@@ -831,7 +831,8 @@ SCREENS.underZoom = {
     if (boxOn) {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));                                      // the box
       rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
-      disc(246, 140, 30, sensorColour(f.fitted ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
+      disc(246, 140, 30, sensorColour(f.fitted ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);
+      for (const [dx, dy] of [[-30, -26], [30, -26], [-30, 26], [30, 26]]) { disc(246 + dx, 140 + dy, 4, C.steel); line(246 + dx - 2, 140 + dy + 1, 246 + dx + 2, 140 + dy - 1, C.greyDark); }   // the 4 small screws holding the sensor in the box   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
     } else {
       rbox(170, 98, 152, 84, 20, shade(ALLOY, 0.55));                                      // a ring of muck where the box sat
       rbox(178, 106, 136, 68, 16, hex('#141416'));                                        // and the empty, dark opening it sat in
@@ -873,13 +874,16 @@ SCREENS.underZoom = {
 // THE WORKBENCH: try the new part in the hole
 // =====================================================================
 // The 3 screws holding the old sensor in the box: where each sits on the box's top (iso x, y)
-const BOX_SCREWS = { 1: [130, 118], 2: [128, 70], 3: [68, 122] };
+const BOX_SCREWS = { 1: [122, 95], 2: [100, 117], 3: [78, 95], 4: [100, 73] };   // 4 small screws round the sensor (4 is at the back, hidden behind it)
+const SENSOR_SCREWS = 4;
+const BOX_CORNERS = [[66, 66], [134, 124], [66, 124]];             // the 3 holes in its corners for the bolts and the nut that hold it to the gearbox
 // Is the box on the workbench? Only once it's off the car, and until it goes back on
 const boxOnBench = () => !!S.flags.boxOff && !S.flags.fitted;
 // Draw the box's screws: in (a slotted head, tap to undo), out (an empty hole) or snapped (a bright stub)
 function benchScrews(f) {
   const out = f.screws || [];                                          // the screws undone so far
-  for (const n of [1, 2, 3]) {
+  for (const [x, y] of BOX_CORNERS) { const c = P(x, y, 40); disc(c[0], c[1], 3, C.ink); ring(c[0], c[1], 4, C.greyDark); }   // its corner holes (off the car: empty)
+  for (let n = 1; n <= SENSOR_SCREWS; n++) {
     const [x, y] = BOX_SCREWS[n];
     const c = P(x, y, 40);                                             // on the box's top face
     const screwedBack = f.fits && (n !== f.sheared || f.screw3);       // the new sensor's in: screwed back in (the third once you've found a screw)
@@ -894,13 +898,13 @@ function benchScrews(f) {
     }
     disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark);    // in: a screw head with its slot
     line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark);
-    if (!f.sensorOut) spot(`Screw ${n}`, isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), `act:screw:${n}`);
+    if (!f.sensorOut && n !== 4) spot(`Screw ${n}`, isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), `act:screw:${n}`);   // (the back one's hidden behind the sensor: use its button)
   }
 }
 // The hint at the top of the workbench: what's on it and what state it's in
 function benchTip(f, boxHere, b) {
   if (!boxHere) return f.fitted ? 'Nothing to work on. The box is back on the car.' : 'Nothing to work on yet. The sensor is still on the car, in its box.';
-  if (!f.sensorOut) return f.sheared ? 'Two screws out, one snapped off. Lift the old sensor out.' : 'The box, with the old sensor screwed into it. 3 screws.';
+  if (!f.sensorOut) return f.sheared ? 'Three screws out, one snapped off. Lift the old sensor out.' : 'The box, with the old sensor screwed into it: 4 screws round it.';
   if (!b) return 'The empty box. Pick a part to try in its hole.';
   return ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '');
 }
@@ -919,11 +923,11 @@ SCREENS.bench = {
     const b = boxHere ? S.bench : null;                                // the part being tried in the box's hole
     if (boxHere) {
       // the box the sensor sits in, with its round hole
-      ibox(60, 60, 140, 130, 0, 40, C.steel2, C.steel);
+      roundBox(60, 60, 140, 130, 0, 40, 14, C.steel2, C.steel);           // rounded corners, like the hole it sits in under the car
       const h = P(100, 95, 40);
       ellipse(h[0], h[1], 20, 10, C.greyDark); ellipse(h[0], h[1] + 2, 17, 7, C.ink);
       rect(h[0] - 23, h[1] - 1, 5, 3, C.ink); rect(h[0] + 19, h[1] - 1, 5, 3, C.ink);
-      benchScrews(f);                                                  // its 3 screws: in, out, or snapped off
+      benchScrews(f);                                                  // its corner holes, and the 4 screws round the sensor: in, out, or snapped off
       const lifting = ANIM && ANIM.kind === 'benchLift';               // the old sensor being lifted out draws itself
       if (!f.sensorOut && !lifting) benchPart({ part: 'old-sensor', rotated: true }, LIFT.in, 0);   // the old sensor, still screwed in
       if (!f.sensorOut) spot('The old sensor: lift it out', isoArea(86, 82, 114, 108, 40, 90), 'act:boxout');
@@ -946,7 +950,7 @@ SCREENS.bench = {
     const f = S.flags, a = [];
     const boxHere = boxOnBench();
     if (boxHere && !f.sensorOut) {                                     // the old sensor is still screwed into the box
-      for (const n of [1, 2, 3]) if (!(f.screws || []).includes(n)) a.push({ label: `Undo screw ${n}`, act: `screw:${n}` });
+      for (let n = 1; n <= SENSOR_SCREWS; n++) if (!(f.screws || []).includes(n)) a.push({ label: `Undo screw ${n}`, act: `screw:${n}` });
       a.push({ label: 'Lift the old sensor out', act: 'boxout' });
     }
     if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole

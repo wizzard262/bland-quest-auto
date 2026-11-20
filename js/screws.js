@@ -148,7 +148,7 @@ function trayScrew(k) {
     sfx('ratchet'); sfx('ding', 0.6);
     finishJob('screw3', `Screw ${k + 1} from the jar: a perfect match`);
     show('bench');
-    return say('Screw ' + (k + 1), 'It winds in. Snug. Not too long, not too short, the right thread.\n\nThree screws. The sensor doesn\'t move. Now the box can go back on the car.');
+    return say('Screw ' + (k + 1), 'It winds in. Snug. Not too long, not too short, the right thread.\n\nAll four screws. The sensor doesn\'t move. Now the box can go back on the car.');
   }
   S.flags.screwsTried.push(k);
   anger(3);

@@ -234,6 +234,24 @@ function ibox(x0, y0, x1, y1, z0, z1, col, top) {
   poly([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], col);
   poly([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top || shade(col, 1.18));
 }
+// A box with rounded corners (seen from above, like the gearbox sensor's box): its outline goes round each corner in
+// small steps; the sides facing us are drawn (lighter facing right, darker facing left), then the top
+function roundBox(x0, y0, x1, y1, z0, z1, r, col, top) {
+  const outline = [];
+  const corner = (cx, cy, a0) => { for (let k = 0; k <= 4; k++) { const a = a0 + k / 4 * Math.PI / 2; outline.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } };
+  corner(x1 - r, y0 + r, -Math.PI / 2);                                // round the four corners, in turn
+  corner(x1 - r, y1 - r, 0);
+  corner(x0 + r, y1 - r, Math.PI / 2);
+  corner(x0 + r, y0 + r, Math.PI);
+  outline.forEach((p, i) => {                                          // each side that faces us
+    const q = outline[(i + 1) % outline.length];
+    const nx = q[1] - p[1], ny = p[0] - q[0];                          // its outward normal
+    if (nx <= 0 && ny <= 0) return;                                    // facing away
+    const facing = nx / (Math.abs(nx) + Math.abs(ny) || 1);            // 1 = right (x), 0 = left (y)
+    poly([P(p[0], p[1], z0), P(q[0], q[1], z0), P(q[0], q[1], z1), P(p[0], p[1], z1)], shade(col, 0.78 + 0.22 * Math.max(0, facing)));
+  });
+  poly(outline.map(([x, y]) => P(x, y, z1)), top || shade(col, 1.18));   // the top
+}
 // A patch painted on a wall that faces down-left (at y = yf) or down-right (at x = xf)
 function onLeft(yf, a, b, c, d, col) { poly([P(a, yf, c), P(b, yf, c), P(b, yf, d), P(a, yf, d)], col); }
 function onRight(xf, a, b, c, d, col) { poly([P(xf, a, c), P(xf, b, c), P(xf, b, d), P(xf, a, d)], col); }
