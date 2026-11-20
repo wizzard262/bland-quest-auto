@@ -6,16 +6,17 @@
 <title>Bland Quest Auto</title>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
 <style>
-  :root { --page: #06080a; --ui: #cfd8cf; --dim: #7d8a85; --mint: #9ff3d0; --ink: #101018; }
+  :root { --page: #06080a; --ui: #cfd8cf; --dim: #7d8a85; --mint: #9ff3d0; --ink: #101018;
+    --gw: min(calc(100vw - 32px), calc((100vh - 104px) * 16 / 9)); }   /* the game's width: as big as the window allows (it grows and shrinks with it), 16:9 */
   html, body { margin: 0; background: var(--page); color: var(--ui); }
-  body { font-family: 'Silkscreen', monospace; padding: 10px 16px 30px; }
-  header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; max-width: 1120px; }
+  body { font-family: 'Silkscreen', monospace; padding: 10px 16px 10px; }
+  header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 auto 8px; width: var(--gw); }
   h1 { font-size: 16px; letter-spacing: 1px; margin: 0 auto 0 0; font-weight: normal; }
   header button { font: inherit; font-size: 11px; color: var(--ui); background: #10161a; border: 1px solid #34434d; padding: 6px 10px; cursor: pointer; }
   header button:hover { border-color: var(--mint); color: var(--mint); }
 
   /* ---- the picture, with real text and tap areas laid over it ---- */
-  .stage { position: relative; width: min(100%, 1120px); aspect-ratio: 16 / 9; container-type: inline-size; overflow: clip; touch-action: none; }
+  .stage { position: relative; width: var(--gw); margin: 0 auto; aspect-ratio: 16 / 9; container-type: inline-size; overflow: clip; touch-action: none; }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
   .go { position: absolute; cursor: pointer; }
   .go:hover { outline: 2px solid var(--mint); }
@@ -102,7 +103,7 @@
   .dlg button:hover, .acts button:hover { background: #fff; }
 
   /* ---- the action buttons under the picture ---- */
-  .acts { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1120px; margin-top: 8px; font-size: 14px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; width: var(--gw); margin: 8px auto 0; font-size: 14px; }
   .acts button { font-size: 14px; }
 
   /* ---- the computer ---- */

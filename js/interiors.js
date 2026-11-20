@@ -511,7 +511,7 @@ function petrolFront(name, shut) {
   for (let x = -40; x < 240; x += 20) line(...P(x, 40), ...P(x, 104), shade(C.concreteDark, 0.92));
   // the kiosk: white with a red band, its window and door
   ibox(0, BUILDING_BACK, 200, 40, 0, 60, C.white, C.steel);
-  onLeft(40, 0, 200, 46, 58, C.red); frontSign(name, 6, 40, 188, 57, 11);
+  onLeft(40, 0, 200, 46, 58, C.red); frontSign(name, 114, 40, 82, 57, 11);   // the name on the red strip, right of the canopy
   onLeft(40, 10, 136, 8, 40, C.glass);
   for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 9, 14 + (k % 3) * 4, [C.red, C.warm, C.car, C.white][k % 4]);   // snacks in the window
   onLeft(40, 148, 176, 0, 46, C.white); onLeft(40, 150, 174, 0, 44, shut ? C.greyDark : C.glass);   // the door
