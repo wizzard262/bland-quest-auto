@@ -177,7 +177,9 @@ SCREENS.shelf = {
       const [x, top, h] = bookAt(i), col = BOOK_COLOURS[i % BOOK_COLOURS.length];
       bookSpine(i, 0);
       const dark = [C.white, C.warm, CARDBOARD, hex('#e8e0c8'), hex('#d8c8a0')].includes(col);   // pale covers: dark lettering
-      LABELS.push(`<div class="spine" style="left:${(x + 2) / W * 100}%;top:${(top + 16) / H * 100}%;width:${(BOOK_W - 6) / W * 100}%;height:${(h - 34) / H * 100}%;color:${dark ? '#101018' : '#fff'}">${esc(title)}</div>`);
+      const across = BOOK_W - 4, along = h - 30;                                   // the spine between its bands: as wide as the book's face, and its length
+      const size = signFontSize(title, along, across);                              // as big as fits (screens.js)
+      LABELS.push(`<div class="spine" style="left:${x / W * 100}%;top:${(top + 15) / H * 100}%;width:${across / W * 100}%;height:${along / H * 100}%;font-size:${size / W * 100}cqw;line-height:${across / W * 100}cqw;color:${dark ? '#101018' : '#fff'}">${esc(title)}</div>`);   // centred both ways
       spot(esc(title), [x, top, BOOK_W - 2, h], 'act:book:' + i);
     });
     // reading: tap anywhere off the book to put it back
