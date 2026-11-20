@@ -120,6 +120,14 @@ function calmMenu() {
 // =====================================================================
 // THE MANUALS SHELF
 // =====================================================================
+// The German Zafira manual, open at its diagram, once you've the codes: you work out what P0705 is
+function germanDiagram() {
+  const [title, pages] = BOOKS[S.book];
+  if (!title.includes('Deutsch') || S.bookPage !== pages.length - 1) return;   // the diagram's on its last page
+  if (!sensorFound('the German manual', 'fairly sure')) return;
+  pass(15);
+  say(title, 'You hold the diagram up next to the codes in your notebook. "Getriebe… Wählhebelsensor." Selector lever sensor. A little box on the side of the gearbox.\n\nYour German is better than you thought.');
+}
 const BOOKS = [
   ['Zafira 1999–2005 Petrol (Excite only)', ['Chapter 7: Automatic transmission. "Removal is a dealer operation."', 'Page 7-12 has a drawing of a sensor that looks nothing like yours.', 'Someone has written "LIES" in the margin, in biro. It might have been you.']],
   ['Zafira Diesel', ['Everything about the diesel. Your car is petrol.', 'Glow plugs. Your car doesn\'t have glow plugs.', 'The gearbox chapter says "As petrol models." The petrol book says "As diesel models."']],
@@ -671,6 +679,7 @@ Object.assign(ACTIONS, {
     if (S.book == null) return;
     S.bookPage = Math.max(0, Math.min(BOOKS[S.book][1].length - 1, (S.bookPage || 0) + +d));
     sfx('click');
+    germanDiagram();                                                              // the German manual's diagram: it might tell you what P0705 is
   },
   // shop shelves: look at a section, move along with the arrows, things in and out of the basket
   shelfzoom(k) { S.shelfz = +k; show('shelfzoom'); },

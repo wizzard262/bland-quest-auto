@@ -78,6 +78,14 @@ const HUNCHES = {
 // =====================================================================
 // THE CODES
 // =====================================================================
+// Someone (or something) tells you what P0705 is: the selector sensor, on the side of the gearbox. Then the gearbox
+// close-up shows it. Who answers: the forum, Old Ron at the pub, the German manual, a hunch. Who doesn't: TechDocs,
+// Gearbox Gurus and Voltz (round and round), Dodgy Dave, Paul. Returns true if this is how you found out
+function sensorFound(who, how) {
+  if (!S.flags.codes || leadExists('sensor')) return false;         // no codes to ask about, or you know already
+  lead('meaning', 'sensor', "It's the gearbox selector sensor", who, how, 'underZoom');
+  return true;
+}
 function readCodes(how) {
   if (S.flags.codes) return say('The codes', 'Same two codes as before:\n\nP0705 Transmission range sensor circuit malfunction\nP0706 Range / performance');
   S.flags.codes = true;
@@ -931,10 +939,11 @@ const SCREEN_ENTER = {
     moment('van', 2600); sfx('van'); sfx('thud', 1.2);
   },
   underZoom() {
-    // having found the codes ("transmission range sensor"), a look at the gearbox finds the sensor, with or without the forum's help
+    // once you know what P0705 is (a book, someone who knows, or online), a look at the gearbox finds the sensor
     if (!S.flags.codes || S.flags.sensorJob) return;
+    if (!leadExists('sensor')) return;                                // you don't know what you're looking for yet
     S.flags.sensorJob = true;
-    if (leadExists('sensor')) closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
+    closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
     finishJob('meaning', 'Probably the gearbox sensor');
     job('sensor-off', 'Get the old sensor off', 'light');
     note('sensor-off', 'It\'s fixed into a box. 2 bolts and a nut hold the box on.', 'info');
@@ -978,6 +987,11 @@ const ACTIONS = {
   // a regular at the bar: their advice, round and round
   punter(k) {
     const p = PUNTERS[+k];
+    if (+k === 0 && sensorFound('Old Ron, at the pub', 'sure')) {        // Old Ron, once you've the codes: he actually knows
+      pass(10); pubLate();
+      SPEAKER = punterHead(0);
+      return say(p.name, '"P0705? That\'s your selector sensor, son. Little box on the side of the gearbox. Had the same on a Cavalier."\n\nHe goes back to his pint as if nothing happened.');
+    }
     S.punterTalks = S.punterTalks || [0, 0];
     const line = p.lines[S.punterTalks[+k]++ % p.lines.length];
     pass(10); pubLate();
@@ -1506,7 +1520,7 @@ const ACTIONS = {
     S.flags.forumRead = true;
     pass(30);
     closeLead('forum', 'ok', 'The forum has three ideas');
-    lead('meaning', 'sensor', "It's the gearbox selector sensor", 'forum, 2009', 'fairly sure', 'underZoom');
+    sensorFound('forum, 2009', 'fairly sure');
     lead('meaning', 'loom', "It's the wiring loom", 'MrTorque', 'sure', 'underZoom');
     lead('meaning', 'fuses', 'Check your fuses first', 'MrTorque', '"tbh"', 'fuseZoom');
     say('The forum', 'Half an hour of reading. Three ideas: the sensor, the wiring, or the fuses. All posted with total confidence.');

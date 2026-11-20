@@ -2624,11 +2624,20 @@ test('the code reader unplugs from the port; the glove box torch goes on the gar
 });
 
 // ---------- dead ends, fixed ----------
-test('dead ends: the gearbox shows its bolts once you have the codes (no forum needed); clamped with a blocked card, the wife pays the taxi; whatever you cannot afford, she pays (and texts); no clamp while the car is stuck on Mill Lane; no jack once Paul has it', async ({ page }) => {
+test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ron knows, Dodgy Dave does not); clamped with a blocked card, the wife pays the taxi; whatever you cannot afford, she pays (and texts); no clamp while the car is stuck on Mill Lane; no jack once Paul has it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  // the codes, but no forum: the gearbox still gives you the bolts
-  await page.evaluate(() => { S.flags.codes = true; show('underZoom'); });
+  // the codes, but you don't know what P0705 is: the gearbox is just bolts; Old Ron at the pub knows, and then it's the sensor
+  await page.evaluate(() => { S.flags.codes = true; job('meaning', 'What does P0705 mean?', 'light'); show('underZoom'); });
+  expect(await page.evaluate(() => S.flags.sensorJob)).toBeFalsy();
+  await expect(page.locator('.acts button', { hasText: 'Undo bolt 1' })).toHaveCount(0);
+  await page.evaluate(() => { S.mins = 19 * 60; S.place = 'The Hesketh Tavern'; S.inside = true; ACTIONS.punter(1); });
+  expect(await dialogText(page)).not.toContain('selector sensor');            // Dodgy Dave doesn't know
+  await ok(page);
+  await page.evaluate(() => ACTIONS.punter(0));
+  expect(await dialogText(page)).toContain('selector sensor');                // Old Ron does
+  await ok(page);
+  await page.evaluate(() => { S.inside = false; show('underZoom'); });
   expect(await page.evaluate(() => S.flags.sensorJob)).toBe(true);
   await expect(page.locator('.acts button', { hasText: 'Undo bolt 1' })).toHaveCount(1);
   // clamped, card blocked: the taxi still comes (the wife pays)
@@ -2648,5 +2657,17 @@ test('dead ends: the gearbox shows its bolts once you have the codes (no forum n
   // Paul's got the jack: an empty tray in the boot; fitting a wheel, a neighbour lends you his
   await page.evaluate(() => { S.flags.jackLent = true; S.inv.wheel = 'Scrap Yard'; ACTIONS.fitwheel(); });
   expect(await dialogText(page)).toContain('Paul\'s still got it');
+  expect(errors).toEqual([]);
+});
+
+test('the German Zafira manual: open at its diagram once you have the codes, and you work out P0705 is the selector sensor', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const german = await page.evaluate(() => BOOKS.findIndex(b => b[0].includes('Deutsch')));
+  await page.evaluate(k => { S.book = k; S.bookPage = 0; ACTIONS.bookpage(1); ACTIONS.bookpage(1); }, german);   // no codes yet: just German
+  expect(await page.evaluate(() => leadExists('sensor'))).toBe(false);
+  await page.evaluate(k => { S.flags.codes = true; job('meaning', 'What does P0705 mean?', 'light'); S.book = k; S.bookPage = 1; ACTIONS.bookpage(1); }, german);
+  expect(await dialogText(page)).toContain('Selector lever sensor');
+  expect(await page.evaluate(() => leadExists('sensor'))).toBe(true);
   expect(errors).toEqual([]);
 });
