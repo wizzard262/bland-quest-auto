@@ -412,7 +412,7 @@ function petrolFront(name, shut) {
   // the canopy over the pumps, on four posts
   for (const [cx, cy] of [[20, 50], [104, 50], [20, 100], [104, 100]]) ibox(cx, cy, cx + 3, cy + 3, 0, 70, C.steel2);
   // your car, parked at a pump
-  isoCarX(40, 72, 1, C.car);
+  drivenCar(40, 72, 1);
   ibox(14, 46, 112, 104, 70, 76, C.red, C.white);                                        // the canopy roof
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
@@ -462,7 +462,7 @@ function shopExterior(name, shut) {
   if (pub && S.flags.sick === S.day) sickPuddle(1);                                                                   // where he was sick (it's there all day)
 
   // your car (blue), parked at the kerb
-  isoCarX(40, 72, 1, C.car);
+  drivenCar(40, 72, 1);
   if (pub && S.flags.pickup === S.day) wife(PICKUP_AT[0], PICKUP_AT[1], S.wifeLook || 'navy', { hip: true });       // she's come to fetch him: by the car, in her dress
   if (!(ANIM && ['walk', 'sick'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }

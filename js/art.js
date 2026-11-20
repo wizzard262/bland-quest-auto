@@ -248,7 +248,7 @@ const CAR_SHAPES = {
 };
 // opts.shape: one of CAR_SHAPES (ours if not given); opts.alongX: turned to drive along x (parking at the kerb, traffic)
 // opts.broken: a wreck (rust, dark empty windows, a smashed headlight); opts.noWheels: down on its axles;
-// opts.noBonnet: the bonnet's gone (you see the engine bay); opts.flat: flat tyres; opts.dz: lifts it (to stack wrecks)
+// opts.noBonnet: the bonnet's gone (you see the engine bay); opts.flat: flat tyres; opts.flatFront: just the front one flat; opts.dz: lifts it (to stack wrecks)
 // opts.reverse: facing the other way, so you see its back (traffic coming the other way)
 function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const K = CAR_SHAPES[opts.shape] || CAR_SHAPES.zafira;
@@ -383,8 +383,9 @@ function carWheels(K, Q, side, col, broken, opts) {
     const wc = wy * L;
     poly(circle(wc, 5.4, 4, 4), shade(col, 0.4));                                                                     // the arch (dark, above the sill)
     if (opts.noWheels) { poly(side([[wc - 1, 0], [wc + 1, 0], [wc + 1, 4], [wc - 1, 4]]), C.rust); continue; }       // just a rusty hub
-    const zc = opts.flat ? 3.4 : 4;
-    poly(circle(wc, 4.2, zc, opts.flat ? 0.3 : -9), C.tyre);                                                          // tyre (squashed if flat)
+    const flat = opts.flat || (opts.flatFront && wy > 0.5);                                                         // all flat, or just the front one
+    const zc = flat ? 3.4 : 4;
+    poly(circle(wc, 4.2, zc, flat ? 0.3 : -9), C.tyre);                                                               // tyre (squashed if flat)
     poly(circle(wc, 2.2, zc + 0.3, -9), broken ? shade(C.rim, 0.6) : C.rim);                                         // rim
     const h = Q(24, wc, zc + 0.3);
     px(h[0], h[1], C.ink);                                                                                             // wheel nut

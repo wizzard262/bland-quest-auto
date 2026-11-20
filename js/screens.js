@@ -74,7 +74,8 @@ SCREENS.home = {
     gableRoof(177, 7, 239, 63, 40, 20, hex('#e8a8c0'), C.roof);
     winLeft(60, 190, 204, 16, 30); winLeft(60, 214, 228, 16, 30);
     // the car, the bin, parcels by the door, you
-    isoCar(102, 72);
+    if (!carStranded()) isoCar(102, 72);                                                  // your car on the drive
+    else if (inWifesCar()) isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' });              // or hers, while yours is on a flat
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
     kerbMailbox(S.doorstep.length > 0);                                                   // the mailbox at the kerb: a parcel sticks out when there is one
     standingMan('home');
@@ -94,7 +95,8 @@ SCREENS.home = {
   },
   actions() {
     return [
-      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : [])
+      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : []),
+      ...(inWifesCar() ? [{ label: 'Drive to your car (Mill Lane)', act: 'toroad' }] : [])   // yours is on a flat: back to it in hers
     ];
   }
 };
@@ -260,11 +262,11 @@ SCREENS.city = {
     // your car (the only blue one), parked in the street outside the last place you went
     const here = Math.max(0, placeIndex(S.place || 'Home'));
     const carX = (here % 7) * BLOCK + STREET + 22, carY = Math.floor(here / 7) * BLOCK + STREET + 74;
-    isoCarX(carX, carY, 0.5, C.car);
+    drivenCar(carX, carY, 0.5);                                         // yours (or hers, while yours is on a flat)
     for (const lot of lots) sign(lot);
     spot('Your car: drive home', isoArea(carX, carY, carX + 24, carY + 13, 0, 12), 'home');   // tap your car to go home
     minimap();
-    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round. Tap your blue car to go home.', 1, 80);
+    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round. Tap ' + (inWifesCar() ? 'her purple car' : 'your blue car') + ' to go home.', 1, 80);   // hers while yours is on a flat
     hud();
   },
   actions() { return []; }
@@ -585,6 +587,7 @@ SCREENS.phone = {
     rect(168, 9, 144, 255, C.greyDark); rect(171, 12, 138, 249, C.ink); rect(225, 17, 30, 3, C.grey);
   },
   overlay() {
+    if (S.flags.phoneDead) return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs"><div class="m"><b>Your phone</b>The screen stays black. The battery is flat.</div></div></div>`;   // dead: nothing works
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
       <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div>${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
@@ -673,7 +676,8 @@ SCREENS.garage = {
     ibox(150, 4, 172, 16, 28, 38, C.red); line(...P(156, 10, 41), ...P(166, 10, 41), C.ink);
     if (S.flags.screwsSpilt && !S.flags.n3found) for (let n = 0; n < 60; n++) { const p = P(100 + hash(n, 9) * 70, 30 + hash(9, n) * 30); px(p[0], p[1], C.steel); }
     ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
-    isoCar(40, 46, 1.25);
+    const carHere = !carStranded();                                     // your car is in the garage (not on a flat on Mill Lane)
+    if (carHere) isoCar(40, 46, 1.25);
     for (const [wx, wy] of [[83, 61], [91, 61], [83, 85], [91, 85]]) { const w = P(wx, wy, 0.6); ellipse(w[0], w[1], 2, 1, C.tyre); }   // the creeper's little wheels
     ibox(82, 60, 92, 86, 1, 3, C.red);
     standingMan('garage');
@@ -682,10 +686,12 @@ SCREENS.garage = {
     spot('Workbench', isoArea(98, 0, 176, 26, 0, 40), 'bench', [132, 34]);
     spot('Manuals', isoArea(0, 18, 14, 96, 50, 66), 'shelf', [22, 56]);
     spot('Parts boxes', isoArea(0, 104, 18, 138, 0, 22), 'partsbox', [26, 118]);
-    spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
-    spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
-    spot('Boot', isoArea(40, 44, 70, 54, 8, 24), 'boot', [56, 36]);   // the spare wheel, jack and wheel brace (for a flat tyre)
-    spot('Under the car (creeper)', isoArea(80, 58, 94, 88, 0, 4), 'under', [96, 80]);
+    if (carHere) {                                                    // the car's bits: only when it's here
+      spot('Driver\'s seat', isoArea(40, 58, 70, 88, 16, 28), 'dash', [78, 70]);
+      spot('Bonnet', isoArea(40, 90, 70, 104, 4, 20), 'bonnet', [56, 112]);
+      spot('Boot', isoArea(40, 44, 70, 54, 8, 24), 'boot', [56, 36]);   // the spare wheel, jack and wheel brace (for a flat tyre)
+      spot('Under the car (creeper)', isoArea(80, 58, 94, 88, 0, 4), 'under', [96, 80]);
+    }
     exitDoor(140, [136, 168, 52]);                                    // the way out: a see-through door in the near wall
     spot('Door: leave', isoArea(136, 136, 168, 140, 0, 52), 'home', [150, 128]);
     if (wifeInGarage()) spot('Talk to the wife', isoArea(WIFE_IN_GARAGE[0] - 4, WIFE_IN_GARAGE[1] - 4, WIFE_IN_GARAGE[0] + 4, WIFE_IN_GARAGE[1] + 4, 0, 40), 'act:wife', [160, 48]);
@@ -693,7 +699,7 @@ SCREENS.garage = {
     spot('Look under the shelves', isoArea(2, 0, 56, 12, 0, 6), 'act:search:the shelves', [30, 24]);
     spot('Look under the tool chest', isoArea(60, 0, 86, 20, 0, 6), 'act:search:the tool chest', [73, 28]);
     spot('Look under the workbench', isoArea(98, 0, 176, 28, 0, 6), 'act:search:the workbench', [132, 36]);
-    spot('Look under the car', isoArea(40, 50, 70, 100, 0, 4), 'act:search:the car', [34, 70]);
+    if (carHere) spot('Look under the car', isoArea(40, 50, 70, 100, 0, 4), 'act:search:the car', [34, 70]);
     spot('Look under the parts boxes', isoArea(18, 104, 23, 138, 0, 3), 'act:search:the parts boxes', [26, 118]);   // the floor along their front, so the boxes themselves still open
     hud();
   },

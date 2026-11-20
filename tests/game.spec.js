@@ -11,6 +11,7 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; });   // no random punctures on the way home (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
@@ -174,7 +175,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox', 'port', 'ecu']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox', 'port', 'ecu', 'roadside', 'walkhome']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -1814,5 +1815,76 @@ test('AA batteries off the shop shelf do not fit the multimeter', async ({ page 
   await act(page, 'Test the multimeter');
   expect(await dialogText(page)).toContain('AAs');
   await ok(page);
+  expect(errors).toEqual([]);
+});
+
+// ---------- road snags: a puncture on the way home ----------
+test('a puncture on the way home: the spare is flat, the phone dies, the walk home in the rain and a splash; the wife says get a wheel and lends you her car; fit it at the roadside', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Tyre Place'); await idle(page);
+  await page.evaluate(() => { PUNCTURE_CHANCE = 1; });                  // this time it happens
+  await page.locator('.hs[data-go="city"]').first().click(); await idle(page);   // back in the car
+  await page.locator('.hs[data-go="home"]').first().click();           // drive home…
+  expect(await dialogText(page)).toContain('A puncture');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, !!S.road, !!findJob('tyre')])).toEqual(['roadside', true, true]);
+  // stuck: you can't go anywhere else
+  await page.evaluate(() => { goTo('place:Tool Shop'); });
+  expect(await dialogText(page)).toContain('stuck on Mill Lane');
+  await ok(page);
+  // the spare: flat
+  await act(page, 'Put the spare on');
+  expect(await dialogText(page)).toContain('flat since 2019');
+  await ok(page);
+  // ring for help: the phone dies (and stays dead)
+  await act(page, 'Ring for help');
+  expect(await dialogText(page)).toContain('screen goes black');
+  await ok(page);
+  await page.click('.go[data-go="phone"]');                             // the phone in your pocket: dead
+  await expect(page.locator('.ph')).toContainText('battery is flat');
+  await page.evaluate(() => { back(); });
+  // walk home: rain, a car, a puddle, soaked; home, and the wife has a plan
+  await act(page, 'Walk home');
+  expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['walkhome', 'walkhome']);
+  expect(await dialogText(page)).toContain('SOAKED');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, S.road.walked, !!S.flags.phoneDead])).toEqual(['room', true, false]);
+  expect(await page.evaluate(() => [leadOpen('wheel-yard'), leadOpen('wheel-shop')])).toEqual([true, true]);
+  // your car's not in the garage; in town you drive hers
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await expect(page.locator('.hs[data-go="dash"]')).toHaveCount(0);
+  await page.evaluate(() => { goTo('dash'); });
+  expect(await dialogText(page)).toContain('on a flat');
+  await ok(page);
+  // a wheel from the Tyre Place
+  const money = await page.evaluate(() => S.money);
+  await goPlace(page, 'Tyre Place'); await talk(page);
+  expect(await dialogText(page)).toContain('part-worn');
+  await ok(page);
+  expect(await page.evaluate(() => [S.inv.wheel, S.money])).toEqual(['Tyre Place', money - 35]);
+  // back to Mill Lane in her car, and fit it
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await act(page, 'Drive to your car');
+  expect(await page.evaluate(() => S.screen)).toBe('roadside');
+  await act(page, 'Fit the wheel');
+  expect(await dialogText(page)).toContain('spare is still flat');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, S.road, findJob('tyre').status, S.flags.punctured])).toEqual(['home', null, 'done', true]);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await expect(page.locator('.hs[data-go="dash"]')).toHaveCount(1);     // your car's back
+  expect(errors).toEqual([]);
+});
+
+test('a puncture only happens once, and never with the chance at 0', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; S.screen = 'city'; render(); });
+  expect(await page.evaluate(() => punctureOnTheWayHome())).toBe(false);   // the tests turn them off
+  await page.evaluate(() => { PUNCTURE_CHANCE = 1; S.flags.punctured = true; });
+  expect(await page.evaluate(() => punctureOnTheWayHome())).toBe(false);   // had one already
+  await page.evaluate(() => { S.flags.punctured = false; S.mins = 20 * 60; });
+  expect(await page.evaluate(() => punctureOnTheWayHome())).toBe(false);   // not at night
   expect(errors).toEqual([]);
 });

@@ -212,6 +212,10 @@ function think() {
 // Where a lead or a tap can take you: 'garage', 'place:Name', 'app:Forum'
 function goTo(target) {
   if (target.startsWith('act:')) return act(target.slice(4));
+  if (target === 'phone' && S.screen === 'roadside' && !S.flags.phoneDead) return act('roadring');   // on a flat on Mill Lane: the phone dies
+  const stuck = strandedReason(target);                               // your car's on a flat on Mill Lane
+  if (stuck) return say('Your car', stuck);
+  if (target === 'home' && punctureOnTheWayHome()) return;           // now and then, on the way home: a puncture
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
   if (target === 'phone' && CALL) return answerCall();                // the phone's ringing: tapping it answers
@@ -252,7 +256,11 @@ function back() {
 function travelFrom() { /* the car is always ready; the trip is charged when you pick a place */ }
 // Go to a place in town: the trip costs 20 minutes
 function visit(name) {
-  if (name === 'Home') { S.place = 'Home'; return show('home'); }
+  if (name === 'Home') {
+    if (punctureOnTheWayHome()) return;                              // now and then, on the way home: a puncture
+    S.place = 'Home';
+    return show('home');
+  }
   const jam = name === 'Post Office' ? poJam() : null;             // the post office in the morning: the roadworks
   pass(jam ? jam.mins : 20);
   S.place = name;

@@ -17,6 +17,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/sound.js`: sound effects, all made up in the browser (no files); Sound on/off in the header
 - `js/story.js`: branch 1 (the red light): who says what, what each action does, leads, hunches, timed texts
 - `js/extras.js`: anger (calm-down menu, breaking things on the car), the manuals shelf, shop shelves close up (the hammer), the fuse diagram online
+- `js/road.js`: road snags: now and then on the way home, a puncture (the roadside, the flat spare, the dead phone, the walk home in the rain and the splash, a wheel from the Scrap Yard or the Tyre Place in the wife's car)
 - `js/engine.js`: game state, time, money, anger, the notebook, dialogs, saving
 - `task-tree.md`: the full design tree of tasks and snags (branches still to build)
 - `mockups.html`: the still mockups the game was built from

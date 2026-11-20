@@ -794,7 +794,13 @@ const TALK = {
       { label: 'Not now', run() {} }
     ]);
   },
+  // the Tyre Place: a part-worn wheel when your car's on a flat (road.js); otherwise, tyres you don't need
+  'Tyre Place'() {
+    if (wheelWanted()) return buyWheel('Tyre Place');
+    say('Tyre Place', '"Tyres? Your tyres are fine, mate. For now."');
+  },
   'Scrap Yard'() {
+    if (wheelWanted()) return buyWheel('Scrap Yard');                   // your car's on a flat: a wheel off a wreck
     if (brokeOpen('wiper')) {
       finishJob('broke-wiper', 'A wiper arm from the Scrap Yard: £2'); closeLead('wiper', 'ok'); spend(2);
       return say('Scrap Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
