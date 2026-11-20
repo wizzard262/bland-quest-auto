@@ -14,7 +14,7 @@ const BROTHER_LINES = [
   '"Have you tried turning it off and on again? Not you. The car."',
   '"My mate had a Zafira. Scrapped it. Best thing he ever did."',
   '"You want WD-40 on that. On everything, really."',
-  '"Mum says are you still coming Sunday."'
+  '"Mum says come over. Dad wants to look at your car. God help you."'
 ];
 
 // Is he in the garage now? (he leaves after three hours, or once he's done all his helping)
@@ -68,6 +68,7 @@ const BROTHER_HELPS = [
   // he borrows your jack
   () => {
     S.flags.jackLent = true;
+    S.flags.jackLentDay = S.day;                                       // (he rings about it the next day)
     return '"Can I borrow your jack? Back Tuesday." He doesn\'t say which Tuesday.\n\nThen he looks at his watch. "Right, I\'ll leave you to it. Good luck, mate!" And he\'s gone.';
   }
 ];

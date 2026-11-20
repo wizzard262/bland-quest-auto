@@ -109,6 +109,15 @@ function counterScene(name) {
   rect(334, COUNTER_VIEW.top - 22, 36, 10, hex('#0a2a20'));         // its screen
   rect(340, COUNTER_VIEW.top - 34, 24, 8, C.steel2);                // the receipt roll on top
 }
+// Talk to Dad: another theory (and a little more wound up)
+function dadTalk() {
+  S.flags.dadTalks = (S.flags.dadTalks || 0) + 1;
+  pass(10);
+  anger(3);
+  const d = P(...DAD_AT);
+  SPEAKER = [d[0] + 2, d[1] - 40];
+  say('Dad', DAD_LINES[(S.flags.dadTalks - 1) % DAD_LINES.length]);
+}
 // What you can tap at the counter
 function counterSpots(name) {
   const [hx, hy] = counterKeeperHead();                             // where his head is
@@ -259,9 +268,35 @@ function houseDoorstep(name, col, shut, look) {
   winLeft(40, 20, 44, 26, 46); winLeft(40, 112, 136, 26, 46);
   for (const x of [8, 140]) { ibox(x, 44, x + 14, 54, 0, 6, C.tree2); for (let k = 0; k < 6; k++) px(...P(x + 2 + k * 2, 49, 7), [C.red, C.warm, C.white][k % 3]); }
   ground(66, 40, 90, 120, C.concrete);
+  if (name === MUM_DAD) mumDadDrive();                               // their drive: your car, bonnet up
   if (!shut) { const m = P(78, 46); man(m[0], m[1], 'stand', 2, 0, look); }
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+  if (name === MUM_DAD) { const d = P(...DAD_AT); man(d[0], d[1], 'stand', 2, 0, DAD_LOOK); }   // Dad, beside you, peering in
 }
+// ---------- Mum & Dad's: "come over any time". You and Dad on their drive, looking under the bonnet; Dad is all wrong ----------
+const MUM_DAD = "Mum & Dad's";
+const MUM_DAD_CAR = [96, 56];                                      // your car on their drive (along x, nose to the right)
+const MUM_DAD_YOU = [152, 62], DAD_AT = [152, 78];                 // you and Dad, at its nose
+const DAD_LOOK = { shirt: hex('#8a7a5a'), shirtDark: hex('#6a5a40'), jeans: hex('#4a4a52'), jeansDark: hex('#3a3a42'), hair: hex('#d8d8d0') };   // a cardigan, grey slacks, white hair
+function mumDadDrive() {
+  ground(92, 40, 160, 120, C.concrete);                             // their drive
+  if (S.flags.taxi || inWifesCar()) return;                         // not in your car: nothing to look under
+  const [x, y] = MUM_DAD_CAR;
+  isoCar(x, y, 1, C.car, { alongX: true });
+  const hx = x + 36;                                                // the bonnet's hinge, at the bottom of the windscreen
+  poly([P(hx, y + 2, 15), P(hx, y + 22, 15), P(hx + 4, y + 22, 32), P(hx + 4, y + 2, 32)], shade(C.car, 0.7));   // the bonnet, propped up
+  poly([P(hx + 1, y + 3, 12), P(x + 46, y + 3, 11), P(x + 46, y + 21, 11), P(hx + 1, y + 21, 12)], hex('#2a2a2e'));   // the engine bay
+  line(...P(hx + 6, y + 12, 11), ...P(hx + 3, y + 12, 28), C.steel2);   // the stay holding it up
+}
+// Dad's theories: confident, and all wrong
+const DAD_LINES = [
+  '"Could be the tyres. They look a bit… round."',
+  '"Have you checked the windows? Electric windows. They drain everything."',
+  '"It\'s the wipers. On these foreign ones the sensor\'s in the wipers."',
+  '"In my day you just gave it a good thump. Here, hold this." He hands you nothing.',
+  '"Have you tried a new air freshener? Your mother swears by them."',
+  '"That\'s your engine, that is." He points at the battery.'
+];
 // A cash register on the counter: body, a green display, a card machine
 function till(x, y) {
   ibox(x, y, x + 16, y + 12, 22, 30, C.greyDark, C.grey);

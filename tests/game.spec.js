@@ -11,7 +11,7 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; });   // no random punctures or blocked cards (a test turns them on)
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; });   // no random punctures, blocked cards or phone calls (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
@@ -2669,5 +2669,43 @@ test('the German Zafira manual: open at its diagram once you have the codes, and
   await page.evaluate(k => { S.flags.codes = true; job('meaning', 'What does P0705 mean?', 'light'); S.book = k; S.bookPage = 1; ACTIONS.bookpage(1); }, german);
   expect(await dialogText(page)).toContain('Selector lever sensor');
   expect(await page.evaluate(() => leadExists('sensor'))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+// ---------- phone calls, and Mum & Dad's ----------
+test('people ring: answer and they talk; leave it and it is a missed call then a text; the calls come at their times', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { NO_CALLS = false; CALL_TIMES.ring = 1500; CALL_TIMES.text = 300; });
+  // Mum & Dad ring on day 2 at 6pm: answer it
+  await page.evaluate(() => { S.screen = 'home'; S.day = 2; S.mins = 17 * 60 + 50; pass(15); render(); });
+  await page.waitForFunction(() => CALL && CALL.who === 'Mum & Dad');
+  await page.click('.go[data-go="phone"]');
+  expect(await dialogText(page)).toContain('I DO KNOW CARS');
+  await ok(page);
+  // the wrong number: leave it ringing: a missed call, then the text
+  await page.evaluate(() => { pass(160); render(); });
+  await page.waitForFunction(() => CALL && CALL.who === 'Unknown number');
+  await page.waitForFunction(() => !CALL && S.msgs.some(m => m.body.includes('large doner')));
+  expect(await page.evaluate(() => S.msgs.some(m => m.from === 'Unknown number' && m.body === 'Missed call'))).toBe(true);
+  // Paul rings about the jack the day after he borrowed it
+  expect(await page.evaluate(() => { S.flags.jackLentDay = S.day; return EVENTS.find(e => e.id === 'call-jack').when(); })).toBe(false);
+  expect(await page.evaluate(() => { S.day += 1; S.mins = 10 * 60; return EVENTS.find(e => e.id === 'call-jack').when(); })).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("Mum & Dad's: come over any time; your car on their drive with the bonnet up; Mum at the door, Dad's theories all wrong", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goPlace(page, "Mum & Dad's");
+  expect(await page.evaluate(() => [S.screen, S.inside, S.spot.place])).toEqual(['place', true, [152, 62]]);
+  await tap(page, 'act:dad');
+  expect(await dialogText(page)).toContain('tyres');
+  await ok(page);
+  await tap(page, 'act:dad');
+  expect(await dialogText(page)).toContain('windows');
+  await ok(page);
+  await tap(page, 'act:talk');
+  expect(await dialogText(page)).toContain('Have you eaten');
   expect(errors).toEqual([]);
 });

@@ -475,12 +475,13 @@ SCREENS.place = {
     }
     shopInterior(name, shut);
     ISO.ox = SHOP_VIEW[0]; ISO.oy = SHOP_VIEW[1];
-    const person = (PLACE_INFO[name] || {}).person || (style === 'house' ? name.replace("'s", '') : 'the shopkeeper');
+    const person = name === MUM_DAD ? 'Mum' : (PLACE_INFO[name] || {}).person || (style === 'house' ? name.replace("'s", '') : 'the shopkeeper');   // at Mum & Dad's: Mum's at the door
     if (!shut) {
       const [hx, hy] = keeperHead();
       const queueing = name === 'Post Office' && !postFirst();       // at the post office you stay at the back of the queue
       spot('Talk to ' + esc(person), [hx - 12, hy - 2, 26, 44], 'act:talk', style === 'house' ? [80, 70] : queueing ? [118, 146] : [104, 80]);
     }
+    if (name === MUM_DAD) spot('Talk to Dad', isoArea(DAD_AT[0] - 4, DAD_AT[1] - 4, DAD_AT[0] + 4, DAD_AT[1] + 4, 0, 40), 'act:dad', MUM_DAD_YOU);   // Dad, at the car with you
     if (style !== 'house') {
       if (SHELF_STYLES.includes(style)) {                          // shelves along the left wall, a till to pay at, posters on the back wall
         shelfSpots();
@@ -612,7 +613,7 @@ SCREENS.phone = {
     if (S.flags.phoneDead) return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs"><div class="m"><b>Your phone</b>The screen stays black. The battery is flat.</div></div></div>`;   // dead: nothing works
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
-      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Paul</div><div data-act="ring:Wife">Ring the wife</div>${carClamped() ? '<div data-act="taxi">Ring for a taxi</div>' : ''}${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
+      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum &amp; Dad</div><div data-act="ring:Brother">Ring Paul</div><div data-act="ring:Wife">Ring the wife</div>${carClamped() ? '<div data-act="taxi">Ring for a taxi</div>' : ''}${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
 };

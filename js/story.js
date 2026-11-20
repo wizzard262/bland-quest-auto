@@ -60,7 +60,12 @@ const EVENTS = [
     textMsg('Mate Gaz', "heard ur car's knackered. got a code reader somewhere, come round");
     lead('codes', 'gaz-reader', "Borrow Gaz's code reader", 'Gaz', 'maybe', "place:Mate Gaz's");
   } },
-  { id: 'mum-text', day: 1, mins: 15 * 60, run() { textMsg('Mum', 'Are you still coming Sunday? Bring the car x'); } },
+  { id: 'mum-text', day: 1, mins: 15 * 60, run() { textMsg('Mum & Dad', 'Hope the car is ok love. Come over any time x'); } },
+  { id: 'call-mumdad', day: 2, mins: 18 * 60, run() { ringWhenFree('mumdad'); } },
+  { id: 'call-wrong', day: 2, mins: 20 * 60 + 30, run() { ringWhenFree('wrong'); } },
+  { id: 'call-cold', day: 3, mins: 10 * 60 + 30, run() { ringWhenFree('cold'); } },
+  { id: 'call-dealer', day: 4, mins: 11 * 60, run() { ringWhenFree('dealer'); } },
+  { id: 'call-jack', day: 1, mins: 0, when: () => !!S.flags.jackLentDay && S.day > S.flags.jackLentDay && S.mins >= 9 * 60, run() { ringWhenFree('jack'); } },   // the day after Paul borrowed it
   { id: 'scam-text', day: 2, mins: 9 * 60, run() { textMsg('Unknown', 'Your parcel is held. Pay £1.45 to release: parcel-helddd.example'); } }
 ];
 
@@ -401,11 +406,12 @@ function tryRinging() {
   incomingCall();
 }
 // The phone rings: it glows and rattles in your pocket (bottom right). Tap it to answer, or leave it
-function incomingCall() {
+//   who: who's ringing; words: what they say if you answer; text: what they text if you don't
+function incomingCall(who = 'The wife', words = '"' + WIFE_PUB_CALL + '"', text = WIFE_PUB_CALL + ' x') {
   const ring = () => { sfx('ringtone'); sfx('buzz'); };                // the ringtone, and the buzz of it vibrating
   ring();
   const bell = setInterval(ring, 1500);                                // it keeps ringing
-  CALL = { who: 'The wife', bell, timer: setTimeout(missedCall, CALL_TIMES.ring) };
+  CALL = { who, words, text, bell, timer: setTimeout(missedCall, CALL_TIMES.ring) };
   render();                                                            // the still phone comes out of the picture: the ringing one moves
 }
 // Stop the ringing (answered, or rung off)
@@ -416,20 +422,47 @@ function stopRinging() {
   CALL = null;
   render();                                                            // the phone goes still again
 }
-// Answered: phone to his ear, and her voice comes out of it
+// Answered: phone to his ear, and their voice comes out of it (in the pub you see him holding it)
 function answerCall() {
+  const { who, words } = CALL;
   stopRinging();
-  ON_PHONE = true;
-  SPEAKER = phoneInHand();
-  say('The wife', '"' + WIFE_PUB_CALL + '"', [{ label: 'OK', run() { ON_PHONE = false; } }]);
+  if (inPub()) { ON_PHONE = true; SPEAKER = phoneInHand(); }
+  say(who, words, [{ label: 'OK', run() { ON_PHONE = false; } }]);
 }
-// Not answered: a missed call, and then she texts
+// Not answered: a missed call, and then they text
 function missedCall() {
+  const { who, text } = CALL;
   stopRinging();
-  S.msgs.unshift({ from: 'The wife', body: 'Missed call', when: clockText(), read: false });
+  S.msgs.unshift({ from: who, body: 'Missed call', when: clockText(), read: false });
   sfx('buzz');
   save(); render();
-  setTimeout(() => { textMsg('The wife', WIFE_PUB_CALL + ' x'); save(); render(); }, CALL_TIMES.text);
+  setTimeout(() => { textMsg(who, text); save(); render(); }, CALL_TIMES.text);
+}
+// ---------- other people ring you now and then (each once): Mum, a wrong number, a cold caller, the dealer, Paul ----------
+//   [id, who, what they say if you answer, what they text if you don't]
+const PHONE_CALLS = {
+  mumdad: ['Mum & Dad', '"Hello love, it\'s Mum. Your dad says come over any time and he\'ll have a look at the car. He knows cars."\n\nIn the background: "I DO KNOW CARS."',
+    'Come over any time love. Dad says bring the car, he\'ll have a look x'],
+  wrong: ['Unknown number', '"Is that Kebab Kingdom? Large doner, extra chilli, and a—"\n\nYou tell him it isn\'t.\n\n"…Are you sure?"',
+    'large doner extra chilli. 20 mins?'],
+  cold: ['Unknown number', '"Hello! We understand you\'ve been in an accident that wasn\'t your fault."\n\nYou haven\'t.\n\n"Are you sure? Your car sounds very upset."',
+    'You may be entitled to compensation. Reply STOP to stop. Reply START to start.'],
+  dealer: ['Main Dealer', '"Hi, it\'s the Main Dealer! Your Zafira\'s due a service. We can fit you in on the 14th of next month. That\'s £299. Shall I put you down?"\n\nYou say you\'ll think about it. You won\'t.',
+    'Your Zafira is due a service. Call us to book (from £299).'],
+  jack: ['Paul', '"Mate. Your jack. Funny story. I lent it to Dodgy Dave."\n\n"No, I don\'t know where he lives either."',
+    'got ur jack. sort of. long story']
+};
+let NO_CALLS = !!window.NO_CALLS;                                      // the tests turn the calls off (a test turns them on)
+// Someone rings: as soon as the phone's on screen and nothing else is going on (not while the phone's dead)
+function ringWhenFree(id) {
+  if (NO_CALLS) return;
+  const [who, words, text] = PHONE_CALLS[id];
+  const tryNow = () => {
+    if (S.flags.phoneDead) return setTimeout(tryNow, 5000);           // dead: they'll get through once it's charged
+    if (!HUD_SHOWN || DIALOG || ANIM || CALL) return setTimeout(tryNow, 1000);   // busy: try again in a second
+    incomingCall(who, words, text);
+  };
+  setTimeout(tryNow, 1500);
 }
 // After a drink or three: the key in the car door (a little game: the key wobbles and drifts about)
 function keyStart() {
@@ -707,6 +740,7 @@ function arriveAt(name) {
   S.spot.place = [105, 140];                                       // you come in at the door
   S.spot.outside = [100, 52];                                       // and get out of the car on the pavement
   S.inside = placeStyle(name) === 'house';                         // shops: you see the outside first; houses: you're on the doorstep
+  if (name === MUM_DAD) S.spot.place = MUM_DAD_YOU;                 // Mum & Dad's: you're out at the car with Dad
   if (name === 'Post Office') {                                     // the post office: when you got here decides your place in the queue
     S.po = { day: S.day, arrived: S.mins };
     if (poInQueue()) S.spot.outside = poSlot(poAhead());              // before 9: you join the back of the queue outside
@@ -818,6 +852,12 @@ const TALK = {
     anger(10);
     closeLead('voltz', 'x', 'Voltz: "that\'s the gearbox" (round and round)');
     say('Voltz Auto Electric', '"P0705? That\'s the gearbox, mate. You want the gearbox people."');
+  },
+  "Mum & Dad's"() {                                                   // Mum on the doorstep
+    S.flags.mumTalks = (S.flags.mumTalks || 0) + 1;
+    const lines = ['"Come in, love! Have you eaten? You look thin."', '"Your dad\'s been looking forward to this all week."', '"Is Paul coming? He never comes."', '"Do you want a cup of tea? I\'ll put the kettle on."'];
+    anger(-8);                                                          // Mum: it helps, a bit
+    say('Mum', lines[(S.flags.mumTalks - 1) % lines.length]);
   },
   "Mate Gaz's"() {
     if (S.inv['reader-old'] || !leadExists('gaz-reader')) return say("Gaz's", '"Alright? Did my reader work?"');
@@ -985,6 +1025,7 @@ const ACTIONS = {
   },
   counteroff() { S.counter = null; },                                  // step back from the counter, into the shop
   // a regular at the bar: their advice, round and round
+  dad() { dadTalk(); },                                                 // Mum & Dad's: Dad under the bonnet with you (interiors.js)
   punter(k) {
     const p = PUNTERS[+k];
     if (+k === 0 && sensorFound('Old Ron, at the pub', 'sure')) {        // Old Ron, once you've the codes: he actually knows
@@ -1494,7 +1535,7 @@ const ACTIONS = {
     }
     const lines = {
       Gaz: S.flags.gazTried ? '"Still looking for it, mate."' : '"Come round, I\'ll have a look for that reader."',
-      Mum: '"Are you still coming Sunday? Bring the car."',
+      Mum: '"Come over any time, love. Your dad\'ll have a look at the car." In the background: "I KNOW CARS."',
       Brother: '"Can\'t talk, in the van. Ring you back." (He doesn\'t.)'
     };
     say('Ringing ' + who, lines[who] || 'No answer.');

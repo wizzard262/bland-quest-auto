@@ -106,7 +106,7 @@ function calmMenu() {
   const opts = [
     { label: 'Count to ten (1 minute)', run() { pass(1); anger(-5); say('One… two… three…', 'By eight you\'re thinking about the nut again. A bit calmer.'); } },
     { label: 'Deep breaths (5 minutes)', run() { pass(5); anger(-8); say('Deep breaths', 'In… out… The neighbour\'s dog barks. A bit calmer.'); } },
-    { label: 'Ring Mum (15 minutes)', run() { pass(15); anger(-12); say('Mum', 'She tells you about her knee, the neighbours and the price of butter. You feel calmer. Somehow.'); } }
+    { label: 'Ring Mum & Dad (15 minutes)', run() { pass(15); anger(-12); say('Mum', 'She tells you about her knee, the neighbours and the price of butter. You feel calmer. Somehow.'); } }
   ];
   if (S.screen === 'home') {
     opts.push({ label: 'Walk round the block (30 minutes)', run() { pass(30); anger(-25); say('A walk', 'Round the block. A cat. A nice front garden. Much calmer.'); } });
