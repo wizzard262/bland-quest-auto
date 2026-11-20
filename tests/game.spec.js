@@ -1064,11 +1064,21 @@ test('after kicking the headlight it stays smashed: the TheeBay one is the wrong
 test('kick both headlights in: each shows cracked wherever you see the car, and flickers on its own when the lights are on; a third kick breaks no more headlights', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  const lampsOn = screen => page.evaluate(sc => { S.screen = sc; S.place = null; render(); return OUR_LAMPS.length; }, screen);
+  const lampsOn = screen => page.evaluate(sc => { S.screen = sc; S.place = null; render(); return OUR_LAMPS.filter(l => l.cracked).length; }, screen);
+  // night, with one kicked in: the cracked one flickers; the other is full on all the time
+  const nightLit = () => page.evaluate(() => {
+    S.mins = 22 * 60; S.screen = 'home'; render();
+    const out = [];
+    for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => lampLit(l, t)).join(','));
+    S.mins = 11 * 60; render();
+    return out;
+  });
   await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the first kick: the left one
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: false });
   expect(await lampsOn('home')).toBe(1);
   expect(await lampsOn('garage')).toBe(1);
+  const oneKicked = await nightLit();
+  expect(new Set(oneKicked)).toEqual(new Set(['false,true', 'true,true']));   // left flickers, right always on
   await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the second: the right one too
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: true });
   expect(await lampsOn('home')).toBe(2);
@@ -1079,7 +1089,7 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   const states = await page.evaluate(() => {
     S.mins = 22 * 60; S.screen = 'home'; render();
     const out = [];
-    for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => { const k = l.seed * 7.3; return Math.sin(t * 17 + k) + Math.sin(t * 5.1 + k * 2) + Math.sin(t * 31 + k * 3) > 0.4; }).join(','));
+    for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => lampLit(l, t)).join(','));
     return out;
   });
   expect(new Set(states).size).toBeGreaterThan(2);                       // on, off, and one without the other
@@ -2283,18 +2293,18 @@ test('ring your brother and he comes round the next day: your hammer back, advic
   await tap(page, 'act:brother');
   expect(await dialogText(page)).toContain('timing belt');
   await ok(page);
-  await act(page, 'Let your brother help');                                  // the battery lead off
+  await act(page, 'Let Paul help');                                  // the battery lead off
   expect(await dialogText(page)).toContain('resets the computer');
   await ok(page);
   expect(await page.evaluate(() => carPowered())).toBe(false);
-  await act(page, 'Let your brother help');                                  // the codes cleared; the light comes back
+  await act(page, 'Let Paul help');                                  // the codes cleared; the light comes back
   expect(await dialogText(page)).toContain('Huh');
   await ok(page);
-  await act(page, 'Let your brother help');                                  // the jack, and off he goes
+  await act(page, 'Let Paul help');                                  // the jack, and off he goes
   expect(await dialogText(page)).toContain('Back Tuesday');
   await ok(page);
   expect(await page.evaluate(() => [brotherHere(), S.flags.jackLent])).toEqual([false, true]);
-  await expect(page.locator('.acts button', { hasText: 'Let your brother help' })).toHaveCount(0);
+  await expect(page.locator('.acts button', { hasText: 'Let Paul help' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -2371,6 +2381,7 @@ test('the fine comes in the post; unpaid, a reminder (£450), then the car is cl
   // home in the taxi (£15): a man's taking the clamp off
   await page.evaluate(() => { goTo('home'); });
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('unclamp');
+  expect(await page.evaluate(() => typeof towTruck === 'function' && TOW_AT[1] > 140)).toBe(true);   // his tow truck, out in the road
   expect(await dialogText(page)).toContain('taking the clamp off');
   await ok(page);
   expect(await page.evaluate(() => [carClamped(), S.flags.taxi, S.fine.unclamp, S.money])).toEqual([false, false, false, money - 15 - 550 - 15]);

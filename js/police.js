@@ -115,9 +115,36 @@ function clampNote() {
   rect(n[0] + 1, n[1] + 1, 3, 1, C.red);
   line(n[0] - 1, n[1] + 3, n[0] + 6, n[1] + 2, C.ink);                    // the wiper across it
 }
+// The clamp man's tow truck: parked in the road outside the house, nose to the right
+const TOW_AT = [60, 160];                                            // its back-left corner (it's 90 long, 18 wide)
+function towTruck(x, y, flash) {
+  const white = hex('#e8e8e0'), stripe = C.warm, red = C.red;
+  const x1 = x + 90, y1 = y + 18;
+  ibox(x, y, x1, y1, 3, 7, C.ink);                                   // the chassis
+  ibox(x, y, x + 62, y1, 7, 10, C.steel, C.steel2);                  // the flat bed
+  ibox(x + 64, y, x1, y1, 7, 28, white);                             // the cab
+  poly([P(x + 68, y1, 18), P(x + 86, y1, 18), P(x + 86, y1, 26), P(x + 68, y1, 26)], C.glass);   // its side window
+  poly([P(x1, y + 2, 18), P(x1, y1 - 2, 18), P(x1, y1 - 2, 26), P(x1, y + 2, 26)], C.glass);     // its windscreen
+  poly([P(x + 64, y1, 10), P(x1, y1, 10), P(x1, y1, 13), P(x + 64, y1, 13)], stripe);           // a hi-vis stripe down the side
+  for (let k = 0; k < 6; k++) {                                      // red and yellow chevrons across the back
+    poly([P(x, y + k * 3, 3), P(x, y + k * 3 + 3, 3), P(x, y + k * 3 + 3, 7), P(x, y + k * 3, 7)], k % 2 ? red : stripe);
+  }
+  ibox(x + 4, y + 7, x + 8, y + 11, 10, 26, C.steel2);               // the crane at the back
+  line(...P(x + 6, y + 9, 26), ...P(x - 4, y + 9, 22), C.steel2);    // its boom
+  line(...P(x - 4, y + 9, 22), ...P(x - 4, y + 9, 12), C.ink);       // the chain
+  const hook = P(x - 4, y + 9, 12);
+  rect(hook[0] - 1, hook[1], 2, 2, C.steel);                         // and the hook
+  ibox(x + 74, y + 7, x + 80, y + 11, 28, 31, flash ? hex('#ffb020') : hex('#a06010'));   // the orange beacon on the roof
+  for (const wx of [x + 12, x + 30, x + 80]) {                       // the wheels, on the side we see
+    const w = P(wx, y1, 4);
+    disc(w[0], w[1], 4, C.tyre);
+    disc(w[0], w[1], 2, C.rim);
+  }
+}
 // The man taking the clamp off (the moment, when you get home after paying)
 MOMENTS.unclamp = function (p) {
   [ISO.ox, ISO.oy] = VIEW.home;
+  towTruck(TOW_AT[0], TOW_AT[1], Math.floor(p * 26) % 2 === 0);      // his tow truck in the road, its beacon flashing
   const m = P(132, 118);
   man(m[0], m[1], p < 0.75 ? 'bend' : 'stand', 2, 0, { shirt: hex('#f8d038'), shirtDark: hex('#d8b028'), jeans: C.ink, jeansDark: C.ink, hair: C.ink });   // in a hi-vis vest
   if (p < 0.7) clampOn(Math.round(Math.sin(p * 40)));                 // the clamp, still on (coming loose)

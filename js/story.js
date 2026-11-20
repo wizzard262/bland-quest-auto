@@ -532,7 +532,7 @@ function wifeLine() {
 function wifeTip() {
   if (!S.inv.handbook && !S.flags.handbookTip) { handbookTip(); return '"Have you looked in the car handbook, Husband? It\'ll all be in the handbook."'; }
   if (!S.flags.codes) return '"Can\'t you plug something into it? Gaz had a gadget that reads the codes."';
-  if (S.flags.needHammer && !S.inv.hammer) return '"Your brother never gave your hammer back. The Hardware Shop will have one, whatever they tell you."';
+  if (S.flags.needHammer && !S.inv.hammer) return '"Paul never gave your hammer back. The Hardware Shop will have one, whatever they tell you."';
   if (leadOpen('fusebook') || leadOpen('fusediagram')) return '"Have you checked the fuses? My dad always checked the fuses first."';
   if (S.radio && !S.radio.unlocked) { radioCodeNoted('your wife says it\'s always 1234'); return '"The radio code\'s in the handbook. Or it\'s 1234. It\'s always 1234."'; }
   return '"Have a cup of tea first, Husband. Then scrap it."';

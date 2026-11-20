@@ -691,9 +691,9 @@ Object.assign(ACTIONS, {
   },
   hammerbox() {
     pass(5);
-    closeLead('hammer-box', 'x', 'No hammer in the toolbox (your brother borrowed it in 2019)');
+    closeLead('hammer-box', 'x', 'No hammer in the toolbox (your brother Paul borrowed it in 2019)');
     lead('hammer', 'hammer-shop', 'Buy a hammer at the Hardware Shop', 'you', 'sure', 'place:Hardware Shop');
-    say('Drawer 6', 'A hammer-shaped gap. Your brother borrowed it in 2019.');
+    say('Drawer 6', 'A hammer-shaped gap. Your brother Paul borrowed it in 2019.');
   },
   // the fuse diagram online: copy it by hand onto a page of the notebook (the handbook's page was ripped out)
   fusenote() {

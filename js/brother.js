@@ -32,7 +32,7 @@ function brotherArrives() {
   S.brother = { here: true, from: nowAbs(), talks: 0, helps: 0 };
   sfx('van');
   SPEAKER = brotherHead();
-  say('Your brother', '"Alright! Door was open. Thought I\'d give you a hand."');
+  say('Paul', '"Alright! Door was open. Thought I\'d give you a hand."');
   return true;
 }
 // Where his head is on screen (for his speech bubbles)
@@ -47,7 +47,7 @@ function drawBrother() {
   [ISO.ox, ISO.oy] = VIEW.garage;
   const m = P(...BROTHER_SPOT);
   man(m[0], m[1], 'stand', MAN_SIZE.garage, 0, BROTHER_LOOK);
-  spot('Talk to your brother', isoArea(BROTHER_SPOT[0] - 4, BROTHER_SPOT[1] - 4, BROTHER_SPOT[0] + 4, BROTHER_SPOT[1] + 4, 0, 40), 'act:brother', [BROTHER_SPOT[0] - 12, BROTHER_SPOT[1] + 10]);
+  spot('Talk to Paul', isoArea(BROTHER_SPOT[0] - 4, BROTHER_SPOT[1] - 4, BROTHER_SPOT[0] + 4, BROTHER_SPOT[1] + 4, 0, 40), 'act:brother', [BROTHER_SPOT[0] - 12, BROTHER_SPOT[1] + 10]);
 }
 
 // What he does when you let him help: each once, in this order
@@ -80,7 +80,7 @@ Object.assign(ACTIONS, {
     pass(10);
     SPEAKER = brotherHead();
     if (!b.talks++) return brotherHammer();
-    say('Your brother', BROTHER_LINES[(b.talks - 2) % BROTHER_LINES.length]);
+    say('Paul', BROTHER_LINES[(b.talks - 2) % BROTHER_LINES.length]);
   },
   // let him help: he does one of his things
   brotherhelp() {
@@ -94,21 +94,21 @@ Object.assign(ACTIONS, {
     const words = help();
     if (b.helps >= BROTHER_HELPS.length) b.here = false;               // that's him done: off he goes
     SPEAKER = b.here ? brotherHead() : null;
-    say('Your brother', words);
+    say('Paul', words);
   }
 });
 // The hammer he borrowed in 2019: back at last (just when you've bought one, probably)
 function brotherHammer() {
   const had = !!S.inv.hammer;
   S.inv.hammer = true;
-  if (findJob('hammer') && findJob('hammer').status === 'open') finishJob('hammer', 'Your brother brought it back. After four years');
+  if (findJob('hammer') && findJob('hammer').status === 'open') finishJob('hammer', 'Paul brought it back. After four years');
   closeLead('hammer-box', 'skip'); closeLead('hammer-shop', 'skip'); closeLead('hammer-shelf', 'skip');
   const tail = had ? '\n\nYou bought one last week. Now you\'ve got two.' : '';
-  say('Your brother', '"Oh, before I forget: your hammer. Had it since 2019. Cheers for that."' + tail);
+  say('Paul', '"Oh, before I forget: your hammer. Had it since 2019. Cheers for that."' + tail);
 }
 // Ringing him: before he's been, he says he'll come round tomorrow
 function ringBrother() {
-  if (S.brother) return say('Ringing your brother', '"Did I leave my sunglasses round yours? And I\'ve still got your jack, by the way."');
+  if (S.brother) return say('Ringing Paul', '"Did I leave my sunglasses round yours? And I\'ve still got your jack, by the way."');
   if (!S.flags.brotherDay) S.flags.brotherDay = S.day + 1;
-  say('Ringing your brother', '"Can\'t talk, in the van. Tell you what, I\'ll come round tomorrow and give you a hand. I\'m good with cars."');
+  say('Ringing Paul', '"Can\'t talk, in the van. Tell you what, I\'ll come round tomorrow and give you a hand. I\'m good with cars."');
 }
