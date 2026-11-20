@@ -2855,7 +2855,7 @@ test('dead ends the explorer found: a walk on a screen he is not drawn on just g
   await start(page, errors);
   expect(await page.evaluate(() => { let went = false; S.screen = 'rage'; walkTo(10, 10, () => { went = true; }); return went; })).toBe(true);
   await page.evaluate(() => { RAGE.from = 'home'; RAGE.done = true; ANIM = null; DIALOG = null; S.screen = 'rage'; render(); });
-  await act(page, 'Calm down');
+  await page.click('[data-act="rageback"]');                                // no button: a tap anywhere takes you back
   expect(await page.evaluate(() => S.screen)).toBe('home');
   expect(errors).toEqual([]);
 });

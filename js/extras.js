@@ -38,8 +38,9 @@ SCREENS.rage = {
     rect(0, RAGE_FLOOR, W, H - RAGE_FLOOR, C.floor); rect(0, RAGE_FLOOR, W, 1, C.steel2);   // the floor
     rageCar(RAGE.done || RAGE.already);                                                // once he's kicked it, it stays smashed
     if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
+    if (RAGE.done && !ANIM && !DIALOG) LABELS.push('<div class="ov bookoff" data-act="rageback"></div>');   // all over: a tap anywhere takes you back (so you can't get stuck here)
   },
-  actions() { return RAGE.done && !ANIM && !DIALOG ? [{ label: 'Calm down', act: 'rageback' }] : []; }   // (never stuck here: the explorer found a way to be)
+  actions() { return []; }
 };
 // Start the cutscene from wherever you are; when it's over (and he's sworn), you're back where you were
 // side: the headlight he kicks; the right one is the whole scene mirrored (he runs in from the other side)
