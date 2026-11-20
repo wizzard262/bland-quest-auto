@@ -420,8 +420,9 @@ SCREENS.shelfzoom = {
       spot(label, [x - 4, by - 72, 60, 86], 'act:shelfitem:' + s + ':' + n);
     });
     // arrows to the next section along
-    if (s > 0) { poly([[30, 135], [62, 110], [62, 160]], C.ui); spot('Shelf ' + s, [24, 104, 44, 62], 'act:shelfgo:-1'); }
-    if (s < SHELF_SECTIONS - 1) { poly([[450, 135], [418, 110], [418, 160]], C.ui); spot('Shelf ' + (s + 2), [412, 104, 44, 62], 'act:shelfgo:1'); }
+    // the arrows go the way the shelves run in the shop: the wall runs back to front from right to left, so left is the next shelf along
+    if (s < SHELF_SECTIONS - 1) { poly([[30, 135], [62, 110], [62, 160]], C.ui); spot('Shelf ' + (s + 2), [24, 104, 44, 62], 'act:shelfgo:1'); }
+    if (s > 0) { poly([[450, 135], [418, 110], [418, 160]], C.ui); spot('Shelf ' + s, [412, 104, 44, 62], 'act:shelfgo:-1'); }
     tip(esc(S.place) + ': shelf ' + (s + 1) + ' of ' + SHELF_SECTIONS, 'Tap a thing to put it in your basket. Pay at the till.', 1, 8);
     basketLabel();
     hud();
