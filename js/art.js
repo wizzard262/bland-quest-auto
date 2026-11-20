@@ -268,7 +268,7 @@ function tree(x, y) {
 //   sy, sz = the bottom of the windscreen, nz = the top of the nose; inset = how much narrower the cabin is
 // rearGlass: the slope at the back is a window (a saloon's), not a solid hatch; win: the side window's own outline
 const CAR_SHAPES = {
-  zafira:    { L: 46, tz: 14, hy: 1, ry0: 9,  rz: 22, ry1: 28, sy: 36, sz: 15, nz: 11 },            // ours (the 2005 shape)
+  zafira:    { L: 46, tz: 17, hy: 2, ry0: 6,  rz: 22, ry1: 28, sy: 36, sz: 15, nz: 11 },            // ours: an estate back, gently sloped
   zafiraOld: { L: 44, tz: 15, hy: 1, ry0: 5,  rz: 23, ry1: 27, sy: 34, sz: 15.5, nz: 12 },          // 1999: upright and boxy
   zafiraNew: { L: 48, tz: 13, hy: 2, ry0: 13, rz: 21, ry1: 27, sy: 38, sz: 14, nz: 10 },            // 2006: sleeker, more raked
   astra:     { L: 40, tz: 13, hy: 1, ry0: 8,  rz: 19, ry1: 22, sy: 30, sz: 13, nz: 10 },            // a small hatchback
@@ -523,14 +523,12 @@ function wife(wx, wy, lookId, motion = {}) {
   const facing = motion.facing || 'front', side = facing === 'left' || facing === 'right', dir = facing === 'left' ? -1 : 1;
   const skin = C.skin, dress = K.dress, dressDark = shade(K.dress, 0.75);
   const covers = ['full', 'gown', 'wiggle', 'trousers'].includes(K.cut);  // does the dress come down over her thighs?
-  if (motion.sit) {                                                        // sitting: hips on the seat, thighs forward, shins down to the floor
-    const hip = P(wx, wy, 10), knee = P(wx + 9, wy, 10), foot = P(wx + 10, wy, 0);
-    for (const o of [-2, 1]) {
-      pipe(hip[0] + o, hip[1] - 1, knee[0] + o, knee[1] - 1, 2, covers ? dress : skin);   // thigh
-      pipe(knee[0] + o, knee[1] - 1, foot[0] + o, foot[1] - 1, 2, skin);                  // shin
-      rect(foot[0] + o - 1, foot[1] - 1, 3, 1, K.barefoot ? skin : K.shoes);               // foot
-    }
-    return wifeTop(K, Math.round(hip[0]), Math.round(hip[1]) + 21, 'front', motion.hip, true);
+  if (motion.sit) {                                                        // sitting: legs crossed, turned side-on towards them, her face half to us
+    const thigh = covers ? dress : skin;                                   // a long dress covers her thighs
+    sitLeg(K, [wx, wy - 1, 10], [wx + 9, wy - 1, 10], [wx + 10, wy - 1, 0], thigh);   // the far leg: knee forward, foot on the floor
+    sitLeg(K, [wx, wy + 1, 10], [wx + 8, wy - 1, 12], [wx + 12, wy - 2, 4], thigh);   // the near leg, crossed over it: the foot dangles
+    const hip = P(wx, wy, 10);
+    return wifeTop(K, Math.round(hip[0]), Math.round(hip[1]) + 21, 'right', motion.hip, true, undefined, 'quarter');
   }
   const [fx, fy] = P(wx, wy), x = Math.round(fx), y = Math.round(fy);
   // legs: a proper stride when she walks (knees bend, a foot lifts and swings through), together when she stands
@@ -564,9 +562,18 @@ function wife(wx, wy, lookId, motion = {}) {
   wifeTop(K, x, y, facing, motion.hip, false, ph);
 }
 // Her top half, standing at x, y (her waist is 23 up): the bodice, arms, head and hair, turned the way she's facing
-function wifeTop(K, x, y, facing, hip, sitting, ph) {
+// One leg as she sits: hip, knee and foot (iso points), the thigh in its own colour
+function sitLeg(K, hipAt, kneeAt, footAt, thighCol) {
+  const h = P(...hipAt), k = P(...kneeAt), f = P(...footAt);
+  pipe(h[0], h[1] - 1, k[0], k[1] - 1, 2, thighCol);                     // thigh
+  pipe(k[0], k[1] - 1, f[0], f[1] - 1, 2, C.skin);                       // shin
+  rect(f[0] - 1, f[1] - 1, 3, 1, K.barefoot ? C.skin : K.shoes);         // foot
+}
+// head: which way her head faces, if not the same way as her body ('quarter': half turned to us, looking right)
+function wifeTop(K, x, y, facing, hip, sitting, ph, head) {
   const skin = C.skin, dress = K.dress, top = K.top || dress, side = facing === 'left' || facing === 'right', back = facing === 'back', dir = facing === 'left' ? -1 : 1;
-  if (sitting) for (let k = 0; k < 3; k++) rowAt(x, y - 22 + k, 10, dress);   // her lap
+  if (sitting && side) for (let k = 0; k < 3; k++) rowAt(x + 2 * dir, y - 22 + k, 7, dress);   // her lap, towards her knees
+  else if (sitting) for (let k = 0; k < 3; k++) rowAt(x, y - 22 + k, 10, dress);
   rowAt(x, y - 23, 6, K.crop ? skin : top); rowAt(x, y - 24, 6, K.crop ? skin : top); rowAt(x, y - 25, 7, top);
   if (K.cut === 'full') rowAt(x, y - 24, 6, C.ink);
   if (K.belt) rowAt(x, y - 24, 6, K.belt);
@@ -585,32 +592,36 @@ function wifeTop(K, x, y, facing, hip, sitting, ph) {
   if (side) arm(x + (dir > 0 ? 1 : -2), 1, false);                          // side on: the near arm
   else { arm(x - 5, -1, false); arm(x + 4, 1, !!hip); }
   if (K.pearls && !back) for (let k = -2; k <= 1; k++) rect(x + k, y - 30 + (k === -2 || k === 1 ? 0 : 1), 1, 1, C.white);
+  // the head: its own way, or the same way as her body
+  const hf = head || facing, quarter = hf === 'quarter';
+  const hside = hf === 'left' || hf === 'right', hback = hf === 'back', hdir = hf === 'left' ? -1 : 1;
   // neck and face (turned; from behind you see her hair)
   rect(x - 1, y - 33, 2, 2, skin);
   for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5], [-39, 4]]) rowAt(x, y + dy, w, skin);
-  if (!back) {
-    if (side) { rect(x + dir * 1, y - 37, 1, 1, C.ink); rect(x + dir * 1, y - 35, 1, 1, C.red); rect(x + dir * 3, y - 36, 1, 1, skin); }   // profile: one eye, lips, nose
+  if (!hback) {
+    if (hside) { rect(x + hdir * 1, y - 37, 1, 1, C.ink); rect(x + hdir * 1, y - 35, 1, 1, C.red); rect(x + hdir * 3, y - 36, 1, 1, skin); }   // profile: one eye, lips, nose
+    else if (quarter) { rect(x - 1, y - 37, 1, 1, C.ink); rect(x + 1, y - 37, 1, 1, C.ink); rect(x, y - 35, 2, 1, C.red); rect(x - 2, y - 36, 1, 3, shade(skin, 0.85)); }   // half turned: eyes and lips nudged over, the far cheek in shadow
     else { rect(x - 2, y - 37, 1, 1, C.ink); rect(x + 1, y - 37, 1, 1, C.ink); rect(x - 1, y - 35, 2, 1, C.red); }
   }
   // hair
-  const h = K.hair, hd = shade(K.hair, 0.8), bx = side ? x - dir * 2 : x;  // side on, her hair sits towards the back of her head
-  if (back) for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5]]) rowAt(x, y + dy, w, h);   // the back of her head
+  const h = K.hair, hd = shade(K.hair, 0.8), bx = hside ? x - hdir * 2 : x;  // hside on, her hair sits towards the hback of her head
+  if (hback) for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5]]) rowAt(x, y + dy, w, h);   // the hback of her head
   if (K.style === 'curls') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) { rect(sx, y - 39, 2, 6, h); rect(sx, y - 35, 1, 1, hd); } }
-  if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); if (side) rect(bx - 1, y - 39, 3, 14, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); if (back) rowAt(x, y - 30, 6, h), rowAt(x, y - 28, 6, h); }
-  if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); if (side) rect(bx - 1, y - 39, 3, 6, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); }
-  if (K.style === 'ponytail') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); rect(bx + (side ? -dir * 2 : 4), y - 39, 2, 7, h); rect(bx + (side ? -dir * 2 : 5), y - 32, 1, 2, hd); }
-  if (K.style === 'updo') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 5, h); rowAt(bx, y - 42, 3, h); if (!side) { rect(x - 3, y - 39, 1, 3, h); rect(x + 2, y - 39, 1, 3, h); } else rect(bx - dir, y - 39, 2, 4, h); }
-  if (K.style === 'perm') { for (const [dy, w] of [[-42, 6], [-41, 9], [-40, 10], [-39, 10], [-38, 10]]) rowAt(x, y + dy, w, h); for (const sx of [x - 5, x + 4]) rect(sx, y - 37, 2, 5, h); if (!back) { rowAt(x, y - 39, 5, skin); rowAt(x, y - 38, 5, skin); } }
-  if (side) {                                                            // side on: her hair covers the back half of her head, down to the nape
-    const backX = dir > 0 ? x - 3 : x;
+  if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); if (hside) rect(bx - 1, y - 39, 3, 14, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); if (hback) rowAt(x, y - 30, 6, h), rowAt(x, y - 28, 6, h); }
+  if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); if (hside) rect(bx - 1, y - 39, 3, 6, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); }
+  if (K.style === 'ponytail') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); rect(bx + (hside ? -hdir * 2 : 4), y - 39, 2, 7, h); rect(bx + (hside ? -hdir * 2 : 5), y - 32, 1, 2, hd); }
+  if (K.style === 'updo') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 5, h); rowAt(bx, y - 42, 3, h); if (!hside) { rect(x - 3, y - 39, 1, 3, h); rect(x + 2, y - 39, 1, 3, h); } else rect(bx - hdir, y - 39, 2, 4, h); }
+  if (K.style === 'perm') { for (const [dy, w] of [[-42, 6], [-41, 9], [-40, 10], [-39, 10], [-38, 10]]) rowAt(x, y + dy, w, h); for (const sx of [x - 5, x + 4]) rect(sx, y - 37, 2, 5, h); if (!hback) { rowAt(x, y - 39, 5, skin); rowAt(x, y - 38, 5, skin); } }
+  if (hside) {                                                            // hside on: her hair covers the hback half of her head, down to the nape
+    const backX = hdir > 0 ? x - 3 : x;
     for (let dy = -41; dy <= -33; dy++) rect(backX, y + dy, 3, 1, h);
-    rect(dir > 0 ? x - 3 : x + 2, y - 38, 1, 5, hd);                     // a little shading at the back
-    rect(x - 1 + dir, y - 41, 3, 1, h);                                  // over the top, to her forehead
-    if (K.style === 'updo') { rect(dir > 0 ? x - 6 : x + 3, y - 42, 3, 4, h); rect(dir > 0 ? x - 5 : x + 3, y - 43, 2, 1, h); }   // the bun at the back
+    rect(hdir > 0 ? x - 3 : x + 2, y - 38, 1, 5, hd);                     // a little shading at the hback
+    rect(x - 1 + hdir, y - 41, 3, 1, h);                                  // over the top, to her forehead
+    if (K.style === 'updo') { rect(hdir > 0 ? x - 6 : x + 3, y - 42, 3, 4, h); rect(hdir > 0 ? x - 5 : x + 3, y - 43, 2, 1, h); }   // the bun at the hback
   }
   if (K.band) rowAt(x, y - 39, 6, K.band);
   if (K.scarf) rowAt(x, y - 40, 6, K.scarf);
-  if (K.earrings && !back) { if (side) rect(x - dir, y - 35, 1, 1, K.earrings); else { rect(x - 3, y - 35, 1, 1, K.earrings); rect(x + 2, y - 35, 1, 1, K.earrings); } }
+  if (K.earrings && !hback) { if (hside) rect(x - hdir, y - 35, 1, 1, K.earrings); else { rect(x - 3, y - 35, 1, 1, K.earrings); rect(x + 2, y - 35, 1, 1, K.earrings); } }
 }
 // Where her head is on screen (for her speech bubble's arrow)
 function wifeHead() {

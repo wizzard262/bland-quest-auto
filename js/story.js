@@ -823,8 +823,8 @@ const TALK = {
       finishJob('broke-wiper', 'A wiper arm from the Scrap Yard: £2'); closeLead('wiper', 'ok'); spend(2);
       return say('Scrap Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
     }
-    if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"');
-    say('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."', [
+    if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"\n\nRows of dead cars. Any of them might be good for parts one day.');
+    say('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."\n\nRows of dead cars. Any of them might be good for other parts one day.', [
       { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
       { label: 'Not today', run() {} }
     ]);

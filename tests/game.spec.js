@@ -2425,3 +2425,45 @@ test('the bank is open Monday to Wednesday, 10 till 2', async ({ page }) => {
   expect(await page.evaluate(() => { S.day = 10; S.mins = 11 * 60; return closedReason('Bank'); })).toContain('Closed on THUs');
   expect(errors).toEqual([]);
 });
+
+// ---------- looks: the clamp, the bank's glass, the wife on the sofa, the estate ----------
+// How many pixels on the picture are exactly this colour
+const countColour = (page, rgb) => page.evaluate(([r, g, b]) => {
+  const d = ctx.getImageData(0, 0, W, H).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] === r && d[i + 1] === g && d[i + 2] === b) n++;
+  return n;
+}, rgb);
+
+test('the clamp sits on the front wheel: a yellow plate, an arm over the tyre and a locked bar', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const yellow = [248, 208, 56];                                           // C.warm
+  await page.evaluate(() => { S.fine = null; show('home'); });
+  const before = await countColour(page, yellow);
+  await page.evaluate(() => { S.fine = { day: 1, clamped: true, paid: false }; show('home'); });
+  expect(await countColour(page, yellow)).toBeGreaterThan(before + 10);   // the clamp's there
+  expect(await page.evaluate(() => CLAMP_WHEEL)).toEqual([126, 72 + 0.8 * 46, 4]);   // on the car's front wheel
+  expect(errors).toEqual([]);
+});
+
+test("the bank's glass screen is see-through: no solid pane over the counter", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; S.place = 'Bank'; show('place'); });
+  expect(await countColour(page, [184, 216, 240])).toBe(0);               // the old solid glass colour, gone
+  expect(errors).toEqual([]);
+});
+
+test('the wife sits on the sofa with her legs crossed, turned side-on, her face half to us; the car is an estate; the scrap yard has parts for later', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // every look draws sitting without trouble
+  expect(await page.evaluate(() => { for (const look of Object.keys(WIFE_LOOKS)) { [ISO.ox, ISO.oy] = VIEW.room; wife(11, 32, look, { sit: true }); } return true; })).toBe(true);
+  // the estate's back: taller, gently sloped
+  expect(await page.evaluate(() => [CAR_SHAPES.zafira.tz, CAR_SHAPES.zafira.hy, CAR_SHAPES.zafira.ry0])).toEqual([17, 2, 6]);
+  // the scrap yard: any of these cars might do for parts one day
+  await page.evaluate(() => TALK['Scrap Yard']());
+  expect(await dialogText(page)).toContain('good for parts one day');
+  expect(errors).toEqual([]);
+});

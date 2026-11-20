@@ -84,26 +84,44 @@ SCREENS.letters = {
 
 // ---------- the clamp, on the drive ----------
 // The clamp on the car's front wheel, and the note under the wiper (on the home screen, over the car)
+// The car's front wheel on the side we see (the car's on the drive at 102, 72: its side 24 across, the wheel 4/5 along, 4 up)
+const CLAMP_WHEEL = [126, 72 + 0.8 * 46, 4];
 function drawClamp() {
-  if (!carClamped() && !(S.fine && S.fine.unclamp)) return;
+  if (!carClamped()) return;                                           // (while it's coming off, the moment draws it)
   [ISO.ox, ISO.oy] = VIEW.home;
-  const w = P(126, 110, 3);                                            // the front wheel on the drive side
-  rect(w[0] - 6, w[1] - 8, 12, 12, C.warm);                            // the yellow clamp
-  rect(w[0] - 2, w[1] - 12, 4, 6, C.warm);
-  rect(w[0] - 4, w[1] - 4, 8, 3, C.ink);
-  const n = P(118, 90, 18);                                            // the note, under the wiper
-  rect(n[0], n[1], 8, 6, C.white);
-  rect(n[0] + 1, n[1] + 2, 6, 1, C.red);
+  clampOn(0);
+  clampNote();
+}
+// The clamp on the front wheel: a yellow plate over the hub, claws over the tyre, and the lock bar sticking out
+//   shake: how far it's jiggling as it comes off
+function clampOn(shake) {
+  const [wx, wy, wz] = CLAMP_WHEEL;
+  const at = (dx, dy, dz) => { const p = P(wx + dx, wy + dy, wz + dz); return [p[0] + shake, p[1]]; };
+  const yellow = C.warm, dark = C.warmDim;
+  line(...at(0.5, 0, 0), ...at(0.5, 0, 4.8), yellow);                   // the arm up the wheel's face
+  line(...at(0.5, 0, 4.8), ...at(-4, 0, 4.8), yellow);                  // and over the top of the tyre
+  line(...at(0.5, -2.5, -3.6), ...at(0.5, 2.5, -3.6), dark);            // the foot along the bottom of the tyre
+  const hub = at(0.5, 0, 0);
+  disc(hub[0], hub[1], 2, yellow);                                      // the plate over the hub, so the wheel can't come off
+  px(hub[0], hub[1], dark);
+  pipe(...at(0.5, 0, 0), ...at(5, 0, 0), 2, yellow);                    // the bar sticking out, so you can't drive
+  const lock = at(5, 0, 0);
+  rect(lock[0] - 1, lock[1] - 1, 2, 3, C.ink);                          // the lock
+}
+// The note, tucked under the wiper
+function clampNote() {
+  const n = P(117, 106, 16);
+  rect(n[0], n[1], 5, 4, C.white);
+  rect(n[0] + 1, n[1] + 1, 3, 1, C.red);
+  line(n[0] - 1, n[1] + 3, n[0] + 6, n[1] + 2, C.ink);                    // the wiper across it
 }
 // The man taking the clamp off (the moment, when you get home after paying)
 MOMENTS.unclamp = function (p) {
   [ISO.ox, ISO.oy] = VIEW.home;
   const m = P(132, 118);
   man(m[0], m[1], p < 0.75 ? 'bend' : 'stand', 2, 0, { shirt: hex('#f8d038'), shirtDark: hex('#d8b028'), jeans: C.ink, jeansDark: C.ink, hair: C.ink });   // in a hi-vis vest
-  if (p < 0.7) {                                                       // the clamp, still on (coming loose)
-    const w = P(126, 110, 3);
-    rect(w[0] - 6 + Math.round(Math.sin(p * 40) * 1), w[1] - 8, 12, 12, C.warm);
-  }
+  if (p < 0.7) clampOn(Math.round(Math.sin(p * 40)));                 // the clamp, still on (coming loose)
+  clampNote();                                                         // he leaves the note
 };
 
 // ---------- the police station ----------

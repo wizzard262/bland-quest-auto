@@ -229,7 +229,7 @@ function shopInterior(name, shut) {
   ibox(COUNTER[0], COUNTER[1], COUNTER[2], COUNTER[3], 0, 22, C.bench, C.benchTop);
   onLeft(COUNTER[3], COUNTER[0] + 4, COUNTER[2] - 4, 16, 18, shade(C.bench, 1.2));
   till(56, 54);
-  if (style === 'bank') { ibox(COUNTER[0], COUNTER[1], COUNTER[2], COUNTER[1] + 2, 22, 58, hex('#b8d8f0'), hex('#d8f0ff')); }
+  if (style === 'bank') bankGlass();                               // the glass screen along the counter
   if (style === 'cafe') { ibox(60, 54, 74, 64, 22, 36, C.steel2, C.tool); disc(...P(67, 64, 30), 2, C.red); }
   if (style === 'parcels') { ibox(80, 54, 96, 64, 22, 24, C.steel, C.steel2); }
   if (shut) { onLeft(COUNTER[3], 80, 130, 28, 40, C.ink); LABELS.push(''); }
@@ -260,6 +260,19 @@ function till(x, y) {
   ibox(x + 20, y + 4, x + 25, y + 10, 22, 24, C.ink, C.grey);
 }
 // Two posters on the side wall, with real (slanted) words on them
+// The bank's glass screen along the counter: see-through, so just its frame, its posts and a glint of glare
+function bankGlass() {
+  const [x0, y0, x1] = COUNTER, gy = y0 + 1;                             // along the counter's back edge
+  const frame = hex('#a8b8c8'), glare = hex('#e8f6ff');
+  ibox(x0, y0, x1, y0 + 2, 56, 58, frame, shade(frame, 1.15));          // the top rail
+  for (let x = x0; x <= x1 - 2; x += 26) ibox(x, y0, x + 2, y0 + 2, 22, 56, frame, shade(frame, 1.15));   // the posts, one per pane
+  for (let x = x0 + 6; x < x1 - 8; x += 26) {                           // in each pane, two streaks of glare
+    line(...P(x, gy, 30), ...P(x + 6, gy, 50), glare);
+    line(...P(x + 4, gy, 28), ...P(x + 8, gy, 38), glare);
+  }
+  const hole = P(x0 + 70, gy, 32);                                       // the speaking holes
+  for (const [dx, dy] of [[0, 0], [2, 0], [1, 1], [-1, 1], [0, 2], [2, 2]]) px(hole[0] + dx, hole[1] + dy, frame);
+}
 function posters(style) {
   const [a, b] = POSTERS[style] || ['', ''];
   if (!a) return;
