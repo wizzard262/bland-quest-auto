@@ -174,7 +174,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox', 'port', 'ecu']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -1650,5 +1650,76 @@ test('the glove box in the car opens on useless things: a snapped ice scraper, a
   expect(said[3]).toContain('2009');
   await act(page, 'Shut it');
   expect(await page.evaluate(() => S.screen)).toBe('dash');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the diagnostic port: try each reader's plug ----------
+test('the diagnostic port close up: Gaz\'s round plug and the MegaMart lorry plug don\'t fit; the used reader goes in and reads the codes', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('codes', 'Read the codes', 'light'); S.inv['reader-old'] = S.inv['reader-cheap'] = S.inv['reader-good'] = true; S.screen = 'dash'; render(); });
+  await tap(page, 'act:hatch'); await ok(page);                        // pop the hatch off
+  await tap(page, 'act:hatch');                                        // then the port, close up
+  expect(await page.evaluate(() => S.screen)).toBe('port');
+  for (const id of ['reader-old', 'reader-cheap', 'reader-good']) await expect(page.locator(`.hs[data-go="act:tryplug:${id}"]`)).toHaveCount(1);
+  const anger = await page.evaluate(() => S.anger);
+  await tap(page, 'act:tryplug:reader-old');
+  expect(await dialogText(page)).toContain('1994');
+  await ok(page);
+  await tap(page, 'act:tryplug:reader-cheap');
+  expect(await dialogText(page)).toContain('lorries');
+  await ok(page);
+  expect(await page.evaluate(() => S.anger)).toBeGreaterThan(anger);
+  expect(await page.evaluate(() => [S.flags['tried-reader-old'], S.flags['tried-reader-cheap']])).toEqual([true, true]);
+  expect(await page.evaluate(() => leadOpen('ebuy-reader'))).toBe(true);   // the MegaMart one sends you to eBuy
+  expect(await page.evaluate(() => S.screen)).toBe('port');           // the wrong ones drop back: still at the port
+  await tap(page, 'act:tryplug:reader-good');                          // the key's at 0: it fits, but nothing wakes up
+  expect(await dialogText(page)).toContain('key needs to be at II');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('dash');
+  expect(await flag(page, 'readerIn')).toBe(false);
+  await page.evaluate(() => { S.key = 2; render(); });                // key to II, and try again
+  await act(page, 'Try a reader in the port');
+  expect(await page.evaluate(() => S.screen)).toBe('port');
+  await tap(page, 'act:tryplug:reader-good');
+  expect(await dialogText(page)).toContain('P0705');
+  await ok(page);
+  expect(await flag(page, 'readerIn')).toBe(true);
+  expect(await flag(page, 'codes')).toBe(true);
+  expect(await page.evaluate(() => S.screen)).toBe('dash');
+  expect(errors).toEqual([]);
+});
+
+test('the MegaMart reader arrives and is kept, to try in the port', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('codes', 'Read the codes', 'light'); openParcel('reader-cheap'); });
+  expect(await dialogText(page)).toContain('Fits all cars');
+  await ok(page);
+  expect(await page.evaluate(() => [!!S.inv['reader-cheap'], leadOpen('try-cheap')])).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the ECU, behind the panel under the dashboard ----------
+test('the panel under the dashboard unscrews to show the ECU, covered in stickers', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'dash'; render(); });
+  await tap(page, 'act:ecu');
+  expect(await dialogText(page)).toContain('Four screws');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('ecu');
+  const said = [];
+  for (let k = 0; k < 5; k++) { await tap(page, 'act:ecuthing:' + k); said.push(await dialogText(page)); await ok(page); }
+  expect(said[0]).toContain("car's computer");
+  expect(said[1]).toContain('ran out two days ago');
+  expect(said[2]).toContain('approved dealer');
+  expect(said[3]).toContain('red light');
+  expect(said[4]).toContain('2008');
+  await act(page, 'Put the panel back');
+  expect(await page.evaluate(() => S.screen)).toBe('dash');
+  await tap(page, 'act:ecu');                                          // the second time: straight in, no screws
+  expect(await page.locator('.dlg').count()).toBe(0);
+  expect(await page.evaluate(() => S.screen)).toBe('ecu');
   expect(errors).toEqual([]);
 });

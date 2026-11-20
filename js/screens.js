@@ -1078,6 +1078,8 @@ SCREENS.dash = {
     obdHatch(!!S.flags.hatch);
     // the glove box, on the far left
     gloveBoxLid();
+    // the panel low down under the dashboard, with the ECU behind it
+    ecuPanel();
     // the accelerator pedal, down in the footwell
     accelPedal(false);
     // the key turned to its position
@@ -1116,13 +1118,13 @@ SCREENS.dash = {
     spot('Radio: right', [br - 7, 153, 14, 14], 'act:radio:1', null, below);
     spot('Door handle: get out', DOOR_HANDLE, 'garage');
     spot('Glove box', GLOVE_BOX, 'act:glovebox');
+    spot('Panel under the dash', ECU_PANEL, 'act:ecu');
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
   },
   actions() {
     const a = [];
-    if (S.inv['reader-good']) a.push({ label: 'Plug in your code reader', act: 'plug:good' });
-    if (S.inv['reader-old']) a.push({ label: "Plug in Gaz's reader", act: 'plug:old' });
+    if (!S.flags.readerIn && ownedPlugs().length) a.push({ label: 'Try a reader in the port', act: 'port' });   // got a reader: try its plug
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
     a.push({ label: 'Sit and think (1 hour)', act: 'think' });
     return a;
@@ -1601,6 +1603,193 @@ SCREENS.glovebox = {
     hud();
   },
   actions() { return [{ label: 'Shut it', act: 'gloveshut' }]; }
+};
+
+// =====================================================================
+// THE DIAGNOSTIC PORT, CLOSE UP: behind the hatch under the steering wheel.
+// Every code reader you own lies below it on its lead; tap one to try its plug in the port
+// =====================================================================
+// The port: a flat D shape with 16 pins (two rows of 8)
+const PORT_SOCKET = [[192, 52], [288, 52], [280, 86], [200, 86]];
+const PORT_MIDDLE = 240;                                            // the middle of the port, across
+const PLUG_TOP = 160;                                               // where each plug's top edge rests, below the port
+const PLUG_TRAY = hex('#141518');                                   // the dark footwell the plugs lie in
+// Each reader you can own, always in the same place: [id, name, x of its middle]
+const PLUGS = [
+  ['reader-old', "Gaz's reader (old type)", 110],
+  ['reader-cheap', 'MegaMart reader', 240],
+  ['reader-good', 'The used reader from eBuy', 370]
+];
+// The readers you own just now
+const ownedPlugs = () => PLUGS.filter(([id]) => S.inv[id]);
+// The plug being tried in the port, while its moment plays: { id, x, fits }
+let PLUG_TRY = null;
+
+// The port itself, big, in the hole behind the hatch
+function portSocket() {
+  rect(150, 30, 180, 80, hex('#0c0c0e'));                           // the hole behind the hatch
+  poly(PORT_SOCKET, hex('#26272b'));                                // the socket
+  for (let k = 0; k < 8; k++) {
+    rect(204 + k * 10.5, 59, 4, 5, hex('#0a0a0c'));                 // a top-row pin hole
+    rect(205 + k * 10.5, 60, 2, 3, C.steel);                        // the pin inside it
+    rect(208 + k * 9.4, 73, 4, 5, hex('#0a0a0c'));                  // a bottom-row pin hole
+    rect(209 + k * 9.4, 74, 2, 3, C.steel);                         // and its pin
+  }
+}
+
+// One reader's plug, facing up, its top edge at `top`, on its lead running down out of the picture
+// leadX: where its lead runs out of the picture (it stays by where the plug lay, even while the plug is up at the port)
+function plugDraw(id, cx, top, leadX = cx) {
+  if (id === 'reader-old') {                                        // Gaz's: a little round plug, from 1994
+    pipe(cx, top + 40, leadX, H, 4, C.ink);                            // its lead
+    rect(cx - 9, top + 28, 18, 14, hex('#4a4a4a'));                 // the grip
+    disc(cx, top + 16, 16, hex('#4a4a4a'));                         // the round plug
+    disc(cx, top + 16, 11, hex('#1c1c1c'));                         // its face
+    rect(cx - 2, top + 2, 4, 4, hex('#4a4a4a'));                    // the notch that lines it up
+    for (let k = 0; k < 5; k++) {                                   // five pins in a ring
+      const a = -1.57 + k * 1.2566;
+      rect(cx + Math.cos(a) * 6 - 1, top + 16 + Math.sin(a) * 6 - 1, 2, 2, C.steel);
+    }
+    return;
+  }
+  if (id === 'reader-cheap') {                                      // MegaMart's: a lorry plug the size of a jam jar lid
+    pipe(cx, top + 66, leadX, H, 7, C.ink);                            // its fat lead
+    rect(cx - 15, top + 52, 30, 16, hex('#2e5a34'));                // the grip
+    disc(cx, top + 28, 30, hex('#2e5a34'));                         // the round plug
+    ring(cx, top + 28, 30, hex('#1e3a22'));                         // its twist-lock collar
+    rect(cx - 34, top + 24, 6, 8, hex('#1e3a22'));                  // the collar's lugs, left…
+    rect(cx + 28, top + 24, 6, 8, hex('#1e3a22'));                  // …and right
+    disc(cx, top + 28, 22, hex('#16241a'));                         // its face
+    disc(cx, top + 28, 2, C.steel);                                 // nine fat pins: one in the middle…
+    for (let k = 0; k < 8; k++) disc(cx + Math.cos(k * 0.785) * 13, top + 28 + Math.sin(k * 0.785) * 13, 2, C.steel);   // …and eight round it
+    return;
+  }
+  // the right one: a flat D, the same shape as the port, 16 pins
+  pipe(cx, top + 52, leadX, H, 5, C.ink);                              // its lead
+  rbox(cx - 30, top + 32, 60, 22, 4, hex('#1c1c1c'));               // the grip
+  poly([[cx - 48, top], [cx + 48, top], [cx + 40, top + 34], [cx - 40, top + 34]], hex('#1c1c1c'));   // the plug
+  poly([[cx - 44, top + 3], [cx + 44, top + 3], [cx + 37, top + 31], [cx - 37, top + 31]], hex('#2a2a2a'));   // its face
+  for (let k = 0; k < 8; k++) {
+    rect(cx - 35 + k * 10.5, top + 8, 2, 3, C.steel);               // the top row of pins
+    rect(cx - 31 + k * 9.4, top + 22, 2, 3, C.steel);               // and the bottom row
+  }
+}
+
+// A red cross by a plug that's been tried and doesn't fit
+function plugCross(cx) {
+  pipe(cx - 6, PLUG_TOP - 18, cx + 6, PLUG_TOP - 6, 3, C.red);
+  pipe(cx + 6, PLUG_TOP - 18, cx - 6, PLUG_TOP - 6, 3, C.red);
+}
+
+SCREENS.port = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, 120, hex('#2c2e33'), 0.12, 58);                  // under the dashboard, round the port
+    rect(0, 120, W, H - 120, PLUG_TRAY);                            // the footwell below, where the plugs lie
+    portSocket();
+    for (const [id, name, cx] of ownedPlugs()) {
+      plugDraw(id, cx, PLUG_TOP);                                   // each reader's plug, on its lead
+      const tried = S.flags['tried-' + id];                         // tried already: it doesn't fit
+      if (tried) plugCross(cx);
+      const label = tried ? name + ": doesn't fit" : name + ': try it';
+      spot(label, [cx - 50, PLUG_TOP - 4, 100, 80], 'act:tryplug:' + id);
+    }
+    tip('The diagnostic port', 'A flat socket with 16 pins. Tap a plug to try it in the port.', 1, 8);
+    hud();
+  },
+  actions() { return [{ label: 'Back to the seat', act: 'portback' }]; }
+};
+
+// The moment: the plug goes up to the port. The right one slides in; a wrong one won't go, jiggles, and drops back
+function plugTryDraw(p) {
+  if (!PLUG_TRY) return;
+  const { id, x, fits } = PLUG_TRY;
+  rect(x - 50, PLUG_TOP - 16, 100, H - PLUG_TOP + 16, PLUG_TRAY);  // lift it from where it lay
+  let cx = x;
+  let top = PLUG_TOP;
+  if (fits) {                                                       // the right one: up and in
+    const q = ease(Math.min(1, p / 0.7));
+    cx = lerp(x, PORT_MIDDLE, q);
+    top = lerp(PLUG_TOP, PORT_SOCKET[0][1], q);
+  } else if (p < 0.45) {                                            // a wrong one: up to the port…
+    const q = ease(p / 0.45);
+    cx = lerp(x, PORT_MIDDLE, q);
+    top = lerp(PLUG_TOP, 92, q);
+  } else if (p < 0.75) {                                            // …it won't go in: a jiggle…
+    cx = PORT_MIDDLE + Math.sin(p * 90) * 4;
+    top = 92;
+  } else {                                                          // …and back down where it was
+    const q = ease((p - 0.75) / 0.25);
+    cx = lerp(PORT_MIDDLE, x, q);
+    top = lerp(92, PLUG_TOP, q);
+  }
+  plugDraw(id, cx, top, x);                                         // its lead still runs down to where it lay
+}
+
+// =====================================================================
+// THE ECU: behind the panel low down under the dashboard. The car's computer, covered in stickers
+// =====================================================================
+const ECU_PANEL = [300, 248, 108, 20];                              // the panel on the dashboard: x, y, w, h
+// What you can look at: [name, what you find, where it is in the close-up (x, y, w, h)]
+const ECU_THINGS = [
+  ['The ECU', "The car's computer. It knows exactly what's wrong with the car. It isn't saying.", [150, 70, 230, 136]],
+  ['Warranty sticker', 'WARRANTY VOID IF REMOVED.\n\nThe warranty ran out two days ago.', [256, 86, 104, 30]],
+  ['Part number label', 'A label: ECU, part no. 09 391 263.\n\nUnder it, in tiny print: "Must be coded to the vehicle by an approved dealer."', [176, 144, 104, 40]],
+  ['The plugs', 'Two fat plugs, about 150 pins between them. Not one of them is labelled "red light".', [96, 92, 58, 92]],
+  ['A sweet wrapper', 'A sweet wrapper, from a brand they stopped making in 2008. Someone has been in here before you.', [298, 222, 60, 26]]
+];
+// The panel on the dashboard, screwed shut
+function ecuPanel() {
+  const [x, y, w, h] = ECU_PANEL;
+  rbox(x, y, w, h, 3, hex('#24262a'));                              // the panel
+  rect(x + 2, y + 1, w - 4, 1, hex('#34363b'));                     // its top edge catches the light
+  const screws = [[x + 5, y + 5], [x + w - 6, y + 5], [x + 5, y + h - 6], [x + w - 6, y + h - 6]];
+  for (const [sx, sy] of screws) disc(sx, sy, 2, C.steel2);         // its four screws
+}
+SCREENS.ecu = {
+  size: [480, 270],
+  paint() {
+    grime(0, 0, W, H, hex('#1a1b1e'), 0.14, 59);                    // the dark space behind the panel
+    // the wiring loom: a bundle of wires from the left, into the two plugs
+    const wires = [C.red, hex('#6a4a2a'), C.door, C.warm, C.ink, hex('#3a8a3a')];
+    wires.forEach((col, k) => {
+      pipe(0, 104 + k * 3, 96, 104 + k * 2, 2, col);                // into the top plug
+      pipe(0, 156 + k * 3, 96, 152 + k * 2, 2, col);                // into the bottom plug
+    });
+    // the ECU: a silver box with cooling fins, bolted on by its tabs
+    rect(140, 84, 14, 18, hex('#7a8086'));                          // the left mounting tab
+    rect(376, 84, 14, 18, hex('#7a8086'));                          // the right one
+    disc(147, 93, 3, C.steel);                                      // their bolts
+    disc(383, 93, 3, C.steel);
+    rbox(150, 70, 230, 136, 6, hex('#8c9298'));                     // the box
+    rect(156, 76, 218, 124, hex('#a4aab0'));                        // its face
+    for (let y = 124; y < 196; y += 8) rect(300, y, 68, 2, hex('#7a8086'));   // cooling fins, bottom right
+    // the two plugs into it, each with its locking lever
+    for (const y of [92, 140]) {
+      rbox(96, y, 58, 44, 4, hex('#1c1c1c'));
+      rect(100, y + 4, 50, 4, hex('#3a3a3a'));
+    }
+    // the warranty sticker: red on white
+    rect(256, 86, 104, 30, hex('#e8e4d8'));
+    rect(256, 86, 104, 2, C.red);
+    rect(256, 114, 104, 2, C.red);
+    text('WARRANTY VOID', 262, 92, C.red);
+    text('IF REMOVED', 262, 104, C.red);
+    // the part number label, with a barcode
+    rect(176, 144, 104, 40, hex('#e8e4d8'));
+    text('ECU', 182, 149, C.ink);
+    text('09 391 263', 182, 158, C.ink);
+    for (let k = 0; k < 40; k++) if (hash(k, 9) > 0.4) rect(182 + k * 2, 168, 1, 11, C.ink);
+    // a sweet wrapper, on the floor
+    poly([[312, 229], [298, 223], [302, 235], [298, 247], [312, 241]], hex('#8a3aa0'));   // its twisted left end
+    poly([[342, 229], [356, 223], [352, 235], [356, 247], [342, 241]], hex('#8a3aa0'));   // its twisted right end
+    rect(312, 229, 30, 12, hex('#9a4ab0'));                     // the middle
+    rect(316, 232, 22, 2, hex('#d8b8e8'));                          // its shine
+    ECU_THINGS.forEach(([name, , area], k) => spot(name, area, 'act:ecuthing:' + k));
+    tip('Behind the panel', "The ECU: the car's computer. Tap a thing to look at it.", 1, 8);
+    hud();
+  },
+  actions() { return [{ label: 'Put the panel back', act: 'ecushut' }]; }
 };
 
 SCREENS.fish = {

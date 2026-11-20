@@ -598,6 +598,7 @@ const MOMENTS = {
     dialNeedle(DASH.rpm, 3.05 + up * 2.2);
   },
   pedal() { accelPedal(true); },
+  plugtry(p) { plugTryDraw(p); },                                     // a reader's plug goes up to the port: in, or a jiggle and back
   garagedoor() { garageDoorDraw(); },                                 // the garage's roller door rolling up
 };
 // The roller door, part way up (from when you tapped the garage)

@@ -1083,11 +1083,37 @@ const ACTIONS = {
       return say('Under the steering wheel', 'You pop the little hatch off. Behind it: a flat socket with 16 pins. The diagnostic port.');
     }
     if (S.flags.readerIn) return say('Diagnostic port', 'Your code reader is plugged in.');
-    if (S.inv['reader-good']) return ACTIONS.plug('good');               // got a reader: plug it in
-    if (S.inv['reader-old']) return ACTIONS.plug('old');
+    if (ownedPlugs().length) return show('port');                        // got a reader or two: close up on the port, to try them
     S.flags.hatch = false;                                               // nothing to plug in: put the hatch back
     sfx('click');
   },
+  // the button under the picture: open the hatch and close up on the port
+  port() {
+    S.flags.hatch = true;
+    show('port');
+  },
+  portback() { show('dash'); },                                          // back to the driver's seat
+  // try a reader's plug in the port: it goes up to the port; then it fits, or it doesn't
+  tryplug(id) {
+    if (!S.inv[id] || ANIM) return;                                      // not yours, or one already on its way up
+    const slot = PLUGS.find(([pid]) => pid === id);                      // where it lies
+    const fits = id === 'reader-good';                                   // only the used one from eBuy is the right shape
+    PLUG_TRY = { id, x: slot[2], fits };
+    sfx('click');
+    moment('plugtry', 900);
+    ANIM.then = () => { PLUG_TRY = null; plugTried(id); };              // when it's been tried: what happened
+  },
+  // the panel under the dashboard: unscrew it, and the ECU is behind it
+  ecu() {
+    sfx('click');
+    show('ecu');
+    if (S.flags.ecuSeen) return;
+    S.flags.ecuSeen = true;                                              // the first time: the screws take a while
+    pass(5);
+    say('The panel under the dash', "Four screws. You undo them and the panel drops into the footwell.\n\nBehind it: a silver box covered in stickers. The ECU, the car's computer.");
+  },
+  ecuthing(k) { const [name, words] = ECU_THINGS[+k] || []; if (name) say(name, words); },   // look at a thing behind the panel
+  ecushut() { sfx('click'); show('dash'); },                             // screw the panel back on, back in the seat
   // the radio's three buttons: dir -1 = ◀, 0 = the middle one, 1 = ▶
   radio(dir) {
     if (!carPowered()) return say('Radio', 'Nothing. Not even the clock. No power.');
@@ -1143,17 +1169,13 @@ const ACTIONS = {
     }
     render();
   },
-  plug(which) {
+  // the right reader, plugged into the port: it needs power and the key at II to read the codes
+  plug() {
     S.flags.hatch = true;                                                // the port is behind the hatch: open it
-    if (!carPowered()) return say('Code reader', 'Nothing. There\'s no power anywhere in the car.');
-    if (S.key < 2) return say('Code reader', 'Nothing. The key needs to be at II for the reader to wake up.');
+    if (!carPowered()) return say('Code reader', 'It fits! Click. But nothing: there\'s no power anywhere in the car.');
+    if (S.key < 2) return say('Code reader', 'It fits! Click. But the screen stays blank: the key needs to be at II for the reader to wake up.');
     pass(10);
     sfx('beep');
-    if (which === 'old') {
-      anger(10);
-      closeLead('gaz-reader', 'x', "Gaz's reader: wrong plug (from 1994)");
-      return say('Code reader', "Gaz's reader has a round plug. Your car's port is flat. It's from 1994.");
-    }
     S.flags.readerIn = true;
     closeLead('plug-in', 'ok');
     readCodes('own reader');
@@ -1371,14 +1393,32 @@ const ACTIONS = {
     say('ViewTube', '"Right lads, first get the car on a ramp…" It\'s for the Excite. Yours is the Plus.');
   }
 };
+// A reader's plug tried in the port (after its moment): the wrong ones don't fit; the right one goes in
+function plugTried(id) {
+  const first = !S.flags['tried-' + id];                               // the first go makes you cross; after that you knew
+  if (id === 'reader-good') {
+    show('dash');                                                      // it's in: back in the seat, the reader on its lead
+    return ACTIONS.plug();
+  }
+  S.flags['tried-' + id] = true;                                       // a red cross by it from now on
+  sfx('clink');
+  if (first) anger(10);
+  if (id === 'reader-old') {                                           // Gaz's: from 1994
+    closeLead('gaz-reader', 'x', "Gaz's reader: wrong plug (from 1994)");
+    return say("Gaz's reader", "A little round plug with five pins. Your car's port is flat, with sixteen. Gaz's reader is from 1994.");
+  }
+  // the MegaMart one: it's for lorries
+  closeLead('try-cheap', 'x', 'MegaMart reader: wrong plug (it\'s for lorries)');
+  lead('codes', 'ebuy-reader', 'Get a proper one on eBuy', 'a MegaMart review', 'fairly sure', 'app:eBuy');
+  say('MegaMart reader', 'A round plug the size of a jam jar lid, with nine fat pins. It goes nowhere near the port.\n\nThe small print on the box: "*fits all lorries".');
+}
 // Opening a parcel at the front door
 function openParcel(item) {
   pass(5);
-  if (item === 'reader-cheap') {
-    anger(10);
-    note('codes', 'MegaMart reader: wrong plug (it\'s for lorries)', 'x');
-    lead('codes', 'ebuy-reader', 'Get a proper one on eBuy', 'a MegaMart review', 'fairly sure', 'app:eBuy');
-    return say('A parcel', 'A code reader! …for lorries. The plug is nothing like the port in your car.');
+  if (item === 'reader-cheap') {                                       // the MegaMart one: kept, to try in the port
+    S.inv['reader-cheap'] = true;
+    lead('codes', 'try-cheap', 'Try the MegaMart reader in the port', 'you', 'hopeful', 'dash');
+    return say('A parcel', 'A code reader! "Fits all cars*". Its plug looks… big.\n\nThe port is under the dash.');
   }
   if (item === 'reader-good') {
     S.inv['reader-good'] = true;
