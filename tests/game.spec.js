@@ -1398,7 +1398,7 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await start(page, errors);
   await garage(page);
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
-  expect(await page.locator('.spine').count()).toBe(19);
+  expect(await page.locator('.spine').count()).toBe(20);                                    // 20 books, the last The Myth of Sisyphus
   await page.locator('.hs[data-go="act:book:7"]').click();
   await expect(page.locator('.book')).toContainText('Sierra');           // not your car's handbook: that's in the parts box
   await act(page, 'Put it back');
@@ -1895,5 +1895,22 @@ test('a puncture only happens once, and never with the chance at 0', async ({ pa
   expect(await page.evaluate(() => punctureOnTheWayHome())).toBe(false);   // had one already
   await page.evaluate(() => { S.flags.punctured = false; S.mins = 20 * 60; });
   expect(await page.evaluate(() => punctureOnTheWayHome())).toBe(false);   // not at night
+  expect(errors).toEqual([]);
+});
+
+// ---------- the manuals shelf: The Myth of Sisyphus ----------
+test('The Myth of Sisyphus is on the manuals shelf: open it and there is a picture of our hero pushing his car up a hill', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });
+  const i = await page.evaluate(() => BOOKS.findIndex(b => b[0].startsWith('The Myth of Sisyphus')));
+  expect(i).toBeGreaterThanOrEqual(0);
+  expect(await page.evaluate(k => { const [x] = bookAt(k); return x + BOOK_W - 2 <= 472; }, i)).toBe(true);   // it fits on the shelf
+  await tap(page, 'act:book:' + i); await idle(page);
+  await expect(page.locator('.book .pic')).toHaveCount(1);              // the picture, opposite the title page
+  await expect(page.locator('.book')).toContainText('pushing his car up a hill');
+  await page.locator('[data-act="bookpage:1"]').click();
+  await expect(page.locator('.book .pic')).toHaveCount(0);              // the other pages are words
+  await expect(page.locator('.book')).toContainText('Sisyphus');
   expect(errors).toEqual([]);
 });

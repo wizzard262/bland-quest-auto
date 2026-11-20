@@ -136,10 +136,29 @@ const BOOKS = [
   ['Das Kapital (Karl Marx)', ['Volume 1: Commodities.', 'The car is a commodity. The sensor is a commodity. The £120 diagnostic is surplus value.', 'Nothing about gearboxes. Marx never owned a Zafira.']],
   ['LEGO Instructions: Zafira (Model 1:24)', ['Step 1 of 212: Find the two grey 2x4 bricks.', 'Step 87: Fit the gearbox sensor (piece 4211). Simply click it in.', 'If only. You look at the real one and back at the picture.']],
   ['A Thousand Plateaus (Deleuze & Guattari)', ['"Make rhizomes, not roots."', 'The wiring loom under the car is, you realise, a rhizome.', 'You close it. You don\'t feel deterritorialised. You feel tired.']],
-  ['Fly Fishing (J. R. Hartley)', ['A lovely old book about fly fishing.', 'You have no idea why it\'s in the garage.', 'Inside the cover, in pencil: "Found it at last. J.R.H."']]
+  ['Fly Fishing (J. R. Hartley)', ['A lovely old book about fly fishing.', 'You have no idea why it\'s in the garage.', 'Inside the cover, in pencil: "Found it at last. J.R.H."']],
+  // a page can be { text, pic }: words on the left, a picture on the right
+  ['The Myth of Sisyphus (Albert Camus)', [{ text: 'Opposite the title page, a picture: a man pushing his car up a hill. He looks a lot like you.', pic: 'sisyphus' },
+    'The gods condemned Sisyphus to push a rock to the top of a mountain, where it rolled back down. For ever.', 'You think about the gearbox sensor.',
+    '"The struggle itself toward the heights is enough to fill a man\'s heart. One must imagine Sisyphus happy."', 'You do not feel happy. You feel like Sisyphus.']]
 ];
-const BOOK_COLOURS = [C.red, C.car, C.warm, hex('#40a060'), C.white, hex('#9a5ac8'), C.redDim, C.tree1, C.steel2, CARDBOARD, C.car, hex('#e070a8'), C.ink, C.red, hex('#202020'), hex('#a02020'), C.warm, hex('#e8e0c8'), hex('#3a6a4a')];
-const BOOK_W = 23;                                         // each book's width on the shelf
+const BOOK_COLOURS = [C.red, C.car, C.warm, hex('#40a060'), C.white, hex('#9a5ac8'), C.redDim, C.tree1, C.steel2, CARDBOARD, C.car, hex('#e070a8'), C.ink, C.red, hex('#202020'), hex('#a02020'), C.warm, hex('#e8e0c8'), hex('#3a6a4a'), hex('#d8c8a0')];
+const BOOK_W = 22;                                         // each book's width on the shelf (20 books fit along it)
+// The picture in the Myth of Sisyphus: our hero, side-on, pushing his car up a hill (pixel-sharp)
+function sisyphusPicture() {
+  const r = (x, y, w, h, col) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col}"/>`;
+  const sky = r(0, 0, 96, 64, '#c8d8e8');
+  const sun = r(10, 6, 8, 8, '#f8e070');
+  const hill = '<polygon points="0,64 0,58 96,22 96,64" fill="#58a048"/><polygon points="0,58 96,22 96,24 0,60" fill="#3e8a3a"/>';
+  // the car, side-on, on the level; turned to sit on the slope (it climbs to the right)
+  const car = r(40, 26, 32, 8, '#3c78c8') + r(46, 20, 18, 7, '#3c78c8') + r(48, 21, 6, 5, '#203048') + r(56, 21, 6, 5, '#203048')
+    + r(70, 28, 2, 2, '#f8d038') + r(43, 33, 6, 5, '#222228') + r(63, 33, 6, 5, '#222228') + r(45, 35, 2, 1, '#a8acb4') + r(65, 35, 2, 1, '#a8acb4');
+  // him, behind it (downhill), leaning in with both hands on the back of the car
+  const man = r(30, 30, 2, 8, '#4060a8') + r(34, 29, 2, 8, '#304a88') + r(31, 22, 6, 8, '#e04838') + r(36, 18, 4, 4, '#e8b090') + r(36, 17, 4, 1, '#603818')
+    + r(37, 24, 4, 2, '#e04838') + r(40, 24, 1, 2, '#e8b090');
+  const climb = `<g transform="rotate(-20.6 56 37)">${car}${man}</g>`;
+  return `<svg class="pic" viewBox="0 0 96 64" shape-rendering="crispEdges" aria-label="A man pushing his car up a hill">${sky}${sun}${hill}${climb}</svg>`;
+}
 let BOOK_MOVE = null;                                      // a book coming off the shelf or going back: { i, out } (drawn by its moment)
 // Where book i stands on the shelf: x, top, height
 function bookAt(i) {
@@ -164,7 +183,7 @@ SCREENS.shelf = {
       if (i === S.book || i === moving) return;                                   // off the shelf: a gap
       const [x, top, h] = bookAt(i), col = BOOK_COLOURS[i % BOOK_COLOURS.length];
       bookSpine(i, 0);
-      const dark = [C.white, C.warm, CARDBOARD, hex('#e8e0c8')].includes(col);
+      const dark = [C.white, C.warm, CARDBOARD, hex('#e8e0c8'), hex('#d8c8a0')].includes(col);   // pale covers: dark lettering
       LABELS.push(`<div class="spine" style="left:${(x + 2) / W * 100}%;top:${(top + 16) / H * 100}%;width:${(BOOK_W - 6) / W * 100}%;height:${(h - 34) / H * 100}%;color:${dark ? '#101018' : '#fff'}">${esc(title)}</div>`);
       spot(esc(title), [x, top, BOOK_W - 2, h], 'act:book:' + i);
     });
@@ -178,8 +197,11 @@ SCREENS.shelf = {
     const [title, pages] = BOOKS[S.book], k = S.bookPage || 0;
     const prev = k > 0 ? '<button class="flip" data-act="bookpage:-1">◀</button>' : '<span class="flip"></span>';
     const next = k < pages.length - 1 ? '<button class="flip" data-act="bookpage:1">▶</button>' : '<span class="flip"></span>';
-    return `<div class="ov book"><div class="pg"><h3>${esc(title)}</h3><p>${esc(pages[k])}</p></div>`
-      + `<div class="pg"><p class="faint">${'— '.repeat(30)}</p><p class="faint">(oil stain)</p><div class="pgnav">${prev}<span>Page ${k + 1} of ${pages.length}</span>${next}</div></div></div>`;
+    const pg = pages[k];
+    const words = typeof pg === 'string' ? pg : pg.text;                          // a page of words, or words and a picture
+    const right = pg.pic === 'sisyphus' ? sisyphusPicture() : `<p class="faint">${'— '.repeat(30)}</p><p class="faint">(oil stain)</p>`;
+    return `<div class="ov book"><div class="pg"><h3>${esc(title)}</h3><p>${esc(words)}</p></div>`
+      + `<div class="pg">${right}<div class="pgnav">${prev}<span>Page ${k + 1} of ${pages.length}</span>${next}</div></div></div>`;
   },
   actions() {
     return S.book != null ? [{ label: 'Put it back', act: 'book:-1' }] : [{ label: 'Back to the garage', act: 'go:garage' }];
