@@ -632,7 +632,7 @@ function wife(wx, wy, lookId, motion = {}) {
   if (K.cut === 'shorts') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); rowAt(x, y - 20, 7, dress); }
   if (K.cut === 'trousers') { rowAt(x, y - 22, 8, dress); rowAt(x, y - 21, 8, dress); }
   if (K.cut === 'wiggle') for (let k = 0; k < 11; k++) rowAt(x, y - 22 + k, (side ? 8 : 10) - Math.floor(k / 4), k === 10 ? dressDark : dress);
-  wifeTop(K, x, y, facing, motion.hip, false, ph);
+  wifeTop(K, x, y, facing, motion.hip, false, ph, side ? 'front' : undefined);   // side-on, she still looks at us
 }
 // Her top half, standing at x, y (her waist is 23 up): the bodice, arms, head and hair, turned the way she's facing
 // One leg as she sits: hip, knee and foot (iso points), the thigh in its own colour

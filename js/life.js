@@ -655,7 +655,14 @@ const MOMENTS = {
     ibox(x, y, x + 60, y + 24, 4, 30, C.white, hex('#dcdcd4'));
     onRight(x + 60, y + 3, y + 21, 18, 27, C.glass);
     onLeft(y + 24, x + 10, x + 44, 12, 20, C.red);
-    for (const wx of [12, 48]) { const [a, b] = P(x + wx, y + 24, 4); ellipse(a, b, 4, 3, C.tyre); }
+    for (const wx of [12, 48]) {                                        // its wheels: arch, tyre, steel wheel, hub
+      const [a, b] = P(x + wx, y + 24, 5);
+      ellipse(a, b, 7, 6, hex('#2a2a2e'));
+      ellipse(a, b + 1, 6, 5, C.tyre);
+      ellipse(a, b + 1, 3, 3, C.steel2);
+      px(a, b + 1, C.ink);
+    }
+    if (p > 0.55) { [ISO.ox, ISO.oy] = [250, 96]; kerbMailbox(true); }  // he's dropped it off: there it is in the mailbox
   },
   tea(p) {                                                            // a mug of tea, steaming (for now)
     const inRoom = S.screen === 'room';                               // made at the kettle; or (anywhere else) in his hand

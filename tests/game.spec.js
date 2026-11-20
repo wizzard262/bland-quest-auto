@@ -336,7 +336,7 @@ test('open the boot in the garage: the spare wheel, the jack and the wheel brace
   expect(errors).toEqual([]);
 });
 
-test('your wife: she wants it scrapped, but every third time she says something useful', async ({ page }) => {
+test('your wife: she wants it scrapped, then on the third time she says something about what you are stuck on', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await goRoom(page);
@@ -434,7 +434,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await aimTorch(page, ...NUT_SPOT); await ok(page);                                     // the beam finds it
   await act(page, 'Get up');
   await page.evaluate(() => { S.screen = 'home'; render(); });
-  await act(page, 'Get a long stick'); await ok(page);
+  await tap(page, 'act:stick'); await ok(page);                            // tap the hedge: a long stick
   await garage(page);
   await garageTap(page, 'Search under the tool chest');
   await aimTorch(page, ...NUT_SPOT); await choose(page, 'Hook it out');
@@ -987,7 +987,7 @@ test('ring the wife on the phone: she says what she would say in person', async 
   expect(await page.evaluate(() => PITCHES[PITCHES.length - 1])).toBe(pitches[0]);
   await ok(page);
   expect(said[0]).toMatch(/scrap|Fiesta|Micra|wedding/i);               // the same as in person: scrap it…
-  expect(said[2]).toMatch(/handbook|codes|hammer|fuses|1234|tea/);     // …and every third time something useful
+  expect(said[2]).toMatch(/handbook|codes|hammer|fuses|1234|tea/);     // …and then something about what you're stuck on
   await page.evaluate(() => { S.mins = 22 * 60; });
   await ringWife();
   expect(await dialogText(page)).toContain('bed');                      // late: come to bed
@@ -1805,7 +1805,7 @@ test('check every fuse: F23 looks fine but you need the multimeter; its 23A batt
   // the multimeter in drawer 5: flat, and it's an odd battery
   await page.evaluate(() => { S.screen = 'toolbox'; render(); });
   await tap(page, 'act:drawer:5');
-  await act(page, 'Test the multimeter');
+  await tap(page, 'act:meter');                                            // tap the multimeter in the drawer
   expect(await dialogText(page)).toContain('23A');
   await ok(page);
   expect(await page.evaluate(() => ['bat-pound', 'bat-hardware', 'bat-online'].map(leadOpen))).toEqual([true, true, true]);
@@ -1847,7 +1847,7 @@ test('AA batteries off the shop shelf do not fit the multimeter', async ({ page 
   await start(page, errors);
   await page.evaluate(() => { S.flags.meterFlat = true; S.bought = { Batteries: { kind: 'box', n: 1 } }; S.screen = 'toolbox'; render(); });
   await tap(page, 'act:drawer:5');
-  await act(page, 'Test the multimeter');
+  await tap(page, 'act:meter');                                            // tap the multimeter in the drawer
   expect(await dialogText(page)).toContain('AAs');
   await ok(page);
   expect(errors).toEqual([]);
@@ -2897,5 +2897,40 @@ test('under the bonnet both headlights show from above (the smashed one cracked)
   await page.evaluate(() => { S.inv['extractor-cheap'] = true; S.flags.b2round = true; ACTIONS.extract(); });
   await ok(page);
   expect(await page.evaluate(() => S.junked.includes('extractor-cheap'))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the playtest batch: tap the multimeter; a golf club in the parts box; tap the hedge; the notebook has no Back; skint: Mum & Dad or Paul help; the wife helps with what you are stuck on', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // the toolbox: drawer 5, tap the multimeter itself
+  await page.evaluate(() => { S.drawer = 5; show('toolbox'); });
+  await expect(page.locator('.hs[data-go="act:meter"]')).toHaveCount(1);
+  await expect(page.locator('.acts button', { hasText: 'multimeter' })).toHaveCount(0);
+  // the hedge: tap it for a stick once you need one
+  await page.evaluate(() => { S.flags.nutSeen = true; S.screen = 'home'; render(); });
+  await tap(page, 'act:stick'); await ok(page);
+  expect(await page.evaluate(() => S.inv.stick)).toBe(true);
+  // or the golf club in the parts boxes
+  await page.evaluate(() => { S.inv.stick = false; PILE = null; makePile(); const g = PILE.find(j => j.golf); takeGolfClub(g); });
+  expect(await dialogText(page)).toContain('golf club');
+  await ok(page);
+  expect(await page.evaluate(() => [S.inv.stick, JUNK.some(j => /sandwich|receipt/.test(j[0]))])).toEqual([true, false]);
+  // the notebook: no Back button; tap off it
+  await page.evaluate(() => { S.screen = 'home'; render(); show('notebook'); });
+  await expect(page.locator('#stage .back')).toHaveCount(0);
+  await page.locator('.phoneoff[data-act="nbclose"]').click({ position: { x: 5, y: 5 } });
+  expect(await page.evaluate(() => S.screen)).toBe('home');
+  // skint: Mum sends £50 (not again for a few days); Paul twenty, once
+  await page.evaluate(() => { S.money = 5; ACTIONS.ring('Mum'); });
+  expect(await dialogText(page)).toContain("Don't tell your father");
+  await ok(page);
+  expect(await page.evaluate(() => S.money)).toBe(55);
+  await page.evaluate(() => { S.money = 5; ACTIONS.ring('Brother'); });
+  expect(await dialogText(page)).toContain("Don't tell Mum");
+  await ok(page);
+  expect(await page.evaluate(() => [S.money, askPaulForMoney()])).toEqual([25, false]);
+  // the wife: about the card
+  expect(await page.evaluate(() => { S.flags.cardBlocked = true; return wifeTip(); })).toContain('bank');
   expect(errors).toEqual([]);
 });

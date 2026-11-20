@@ -514,8 +514,8 @@ const PLUG_TRAY = hex('#141518');                                   // the dark 
 // Each reader you can own, always in the same place: [id, name, x of its middle]
 const PLUGS = [
   ['reader-old', "Gaz's reader (old type)", 110],
-  ['reader-cheap', 'MegaMart reader', 240],
-  ['reader-good', 'The used reader from eBuy', 370]
+  ['reader-cheap', 'Zamanon reader', 240],
+  ['reader-good', 'The used reader from TheeBay', 370]
 ];
 // The readers you own just now
 const ownedPlugs = () => PLUGS.filter(([id]) => S.inv[id]);
@@ -549,7 +549,7 @@ function plugDraw(id, cx, top, leadX = cx) {
     }
     return;
   }
-  if (id === 'reader-cheap') {                                      // MegaMart's: a lorry plug the size of a jam jar lid
+  if (id === 'reader-cheap') {                                      // Zamanon's: a lorry plug the size of a jam jar lid
     pipe(cx, top + 66, leadX, H, 7, C.ink);                            // its fat lead
     rect(cx - 15, top + 52, 30, 16, hex('#2e5a34'));                // the grip
     disc(cx, top + 28, 30, hex('#2e5a34'));                         // the round plug

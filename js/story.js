@@ -80,6 +80,26 @@ const HUNCHES = {
   'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Motor Factors'); }
 };
 
+// ---------- skint: Mum & Dad (every few days) or Paul (once) help out ----------
+const SKINT = 30;                                                       // less than this: you're skint
+const MUM_MONEY = 50, MUM_EVERY = 3, PAUL_MONEY = 20;
+function askMumForMoney(title) {
+  if (S.money >= SKINT) return false;
+  if (S.flags.mumMoneyDay !== undefined && S.day < S.flags.mumMoneyDay + MUM_EVERY) return false;   // not again so soon
+  S.flags.mumMoneyDay = S.day;
+  S.money += MUM_MONEY;
+  sfx('kerching');
+  say(title, `"You sound skint, love. I'll put £${MUM_MONEY} in your account. Don't tell your father."\n\nIn the background: "I HEARD THAT."`);
+  return true;
+}
+function askPaulForMoney() {
+  if (S.money >= SKINT || S.flags.paulLent) return false;
+  S.flags.paulLent = true;
+  S.money += PAUL_MONEY;
+  sfx('kerching');
+  say('Ringing Paul', `"Skint again? Here, I'll send you twenty. Don't tell Mum."\n\n£${PAUL_MONEY}. He'll mention it every Christmas for the rest of your life.`);
+  return true;
+}
 // The town map, centred on a place (its block): where your car's parked
 function camOnPlace(name) {
   const i = placeIndex(name);
@@ -651,14 +671,49 @@ const WIFE_SCRAP = [
 function wifeLine() {
   S.wifeTalks = (S.wifeTalks || 0) + 1;
   if (isBedtime()) return S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."';   // in her nightie: bed
-  const useful = S.wifeTalks % 3 === 0;
-  if (useful) return wifeTip();
-  if (S.flags.wifePaid && S.wifeTalks % 3 === 1) { anger(5); return '"I paid for that, Husband. Again. For a car I told you to scrap."'; }   // she's paid out: she's not happy
+  const n = S.wifeTalks;
+  if (n >= 3 && n % 4 !== 0) {                                          // after the first couple of moans: what's going on (now and then a moan again)
+    if (n % 2 === 1) return wifeTip();                                  // something that might actually help
+    const remark = wifeRemark();                                        // or just a remark about it
+    if (remark) return remark;
+    return wifeTip();
+  }
+  if (S.flags.wifePaid && n % 3 === 1) { anger(5); return '"I paid for that, Husband. Again. For a car I told you to scrap."'; }   // she's paid out: she's not happy
   anger(5);                                                            // "scrap it" again: that winds you up
   return WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length];
 }
+// What's going on, as she sees it: not always helpful, just about what's happened (null if nothing much)
+function wifeRemark() {
+  const k = kickedLamps();
+  if (S.road && !S.road.walked) return '"Where IS the car, Husband?"';
+  if (S.road) return '"Look after my car, Husband. It\'s the only one that works."';
+  if (S.flags.carAt) return `"Where's the car? Still outside the pub? Of course it is."`;
+  if (S.fine && S.fine.clamped && !S.fine.paid) return '"There\'s a yellow thing on your car, Husband. The neighbours are looking."';
+  if (boozeNow() > 0) return '"Have you been at the pub? You have. I can smell it."';
+  if (k.left && k.right) return '"Both headlights, Husband. Both."';
+  if (k.left || k.right) return '"You kicked the headlight in. I saw. Ken saw."';
+  if (S.flags.jarSpilt && !S.flags.jarSwept) return '"Why are there screws all over the garage floor?"';
+  if (S.flags.boxOff && !S.flags.fitted) return '"What\'s that metal box doing on your workbench? Is that off the car?"';
+  if (S.flags.screwsTried && S.flags.screwsTried.length) return '"Have you been through every screw in that jar? You have, haven\'t you."';
+  if (S.flags.mumMoneyDay !== undefined) return '"Your mother rang. She says you sounded skint."';
+  if (S.flags.paulLent) return '"Paul says you owe him twenty pounds. He said it twice."';
+  if (S.brother) return '"Was that Paul? Did he take something? He always takes something."';
+  if (S.flags.thrownOutDay !== undefined) return '"The barman rang me again, Husband. Again."';
+  if (S.junked && S.junked.length > 3) return '"Your parts boxes are full of broken things. Like the car."';
+  if (S.flags.codes) return '"You and your codes. P-whatever. It\'s still broken."';
+  return null;
+}
 // …and now and then, something that actually helps (whatever you're stuck on)
 function wifeTip() {
+  if (S.flags.cardBlocked) return '"Go to the bank about your card, Husband. They\'re only open Monday to Wednesday, ten till two."';
+  if (S.fine && !S.fine.paid) return '"Pay that fine at the Post Office, Husband. Before they clamp the car."';
+  if (S.money < SKINT) return '"Ring your mum. She\'ll help. She always helps."';
+  if (S.flags.nutSeen && !S.inv.stick) return '"Use a stick, Husband. Snap one off the hedge. Or there\'s that golf club in your boxes."';
+  if (S.flags.n3lost && !S.flags.n3found && !S.flags.torchLit && !S.flags.phoneTorch) return '"Your phone\'s got a torch on it, Husband."';
+  if (S.flags.b2round && !S.flags.b2 && !S.inv['extractor-cheap'] && !S.inv['extractor-good']) return '"Ken next door says you want a bolt extractor. The Tool Shop."';
+  if (S.flags.sheared && !S.flags.stubOut) return '"That snapped screw: same as the bolt. The extractor."';
+  if (S.flags.stubOut && !S.flags.screw3) return '"There\'s a whole jar of screws on your shelf, Husband."';
+  if (S.flags.codes && !leadExists('sensor')) return '"Old Ron at the pub knows about cars. So he says."';
   if (!S.inv.handbook && !S.flags.handbookTip) { handbookTip(); return '"Have you looked in the car handbook, Husband? It\'ll all be in the handbook."'; }
   if (!S.flags.codes) return '"Can\'t you plug something into it? Gaz had a gadget that reads the codes."';
   if (S.flags.needHammer && !S.inv.hammer) return '"Paul never gave your hammer back. The Hardware Shop will have one, whatever they tell you."';
@@ -801,7 +856,7 @@ const TALK = {
     const name = 'The Hesketh Tavern';
     const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
       SPEAKER = keeperHead();
-      if (!spend(price, true)) return say(name, '"Card machine says no, mate."');   // (she won't pay for beer)
+      if (!spend(price, true)) return say(name, '"Card machine says no, mate."\n\n(Skint. Mum & Dad might help you out. Or Paul.)');   // (she won't pay for beer)
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
       const drinks = haveADrink();                                     // how many you've had today, this one included
       if (drinks > PUB_LIMIT) return say(name, `He pulls you a ${drink}. ${taste}\n\nYou drink it far too fast. The bar starts to tilt.`, [{ label: 'OK', run: fallOffStool }]);
@@ -858,8 +913,8 @@ const TALK = {
     if (S.flags.sparky) return say("Sparky's", '"Still broken, mate."');
     S.flags.sparky = true;
     closeLead('sparkys', 'x', "Sparky's: their reader's broken");
-    lead('codes', 'mega-reader', 'Buy your own code reader on MegaMart', 'Sparky', 'fairly sure', 'app:MegaMart');
-    say("Sparky's Auto Electrics", '"Reader\'s broken, mate. Waiting on a part. Get your own: MegaMart do one for a tenner."');
+    lead('codes', 'mega-reader', 'Buy your own code reader on Zamanon', 'Sparky', 'fairly sure', 'app:MegaMart');
+    say("Sparky's Auto Electrics", '"Reader\'s broken, mate. Waiting on a part. Get your own: Zamanon do one for a tenner."');
   },
   'Main Dealer'() {
     if (S.flags.codes) return say('Main Dealer', '"Anything else? That\'ll be £120."');
@@ -884,6 +939,7 @@ const TALK = {
     say('Voltz Auto Electric', '"P0705? That\'s the gearbox, mate. You want the gearbox people."');
   },
   "Mum & Dad's"() {                                                   // Mum on the doorstep
+    if (askMumForMoney('Mum')) return;                                  // skint: she slips you some
     S.flags.mumTalks = (S.flags.mumTalks || 0) + 1;
     const lines = ['"Come in, love! Have you eaten? You look thin."', '"Your dad\'s been looking forward to this all week."', '"Is Paul coming? He never comes."', '"Do you want a cup of tea? I\'ll put the kettle on."'];
     anger(-8);                                                          // Mum: it helps, a bit
@@ -1079,6 +1135,7 @@ const ACTIONS = {
     if (have[other] > 0) return wrongLamp(side);
     say(`The ${side} headlight`, `Smashed. You need a new ${side} one: a parts shop, Zamanon or TheeBay online, or one off a wreck at the Scrap Yard.`);
   },
+  nbclose() { back(); },                                                // the notebook: put it away
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
   phonetorch() {
@@ -1187,6 +1244,8 @@ const ACTIONS = {
     say('The kitchen drawer', 'Takeaway menus, string, a key to nothing, three dead batteries… and two good ones. The torch works!');
   },
   stick() {
+    if (S.inv.stick) return say('The hedge', 'A privet hedge. Slightly fewer sticks than it had.');
+    if (!S.flags.nutSeen) return say('The hedge', 'A privet hedge. Full of sticks. You don\'t need a stick. Yet.');
     pass(5); S.inv.stick = true; sfx('click');
     closeLead('stick', 'ok', 'A long stick from the hedge');
     lead('nut3', 'hook', 'Hook the nut out from under the tool chest', 'you', 'hopeful', 'garage');
@@ -1288,7 +1347,7 @@ const ACTIONS = {
   tryplug(id) {
     if (!S.inv[id] || ANIM) return;                                      // not yours, or one already on its way up
     const slot = PLUGS.find(([pid]) => pid === id);                      // where it lies
-    const fits = id === 'reader-good';                                   // only the used one from eBuy is the right shape
+    const fits = id === 'reader-good';                                   // only the used one from TheeBay is the right shape
     PLUG_TRY = { id, x: slot[2], fits };
     sfx('click');
     moment('plugtry', 900);
@@ -1536,10 +1595,10 @@ const ACTIONS = {
     finishJob('sensor-out', 'The old sensor is out of the box');
     job('new-sensor', 'Find a sensor that fits', 'light');
     note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
-    lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
+    lead('new-sensor', 'mega-sensor', 'Zamanon: "fits all models*"', 'Zamanon', 'very sure', 'app:MegaMart');
     lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
     lead('new-sensor', 'breakers', 'The Scrap Yard has a Zafira', 'Gaz', 'maybe', 'place:Scrap Yard');
-    lead('new-sensor', 'ebuy-lot', 'eBuy: a job lot of sensors', 'you', 'hopeful', 'app:eBuy');
+    lead('new-sensor', 'ebuy-lot', 'TheeBay: a job lot of sensors', 'you', 'hopeful', 'app:eBuy');
     lead('new-sensor', 'csd', 'Car Spares Direct', 'you', 'maybe', 'place:Car Spares Direct');
     say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
   },
@@ -1557,7 +1616,7 @@ const ACTIONS = {
     if (!b) return say('The workbench', 'Pick a part to try first.');
     pass(5);
     const fit = sensorFit(b.part);                                     // how this one fits (sensors.js)
-    if (b.part === 'part-mega') closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
+    if (b.part === 'part-mega') closeLead('try-mega', 'x', 'Zamanon sensor: wrong shape (hex, not round)');
     if (fit !== 'right' && fit !== 'old') return tryWrongSensor(b);    // touches the hole, and fails its own way
     if (b.part === 'old-sensor') {                                     // the old one came out of here, so it goes back in (once lined up)
       if (!b.rotated) return say('Push', 'The pins don\'t line up. Rotate it.');
@@ -1600,7 +1659,9 @@ const ACTIONS = {
   ring(who) {
     pass(5);
     if (who === 'Yard') return ringYard();                              // the Scrap Yard: book a slot
+    if (who === 'Brother' && askPaulForMoney()) return;                 // skint: Paul lends you twenty (once)
     if (who === 'Brother') return ringBrother();                        // your brother: he'll come round (brother.js)
+    if (who === 'Mum' && askMumForMoney('Ringing Mum & Dad')) return;    // skint: Mum sends some (now and then)
     if (who === 'Wife') {                                              // she says just what she'd say to your face
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();
@@ -1621,12 +1682,12 @@ const ACTIONS = {
     if (!spend(item.price)) { anger(10); return say('Payment', DECLINED); }
     S.flags['ordered-' + id] = true;
     const fromBay = ['reader-good', 'headlight-bay', 'sensor-lot'].includes(id);   // TheeBay: used, 2 days; Zamanon: next day
-    order(id, fromBay ? 2 : 1, fromBay ? 'eBuy' : 'MegaMart');
-    if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from MegaMart (due tomorrow)');
-    if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on eBuy (2 days)');
-    if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the MegaMart sensor (due tomorrow)'); }
-    if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on eBuy (2 days)');
-    if (id === 'battery-23a') closeLead('bat-online', 'ok', 'Ordered 23A batteries on MegaMart (due tomorrow)');
+    order(id, fromBay ? 2 : 1, fromBay ? 'TheeBay' : 'Zamanon');
+    if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from Zamanon (due tomorrow)');
+    if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on TheeBay (2 days)');
+    if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the Zamanon sensor (due tomorrow)'); }
+    if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on TheeBay (2 days)');
+    if (id === 'battery-23a') closeLead('bat-online', 'ok', 'Ordered 23A batteries on Zamanon (due tomorrow)');
     say('Order placed', `${item.name}: £${item.price.toFixed(2)}. It'll be left by the front door.`);
   },
   readforum() {
@@ -1654,7 +1715,7 @@ const ACTIONS = {
 };
 // =====================================================================
 // THE MULTIMETER AND THE FUSES: test every fuse; the meter's battery is flat, and it's an odd one
-// (a tiny 12 volt 23A). The Pound Shop and the Hardware Shop haven't got one; only MegaMart online has.
+// (a tiny 12 volt 23A). The Pound Shop and the Hardware Shop haven't got one; only Zamanon online has.
 // =====================================================================
 // The multimeter, in drawer 5 of the toolbox
 function testMeter() {
@@ -1758,7 +1819,7 @@ function underBeamMoved() {
 function nutSpotted() {
   S.flags.nutSeen = true;
   if (!S.inv.stick) {
-    lead('nut3', 'stick', 'Something long and thin to hook it out', 'you', 'hopeful', 'home');
+    lead('nut3', 'stick', 'Something long and thin to hook it out: the hedge, or something in the parts boxes', 'you', 'hopeful', 'home');
     return say('Under the tool chest', 'THERE. A glint, right at the back under the tool chest. Your fingers don\'t reach. Not even close.');
   }
   say('Under the tool chest', 'THERE it is. You lie on the floor with the torch in your teeth and the stick in your hand…', [{ label: 'Hook it out', run() { fishStart(); show('fish'); } }]);
@@ -1779,23 +1840,23 @@ function plugTried(id) {
     closeLead('gaz-reader', 'x', "Gaz's reader: wrong plug (from 1994)");
     return say("Gaz's reader", "A little round plug with five pins. Your car's port is flat, with sixteen. Gaz's reader is from 1994.");
   }
-  // the MegaMart one: it's for lorries
-  closeLead('try-cheap', 'x', 'MegaMart reader: wrong plug (it\'s for lorries)');
-  lead('codes', 'ebuy-reader', 'Get a proper one on eBuy', 'a MegaMart review', 'fairly sure', 'app:eBuy');
-  say('MegaMart reader', 'A round plug the size of a jam jar lid, with nine fat pins. It goes nowhere near the port.\n\nThe small print on the box: "*fits all lorries".');
+  // the Zamanon one: it's for lorries
+  closeLead('try-cheap', 'x', 'Zamanon reader: wrong plug (it\'s for lorries)');
+  lead('codes', 'ebuy-reader', 'Get a proper one on TheeBay', 'a Zamanon review', 'fairly sure', 'app:eBuy');
+  say('Zamanon reader', 'A round plug the size of a jam jar lid, with nine fat pins. It goes nowhere near the port.\n\nThe small print on the box: "*fits all lorries".');
 }
 // Opening a parcel at the front door
 function openParcel(item) {
   pass(5);
-  if (item === 'reader-cheap') {                                       // the MegaMart one: kept, to try in the port
+  if (item === 'reader-cheap') {                                       // the Zamanon one: kept, to try in the port
     S.inv['reader-cheap'] = true;
-    lead('codes', 'try-cheap', 'Try the MegaMart reader in the port', 'you', 'hopeful', 'dash');
+    lead('codes', 'try-cheap', 'Try the Zamanon reader in the port', 'you', 'hopeful', 'dash');
     return say('A parcel', 'A code reader! "Fits all cars*". Its plug looks… big.\n\nThe port is under the dash.');
   }
   if (item === 'battery-23a') {                                         // the meter's battery, at last
     S.inv['battery-23a'] = true;
     S.flags.meterOK = true;
-    finishJob('meter-battery', 'A pack of five 23A batteries from MegaMart. Needed one');
+    finishJob('meter-battery', 'A pack of five 23A batteries from Zamanon. Needed one');
     closeLead('meter', 'ok', 'The multimeter works');
     lead('meaning', 'testfuses', 'Test every fuse with the multimeter', 'you', 'sure', 'fuseZoom');
     return say('A parcel', 'Five tiny 12 volt batteries in a blister pack. You needed one.\n\nOne goes in the multimeter. It beeps! Now test the fuses.');
@@ -1808,8 +1869,8 @@ function openParcel(item) {
   if (item === 'sensor-lot') return openJobLot();                     // 300 sensors (sensors.js)
   if (item === 'part-mega') {
     S.inv['part-mega'] = true;
-    lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');
-    return say('A parcel', 'The MegaMart sensor. It\'s blue. The old one was black. Does that matter?');
+    lead('new-sensor', 'try-mega', 'Try the Zamanon sensor on the bench', 'you', 'hopeful', 'bench');
+    return say('A parcel', 'The Zamanon sensor. It\'s blue. The old one was black. Does that matter?');
   }
   if (item === 'headlight-bay') {                                      // posted: always a right one
     addLamp('right');                                                   // on the shelf, whatever happens
@@ -1833,6 +1894,7 @@ const LOOKS = {
   'Battery': 'It reads 12.6 volts on the dash. Fine.',
   'Spare wheel': 'A spare wheel, bolted down in its well. The tyre feels a bit soft. Good to know it\'s there for a flat tyre. Probably.',
   'Jack': 'The scissor jack, folded flat in its foam tray. It winds up very, very slowly.',
+  'Breaker bar': 'A breaker bar: a long, heavy spanner handle for shifting stuck bolts. Too short and too fat to hook anything out from under anything.',
   'Dog poo': 'Dog poo. Lots of it, all over the yard. Every scrap yard you\'ve ever been to: a dog, and this.\n\nThe dog watches you look at it.',
   'Wheel brace': 'The wheel brace, for the wheel nuts. It\'s the short one, so it won\'t shift a nut that\'s on tight.',
   'Air filter': 'Full of leaves. Not the problem, but you feel judged.',

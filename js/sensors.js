@@ -1,7 +1,7 @@
 // Bland Quest Auto: every gearbox sensor you can try in the box's hole on the workbench, and the soldering game.
 // Lots of them are wrong, each in its own way: square, octagonal, hexagonal, too fat (they touch the hole and won't go in),
 // too thin (rattles), too long (sticks up), too short (sinks), or the two lug teeth in the wrong place.
-// One from the eBuy job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.
+// One from the TheeBay job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.
 // Loaded after story.js and extras.js (it adds to ACTIONS and TALK).
 
 // =====================================================================
@@ -16,7 +16,7 @@
 const SENSORS = {
   'old-sensor': { name: 'old sensor', no: '55-352-10?-ZF-TRS/0705-A', shape: 'round', fit: 'old', col: BLACKPART },
   'part-p4l': { name: 'Parts 4 Less sensor', no: 'GM-55352-107-ZF-TRS/0705-A', shape: 'round', fit: 'right', col: hex('#3c4c64') },
-  'part-mega': { name: 'MegaMart sensor', no: 'UNV-55352-1O7-ZF-TRS/0705-A', shape: 'hex', fit: 'no', col: C.car,
+  'part-mega': { name: 'Zamanon sensor', no: 'UNV-55352-1O7-ZF-TRS/0705-A', shape: 'hex', fit: 'no', col: C.car,
     says: 'It\'s hexagonal. The hole is round. It\'s not going in.' },
   'lot-square': { name: 'square sensor (job lot)', no: 'GM-55352-107-ZF-TR5/0705-A', shape: 'square', fit: 'no', col: hex('#6a6a40'),
     says: 'It\'s square. The hole is round. Square peg, round hole: it\'s a saying for a reason.' },
@@ -172,7 +172,7 @@ function benchSensorButtons() {
 
 // =====================================================================
 // WHERE THE WRONG ONES COME FROM
-//   eBuy: a job lot of 300 sensors (five look about right, one of them with its wires cut)
+//   TheeBay: a job lot of 300 sensors (five look about right, one of them with its wires cut)
 //   the Scrap Yard: the 1999 Zafira still has its sensor (lugs wrong)
 //   Car Spares Direct: "we can order it in" (too short)
 //   the parts box: an old sensor, not yours (too fat)

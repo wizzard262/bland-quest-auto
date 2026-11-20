@@ -208,7 +208,7 @@ const PART_BOXES = [[36, 34, 196, 216], [248, 34, 196, 216]];              // ea
 // The kinds of junk in there: name, and how it's drawn
 const JUNK = [['A bolt', 'bolt'], ['A nut', 'nut'], ['A washer', 'washer'], ['A spring', 'spring'], ['A bit of hose', 'hose'], ['A bulb (blown)', 'bulb'],
   ['A fuse (10 amp)', 'fuse'], ['A spark plug', 'plug'], ['A gasket', 'gasket'], ['A circuit board from something', 'board'], ['An old sensor (not yours)', 'sensor'],
-  ['Half a sandwich', 'sandwich'], ['A dead spider', 'spider'], ['A receipt (faded)', 'receipt'], ['A jubilee clip', 'washer'], ['A bracket', 'bolt']];
+  ['A dead spider', 'spider'], ['A jubilee clip', 'washer'], ['A bracket', 'bolt']];
 // What's been found to be no good, and thrown in the parts boxes: [name, how it's drawn, what you think when you find it again]
 const JUNKED = {
   'lamp-left': ['Your smashed headlight (left)', 'lamp', 'The left headlight you kicked in. Glass rattles about inside it.'],
@@ -250,6 +250,7 @@ function makePile() {
     PILE.push({ x, y, a: hash(n + seed, 7) * 6.28, k: Math.floor(hash(n + seed, 13) * JUNK.length), box });
   }
   if (!S.inv.handbook) PILE.unshift({ x: 120, y: 150, a: 0.35, k: 0, box: 0, handbook: true });   // the car's handbook, right at the bottom
+  if (!S.inv.stick) { const [bx, by, bw] = PART_BOXES[1]; PILE.splice(1, 0, { x: bx + bw / 2, y: by + 60, a: 0.2, k: 0, box: 1, golf: true }); }   // a broken golf club, near the bottom of the other box
   (S.junked || []).forEach((id, n) => PILE.push(junkedSpot(n)));             // what you've thrown in, on top
 }
 // Something you threw in the parts boxes, drawn turned by a
@@ -286,9 +287,26 @@ function drawHandbookSmall(j) {
   poly([corner(-12, -8), corner(12, -8), corner(12, -4), corner(-12, -4)], C.white);            // its title strip
   poly([corner(-6, 0), corner(6, 0), corner(6, 5), corner(-6, 5)], C.car);                      // the little picture of the car
 }
+// The broken golf club in the parts box: a long thin shaft, its head bent over at the end
+function drawGolfClub(j) {
+  const { x, y, a } = j, c = Math.cos(a), s = Math.sin(a);
+  pipe(x - c * 40, y - s * 40, x + c * 30, y + s * 30, 2, C.steel);
+  poly([[x + c * 30, y + s * 30], [x + c * 30 - s * 8, y + s * 30 + c * 8], [x + c * 36 - s * 8, y + s * 36 + c * 8], [x + c * 36, y + s * 36]], C.greyDark);   // the head
+  pipe(x - c * 40, y - s * 40, x - c * 28, y - s * 28, 4, C.ink);    // the grip
+}
+// Take the golf club out of the parts box: long and thin, it'll hook the nut out
+function takeGolfClub(j) {
+  PILE.splice(PILE.indexOf(j), 1);
+  S.inv.stick = true;
+  sfx('clink');
+  closeLead('stick', 'ok', 'A broken golf club from the parts box');
+  render();
+  say('A broken golf club', 'A broken golf club. Long, thin, and bent at the end. Perfect for hooking things out from under the tool chest.\n\n(Nobody in the house has ever played golf.)');
+}
 // One bit of junk at x, y, turned by a
 function drawJunk(j) {
   if (j.handbook) return drawHandbookSmall(j);
+  if (j.golf) return drawGolfClub(j);
   if (j.junk) return drawJunked(j);                                         // something you threw in
   const { x, y, a } = j, kind = JUNK[j.k][1];
   const c = Math.cos(a), s = Math.sin(a);
@@ -356,8 +374,9 @@ function rummageEnd() {
   const { x, y, moved } = RUMMAGE;
   RUMMAGE = null;
   if (moved > 4) return;
-  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook ? 16 : 10));
+  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook || j.golf ? 16 : 10));
   if (top && top.handbook) return takeHandbook(top);                             // the handbook!
+  if (top && top.golf) return takeGolfClub(top);                                  // the broken golf club: a long stick
   if (top && top.junk) { const [name, , line] = junkedInfo(top.junk); say(name, line); return render(); }   // something you threw in
   if (top && JUNK[top.k][1] === 'sensor' && takeBoxSensor(top)) return render();  // an old sensor (not yours): worth a try (sensors.js)
   if (top) { say(JUNK[top.k][0], 'Not what you need.'); render(); }

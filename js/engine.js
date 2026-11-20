@@ -411,7 +411,7 @@ function render() {
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (STILL) stage.insertAdjacentHTML('beforeend', stillHtml());   // a big still, flashed up over everything
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
-  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath', 'roadside'].includes(S.screen);   // (no Back from the roadside: it led into town, stuck)   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
+  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath', 'roadside', 'notebook'].includes(S.screen);   // (the notebook: tap off it)   // (no Back from the roadside: it led into town, stuck)   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
   if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];

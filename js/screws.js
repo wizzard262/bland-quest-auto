@@ -25,6 +25,7 @@ function jarSpill() {
   moment('jarspill', 1600);
   sfx('glass', 0.2); sfx('screws', 0.3);
   stillAfter('snap');                                                  // (the comic-book flash of it going)
+  S.flags.jarSpilt = true;                                             // (it's on the floor till you sweep it up)
   ANIM.then = () => {
     anger(10);
     SWEEP.got = new Set();

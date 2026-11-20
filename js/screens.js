@@ -90,7 +90,8 @@ SCREENS.home = {
     else if (inWifesCar()) isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' });              // or hers, while yours is on a flat
     drawClamp();                                                                          // clamped, for an unpaid fine (police.js)
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
-    kerbMailbox(S.doorstep.length > 0 || unreadLetters() > 0);                            // the mailbox at the kerb: a parcel or the post sticks out
+    const vanComing = ANIM && ANIM.kind === 'van';                                         // the courier's on his way: the parcel isn't there till he's been
+    kerbMailbox(!vanComing && (S.doorstep.length > 0 || unreadLetters() > 0));             // the mailbox at the kerb: a parcel or the post sticks out
     standingMan('home');
     if (S.flags.drunkHome) {                                          // home from the pub: all he can manage is the front door
       spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
@@ -104,6 +105,7 @@ SCREENS.home = {
       : unreadLetters() ? ['Mailbox: post!', 'act:letters']
       : (S.letters || []).length ? ['Mailbox: your letters', 'act:letters'] : ['Mailbox (empty)', 'act:look:Mailbox'];
     spot(mail[0], isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), mail[1], [MAILBOX[0] + 4, MAILBOX[1] - 8]);
+    spot('The hedge', isoArea(-50, 130, 40, 136, 0, 8), 'act:stick', [10, 124]);   // a long stick off it (when you need one)
     if (wifeFollowing()) {                                             // late: she's followed him out (drawn in life.js); last, so she's on top of the garage when she stands by it
       const [fx, fy] = FOLLOW.pos || followTarget();
       spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 12, fy + 10]);
@@ -112,7 +114,6 @@ SCREENS.home = {
   },
   actions() {
     return [
-      ...(S.flags.nutSeen && !S.inv.stick ? [{ label: 'Get a long stick from the hedge', act: 'stick' }] : []),
       ...(inWifesCar() ? [{ label: 'Drive to your car (Mill Lane)', act: 'toroad' }] : [])   // yours is on a flat: back to it in hers
     ];
   }
@@ -645,6 +646,7 @@ SCREENS.notebook = {
   size: [480, 270],
   paint() {
     paintBehind();                                                   // over whatever you were looking at
+    LABELS.push('<div class="ov phoneoff" data-act="nbclose"></div>');   // tap off the book to put it away (no Back button)
     rbox(40, 6, 400, 258, 4, hex('#c8bc98'));
     rect(44, 10, 190, 250, hex('#f2ecd8')); rect(246, 10, 190, 250, hex('#f2ecd8'));
     for (let y = 24; y < 258; y += 10) { rect(46, y, 186, 1, hex('#c8d4e0')); rect(248, y, 186, 1, hex('#c8d4e0')); }
@@ -1125,7 +1127,12 @@ SCREENS.toolbox = {
     // the open drawer: pulled out towards you, seen from above, over the drawers below it
     const d = S.drawer;
     const sliding = ANIM && ANIM.kind === 'drawer';               // while it slides, the moment draws it
-    if (d && !sliding) pulledDrawer(d, 1);
+    if (d && !sliding) {
+      pulledDrawer(d, 1);
+      const dy = drawerSlot(d - 1) + 6, dx = CHEST.x0;                // where the open drawer's things lie
+      if (d === 5) spot('Multimeter: test it', [dx + 10, dy + 20, 44, 60], 'act:meter');
+      if (d === 6) spot('Breaker bar', [dx + 2, dy + 22, 134, 24], 'act:look:Breaker bar');
+    }
     // tap a drawer's front to pull it out; tap the open one's front to push it back
     for (let k = 0; k < 6; k++) {
       if (d && k >= d - 1) continue;                              // the open drawer covers itself and the ones below
@@ -1139,7 +1146,7 @@ SCREENS.toolbox = {
     const a = [];
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
     if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
-    if (S.drawer === 5) a.push({ label: 'Test the multimeter', act: 'meter' }, { label: 'Take the torch', act: 'takeTorch' });
+    if (S.drawer === 5) a.push({ label: 'Take the torch', act: 'takeTorch' });
     if (S.drawer === 6 && leadOpen('hammer-box')) a.push({ label: 'Look for the hammer', act: 'hammerbox' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
