@@ -5,7 +5,13 @@ let W = 480, H = 270;                                    // picture size; some s
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 let img = ctx.createImageData(W, H);
+let IMG32 = new Uint32Array(img.data.buffer);           // the same pixels, one 32-bit number each: much faster to fill
 let LABELS = [];                                         // real-text labels and tap areas a screen adds while it paints
+// Start painting into a new image (a new screen): keep the 32-bit view of it in step
+function useImage(next) {
+  img = next;
+  IMG32 = new Uint32Array(img.data.buffer);
+}
 
 // ---------- palette: bright daytime arcade colours ----------
 const hex = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -25,13 +31,37 @@ const C = {
 };
 
 // ---------- pixel primitives ----------
+// Pixels are written as one 32-bit number each (red, green, blue, and alpha 255), in the byte order this machine uses
+const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+const byte = v => Math.max(0, Math.min(255, Math.round(v)));   // a colour part, kept to 0–255
+function pack32(r, g, b) {
+  if (LITTLE_ENDIAN) return ((255 << 24) | (byte(b) << 16) | (byte(g) << 8) | byte(r)) >>> 0;   // >>> 0: unsigned, as the pixels read back
+  return ((byte(r) << 24) | (byte(g) << 16) | (byte(b) << 8) | 255) >>> 0;
+}
+// A colour [r, g, b] as one 32-bit pixel; worked out once and kept on the colour (the palette's colours are used over and over)
+function colour32(c) {
+  if (c.u32 === undefined) c.u32 = pack32(c[0], c[1], c[2]);
+  return c.u32;
+}
 function px(x, y, c) {
   x = Math.round(x); y = Math.round(y);
   if (x < 0 || y < 0 || x >= W || y >= H) return;
-  const i = (y * W + x) * 4;
-  img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = 255;
+  IMG32[y * W + x] = colour32(c);
 }
-function rect(x, y, w, h, c) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) px(xx, yy, c); }
+// A filled rectangle: whole rows at a time (same pixels as plotting each one: x and y rounded, clipped to the picture)
+function rect(x, y, w, h, c) {
+  if (!(w > 0 && h > 0)) return;
+  const v = colour32(c);
+  const x0 = Math.round(x), y0 = Math.round(y);
+  const xa = Math.max(0, x0), xb = Math.min(W, x0 + Math.ceil(w));   // the columns it covers, inside the picture
+  if (xa >= xb) return;
+  const rows = Math.ceil(h);
+  for (let r = 0; r < rows; r++) {
+    const yy = y0 + r;
+    if (yy < 0 || yy >= H) continue;
+    IMG32.fill(v, yy * W + xa, yy * W + xb);
+  }
+}
 function line(x0, y0, x1, y1, c) {
   x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
   const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
@@ -662,8 +692,30 @@ function spot(label, area, go, walk, style = '') {
 
 // ---------- 5. Under the car: lying underneath, looking straight up (back of the car on the left) ----------
 // Detail helpers: grimy fills, rounded boxes, rings, bolts, dashed zoom boxes
+// A patch of col with a speckle of lighter and darker pixels (amt: how strong); the same speckle every time for a seed
 function grime(x, y, w, h, col, amt = 0.18, seed = 1) {
-  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) px(xx, yy, shade(col, 1 + (hash(xx * 3 + seed, yy * 7) - 0.5) * amt));
+  const [r, g, b] = col;
+  for (let yy = y; yy < y + h; yy++) {
+    const ry = Math.round(yy);
+    if (ry < 0 || ry >= H) continue;                                  // off the picture
+    for (let xx = x; xx < x + w; xx++) {
+      const rx = Math.round(xx);
+      if (rx < 0 || rx >= W) continue;
+      const f = 1 + (hash(xx * 3 + seed, yy * 7) - 0.5) * amt;        // this pixel: a touch lighter or darker
+      IMG32[ry * W + rx] = pack32(r * f, g * f, b * f);               // (no new colour made for each pixel)
+    }
+  }
+}
+// The whole picture in grass, with darker flecks: worked out once for each picture size, then copied in
+let GRASS = null;                                                     // { w, h, pixels }
+function grassField() {
+  if (!GRASS || GRASS.w !== W || GRASS.h !== H) {
+    const pixels = new Uint32Array(W * H);
+    const light = colour32(C.grass), dark = colour32(C.grassDark);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) pixels[y * W + x] = hash(x, y) < 0.1 ? dark : light;
+    GRASS = { w: W, h: H, pixels };
+  }
+  IMG32.set(GRASS.pixels);
 }
 function rbox(x, y, w, h, r, col) {
   for (let yy = 0; yy < h; yy++) {

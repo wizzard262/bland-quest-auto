@@ -11,8 +11,9 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 ## Files
 
 - `index.html`: the game page (How to play, New game)
-- `js/art.js`: the drawing kit (pixels, isometric boxes, the car, the man, the font)
-- `js/screens.js`: every screen (home, town, a place, computer, phone, notebook, garage, toolbox, under the car, bonnet, fuse box, dashboard, the diagnostic port close up, the ECU behind its panel, the glove box, workbench, hooking the nut out from under the tool chest)
+- `js/art.js`: the drawing kit (pixels, isometric boxes, the car, the man, the font). Pixels go in through a 32-bit view of the image (`IMG32`), whole rows at a time for rectangles; the grass is worked out once per picture size
+- `js/screens.js`: the screens round the house and town (home, town, a place, computer, phone, notebook, garage, under the car, workbench, toolbox, looking under things, hooking the nut out, the car door, the breath test, the handbook); also the shared open-book helper (`openBook`)
+- `js/car.js`: the car itself, close up (the boot, under the bonnet and the fuse box, the driver's seat, the glove box, the diagnostic port, the ECU)
 - `js/life.js`: things that move: life on every screen (traffic, birds, drips, flies, a flickering light) and the animated moments (the nut rolling away, the extractor snapping, the van, the kick…)
 - `js/sound.js`: sound effects, all made up in the browser (no files); Sound on/off in the header
 - `js/story.js`: branch 1 (the red light): who says what, what each action does, leads, hunches, timed texts

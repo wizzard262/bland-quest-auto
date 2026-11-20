@@ -392,10 +392,20 @@ SCREENS.yard = {
 // OUTSIDE A PLACE: the shop front, from the pavement. You see this first; go in through the door
 // =====================================================================
 const OUTSIDE_VIEW = [250, 70];
+// The street in front of a place (and the roadside on Mill Lane): grass all over, the road with its white line,
+// the kerb, and the pavement in slabs (with ISO set to the view already)
+function streetFront() {
+  grassField();
+  ground(-400, 66, 600, 120, C.road);                                                    // the road
+  for (let x = -400; x < 600; x += 24) line(...P(x, 94), ...P(x + 12, 94), C.white);    // its white line
+  ground(-400, 40, 600, 66, C.drive);                                                    // the pavement
+  line(...P(-400, 66), ...P(600, 66), C.white);                                          // the kerb
+  for (let x = -400; x < 600; x += 12) line(...P(x, 40), ...P(x, 66), shade(C.drive, 0.9));   // its slabs
+}
 // The petrol station from outside: the forecourt, a pump island with your car parked at a pump, the canopy, the kiosk
 function petrolFront(name, shut) {
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
+  grassField();                                                          // grass all over
   ground(-400, 104, 600, 160, C.road);                                                    // the road, beyond the forecourt
   for (let x = -400; x < 600; x += 24) line(...P(x, 132), ...P(x + 12, 132), C.white);
   ground(-40, 40, 240, 104, C.concreteDark);                                              // the forecourt
@@ -421,12 +431,7 @@ function shopExterior(name, shut) {
   const info = PLACE_INFO[name] || {}, style = placeStyle(name), pub = style === 'pub';
   const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = pub ? C.cream : hex(CAT[cat][1]);   // the pub: cream, with black timbers
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);
-  // the road, the kerb and the pavement
-  ground(-400, 66, 600, 120, C.road);
-  for (let x = -400; x < 600; x += 24) line(...P(x, 94), ...P(x + 12, 94), C.white);
-  ground(-400, 40, 600, 66, C.drive); line(...P(-400, 66), ...P(600, 66), C.white);
-  for (let x = -400; x < 600; x += 12) line(...P(x, 40), ...P(x, 66), shade(C.drive, 0.9));
+  streetFront();                                                         // grass, the road, the kerb and the pavement
   // the shops either side
   ibox(-130, 0, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);
   ibox(202, 0, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, 0, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);

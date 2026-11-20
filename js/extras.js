@@ -195,13 +195,10 @@ SCREENS.shelf = {
   overlay() {
     if (S.book == null || (ANIM && ANIM.kind === 'book')) return '';             // it opens once it's off the shelf
     const [title, pages] = BOOKS[S.book], k = S.bookPage || 0;
-    const prev = k > 0 ? '<button class="flip" data-act="bookpage:-1">◀</button>' : '<span class="flip"></span>';
-    const next = k < pages.length - 1 ? '<button class="flip" data-act="bookpage:1">▶</button>' : '<span class="flip"></span>';
     const pg = pages[k];
     const words = typeof pg === 'string' ? pg : pg.text;                          // a page of words, or words and a picture
-    const right = pg.pic === 'sisyphus' ? sisyphusPicture() : `<p class="faint">${'— '.repeat(30)}</p><p class="faint">(oil stain)</p>`;
-    return `<div class="ov book"><div class="pg"><h3>${esc(title)}</h3><p>${esc(words)}</p></div>`
-      + `<div class="pg">${right}<div class="pgnav">${prev}<span>Page ${k + 1} of ${pages.length}</span>${next}</div></div></div>`;
+    const right = pg.pic === 'sisyphus' ? sisyphusPicture() : BOOK_BLANK + '<p class="faint">(oil stain)</p>';
+    return openBook(`<h3>${esc(title)}</h3><p>${esc(words)}</p>`, right, `Page ${k + 1} of ${pages.length}`, 'bookpage', k > 0, k < pages.length - 1);
   },
   actions() {
     return S.book != null ? [{ label: 'Put it back', act: 'book:-1' }] : [{ label: 'Back to the garage', act: 'go:garage' }];

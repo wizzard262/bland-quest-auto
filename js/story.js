@@ -892,7 +892,7 @@ const ACTIONS = {
   hbclose() { show('garage'); },                                        // put it down, back in the garage
   batlead(side) { batteryLead(side); },
   glovebox() { sfx('click'); show('glovebox'); },                       // the driver's seat: open the glove box
-  glove(k) { const [name, line] = GLOVE_THINGS[+k] || []; if (name) say(name, line); },   // look at a thing in it
+  glove(k) { lookAtThing(GLOVE_THINGS, k); },                          // look at a thing in it
   gloveshut() { sfx('click'); show('dash'); },                          // shut it, back in the driver's seat                                 // under the bonnet: a battery lead off, or back on
   // the shopkeeper: you go up to the counter (a close-up of him), then he talks
   talk() {
@@ -1144,7 +1144,7 @@ const ACTIONS = {
     pass(5);
     say('The panel under the dash', "Four screws. You undo them and the panel drops into the footwell.\n\nBehind it: a silver box covered in stickers. The ECU, the car's computer.");
   },
-  ecuthing(k) { const [name, words] = ECU_THINGS[+k] || []; if (name) say(name, words); },   // look at a thing behind the panel
+  ecuthing(k) { lookAtThing(ECU_THINGS, k); },                         // look at a thing behind the panel
   ecushut() { sfx('click'); show('dash'); },                             // screw the panel back on, back in the seat
   // the radio's three buttons: dir -1 = ◀, 0 = the middle one, 1 = ▶
   radio(dir) {
@@ -1489,6 +1489,11 @@ function testAllFuses() {
   say('Every fuse', 'Forty-five minutes. Twenty-eight fuses, twenty-eight beeps.\n\nAll fine. Except F17, the cigarette lighter, which has probably been blown since 2011.\n\nSo it\'s not the fuses.');
 }
 
+// Look at thing k in a close-up's list of [name, what you find, where it is]: its name, and what you find
+function lookAtThing(list, k) {
+  const [name, words] = list[+k] || [];
+  if (name) say(name, words);
+}
 // A reader's plug tried in the port (after its moment): the wrong ones don't fit; the right one goes in
 function plugTried(id) {
   const first = !S.flags['tried-' + id];                               // the first go makes you cross; after that you knew

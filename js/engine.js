@@ -378,7 +378,7 @@ function render() {
   // paint the still picture, and keep a copy for the moving things to be drawn over
   [W, H] = scr.size || [480, 270];
   canvas.width = W; canvas.height = H;
-  img = ctx.createImageData(W, H);
+  useImage(ctx.createImageData(W, H));                             // a fresh picture (and its fast 32-bit view)
   LABELS = [];
   OUR_LAMPS = [];
   HUD_SHOWN = false;                                                // the screen's paint says if it has the strip                                                   // the car's cracked headlights on this screen (the paint finds them)
@@ -535,8 +535,15 @@ stage.addEventListener('pointermove', e => {
   if (!dragged) return;
   S.cam.ox = Math.round(dragFrom.ox + dx);
   S.cam.oy = Math.round(dragFrom.oy + dy);
-  render();
+  renderSoon();                                                       // the mouse moves far more often than the screen can redraw
 });
+// Redraw at the next frame, at most once a frame however often it's asked for (while dragging the map)
+let RENDER_QUEUED = false;
+function renderSoon() {
+  if (RENDER_QUEUED) return;
+  RENDER_QUEUED = true;
+  requestAnimationFrame(() => { RENDER_QUEUED = false; render(); });
+}
 addEventListener('pointerup', () => { dragFrom = null; setTimeout(() => { dragged = false; }, 0); });
 
 document.getElementById('new').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) newGame(); });

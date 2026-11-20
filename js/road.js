@@ -53,12 +53,7 @@ SCREENS.roadside = {
   size: [480, 270],
   paint() {
     ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, hash(x, y) < 0.1 ? C.grassDark : C.grass);   // the verge
-    // the road, the kerb, the pavement
-    ground(-400, 66, 600, 120, C.road);
-    for (let x = -400; x < 600; x += 24) line(...P(x, 94), ...P(x + 12, 94), C.white);
-    ground(-400, 40, 600, 66, C.drive);
-    line(...P(-400, 66), ...P(600, 66), C.white);
+    streetFront();                                                  // the verge, the road, the kerb, the pavement
     // a long brick wall behind the pavement, and a field gate in it
     ibox(-200, 30, 400, 40, 0, 20, C.brick, C.brickLine);
     bricks(-200, 30, 400, 40, 20, C.brickLine);
