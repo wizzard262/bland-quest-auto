@@ -653,7 +653,7 @@ function wifeLine() {
   if (isBedtime()) return S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."';   // in her nightie: bed
   const useful = S.wifeTalks % 3 === 0;
   if (useful) return wifeTip();
-  if (S.flags.wifeOwed && S.wifeTalks % 3 === 1) { anger(5); return `"That's £${Math.round(S.flags.wifeOwed)} you owe me, Husband. For a car I told you to scrap."`; }   // the money she's paid out
+  if (S.flags.wifePaid && S.wifeTalks % 3 === 1) { anger(5); return '"I paid for that, Husband. Again. For a car I told you to scrap."'; }   // she's paid out: she's not happy
   anger(5);                                                            // "scrap it" again: that winds you up
   return WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length];
 }
@@ -1543,7 +1543,15 @@ const ACTIONS = {
     lead('new-sensor', 'csd', 'Car Spares Direct', 'you', 'maybe', 'place:Car Spares Direct');
     say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
   },
-  pick(id) { S.bench = { part: id, rotated: false, state: 'over' }; },
+  // try a sensor in the box's hole: lined up and pushed in, in one go
+  pick(id) {
+    const b = S.bench;
+    if (b && b.state === 'stuck') return say('The workbench', 'The other one\'s stuck in the hole. Pull it out first.');
+    if (b && b.state === 'in' && b.part === 'old-sensor') return say('The workbench', 'The old one\'s back in the hole. Pull it out first.');
+    const rotated = id === 'part-p4l' ? !!S.flags.linedUp : true;       // the Parts 4 Less one: the first time, you don't line the pins up (and it jams)
+    S.bench = { part: id, rotated, state: 'over' };
+    ACTIONS.push();
+  },
   push() {
     const b = S.bench;
     if (!b) return say('The workbench', 'Pick a part to try first.');
@@ -1584,11 +1592,10 @@ const ACTIONS = {
       }
       return say('Pull', 'It won\'t budge. It\'s jammed solid. A tap with a hammer might free it.');
     }
-    if (b.state === 'stuck') { b.state = 'over'; S.flags.tapped = false; anger(5); moment('benchPull', 1000); sfx('creak'); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.'); }
+    if (b.state === 'stuck') { b.state = 'over'; S.flags.tapped = false; S.flags.linedUp = true; anger(5); moment('benchPull', 1000); sfx('creak'); return say('Pull', 'With a lot of wiggling, it comes out. Eventually.\n\nNext time, line the pins up first.'); }
+    if (b.state === 'in' && b.part === 'old-sensor') { S.bench = null; sfx('creak'); return say('Pull', 'You pull the old one back out.'); }
     say('Pull', 'It\'s not in.');
   },
-  rotate() { const b = S.bench; if (!b) return; b.rotated = true; sfx('ratchet'); say('Rotate', 'You turn it until the pins line up with the slots.'); },
-  flip() { const b = S.bench; if (!b) return; b.rotated = false; sfx('thud'); say('Flip', 'You turn it the other way up. Now the pins don\'t line up at all.'); },
   // ----- the phone -----
   ring(who) {
     pass(5);

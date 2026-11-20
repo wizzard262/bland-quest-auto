@@ -955,7 +955,7 @@ SCREENS.bench = {
       if (S.flags.cutSeen && !S.flags.soldered) a.push({ label: 'Solder the old plug on', act: 'soldergo' });   // the job lot one with its wires cut
     }
     const b = boxHere ? S.bench : null;
-    if (b && b.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
+    if (b && (b.state === 'stuck' || (b.state === 'in' && b.part === 'old-sensor'))) a.push({ label: 'Pull', act: 'pullpart' });   // only when there's something in the hole to pull out
     if (b && b.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;

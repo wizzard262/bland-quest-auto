@@ -83,9 +83,9 @@ function sleepUntilMorning() {
 // Not enough money: the wife pays it (so you're never stuck), with a text; she keeps count. Returns true: it's paid
 function wifeBailsOut(amount) {
   S.flags.wifePaid = (S.flags.wifePaid || 0) + 1;                  // how many times she's had to
-  S.flags.wifeOwed = (S.flags.wifeOwed || 0) + amount;             // and how much you owe her
   anger(10);
-  textMsg('The wife', `Your card didn't have it, so I've paid the £${amount.toFixed(2).replace('.00', '')}. Again. That's £${S.flags.wifeOwed.toFixed(2).replace('.00', '')} you owe me now.`);
+  const lines = [`Your card didn't have it, so I've paid the £${amount.toFixed(2).replace('.00', '')}. Again.`, `I've paid the £${amount.toFixed(2).replace('.00', '')}. That was for the holiday.`, `Paid. Again. We're a team, Husband. A team with no money.`];
+  textMsg('The wife', lines[(S.flags.wifePaid - 1) % lines.length]);   // you're a team: she doesn't keep count, but she's not happy
   return true;
 }
 // Spend money; false if the card's blocked (when there isn't enough, the wife pays)

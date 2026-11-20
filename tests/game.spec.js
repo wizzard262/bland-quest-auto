@@ -461,12 +461,10 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // the workbench: it sticks, comes out, gets rotated, then fits
   await garage(page, 'Workbench');
-  await act(page, 'Try the old sensor');                                   // the old one: lined up, it goes back in
-  await act(page, 'Rotate'); await ok(page);
-  await act(page, 'Push'); await ok(page);
+  await act(page, 'Try the old sensor'); await ok(page);                   // the old one: lined up, it goes back in
   expect(await page.evaluate(() => S.bench.state)).toBe('in');
-  await act(page, 'Try the Parts 4 Less sensor');
-  await act(page, 'Push'); await ok(page);
+  await act(page, 'Pull'); await ok(page);                                 // out again
+  await act(page, 'Try the Parts 4 Less sensor'); await ok(page);          // the pins not lined up: it jams
   expect(await page.evaluate(() => S.bench.state)).toBe('stuck');
   await act(page, 'Pull'); await ok(page);                                 // jammed: needs a hammer
   await act(page, 'Back to the garage'); await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:6'); await act(page, 'Look for the hammer'); await ok(page);
@@ -476,8 +474,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Workbench');
   await act(page, 'Tap it with the hammer'); await ok(page);
   await act(page, 'Pull'); await ok(page);
-  await act(page, 'Rotate'); await ok(page);
-  await act(page, 'Push'); await ok(page);
+  await act(page, 'Try the Parts 4 Less sensor'); await ok(page);          // lined up this time: it fits
   expect(await flag(page, 'fits')).toBe(true);
   await tap(page, 'act:stubmenu'); await choose(page, 'proper extractor'); await ok(page);   // the snapped screw's stub, out with the proper extractor
   expect(await flag(page, 'stubOut')).toBe(true);
@@ -1021,9 +1018,7 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   expect(await page.locator('.acts button', { hasText: 'Try the old sensor' }).count()).toBe(0);
   await tap(page, 'act:boxout'); await ok(page);
   expect(await page.evaluate(() => [S.flags.sensorOut, !!S.inv['old-sensor'], findJob('sensor-out').status, !!findJob('new-sensor')])).toEqual([true, true, 'done', true]);
-  await act(page, 'Try the old sensor');                                // now parts can be tried in the box's hole
-  await act(page, 'Rotate'); await ok(page);
-  await act(page, 'Push'); await ok(page);
+  await act(page, 'Try the old sensor'); await ok(page);                // now parts can be tried in the box's hole
   expect(await page.evaluate(() => S.bench.state)).toBe('in');
   expect(errors).toEqual([]);
 });
@@ -2050,8 +2045,6 @@ test('wrong sensors on the bench: each touches the hole and fails its own way, w
     await page.locator(`.acts button[data-act="pick:${id}"]`).click();
     const no = await page.evaluate(k => SENSORS[k].no, id);
     await expect(page.locator('.partno')).toContainText(no);           // its part number, on a label
-    await act(page, 'Push');
-    expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('benchTry');   // down to the hole…
     const said = await dialogText(page);
     expect(said).toContain(words);
     expect(said).toContain(no);
@@ -2103,7 +2096,6 @@ test('the job lot sensor with the cut wires fits; solder the old plug on: find t
   await benchReady(page);
   await page.evaluate(() => { S.inv['lot-cut'] = true; render(); });
   await page.locator('.acts button[data-act="pick:lot-cut"]').click();
-  await act(page, 'Push');
   expect(await dialogText(page)).toContain('No plug');
   await ok(page);
   expect(await page.evaluate(() => S.flags.fits)).toBeFalsy();
@@ -2144,8 +2136,6 @@ test('the job lot sensor with the cut wires fits; solder the old plug on: find t
   // on the bench: lined up, it fits for real
   await page.evaluate(() => { S.screen = 'bench'; render(); });
   await page.locator('.acts button[data-act="pick:lot-cut"]').click();
-  await act(page, 'Rotate'); await ok(page);
-  await act(page, 'Push');
   expect(await dialogText(page)).toContain('It fits');
   await ok(page);
   expect(await page.evaluate(() => [S.flags.fits, S.flags.fittedPart, findJob('new-sensor').status])).toEqual([true, 'lot-cut', 'done']);
@@ -2646,7 +2636,7 @@ test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ro
   await page.evaluate(() => { S.flags.cardBlocked = false; S.money = 5; S.place = 'Post Office'; payFineAtPost(); });
   await page.locator('.dlg button').first().click();
   expect(await dialogText(page)).toContain('That\'s paid');
-  expect(await page.evaluate(() => [S.fine.paid, S.fine.unclamp, S.money, S.msgs[0].from, S.flags.wifeOwed > 0])).toEqual([true, true, 5, 'The wife', true]);
+  expect(await page.evaluate(() => [S.fine.paid, S.fine.unclamp, S.money, S.msgs[0].from, S.flags.wifePaid > 0])).toEqual([true, true, 5, 'The wife', true]);
   await ok(page);
   // a week unpaid while the car's on a flat on Mill Lane: no clamp yet
   await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: false }; S.road = { spare: true, walked: true }; postArrives(); });
