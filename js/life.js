@@ -39,25 +39,10 @@ function sensorPlug(x, y) {
 
 // ---------- helpers ----------
 const ease = p => p * p * (3 - 2 * p);                               // smooth start and stop
+const PASSED = [];                                                   // where each passing car was last frame (for its whoosh)
 const lerp = (a, b, p) => a + (b - a) * p;
 // A car driving along x (down-right), for traffic; s = size
 function isoCarX(x, y, s, col) { isoCar(x, y, s, col, { alongX: true }); }   // the same car shape as everywhere else, turned along the street
-// A drip: a drop swells at x,y0, then falls to y1 and splashes; every `period` seconds
-function drip(t, x, y0, y1, period, col) {
-  const q = (t % period) / period;
-  if (q < 0.75) { const r = Math.round(ease(q / 0.75) * 2); disc(x, y0 + r, r, col); return; }
-  const f = (q - 0.75) / 0.2;
-  if (f <= 1) { rect(x, Math.round(lerp(y0, y1, f * f)), 2, 3, col); return; }
-  rect(x - 3, y1, 7, 1, col);
-}
-const PASSED = [];                                                   // where each passing car was last frame (for its whoosh)
-// A drip that also goes "plink" when it lands
-function dripSound(t, period, key) {
-  const q = (t % period) / period, landed = q >= 0.95;
-  if (landed && !DRIPPED[key]) sfx('plink');
-  DRIPPED[key] = landed;
-}
-const DRIPPED = {};
 // A strip light that flickers now and then
 const flicker = t => Math.sin(t * 7) + Math.sin(t * 13.3) + Math.sin(t * 2.1) > 2.3;
 // A nut or bolt head turned by angle a
@@ -303,13 +288,9 @@ function tillLightAt() {
 SCREENS.garage.animate = function (t) {
   ISO.ox = 230; ISO.oy = 106;
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
-  const a = P(62, 86, 5), b = P(62, 86, 0);
-  drip(t, a[0], a[1], b[1], 3.1, C.ink); dripSound(t, 3.1, 'garage');                                                 // oil dripping from the car
   if (wifeInGarage()) wife(WIFE_IN_GARAGE[0], WIFE_IN_GARAGE[1], 'nightie', { hip: true });                                          // late: she's come to fetch you
 };
 const wifeInGarage = () => isBedtime() && !isAsleep() && S.flags.wifeCalled === nightOf();
-SCREENS.under.animate = function (t) { drip(t, 404, 132, 250, 2.7, C.ink); dripSound(t, 2.7, 'under'); drip(t + 1.3, 250, 160, 250, 3.9, hex('#2a2010')); };
-SCREENS.underZoom.animate = function (t) { drip(t, 250, 176, 262, 2.9, hex('#2a2010')); };
 SCREENS.bench.animate = function (t) {
   for (let k = 0; k < 10; k++) {                                                                                      // dust in the light
     const x = (hash(k, 1) * W + t * (4 + k)) % W, y = 30 + hash(1, k) * 150 + Math.sin(t + k) * 8;
