@@ -826,6 +826,8 @@ test('a drink or three, and the key will not go in the car door: it wobbles abou
   await ok(page);
   await tap(page, 'act:leave'); await idle(page);
   await tap(page, 'city');
+  expect(await dialogText(page)).toContain('had a drink');                // a taxi, or drive anyway
+  await page.locator('.dlg button', { hasText: 'Drive anyway' }).click();
   await idle(page);
   expect(await page.evaluate(() => [S.screen, KEY.drinks])).toEqual(['keyhole', 2]);
   // aim well away from the lock and tap: a scratch, still at the door
@@ -2504,7 +2506,8 @@ test("drunk at the car door: give up (or miss 8 times) and you're stuck till it 
   await lagers(page, 2);
   await ok(page);
   await tap(page, 'act:leave'); await idle(page);
-  await tap(page, 'city'); await idle(page);
+  await tap(page, 'city');
+  await page.locator('.dlg button', { hasText: 'Drive anyway' }).click(); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('keyhole');
   await act(page, 'Give up');
   expect(await dialogText(page)).toContain("stuck here till it wears off");
@@ -2707,5 +2710,25 @@ test("Mum & Dad's: come over any time; your car on their drive with the bonnet u
   await ok(page);
   await tap(page, 'act:talk');
   expect(await dialogText(page)).toContain('Have you eaten');
+  expect(errors).toEqual([]);
+});
+
+test("drunk and locked out at the pub: a taxi home; the car stays at the pub; the next day the bus into town to fetch it", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; S.place = 'The Hesketh Tavern'; S.inside = false; S.screen = 'place'; boozeAdd(3); render(); });
+  await tap(page, 'city');                                                    // your car, with a drink in you: a taxi, or drive anyway
+  await page.locator('.dlg button', { hasText: 'Ring for a taxi home' }).click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('taxipub');        // it pulls up, you get in, it drives off, black…
+  expect(await dialogText(page)).toContain('fetch it');                       // …then home
+  expect(await page.evaluate(() => [S.screen, S.flags.carAt, carAway()])).toEqual(['home', 'The Hesketh Tavern', true]);
+  await ok(page);
+  // no car on the drive or in the garage
+  expect(await page.evaluate(() => { const r = []; goTo('dash'); r.push(DIALOG && DIALOG.body); DIALOG = null; return r[0]; })).toContain('still outside');
+  // the next morning: the bus into town, and there's the car
+  await page.evaluate(() => { sleepUntilMorning(); S.screen = 'home'; render(); });
+  await tap(page, 'city');
+  expect(await dialogText(page)).toContain('The bus into town');
+  expect(await page.evaluate(() => [S.screen, S.place, S.flags.carAt, carAway()])).toEqual(['city', 'The Hesketh Tavern', undefined, false]);
   expect(errors).toEqual([]);
 });

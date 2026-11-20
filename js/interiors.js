@@ -538,7 +538,7 @@ function shopExterior(name, shut) {
   // your car (blue), parked at the kerb
   drivenCar(40, 72, 1);
   if (pub && S.flags.pickup === S.day) wife(PICKUP_AT[0], PICKUP_AT[1], S.wifeLook || 'navy', { hip: true });       // she's come to fetch him: by the car, in her dress
-  if (!(ANIM && ['walk', 'sick'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+  if (!(ANIM && ['walk', 'sick', 'taxipub'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }   // (in the taxi moment, it draws him)
 }
 // ---------- outside the pub, after too many ----------
 const PICKUP_AT = [92, 58];                                          // where she stands to fetch him: on the pavement, by the front of your car

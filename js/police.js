@@ -46,7 +46,7 @@ function postArrives() {
     S.letters.unshift({ id: p.id, read: false });
   }
   if (!S.flags.junkPosted && S.day >= 2) { S.flags.junkPosted = true; post('junk', S.day); post('mot', S.day + 1); }   // the usual post
-  const carHome = typeof carStranded !== 'function' || !carStranded();   // (not while it's on a flat on Mill Lane: then it waits till it's back)
+  const carHome = typeof carAway !== 'function' || !carAway();      // (not while it's on Mill Lane or outside the pub: then it waits till it's back)
   if (S.fine && !S.fine.paid && !S.fine.clamped && carHome && S.day >= S.fine.day + 7) {   // a week, unpaid: clamped
     S.fine.clamped = true;
     if (findJob('fine')) note('fine', 'A week, unpaid: the car is clamped on the drive', 'x');
@@ -201,6 +201,65 @@ function ringTaxi() {
   say('The taxi', `Forty minutes later, a taxi. £${TAXI_FARE}.${who}` + chat);
 }
 
+// Drunk and locked out of your car at the pub: a taxi home. The car stays outside the pub till you fetch it (on the bus)
+function taxiFromPub() {
+  const paid = spend(TAXI_FARE);                                       // your card, or (blocked) the wife pays
+  if (!paid) wifeBailsOut(TAXI_FARE);
+  S.flags.carAt = S.place;                                             // the car's left where it is
+  KEY.scratches = [];
+  pass(10);                                                            // it turns up quick
+  S.inside = false;                                                    // outside the pub, by the car
+  moment('taxipub', TAXI_PUB_MS);                                      // the taxi pulls up, you get in, off it goes, and it all goes dark
+  show('place');
+  sfx('car'); sfx('door', TAXI_PUB_MS * 0.5 / 1000); sfx('car', TAXI_PUB_MS * 0.6 / 1000);
+  ANIM.then = () => {                                                  // …and it fades back in as you get home
+    pass(30);
+    S.place = null;
+    S.spot.home = [96, 96];                                            // dropped off on the drive
+    show('home');
+    moment('fadein', 1000);
+    ANIM.then = () => {
+      const who = paid ? '' : ' Your card was declined; the wife paid it. She said nothing. Loudly.';
+      say('The taxi', `Home. £${TAXI_FARE}.${who}
+
+"Been out celebrating, have we?"
+
+Your car's still outside ${S.flags.carAt}. You'll have to fetch it.`);
+    };
+  };
+}
+// The taxi outside the pub: it pulls up in the far lane, he crosses to it and gets in, it drives off; then black
+const TAXI_PUB_MS = 5200;
+const TAXI_LANE = 98;                                                  // the far lane (your car's parked at the kerb)
+MOMENTS.taxipub = function (p) {
+  [ISO.ox, ISO.oy] = OUTSIDE_VIEW;
+  const tx = p < 0.3 ? lerp(-320, 110, ease(p / 0.3)) : p < 0.6 ? 110 : lerp(110, 560, ease((p - 0.6) / 0.25));   // in, wait, off
+  if (p < 0.5) {                                                       // him: stood there, then over to the taxi
+    const [sx, sy] = manSpot('place');
+    const q = Math.max(0, (p - 0.32) / 0.18);
+    const m = P(lerp(sx, 128, q), lerp(sy, TAXI_LANE - 4, q));
+    man(m[0], m[1], q > 0 && q < 1 ? 'walk' : 'stand', 2, p * 60);
+  }
+  isoCar(tx, TAXI_LANE, 1, hex('#f8d038'), { alongX: true, shape: 'saloon' });   // the taxi
+  if (p > 0.8) fadeToBlack((p - 0.8) / 0.2);                            // and it all goes dark
+};
+MOMENTS.fadein = function (p) { fadeToBlack(1 - p); };                 // home: out of the dark
+// Darken the whole picture: k = 0 (as it is) to 1 (black)
+function fadeToBlack(k) {
+  const d = img.data, keep = 1 - Math.min(1, Math.max(0, k));
+  for (let i = 0; i < d.length; i += 4) { d[i] *= keep; d[i + 1] *= keep; d[i + 2] *= keep; }
+}
+// Your car's still outside the pub: into town on the bus to fetch it (40 minutes, £2.50)
+const BUS_FARE = 2.5;
+function busToCar() {
+  spend(BUS_FARE);                                                     // (short of money, the wife pays)
+  pass(40);
+  const where = S.flags.carAt;
+  S.place = where;                                                     // in town, where the car is
+  delete S.flags.carAt;
+  show('city');
+  say('The bus', `The bus into town: £${BUS_FARE.toFixed(2)}, forty minutes, and a man eating an egg sandwich next to you.\n\nYour car's where you left it, outside ${where}.`);
+}
 // Home in the taxi: another £15; and if you've paid, a man's taking the clamp off
 function taxiHome() {
   S.flags.taxi = false;

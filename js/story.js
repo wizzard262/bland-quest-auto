@@ -464,6 +464,14 @@ function ringWhenFree(id) {
   };
   setTimeout(tryNow, 1500);
 }
+// At your car outside the pub with a drink in you: ring a taxi, or try to drive (the key game, then the police)
+function drunkAtCar() {
+  say('Your car', "You've had a drink. You know you have.", [
+    { label: `Ring for a taxi home (£${TAXI_FARE})`, run: taxiFromPub },
+    { label: 'Drive anyway', run: keyStart },
+    { label: 'Not yet', run() {} }
+  ]);
+}
 // After a drink or three: the key in the car door (a little game: the key wobbles and drifts about)
 function keyStart() {
   KEY.drinks = boozeDrinks();                                          // how much is still in you
@@ -494,7 +502,8 @@ function keyStuck() {
   const n = KEY.scratches.length;
   const scratches = n ? `${n} new scratch${n > 1 ? 'es' : ''} round the lock, and ` : '';
   const hours = Math.max(1, Math.ceil(boozeNow() * BOOZE_WEARS / 60));  // how long it'll take to wear off
-  say('The car door', `${scratches}the key still won't go in. You're not driving anywhere like this.\n\nYou're stuck here till it wears off: about ${hours} hour${hours > 1 ? 's' : ''}.`, [
+  say('The car door', `${scratches}the key still won't go in. You're not driving anywhere like this.\n\nYou're stuck here till it wears off: about ${hours} hour${hours > 1 ? 's' : ''}. Or get a taxi.`, [
+    { label: `Ring for a taxi home (£${TAXI_FARE})`, run: taxiFromPub },
     { label: 'Sit on the wall till it wears off', run: waitItOff },
     { label: 'Leave it for now', run() { show('place'); } }
   ]);

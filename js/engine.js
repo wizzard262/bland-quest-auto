@@ -228,6 +228,8 @@ function goTo(target) {
   if (target === 'phone' && S.screen === 'roadside' && !S.flags.phoneDead) return act('roadring');   // on a flat on Mill Lane: the phone dies
   const stuck = strandedReason(target);                               // your car's on a flat on Mill Lane
   if (stuck) return say('Your car', stuck);
+  if (S.flags.carAt && CAR_SCREENS.includes(target)) return say('Your car', `Your car's still outside ${S.flags.carAt}.`);   // left at the pub (police.js)
+  if (S.flags.carAt && target === 'city' && S.screen !== 'city' && !S.flags.taxi) return busToCar();   // into town on the bus, to fetch it
   const clamped = clampedReason(target);                              // clamped on the drive: not going anywhere in it (police.js)
   if (clamped) return say('Your car', clamped);
   if (target === 'home' && S.flags.taxi) { S.place = 'Home'; show('home'); return taxiHome(); }   // home in the taxi
@@ -238,7 +240,7 @@ function goTo(target) {
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
   if (target === 'city' && S.screen !== 'city' && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
-  if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && boozeNow() > 0) return keyStart();   // had a drink or three: get the key in the door first
+  if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && boozeNow() > 0) return drunkAtCar();   // had a drink: a taxi, or try to drive (story.js)   // had a drink or three: get the key in the door first
   show(target);
 }
 // The garage's roller door rattles up, then you're inside

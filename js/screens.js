@@ -86,7 +86,7 @@ SCREENS.home = {
     gableRoof(177, 7, 239, 63, 40, 20, hex('#e8a8c0'), C.roof);
     winLeft(60, 190, 204, 16, 30); winLeft(60, 214, 228, 16, 30);
     // the car, the bin, parcels by the door, you
-    if (!carStranded()) isoCar(102, 72);                                                  // your car on the drive
+    if (!carAway()) isoCar(102, 72);                                                      // your car on the drive (not on Mill Lane or outside the pub)
     else if (inWifesCar()) isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' });              // or hers, while yours is on a flat
     drawClamp();                                                                          // clamped, for an unpaid fine (police.js)
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
@@ -721,7 +721,7 @@ SCREENS.garage = {
     ibox(150, 4, 172, 16, 28, 38, C.red); line(...P(156, 10, 41), ...P(166, 10, 41), C.ink);
     if (S.flags.screwsSpilt && !S.flags.n3found) for (let n = 0; n < 60; n++) { const p = P(100 + hash(n, 9) * 70, 30 + hash(9, n) * 30); px(p[0], p[1], C.steel); }
     ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
-    const carHere = !carStranded();                                     // your car is in the garage (not on a flat on Mill Lane)
+    const carHere = !carAway();                                         // your car is in the garage (not on Mill Lane, not outside the pub)
     if (carHere) isoCar(40, 46, 1.25);
     for (const [wx, wy] of [[83, 61], [91, 61], [83, 85], [91, 85]]) { const w = P(wx, wy, 0.6); ellipse(w[0], w[1], 2, 1, C.tyre); }   // the creeper's little wheels
     ibox(82, 60, 92, 86, 1, 3, C.red);

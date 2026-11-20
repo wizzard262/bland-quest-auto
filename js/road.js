@@ -14,6 +14,8 @@ const CAR_SCREENS = ['dash', 'bonnet', 'fuseZoom', 'boot', 'under', 'underZoom',
 
 // Is your car stuck at the roadside?
 const carStranded = () => !!S.road;
+// Is your car away from home? (on a flat on Mill Lane, or left outside the pub)
+const carAway = () => carStranded() || !!S.flags.carAt;
 // Driving her car about (you've walked home and she's lent you hers)
 const inWifesCar = () => !!S.road && !!S.road.walked;
 
