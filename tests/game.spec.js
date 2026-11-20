@@ -2867,3 +2867,14 @@ test('your own speech bubble at a counter close-up (the MOT tester) sits low dow
   expect(await page.evaluate(() => { const [x, y] = meHead(); return [atCounter(), y > H * 0.9, x < W * 0.3]; })).toEqual([true, true, true]);   // bottom left
   expect(errors).toEqual([]);
 });
+
+test('the phone torch puts the phone away even with a message still up behind it (as in the house)', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'room'; render(); });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.evaluate(() => { DIALOG = { title: 'The wife', body: '"Husband."', options: [{ label: 'OK', run() {} }] }; });   // something said, still up
+  await page.locator('[data-act="phonetorch"]').click();
+  expect(await page.evaluate(() => [S.screen, S.flags.phoneTorch])).toEqual(['room', true]);
+  expect(errors).toEqual([]);
+});

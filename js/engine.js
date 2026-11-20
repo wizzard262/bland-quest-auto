@@ -521,6 +521,12 @@ let dragFrom = null, dragged = false;
 document.addEventListener('click', e => {
   if (dragged) { dragged = false; return; }                         // the end of a drag on the city map, not a tap
   if (e.target.closest('#stage button, #acts button, #stage [data-go], #stage [data-act], .lead')) { audioStart(); sfx('click'); }
+  const onPhone = S.screen === 'phone' && e.target.closest('.ph [data-act], .phoneoff');
+  if (onPhone) {                                                     // the phone's own buttons (the torch, ringing someone, putting it away) always work:
+    if (ANIM) finishMoment();                                        //   not swallowed by a moment ending…
+    DIALOG = null;                                                   //   …or by a message still up behind the phone
+    return act(onPhone.dataset.act);
+  }
   if (ANIM) { finishMoment(); return; }                               // a tap during a moment skips to its end
   const opt = e.target.closest('[data-opt]');
   if (opt) return pickOption(+opt.dataset.opt);                      // a dialog button
