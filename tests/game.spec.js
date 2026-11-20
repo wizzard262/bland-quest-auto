@@ -2859,3 +2859,11 @@ test('dead ends the explorer found: a walk on a screen he is not drawn on just g
   expect(await page.evaluate(() => S.screen)).toBe('home');
   expect(errors).toEqual([]);
 });
+
+test('your own speech bubble at a counter close-up (the MOT tester) sits low down, not over them', async ({ page }) => {
+  const errors = [];
+  await start(page, errors, true);                                         // still in the MOT Test Centre
+  await talk(page);
+  expect(await page.evaluate(() => { const [x, y] = meHead(); return [atCounter(), y > H * 0.9, x < W * 0.3]; })).toEqual([true, true, true]);   // bottom left
+  expect(errors).toEqual([]);
+});

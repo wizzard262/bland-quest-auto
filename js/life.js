@@ -385,6 +385,8 @@ function manSpot(screen) { const k = spotKey(screen); return (S.spot && S.spot[k
 function meHead() {
   const k = spotKey(S.screen);
   if (!VIEW[k]) return null;                                         // a screen he isn't drawn on: a box along the bottom instead
+  if (S.screen === 'place' && atCounter()) return [W * 0.22, H - 2];   // up at a counter (the close-up of them): you're not in it, so low down on the left, clear of them
+  if (S.screen === 'place' && S.inside && placeStyle(S.place) === 'pub') { const [x, y] = pubMe(); return [x + PUB.size, y - 20 * PUB.size]; }   // the pub is drawn flat
   ISO.ox = VIEW[k][0]; ISO.oy = VIEW[k][1];
   const [x, y] = manSpot(S.screen), p = P(x, y);
   return [p[0], p[1] - 44];
