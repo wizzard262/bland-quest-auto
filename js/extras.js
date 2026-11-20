@@ -216,6 +216,32 @@ const PART_BOXES = [[36, 34, 196, 216], [248, 34, 196, 216]];              // ea
 const JUNK = [['A bolt', 'bolt'], ['A nut', 'nut'], ['A washer', 'washer'], ['A spring', 'spring'], ['A bit of hose', 'hose'], ['A bulb (blown)', 'bulb'],
   ['A fuse (10 amp)', 'fuse'], ['A spark plug', 'plug'], ['A gasket', 'gasket'], ['A circuit board from something', 'board'], ['An old sensor (not yours)', 'sensor'],
   ['Half a sandwich', 'sandwich'], ['A dead spider', 'spider'], ['A receipt (faded)', 'receipt'], ['A jubilee clip', 'washer'], ['A bracket', 'bolt']];
+// What's been found to be no good, and thrown in the parts boxes: [name, how it's drawn, what you think when you find it again]
+const JUNKED = {
+  'lamp-left': ['Your smashed headlight (left)', 'lamp', 'The left headlight you kicked in. Glass rattles about inside it.'],
+  'lamp-right': ['Your smashed headlight (right)', 'lamp', 'The right headlight you kicked in. It still has a bit of your boot print on it.'],
+  'reader-old': ["Gaz's code reader", 'reader', "Gaz's reader, round plug and all. From 1994. You really should give it back."],
+  'reader-cheap': ['The MegaMart code reader', 'reader', '"Fits all cars*". *Fits all lorries.'],
+  'old-sensor': ['The old sensor', 'badsensor', 'The old sensor, its plug cut off. It was never the sensor anyway. Probably.']
+};
+// A thing found to be no good: its name, how it's drawn and what you think (the wrong sensors come from SENSORS)
+function junkedInfo(id) {
+  if (JUNKED[id]) return JUNKED[id];
+  const s = SENSORS[id];
+  if (s) return [`The ${s.name} (no good)`, 'badsensor', `Part no. ${s.no}. ${s.says || 'No good.'}`];
+  return ['Something', 'bolt', 'No good.'];
+}
+// Throw a thing that's no good in the parts boxes (it lands on top of the heap)
+function junkIt(id) {
+  S.junked = S.junked || [];
+  S.junked.push(id);
+  if (PILE && PILE_DAY === S.day) PILE.push(junkedSpot(S.junked.length - 1));   // the heap's out: it lands on top now
+}
+// Where junked thing n lies in the heap (its own spot, so it's in the same place all day)
+function junkedSpot(n) {
+  const box = n % 2, [bx, by, bw, bh] = PART_BOXES[box];
+  return { x: bx + 30 + hash(n, 77) * (bw - 60), y: by + 30 + hash(77, n) * (bh - 60), a: hash(n, 5) * 6.28, box, junk: S.junked[n] };
+}
 let PILE = null;                                                             // the parts, bottom first: { x, y, a, k, box }
 let PILE_DAY = null;                                                         // the day the heap was last shuffled
 let RUMMAGE = null;                                                          // a drag going on: { x, y, moved }
@@ -230,6 +256,28 @@ function makePile() {
     PILE.push({ x, y, a: hash(n + seed, 7) * 6.28, k: Math.floor(hash(n + seed, 13) * JUNK.length), box });
   }
   if (!S.inv.handbook) PILE.unshift({ x: 120, y: 150, a: 0.35, k: 0, box: 0, handbook: true });   // the car's handbook, right at the bottom
+  (S.junked || []).forEach((id, n) => PILE.push(junkedSpot(n)));             // what you've thrown in, on top
+}
+// Something you threw in the parts boxes, drawn turned by a
+function drawJunked(j) {
+  const { x, y, a } = j, c = Math.cos(a), s = Math.sin(a);
+  const corner = (u, v) => [x + u * c - v * s, y + u * s + v * c];
+  const kind = junkedInfo(j.junk)[1];
+  if (kind === 'lamp') {                                                     // a smashed headlight: chrome rim, cracked glass
+    poly([corner(-16, -10), corner(16, -10), corner(16, 10), corner(-16, 10)], C.steel2);
+    poly([corner(-13, -7), corner(13, -7), corner(13, 7), corner(-13, 7)], hex('#e8f0f8'));
+    line(...corner(-10, -5), ...corner(2, 1), C.greyDark); line(...corner(2, 1), ...corner(10, -6), C.greyDark); line(...corner(2, 1), ...corner(6, 6), C.greyDark);
+    return;
+  }
+  if (kind === 'reader') {                                                   // a code reader: yellow, a screen, its lead
+    poly([corner(-9, -13), corner(9, -13), corner(9, 13), corner(-9, 13)], hex('#d0a020'));
+    poly([corner(-6, -10), corner(6, -10), corner(6, -2), corner(-6, -2)], hex('#0a2a20'));
+    pipe(...corner(0, 13), ...corner(10, 24), 2, C.ink);
+    return;
+  }
+  const col = j.junk === 'old-sensor' ? BLACKPART : sensorColour(j.junk);   // a sensor: its body end on, its colour
+  disc(x, y, 9, col); ring(x, y, 9, C.greyDark); disc(x, y, 5, shade(col, 1.5));
+  if (j.junk !== 'old-sensor') poly([corner(8, -3), corner(15, -3), corner(15, 3), corner(8, 3)], hex('#30302c'));   // its plug (the old one's is cut off)
 }
 // The handbook in the parts box: a little blue booklet, turned by a
 function drawHandbookSmall(j) {
@@ -242,6 +290,7 @@ function drawHandbookSmall(j) {
 // One bit of junk at x, y, turned by a
 function drawJunk(j) {
   if (j.handbook) return drawHandbookSmall(j);
+  if (j.junk) return drawJunked(j);                                         // something you threw in
   const { x, y, a } = j, kind = JUNK[j.k][1];
   const c = Math.cos(a), s = Math.sin(a);
   const along = (d, w, col) => pipe(x - c * d, y - s * d, x + c * d, y + s * d, w, col);   // a bar through the middle
@@ -310,6 +359,7 @@ function rummageEnd() {
   if (moved > 4) return;
   const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook ? 16 : 10));
   if (top && top.handbook) return takeHandbook(top);                             // the handbook!
+  if (top && top.junk) { const [name, , line] = junkedInfo(top.junk); say(name, line); return render(); }   // something you threw in
   if (top && JUNK[top.k][1] === 'sensor' && takeBoxSensor(top)) return render();  // an old sensor (not yours): worth a try (sensors.js)
   if (top) { say(JUNK[top.k][0], 'Not what you need.'); render(); }
 }

@@ -931,7 +931,8 @@ const ACTIONS = {
     pass(15); sfx('ratchet');
     if (left) { have.left -= 1; finishJob('broke-headlight', 'New left headlight fitted'); }
     else { have.right -= 1; finishJob('broke-headlight2', 'New right headlight fitted'); }
-    say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.');
+    junkIt(left ? 'lamp-left' : 'lamp-right');                         // the smashed one goes in the parts box
+    say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.\n\nThe smashed one goes in the parts box.');
   },
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
@@ -1537,7 +1538,9 @@ function plugTried(id) {
     show('dash');                                                      // it's in: back in the seat, the reader on its lead
     return ACTIONS.plug();
   }
-  S.flags['tried-' + id] = true;                                       // a red cross by it from now on
+  S.flags['tried-' + id] = true;
+  S.inv[id] = false;                                                   // no good: it goes in the parts box
+  junkIt(id);
   sfx('clink');
   if (first) anger(10);
   if (id === 'reader-old') {                                           // Gaz's: from 1994

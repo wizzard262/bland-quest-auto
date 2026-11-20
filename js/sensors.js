@@ -130,8 +130,13 @@ function tryWrongSensor(b) {
   closeLead('try-' + b.part, 'x');
   if (fit === 'cut') return cutSensorTried();
   anger(10);
+  ANIM.then = () => {                                                  // no good: out of your hand and into the parts box
+    S.inv[b.part] = false;
+    S.bench = null;
+    junkIt(b.part);
+  };
   note('new-sensor', `${sensorName(b.part)} (${s.no}): ${({ no: 'won\'t go in', thin: 'too thin', long: 'too long', short: 'too short', lugs: 'lug teeth in the wrong place' })[fit]}`, 'x');
-  say('Push', `Part no. ${s.no}.\n\n${s.says}`);
+  say('Push', `Part no. ${s.no}.\n\n${s.says}\n\nIt goes in the parts box.`);
 }
 // The job lot one with the cut wires: it fits! And then you see the wires
 function cutSensorTried() {
@@ -338,6 +343,8 @@ Object.assign(ACTIONS, {
     if (!S.flags.cutSeen) return;
     if (!S.flags.plugCut) {
       S.flags.plugCut = true;
+      S.inv['old-sensor'] = false;                                    // the old sensor, without its plug, is no good now
+      junkIt('old-sensor');
       sfx('snap');
       note('new-sensor', 'Cut the plug off the old sensor (there\'s no going back now)', 'info');
     }

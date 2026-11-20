@@ -492,12 +492,6 @@ function plugDraw(id, cx, top, leadX = cx) {
   }
 }
 
-// A red cross by a plug that's been tried and doesn't fit
-function plugCross(cx) {
-  pipe(cx - 6, PLUG_TOP - 18, cx + 6, PLUG_TOP - 6, 3, C.red);
-  pipe(cx + 6, PLUG_TOP - 18, cx - 6, PLUG_TOP - 6, 3, C.red);
-}
-
 SCREENS.port = {
   size: [480, 270],
   paint() {
@@ -505,11 +499,8 @@ SCREENS.port = {
     rect(0, 120, W, H - 120, PLUG_TRAY);                            // the footwell below, where the plugs lie
     portSocket();
     for (const [id, name, cx] of ownedPlugs()) {
-      plugDraw(id, cx, PLUG_TOP);                                   // each reader's plug, on its lead
-      const tried = S.flags['tried-' + id];                         // tried already: it doesn't fit
-      if (tried) plugCross(cx);
-      const label = tried ? name + ": doesn't fit" : name + ': try it';
-      spot(label, [cx - 50, PLUG_TOP - 4, 100, 80], 'act:tryplug:' + id);
+      plugDraw(id, cx, PLUG_TOP);                                   // each reader's plug, on its lead (one that doesn't fit goes in the parts box)
+      spot(name + ': try it', [cx - 50, PLUG_TOP - 4, 100, 80], 'act:tryplug:' + id);
     }
     tip('The diagnostic port', 'A flat socket with 16 pins. Tap a plug to try it in the port.', 1, 8);
     hud();

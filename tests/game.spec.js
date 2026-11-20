@@ -1737,6 +1737,7 @@ test('the diagnostic port close up: Gaz\'s round plug and the MegaMart lorry plu
   await ok(page);
   expect(await page.evaluate(() => S.anger)).toBeGreaterThan(anger);
   expect(await page.evaluate(() => [S.flags['tried-reader-old'], S.flags['tried-reader-cheap']])).toEqual([true, true]);
+  expect(await page.evaluate(() => [!!S.inv['reader-old'], !!S.inv['reader-cheap'], S.junked])).toEqual([false, false, ['reader-old', 'reader-cheap']]);   // no good: in the parts box
   expect(await page.evaluate(() => leadOpen('ebuy-reader'))).toBe(true);   // the MegaMart one sends you to eBuy
   expect(await page.evaluate(() => S.screen)).toBe('port');           // the wrong ones drop back: still at the port
   await tap(page, 'act:tryplug:reader-good');                          // the key's at 0: it fits, but nothing wakes up
@@ -2048,7 +2049,7 @@ test('wrong sensors on the bench: each touches the hole and fails its own way, w
     expect(said).toContain(words);
     expect(said).toContain(no);
     await ok(page);
-    expect(await page.evaluate(() => [S.bench.state, !!S.flags.fits])).toEqual(['over', false]);   // …and back out, no good
+    expect(await page.evaluate(k => [!!S.inv[k], S.junked.includes(k), !!S.flags.fits], id)).toEqual([false, true, false]);   // …no good: into the parts box
   }
   expect(errors).toEqual([]);
 });
@@ -2207,5 +2208,31 @@ test('every still on its own: each picture file loads', async ({ page }) => {
     await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth > 0)).toBe(true);
     await idle(page);
   }
+  expect(errors).toEqual([]);
+});
+
+// ---------- the parts boxes: what's no good ends up in them ----------
+test('what turns out to be no good goes in the parts boxes, on top of the heap: rummage and find it again', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'partsbox'; render(); junkIt('lamp-left'); junkIt('lot-square'); junkIt('reader-cheap'); render(); });
+  const found = await page.evaluate(() => PILE.filter(j => j.junk).map(j => j.junk));
+  expect(found).toEqual(['lamp-left', 'lot-square', 'reader-cheap']);
+  await page.evaluate(() => { PILE_DAY = -1; render(); });              // a new heap tomorrow: they're still in there
+  expect(await page.evaluate(() => PILE.filter(j => j.junk).length)).toBe(3);
+  // tap one: what it is
+  const spotAt = await page.evaluate(() => { const j = PILE.find(t => t.junk === 'lot-square'); return [j.x, j.y]; });
+  const box = await page.locator('#stage canvas').boundingBox();
+  await page.mouse.click(box.x + spotAt[0] / 480 * box.width, box.y + spotAt[1] / 270 * box.height);
+  expect(await dialogText(page)).toContain('square sensor');
+  expect(errors).toEqual([]);
+});
+
+test('a smashed headlight, once replaced, goes in the parts box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('broke-headlight', 'Replace the left headlight', null); spareLamps().left = 1; act('fitlight'); });
+  expect(await dialogText(page)).toContain('parts box');
+  expect(await page.evaluate(() => S.junked)).toEqual(['lamp-left']);
   expect(errors).toEqual([]);
 });

@@ -1079,7 +1079,7 @@ function pulledDrawer(d, out) {
   poly([[x0 - 6, y], [x1 + 6, y], [x1 + 40, y + 96], [x0 - 40, y + 96]], shade(C.red, 0.7));
   poly([[x0, y + 4], [x1, y + 4], [x1 + 32, y + 88], [x0 - 32, y + 88]], hex('#3a3c42'));
   rect(x0 - 40, y + 96, x1 - x0 + 80, 18, C.red); rect(x0 + 40, y + 102, x1 - x0 - 80, 4, C.steel);
-  drawerContents(d, x0, y);
+  insideTray(x0, x1, y + 4, y + 88, () => drawerContents(d, x0, y));   // everything stays inside the drawer
   if (out < 1 && BG) {                                            // the part still inside the chest is hidden: put the chest back over it
     const hide = (drawerSlot(d - 1) + 2) * W * 4;
     img.data.set(BG.subarray(0, hide), 0);
@@ -1136,7 +1136,7 @@ function drawerContents(d, x0, y) {
     disc(cx, cy, r + 1, C.steel); disc(cx, cy, Math.max(1, r - 2), C.greyDark); text(String(8 + i), cx - 3, cy + r + 3, C.ui);
   });
   if (d === 2) row(16, i => {                                  // a heap of spanners at every angle
-    const cx = x0 + 10 + hash(i, 1) * 180, cy = y + 24 + hash(1, i) * 56, a = hash(i, i) * 3.14, l = 26 + hash(i, 4) * 20;
+    const cx = x0 + 14 + hash(i, 1) * 160, cy = y + 24 + hash(1, i) * 56, a = hash(i, i) * 3.14, l = 26 + hash(i, 4) * 20;
     pipe(cx - Math.cos(a) * l / 2, cy - Math.sin(a) * l / 3, cx + Math.cos(a) * l / 2, cy + Math.sin(a) * l / 3, 4, i % 3 ? C.steel : C.steel2);
     disc(Math.round(cx + Math.cos(a) * l / 2), Math.round(cy + Math.sin(a) * l / 3), 4, C.steel2);
   });
@@ -1145,20 +1145,37 @@ function drawerContents(d, x0, y) {
     rbox(cx, cy, 8, 22, 3, [C.red, C.warm, C.car, hex('#40a060'), C.ink][i % 5]); rect(cx + 3, cy + 22, 2, 26 - (i % 3) * 4, C.steel);
   });
   if (d === 4) {                                               // pliers and odds
-    for (let k = 0; k < 3; k++) { const cx = x0 + 10 + k * 60, cy = y + 30; pipe(cx, cy, cx + 30, cy + 36, 4, C.red); pipe(cx + 20, cy, cx - 4, cy + 36, 4, C.red); disc(cx + 10, cy + 12, 3, C.steel); }
-    ring(x0 + 200, y + 50, 12, C.ink); ring(x0 + 200, y + 50, 8, C.ink);                // tape
-    for (let k = 0; k < 8; k++) line(x0 + 150 + k * 3, y + 30, x0 + 160 + k * 3, y + 80, C.white);   // cable ties
-    rect(x0 + 230, y + 70, 14, 6, C.warm);                                              // sweet wrapper
+    for (let k = 0; k < 3; k++) { const cx = x0 + 6 + k * 46, cy = y + 30; pipe(cx, cy, cx + 30, cy + 36, 4, C.red); pipe(cx + 20, cy, cx - 4, cy + 36, 4, C.red); disc(cx + 10, cy + 12, 3, C.steel); }
+    for (let k = 0; k < 8; k++) line(x0 + 140 + k * 3, y + 30, x0 + 150 + k * 3, y + 80, C.white);   // cable ties
+    ring(x0 + 186, y + 44, 12, C.ink); ring(x0 + 186, y + 44, 8, C.ink);                // tape
+    rect(x0 + 176, y + 68, 14, 6, C.warm);                                              // sweet wrapper
   }
   if (d === 5) {                                               // electrical
     rbox(x0 + 10, y + 20, 44, 60, 6, C.warm); rect(x0 + 16, y + 26, 32, 18, hex('#0a2a20')); disc(x0 + 32, y + 60, 9, C.ink);
-    for (let k = 0; k < 14; k++) rect(x0 + 80 + hash(k, 3) * 120, y + 24 + hash(3, k) * 50, 6, 8, FUSECOLS[k % 5][0]);
-    pipe(x0 + 220, y + 20, x0 + 250, y + 80, 5, C.car); pipe(x0 + 240, y + 20, x0 + 230, y + 80, 5, C.car);
+    for (let k = 0; k < 14; k++) rect(x0 + 70 + hash(k, 3) * 80, y + 24 + hash(3, k) * 50, 6, 8, FUSECOLS[k % 5][0]);
+    pipe(x0 + 166, y + 20, x0 + 196, y + 80, 5, C.car); pipe(x0 + 186, y + 20, x0 + 176, y + 80, 5, C.car);   // the crimping tool
   }
   if (d === 6) {                                               // big stuff
-    pipe(x0 - 10, y + 40, x0 + 120, y + 30, 6, C.tool); rbox(x0 + 116, y + 22, 18, 18, 3, C.steel2);    // breaker bar
+    pipe(x0 + 2, y + 40, x0 + 120, y + 30, 6, C.tool); rbox(x0 + 116, y + 22, 18, 18, 3, C.steel2);    // breaker bar
     for (let k = 0; k < 20; k += 4) line(x0 + 20 + k * 4, y + 66 - k / 2, x0 + 30 + k * 4, y + 66 - k / 2, C.dim);   // the hammer-shaped gap (dotted)
-    pipe(x0 + 150, y + 30, x0 + 220, y + 50, 5, C.steel); pipe(x0 + 220, y + 50, x0 + 240, y + 76, 5, C.steel);   // bent wheel brace
+    pipe(x0 + 140, y + 30, x0 + 186, y + 46, 5, C.steel); pipe(x0 + 186, y + 46, x0 + 196, y + 72, 5, C.steel);   // bent wheel brace
+  }
+}
+// Keep what's drawn in a drawer inside it: draw it, then put back anything that strayed outside the tray
+// (the tray is a trapezoid: x0 to x1 at its back edge, row yTop; 32 wider each side at its front, row yBot)
+function insideTray(x0, x1, yTop, yBot, draw) {
+  const y0 = Math.max(0, Math.round(yTop - 40)), y1 = Math.min(H, Math.round(yBot + 20));
+  const before = IMG32.slice(y0 * W, y1 * W);                   // the rows round the tray, as they were
+  draw();
+  for (let y = y0; y < y1; y++) {
+    const q = (y - yTop) / (yBot - yTop);                        // 0 at the back of the tray, 1 at its front
+    const inTray = q >= 0 && q <= 1;
+    const left = inTray ? Math.ceil(x0 - 32 * q) : W, right = inTray ? Math.floor(x1 + 32 * q) : -1;
+    for (let x = 0; x < W; x++) {
+      if (x >= left && x <= right) continue;                       // in the tray: keep it
+      const i = y * W + x;
+      IMG32[i] = before[i - y0 * W];                               // outside: as it was
+    }
   }
 }
 
