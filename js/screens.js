@@ -842,7 +842,7 @@ SCREENS.underZoom = {
       const d = Math.hypot(x - 250, (y - 140) * 1.2), k = d < 110 ? 1.12 : Math.max(0.45, 1.12 - (d - 110) / 220);
       const i = (y * W + x) * 4; img.data[i] *= k; img.data[i + 1] *= k; img.data[i + 2] *= k;
     }
-    const zoomTip = !f.sensorJob ? 'The gearbox. Lots of bolts. Which bit matters?' : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
+    const zoomTip = !f.sensorJob ? 'The gearbox. Lots of bolts. Which bit matters? (The codes would tell you: plug a reader into the port under the steering wheel.)' : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
     tip('Under the car › Gearbox', zoomTip, 1, 8);
     hud();
   },

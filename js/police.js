@@ -46,7 +46,8 @@ function postArrives() {
     S.letters.unshift({ id: p.id, read: false });
   }
   if (!S.flags.junkPosted && S.day >= 2) { S.flags.junkPosted = true; post('junk', S.day); post('mot', S.day + 1); }   // the usual post
-  if (S.fine && !S.fine.paid && !S.fine.clamped && S.day >= S.fine.day + 7) {   // a week, unpaid: clamped
+  const carHome = typeof carStranded !== 'function' || !carStranded();   // (not while it's on a flat on Mill Lane: then it waits till it's back)
+  if (S.fine && !S.fine.paid && !S.fine.clamped && carHome && S.day >= S.fine.day + 7) {   // a week, unpaid: clamped
     S.fine.clamped = true;
     if (findJob('fine')) note('fine', 'A week, unpaid: the car is clamped on the drive', 'x');
   }
@@ -172,12 +173,19 @@ function payFineAtPost() {
   const clamp = S.fine.clamped ? ` and £${CLAMP_FEE} to take the clamp off` : '';
   say('Post Office', `"Fines? Window 3, love. Nobody's ever in this queue."\n\nThat's £${owed}: the fine${clamp}.`, [
     { label: `Pay £${owed}`, run() {
-      if (!spend(owed)) { anger(10); return say('Post Office', 'Card declined.'); }
+      if (!spend(owed)) {
+        anger(10);
+        if (S.flags.cardBlocked) return say('Post Office', 'Card declined.\n\n"Your bank\'s blocked it, love. Not us."');   // the bank can sort that
+        wifeBailsOut();                                                // not enough money: the wife pays it (or you'd be clamped for ever)
+        say('Post Office', `Card declined. Not enough in the account.\n\nYou ring the wife. A long silence. Then she pays the £${owed} out of the holiday money.`);
+      }
       S.fine.paid = true;
       sfx('beep');
       finishJob('fine', `Paid: £${owed}`);
       if (S.fine.clamped) { S.fine.unclamp = true; S.fine.clamped = false; }   // someone's on his way to take it off
-      say('Post Office', '"That\'s paid. Don\'t do it again."' + (S.fine.unclamp ? '\n\n"Someone\'s on their way to take the clamp off."' : ''));
+      const words = '"That\'s paid. Don\'t do it again."' + (S.fine.unclamp ? '\n\n"Someone\'s on their way to take the clamp off."' : '');
+      if (DIALOG) return queueDialog('Post Office', words);             // after what the wife had to say
+      say('Post Office', words);
     } },
     { label: 'Not today', run() {} }
   ]);
@@ -188,14 +196,21 @@ function payFineAtPost() {
 // Clamped: ring for a taxi. 40 minutes, then it takes you into town
 function ringTaxi() {
   if (!carClamped()) return say('Ringing for a taxi', '"Where are you going? Your car\'s right there."');
-  if (!spend(TAXI_FARE)) return say('Ringing for a taxi', '"Card declined, mate."');
+  const paid = spend(TAXI_FARE);                                      // your card, if it works…
+  if (!paid) wifeBailsOut();                                           // …or the wife pays (so you're never stuck at home)
   pass(40);
   S.flags.taxi = true;
   S.place = null;
   show('city');
   const chat = S.flags.taxiChat ? '' : '\n\n"Zafira? My brother-in-law had one. Gearbox went. Never again."';
   S.flags.taxiChat = true;
-  say('The taxi', `Forty minutes later, a taxi. £${TAXI_FARE}.` + chat);
+  const who = paid ? '' : ' Your card\'s declined; the wife pays it, and says nothing. Loudly.';
+  say('The taxi', `Forty minutes later, a taxi. £${TAXI_FARE}.${who}` + chat);
+}
+// When your card won't pay for something you can't do without, the wife pays. She doesn't forget
+function wifeBailsOut() {
+  S.flags.wifePaid = (S.flags.wifePaid || 0) + 1;                     // how many times she's had to
+  anger(10);
 }
 // Home in the taxi: another £15; and if you've paid, a man's taking the clamp off
 function taxiHome() {

@@ -930,11 +930,10 @@ const SCREEN_ENTER = {
     moment('van', 2600); sfx('van'); sfx('thud', 1.2);
   },
   underZoom() {
-    // having found the codes, a look at the gearbox makes it the sensor (probably)
+    // having found the codes ("transmission range sensor"), a look at the gearbox finds the sensor, with or without the forum's help
     if (!S.flags.codes || S.flags.sensorJob) return;
-    if (!leadExists('sensor')) return;
     S.flags.sensorJob = true;
-    closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
+    if (leadExists('sensor')) closeLead('sensor', 'ok', 'Found the sensor on the gearbox');
     finishJob('meaning', 'Probably the gearbox sensor');
     job('sensor-off', 'Get the old sensor off', 'light');
     note('sensor-off', 'It\'s fixed into a box. 2 bolts and a nut hold the box on.', 'info');

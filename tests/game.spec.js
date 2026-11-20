@@ -2622,3 +2622,28 @@ test('the code reader unplugs from the port; the glove box torch goes on the gar
   expect(await page.evaluate(() => { [ISO.ox, ISO.oy] = ROAD_STREET_VIEW; isoCar(0, 76, 1, C.white, { alongX: true, shape: 'saloon', police: true, flash: true }); return !!POLICE_BAR; })).toBe(true);
   expect(errors).toEqual([]);
 });
+
+// ---------- dead ends, fixed ----------
+test('dead ends: the gearbox shows its bolts once you have the codes (no forum needed); clamped with no money or a blocked card, the wife pays the taxi; the fine you cannot afford, she pays; no clamp while the car is stuck on Mill Lane', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // the codes, but no forum: the gearbox still gives you the bolts
+  await page.evaluate(() => { S.flags.codes = true; show('underZoom'); });
+  expect(await page.evaluate(() => S.flags.sensorJob)).toBe(true);
+  await expect(page.locator('.acts button', { hasText: 'Undo bolt 1' })).toHaveCount(1);
+  // clamped, card blocked: the taxi still comes (the wife pays)
+  await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: true }; S.flags.cardBlocked = true; ringTaxi(); });
+  expect(await dialogText(page)).toContain('the wife pays');
+  expect(await page.evaluate(() => [S.flags.taxi, S.flags.wifePaid])).toEqual([true, 1]);
+  await ok(page);
+  // at the Post Office with not enough money: she pays the fine
+  await page.evaluate(() => { S.flags.cardBlocked = false; S.money = 5; S.place = 'Post Office'; payFineAtPost(); });
+  await page.locator('.dlg button').first().click();
+  expect(await dialogText(page)).toContain('holiday money');
+  expect(await page.evaluate(() => [S.fine.paid, S.fine.unclamp, S.money])).toEqual([true, true, 5]);
+  await ok(page);
+  // a week unpaid while the car's on a flat on Mill Lane: no clamp yet
+  await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: false }; S.road = { spare: true, walked: true }; postArrives(); });
+  expect(await page.evaluate(() => S.fine.clamped)).toBe(false);
+  expect(errors).toEqual([]);
+});
