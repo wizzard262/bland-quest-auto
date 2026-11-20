@@ -223,6 +223,7 @@ function think() {
 function goTo(target) {
   if (target.startsWith('act:')) return act(target.slice(4));
   if (target === 'phone' && S.screen === 'roadside' && !S.flags.phoneDead) return act('roadring');   // on a flat on Mill Lane: the phone dies
+  if (S.road && !S.road.walked && S.screen === 'city' && target === 'home') return show('roadside');   // stranded, and somehow in town: back to the car on Mill Lane
   const stuck = strandedReason(target);                               // your car's on a flat on Mill Lane
   if (stuck) return say('Your car', stuck);
   if (S.flags.carAt && CAR_SCREENS.includes(target)) return say('Your car', `Your car's still outside ${S.flags.carAt}.`);   // left at the pub (police.js)
@@ -410,7 +411,7 @@ function render() {
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (STILL) stage.insertAdjacentHTML('beforeend', stillHtml());   // a big still, flashed up over everything
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
-  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath'].includes(S.screen);   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
+  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath', 'roadside'].includes(S.screen);   // (no Back from the roadside: it led into town, stuck)   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
   if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];

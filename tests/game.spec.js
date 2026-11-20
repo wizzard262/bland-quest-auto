@@ -2823,3 +2823,13 @@ test('he walks round things, not over them: round the wrecks at the yard, this s
   expect(await page.evaluate(() => { const p = routeAround('place', [105, 140], [100, 60]); const end = p[p.length - 1]; return end[1] >= COUNTER[3] || end[1] <= COUNTER[1] || end[0] <= COUNTER[0] || end[0] >= COUNTER[2]; })).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('stranded on Mill Lane: no Back button off the roadside; and if you are in town anyway, your car takes you back to it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.road = { spare: false, walked: false }; S.screen = 'roadside'; render(); });
+  await expect(page.locator('#stage .back')).toHaveCount(0);
+  await page.evaluate(() => { S.screen = 'city'; render(); goTo('home'); });
+  expect(await page.evaluate(() => S.screen)).toBe('roadside');
+  expect(errors).toEqual([]);
+});
