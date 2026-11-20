@@ -488,6 +488,23 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     L(4, -10, 4, -6, K.shirt); D(4, -5, K.skin);                       // an arm, hand on his knee
     return;
   }
+  if (pose === 'shrug') {                                // soaked: shoulders up round his ears, hands out, palms up
+    R(0, -18, 2, 3, K.skin); R(0, -18, 2, 1, K.hair);   // his head, sunk down between his shoulders
+    R(0, -15, 2, 5, K.shirt); R(-1, -15, 4, 1, K.shirt); D(0, -10, K.jeans);   // his shoulders, hunched up
+    L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);
+    L(-1, -14, -2, -11, K.shirtDark); L(-2, -11, -3, -12, K.shirtDark); D(-4, -13, K.skin);   // one arm out, palm up
+    L(2, -14, 3, -11, K.shirt); L(3, -11, 4, -12, K.shirt); D(5, -13, K.skin);              // and the other
+    return;
+  }
+  if (pose === 'trudge') {                               // head down, shoulders slumped, a short dragging step; phase = how far through it
+    const sw = Math.round(Math.sin(phase)), up = 1;
+    R(1, -17 + up, 2, 3, K.skin); R(1, -17 + up, 2, 2, K.hair); D(1, -15 + up, K.hair);   // his head, hanging forward and down (you see the top of it)
+    R(0, -14 + up, 2, 4, K.shirt); D(0, -10, K.jeans);              // his back, rounded and lower
+    L(0, -9, -1 - sw, -1, K.jeansDark); L(1, -9, 2 + sw, -1, K.jeans);
+    L(0, -13 + up, 0 + sw, -8, K.shirtDark); D(0 + sw, -7, K.skin);  // arms hanging straight down, barely swinging
+    L(1, -13 + up, 1 - sw, -8, K.shirt); D(1 - sw, -7, K.skin);
+    return;
+  }
   if (pose === 'walk') {                                 // mid-stride: legs and arms swing opposite ways; phase = how far through the step
     const sw = Math.round(Math.sin(phase) * 2), up = Math.abs(Math.sin(phase)) < 0.4 ? 0 : 1;
     const Y = d => d - up;                               // a little bob on each step

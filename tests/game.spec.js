@@ -2572,3 +2572,19 @@ test('the first look under anything with a light: there is always a spider', asy
   expect(await page.evaluate(() => !!UNDER_SPIDER)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('soaked by the puddle: he shrugs, sinks, and trudges on head down at half his pace', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => { man(100, 200, 'shrug', 4); man(100, 200, 'trudge', 4, 1); return true; })).toBe(true);
+  // half pace: the trudge covers the rest of the pavement in about twice the time the plain walk would
+  const ratio = await page.evaluate(() => {
+    const rest = WALK.to - lerp(WALK.from, WALK.to, WALK_SPLASH);                // what's left of the pavement
+    const plainSpeed = (WALK.to - WALK.from) / WALK_MS;                          // his normal pace
+    const trudgeSpeed = rest / (WALK_AFTER_MS * (1 - WALK_SINK));               // after the shrug and the sinking
+    return trudgeSpeed / plainSpeed;
+  });
+  expect(ratio).toBeGreaterThan(0.4);
+  expect(ratio).toBeLessThan(0.6);
+  expect(errors).toEqual([]);
+});

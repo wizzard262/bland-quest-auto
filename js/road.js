@@ -224,13 +224,24 @@ MOMENTS.pullover = function (p) {
 const SOAKED = { shirt: hex('#8a3028'), shirtDark: hex('#6a2018'), jeans: hex('#283a68'), jeansDark: hex('#1c2a50'), hair: hex('#402810') };
 const WALK_MS = 7000;                                                  // the whole walk home
 const WALK_SPLASH = 0.6;                                               // how far through it: the water has hit him (it lands at 0.5)
+const WALK_AFTER_MS = 7500;                                            // after the splash: a shrug, then on at half pace
+const WALK_SHRUG = 0.12, WALK_SINK = 0.22;                             // how far through the rest of it: the shrug ends; the sinking ends
 let WALK_PART = [0, 1];                                                // the part of the walk this moment plays
 MOMENTS.walkhome = function (part) {
-  const p = lerp(WALK_PART[0], WALK_PART[1], part);                    // how far through the whole walk
-  const x = lerp(WALK.from, WALK.to, p);                            // him, along the pavement
+  const after = WALK_PART[0] >= WALK_SPLASH;                           // the rest of the walk, after the splash
+  const p = after ? WALK_SPLASH + part * WALK_AFTER_MS / WALK_MS : lerp(WALK_PART[0], WALK_PART[1], part);   // the time so far, as a share of the plain walk (the car and the splash go by it)
   const hit = 0.5;                                                  // when the car hits the puddle
   const wet = p > hit;
-  man(x, WALK.ground, 'walk', WALK.size, p * 90, wet ? SOAKED : null);
+  const look = wet ? SOAKED : null;
+  let x = lerp(WALK.from, WALK.to, Math.min(p, WALK_SPLASH));        // him, along the pavement (stopped where the splash got him)
+  if (!after) man(x, WALK.ground, 'walk', WALK.size, p * 90, look);
+  else if (part < WALK_SHRUG) man(x, WALK.ground, 'shrug', WALK.size, 0, look);   // a shrug: what else can you do
+  else if (part < WALK_SINK) man(x, WALK.ground, 'trudge', WALK.size, 0, look);   // he sinks
+  else {                                                            // and trudges on home, head down, at half his pace
+    const q = (part - WALK_SINK) / (1 - WALK_SINK);
+    x = lerp(x, WALK.to, q);
+    man(x, WALK.ground, 'trudge', WALK.size, part * 45, look);
+  }
   if (wet) for (let k = 0; k < 6; k++) rect(x + 4 + k * 3, WALK.ground + ((p * 400 + k * 13) % 14), 1, 2, hex('#b8c4d0'));   // dripping
   // the car: in from the left, through the puddle, off to the right
   const carX = lerp(-360, 556, (p - 0.35) / 0.3);                    // its front wheel (152 along it) reaches the puddle at 0.5, as the water goes up
@@ -298,7 +309,7 @@ Object.assign(ACTIONS, {
     moment('walkhome', WALK_MS * WALK_SPLASH);
     ANIM.then = () => flashStill('splash', () => {                      // …the splash, big, as it hits him…
       WALK_PART = [WALK_SPLASH, 1];                                    // …then on home, dripping
-      moment('walkhome', WALK_MS * (1 - WALK_SPLASH));
+      moment('walkhome', WALK_AFTER_MS);                              // (a shrug, then slower)
       ANIM.then = homeSoaked;
     });
   },
