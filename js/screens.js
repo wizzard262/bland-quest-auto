@@ -568,7 +568,7 @@ function appHTML(app) {
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
     ${true ? product('headlight-bay', 'Used · "fits Zafira A" · arrives in 2 days') : ''}
     <tr><td>ZAFIRA GEARBOX SENSOR WORKING WHEN REMOVED (I THINK)<br><span class="meta">Collection only, Aberdeen</span></td><td>£0.99</td><td class="red">Collection only</td></tr>
-    <tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr></table></div>`;
+    ${findJob('new-sensor') ? product('sensor-lot', 'Used · No returns · arrives in 2 days') : '<tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr>'}</table></div>`;
   return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
     <div class="side"><span>Main page</span><span>Random fault</span><span>Help</span><span>Talk</span></div><div class="body">
     <h2>SB-0471/09 Rev C — TCM DTC P0705/P0706 sporadic, MY 03–05, see note 4</h2>
@@ -581,7 +581,11 @@ function appHTML(app) {
       <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
       <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
       <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
-      <p><button data-act="fusenote">${S.flags.fuseCopy ? 'Copied into your notebook' : 'Copy it into your notebook (20 min)'}</button></p>` : ''}</div></div>`;
+      <p><button data-act="fusenote">${S.flags.fuseCopy ? 'Copied into your notebook' : 'Copy it into your notebook (20 min)'}</button></p>` : ''}
+    ${S.flags.colourMismatch ? `<h2>Selector sensor (TRS, 3-wire): wire colours, MY 03–05</h2><table>
+      <tr><td>BN (brown)</td><td>→ RD (red): supply, KL15</td></tr><tr><td>BU (blue)</td><td>→ GN (green): signal (see note 9)</td></tr>
+      <tr><td>WH (white)</td><td>→ YE (yellow): earth</td></tr></table>
+      <p><button data-act="wirenote">${S.flags.wireColours ? 'Noted' : 'Note the wire colours (10 min)'}</button></p>` : ''}</div></div>`;
 }
 // A product row with a Buy button
 function product(id, extra) {
@@ -780,7 +784,7 @@ SCREENS.under = {
     grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
     grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
     bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
-    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? SENSOR_COLOUR['part-p4l'] : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
+    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? sensorColour(S.flags.fittedPart || 'part-p4l') : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
     line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);
     rect(436, 60, 12, 166, hex('#202020'));
     zoomZones([['Rear suspension', 62, 54, 66, 54, false, 'act:look:Rear suspension'], ['Fuel tank', 126, 166, 78, 58, false, 'act:look:Fuel tank'], ['Exhaust', 234, 118, 96, 44, false, 'act:look:Exhaust'], ['Brake lines', 206, 216, 120, 18, false, 'act:look:Brake lines'], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68, false, 'act:look:Engine']]);
@@ -810,7 +814,7 @@ SCREENS.underZoom = {
     if (boxOn) {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));                                      // the box
       rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
-      disc(246, 140, 30, SENSOR_COLOUR[f.fitted ? 'part-p4l' : 'old-sensor']); ring(246, 140, 30, C.greyDark);   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
+      disc(246, 140, 30, sensorColour(f.fitted ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
     } else {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 1.08));                                     // a clean patch where the box sat
       grime(176, 104, 140, 4, shade(ALLOY, 0.5), 0.35, 23); grime(176, 172, 140, 4, shade(ALLOY, 0.5), 0.35, 24);   // a line of muck round its edge
@@ -907,6 +911,7 @@ SCREENS.bench = {
       // the part being tried: held over the hole, stuck halfway, or in
       const moving = ANIM && ANIM.kind.startsWith('bench');            // while a moment moves the part, it draws it
       if (b && !moving) benchPart(b, LIFT[b.state], 0);
+      if (b && b.state !== 'in') sensorLabel(b.part);                  // its part number, on a label
       ISO.ox = 240; ISO.oy = 64;
     }
     const holdingOld = b && b.part === 'old-sensor';                   // it's in your hand, over the box
@@ -926,9 +931,8 @@ SCREENS.bench = {
       a.push({ label: 'Lift the old sensor out', act: 'boxout' });
     }
     if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole
-      if (S.inv['old-sensor']) a.push({ label: 'Try the old sensor', act: 'pick:old-sensor' });
-      if (S.inv['part-p4l']) a.push({ label: 'Try the Parts 4 Less sensor', act: 'pick:part-p4l' });
-      if (S.inv['part-mega']) a.push({ label: 'Try the MegaMart sensor', act: 'pick:part-mega' });
+      a.push(...benchSensorButtons());                                 // every sensor you've got (sensors.js)
+      if (S.flags.cutSeen && !S.flags.soldered) a.push({ label: 'Solder the old plug on', act: 'soldergo' });   // the job lot one with its wires cut
     }
     const b = boxHere ? S.bench : null;
     if (b && b.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });

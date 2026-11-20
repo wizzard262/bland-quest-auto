@@ -771,6 +771,7 @@ const TALK = {
     shopCounter('Hardware Shop', '"Yes?"');
   },
   'Car Spares Direct'() {
+    if (!brokeOpen('lens') && csdSensor()) return;                     // after a sensor: "we can order it in" (sensors.js)
     if (!brokeOpen('lens')) return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
     say('Car Spares Direct', '"Indicator lens? Got one in the back. £4."', [
       { label: 'Pay £4', run() { if (!spend(4)) return say('Car Spares Direct', 'Card declined.'); finishJob('broke-lens', 'New indicator lens: £4'); closeLead('lens', 'ok'); say('Car Spares Direct', '"Mind how you go."'); } },
@@ -1082,6 +1083,7 @@ const ACTIONS = {
         { label: 'Leave it', run() {} }
       ]);
     }
+    if (i === 0 && yardSensorOffer(text)) return;                     // the 1999 Zafira: its sensor's still in (sensors.js)
     say('A wreck', text);
   },
   // ----- the dashboard: tap the key to turn it one click -----
@@ -1336,6 +1338,8 @@ const ACTIONS = {
     lead('new-sensor', 'mega-sensor', 'MegaMart: "fits all models*"', 'MegaMart', 'very sure', 'app:MegaMart');
     lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
     lead('new-sensor', 'breakers', 'The Scrap Yard has a Zafira', 'Gaz', 'maybe', 'place:Scrap Yard');
+    lead('new-sensor', 'ebuy-lot', 'eBuy: a job lot of sensors', 'you', 'hopeful', 'app:eBuy');
+    lead('new-sensor', 'csd', 'Car Spares Direct', 'you', 'maybe', 'place:Car Spares Direct');
     say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
   },
   pick(id) { S.bench = { part: id, rotated: false, state: 'over' }; },
@@ -1343,12 +1347,9 @@ const ACTIONS = {
     const b = S.bench;
     if (!b) return say('The workbench', 'Pick a part to try first.');
     pass(5);
-    if (b.part === 'part-mega') {
-      anger(10);
-      moment('benchNo', 1000); sfx('thud', 0.35); sfx('thud', 0.6);
-      closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
-      return say('Push', 'It\'s hexagonal. The hole is round. It\'s not going in.');
-    }
+    const fit = sensorFit(b.part);                                     // how this one fits (sensors.js)
+    if (b.part === 'part-mega') closeLead('try-mega', 'x', 'MegaMart sensor: wrong shape (hex, not round)');
+    if (fit !== 'right' && fit !== 'old') return tryWrongSensor(b);    // touches the hole, and fails its own way
     if (b.part === 'old-sensor') {                                     // the old one came out of here, so it goes back in (once lined up)
       if (!b.rotated) return say('Push', 'The pins don\'t line up. Rotate it.');
       b.state = 'in';
@@ -1359,9 +1360,10 @@ const ACTIONS = {
     if (!b.rotated) { b.state = 'stuck'; anger(10); moment('benchStuck', 1100); sfx('creak'); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
     b.state = 'in';
     S.flags.fits = true;
+    S.flags.fittedPart = b.part;                                       // the one that fits (the Parts 4 Less one, or the soldered one)
     moment('benchFit', 1000); sfx('clink', 0.65); sfx('ding', 0.8);
-    finishJob('new-sensor', 'The Parts 4 Less sensor fits!');
-    closeLead('try-p4l', 'ok');
+    finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
+    closeLead('try-p4l', 'ok'); closeLead('try-soldered', 'ok');
     lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
     say('Push', 'Click. It fits. It actually fits.\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it, so two will have to do.\n\nNow fit the box back on the car.');
   },
@@ -1406,11 +1408,12 @@ const ACTIONS = {
     if (S.flags['ordered-' + id]) return say('Already ordered', 'It\'s on its way.');
     if (!spend(item.price)) { anger(10); return say('Payment', 'Card declined.'); }
     S.flags['ordered-' + id] = true;
-    const fromBay = id === 'reader-good' || id === 'headlight-bay';       // TheeBay: used, 2 days; Zamanon: next day
+    const fromBay = ['reader-good', 'headlight-bay', 'sensor-lot'].includes(id);   // TheeBay: used, 2 days; Zamanon: next day
     order(id, fromBay ? 2 : 1, fromBay ? 'eBuy' : 'MegaMart');
     if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from MegaMart (due tomorrow)');
     if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on eBuy (2 days)');
     if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the MegaMart sensor (due tomorrow)'); }
+    if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on eBuy (2 days)');
     if (id === 'battery-23a') closeLead('bat-online', 'ok', 'Ordered 23A batteries on MegaMart (due tomorrow)');
     say('Order placed', `${item.name}: £${item.price.toFixed(2)}. It'll be left by the front door.`);
   },
@@ -1534,6 +1537,7 @@ function openParcel(item) {
     lead('codes', 'plug-in', 'Plug the reader in (key to II)', 'you', 'sure', 'dash');
     return say('A parcel', 'A used code reader. The plug looks right!\n\nThe port is under the dash.');
   }
+  if (item === 'sensor-lot') return openJobLot();                     // 300 sensors (sensors.js)
   if (item === 'part-mega') {
     S.inv['part-mega'] = true;
     lead('new-sensor', 'try-mega', 'Try the MegaMart sensor on the bench', 'you', 'hopeful', 'bench');

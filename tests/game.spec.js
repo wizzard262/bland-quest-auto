@@ -175,7 +175,7 @@ test('a message with nothing to choose has no OK button: a tap anywhere carries 
 test('every screen draws without errors', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox', 'port', 'ecu', 'roadside', 'walkhome']) {
+  for (const s of ['home', 'city', 'garage', 'toolbox', 'under', 'underZoom', 'bonnet', 'fuseZoom', 'dash', 'bench', 'notebook', 'phone', 'pc', 'room', 'stores', 'handbook', 'glovebox', 'port', 'ecu', 'roadside', 'walkhome', 'solder']) {
     await page.evaluate(k => { S.screen = k; render(); }, s);
     await expect(page.locator('#stage canvas')).toBeVisible();
   }
@@ -1996,5 +1996,133 @@ test('AA batteries from the shop also fix the old torch from the toolbox, and th
   expect(await dialogText(page)).toContain('old torch from the toolbox');
   await ok(page);
   expect(await page.evaluate(() => [S.flags.torchLit, leadOpen('batteries'), leadOpen('search')])).toEqual([true, false, true]);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the wrong sensors, and the soldering game ----------
+// The box on the workbench, the old sensor out, the job of finding one that fits
+async function benchReady(page) {
+  await page.evaluate(() => { S.flags.boxOff = true; S.flags.sensorOut = true; S.inv['old-sensor'] = true; job('new-sensor', 'Find a sensor that fits', null); S.screen = 'bench'; render(); });
+}
+test('wrong sensors on the bench: each touches the hole and fails its own way, with its long part number', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await benchReady(page);
+  await page.evaluate(() => { for (const id of ['part-mega', 'lot-square', 'lot-octagon', 'lot-thin', 'lot-long', 'yard-sensor', 'csd-sensor', 'box-sensor']) S.inv[id] = true; render(); });
+  const expectFor = { 'part-mega': 'hexagonal', 'lot-square': 'Square peg', 'lot-octagon': 'Eight sides', 'lot-thin': 'pencil in a mug', 'lot-long': 'sticking up', 'yard-sensor': 'lug teeth', 'csd-sensor': 'too short', 'box-sensor': 'too fat' };
+  for (const [id, words] of Object.entries(expectFor)) {
+    await page.locator(`.acts button[data-act="pick:${id}"]`).click();
+    const no = await page.evaluate(k => SENSORS[k].no, id);
+    await expect(page.locator('.partno')).toContainText(no);           // its part number, on a label
+    await act(page, 'Push');
+    expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('benchTry');   // down to the hole…
+    const said = await dialogText(page);
+    expect(said).toContain(words);
+    expect(said).toContain(no);
+    await ok(page);
+    expect(await page.evaluate(() => [S.bench.state, !!S.flags.fits])).toEqual(['over', false]);   // …and back out, no good
+  }
+  expect(errors).toEqual([]);
+});
+
+test('where the wrong sensors come from: the eBuy job lot, the 1999 Zafira at the Scrap Yard, Car Spares Direct (in two days), the parts box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('new-sensor', 'Find a sensor that fits', null); lead('new-sensor', 'ebuy-lot', 'eBuy', 'you', 'hopeful', 'app:eBuy'); });
+  // eBuy: the job lot
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'eBuy'; render(); });
+  await page.locator('[data-act="buy:sensor-lot"]').click(); await ok(page);
+  expect(await page.evaluate(() => [leadOpen('ebuy-lot'), S.parcels.some(p => p.item === 'sensor-lot')])).toEqual([false, true]);
+  await page.evaluate(() => { S.parcels = []; openParcel('sensor-lot'); });
+  expect(await dialogText(page)).toContain('washing machines');
+  await ok(page);
+  expect(await page.evaluate(() => JOB_LOT.every(id => S.inv[id]))).toBe(true);
+  // the Scrap Yard: the 1999 Zafira's sensor
+  await page.evaluate(() => { S.screen = 'yard'; render(); });
+  await tap(page, 'act:wreck:0');
+  await choose(page, 'Take its sensor');
+  expect(await page.evaluate(() => !!S.inv['yard-sensor'])).toBe(true);
+  // Car Spares Direct: order it, the day after tomorrow
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Car Spares Direct'); await talk(page);
+  await choose(page, 'Order it');
+  await talk(page);
+  expect(await dialogText(page)).toContain('not today');
+  await ok(page);
+  await page.evaluate(() => { S.day += 2; S.mins = 10 * 60; });
+  await talk(page);
+  expect(await dialogText(page)).toContain('Says Zafira on the box');
+  await ok(page);
+  expect(await page.evaluate(() => !!S.inv['csd-sensor'])).toBe(true);
+  // the parts box: an old sensor, not yours
+  await page.evaluate(() => { S.screen = 'partsbox'; render(); const j = { x: 100, y: 100, a: 0, k: JUNK.findIndex(t => t[1] === 'sensor'), box: 0 }; PILE.push(j); takeBoxSensor(j); });
+  expect(await dialogText(page)).toContain('Not yours');
+  expect(await page.evaluate(() => !!S.inv['box-sensor'])).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the job lot sensor with the cut wires fits; solder the old plug on: find the colours, join them in order, the iron, the solder; then it fits for real', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await benchReady(page);
+  await page.evaluate(() => { S.inv['lot-cut'] = true; render(); });
+  await page.locator('.acts button[data-act="pick:lot-cut"]').click();
+  await act(page, 'Push');
+  expect(await dialogText(page)).toContain('No plug');
+  await ok(page);
+  expect(await page.evaluate(() => S.flags.fits)).toBeFalsy();
+  // to the soldering: the colours don't match; can't carry on
+  await act(page, 'Solder the old plug on');
+  expect(await page.evaluate(() => S.screen)).toBe('solder');
+  expect(await dialogText(page)).toContain('Which goes where');
+  await ok(page);
+  await expect(page.locator('.hs[data-go="act:wirepick:0"]')).toHaveCount(0);   // locked until you know
+  // TechDocs: the wire colours
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'TechDocs'; render(); });
+  await page.locator('button', { hasText: 'Note the wire colours' }).click(); await ok(page);
+  expect(await page.evaluate(() => [S.flags.wireColours, leadOpen('wire-colours')])).toEqual([true, false]);
+  // back to it: join them wrong first
+  await page.evaluate(() => { S.screen = 'solder'; render(); });
+  const join = async (k, j) => { await tap(page, 'act:wirepick:' + k); await tap(page, 'act:wirejoin:' + j); };
+  await join(0, 0); await join(1, 1); await join(2, 2);                 // blue to yellow, white to green: crossed
+  await act(page, 'Solder the joints');
+  expect(await dialogText(page)).toContain('crossed');
+  await ok(page);
+  expect(await page.evaluate(() => solderState().pairs)).toEqual([0, null, null]);   // the crossed ones come apart
+  await join(1, 2); await join(2, 1);                                    // blue to green, white to yellow
+  // no iron yet
+  await act(page, 'Solder the joints');
+  expect(await dialogText(page)).toContain('no soldering iron');
+  await ok(page);
+  await page.evaluate(() => { S.inv.iron = true; render(); });
+  await act(page, 'Solder the joints');                                  // the old reel: one joint, then it runs out
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('solder');
+  expect(await dialogText(page)).toContain('runs out');
+  await ok(page);
+  expect(await page.evaluate(() => solderState().joints)).toBe(1);
+  await page.evaluate(() => { S.inv.solder = true; render(); });
+  await act(page, 'Solder the joints');
+  expect(await dialogText(page)).toContain('Three shiny joints');
+  await ok(page);
+  expect(await page.evaluate(() => [solderState().joints, S.flags.soldered])).toEqual([3, true]);
+  // on the bench: lined up, it fits for real
+  await page.evaluate(() => { S.screen = 'bench'; render(); });
+  await page.locator('.acts button[data-act="pick:lot-cut"]').click();
+  await act(page, 'Rotate'); await ok(page);
+  await act(page, 'Push');
+  expect(await dialogText(page)).toContain('It fits');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.fits, S.flags.fittedPart, findJob('new-sensor').status])).toEqual([true, 'lot-cut', 'done']);
+  expect(errors).toEqual([]);
+});
+
+test('the soldering iron is at the Tool Shop and the solder at the Hardware Shop', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => [PLACE_INFO['Tool Shop'].shop.includes('iron'), PLACE_INFO['Hardware Shop'].shop.includes('solder')])).toEqual([true, true]);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Tool Shop'); await talk(page);
+  await choose(page, 'Soldering iron');
+  expect(await page.evaluate(() => !!S.inv.iron)).toBe(true);
   expect(errors).toEqual([]);
 });

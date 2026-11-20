@@ -387,7 +387,7 @@ function render() {
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)
-  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger, .hbcover').forEach(el => el.remove());
+  stage.querySelectorAll('.ov, .lbl, .tip, .zl, .go, .hs, .lab, .front, .spine, .lid, .scr, .back, .dlg, .basket, .anger, .hbcover, .partno').forEach(el => el.remove());
   stage.insertAdjacentHTML('beforeend', LABELS.join(''));
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)

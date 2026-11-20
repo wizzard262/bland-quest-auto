@@ -4,28 +4,27 @@
 // Drawn every frame over a copy of the screen's still picture (see drawFrame in engine.js).
 
 // How high the part on the workbench sits above the hole, for each state
-const LIFT = { over: 56, stuck: 30, in: 12 };
+//   below 0 it's down inside the hole: the part of it below the hole's front edge is hidden by the box
+const LIFT = { over: 56, stuck: 30, in: -8 };
 // The part being tried on the workbench: lift = height above the hole, dx = a sideways judder
 function benchPart(b, lift, dx) {
   ISO.ox = 240; ISO.oy = 64;
-  sensorUnit(b, P(100, 95, 40 + lift), dx);                           // over the box's hole (40 is the box's top)
+  const hole = P(100, 95, 40);                                        // the middle of the box's hole (40 is the box's top)
+  const bot = P(100, 95, 40 + lift);
+  if (lift >= 0) return sensorUnit(b, bot, dx);                       // above the hole: all of it shows
+  hiddenBelow(hole[1] + 7, bot[0] - 40, bot[0] + 70, () => sensorUnit(b, bot, dx));   // in it: hidden below the hole's front edge
+}
+// Draw something, but keep the picture as it was below screen row yCut, between x0 and x1 (what's in front hides it)
+function hiddenBelow(yCut, x0, x1, draw) {
+  const y0 = Math.max(0, Math.round(yCut)), xa = Math.max(0, Math.round(x0)), xb = Math.min(W, Math.round(x1));
+  const rows = [];
+  for (let y = y0; y < H; y++) rows.push(IMG32.slice(y * W + xa, y * W + xb));   // what's there now
+  draw();
+  rows.forEach((row, k) => IMG32.set(row, (y0 + k) * W + xa));      // put it back
 }
 // A gearbox sensor standing with its bottom at bot (screen), nudged sideways by dx: body, face, pins, plug and wires
 function sensorUnit(b, bot, dx) {
-  const hex6 = b.part === 'part-mega';
-  const col = SENSOR_COLOUR[b.part] || C.greyDark;                   // the same colour as it is under the car
-  const top = [bot[0], bot[1] - 38];                                  // 38 tall
-  const x = bot[0] + dx;
-  ellipse(x, bot[1], 14, 7, shade(col, 0.7));
-  rect(x - 14, top[1], 29, bot[1] - top[1], col);
-  rect(x - 10, top[1] + 2, 3, bot[1] - top[1] - 2, shade(col, 1.6));  // a shine down its side
-  ellipse(x, top[1], 14, 7, col);                                     // its face, as seen under the car: a lighter ring and a dot
-  ellipse(x, top[1], 10, 5, shade(col, 1.6)); ellipse(x, top[1], 8, 4, col);
-  rect(x - 4, top[1] - 2, 3, 2, shade(col, 1.5));
-  if (hex6) { rect(x - 15, top[1], 2, bot[1] - top[1], C.carDark); rect(x + 13, top[1], 2, bot[1] - top[1], C.carDark); }
-  const py = b.rotated ? bot[1] - 10 : bot[1] - 18;
-  rect(x - 20, py, 6, 3, C.tool); rect(x + 15, py, 6, 3, C.tool);
-  sensorPlug(x + 10, top[1] + 4);                                     // its plug and coloured wires, like under the car
+  drawSensor(b.part, b.rotated, bot, dx);                             // its own shape, colour, lug teeth and wires (sensors.js)
 }
 // A sensor's plug (dark, with a yellow tab) and its three coloured wires trailing off to the right
 function sensorPlug(x, y) {
@@ -552,10 +551,6 @@ const MOMENTS = {
     const b = S.bench; if (!b) return;
     benchPart(b, lerp(LIFT.over, LIFT.in, ease(Math.min(1, p / 0.7))), 0);
     if (p > 0.7) { const h = P(100, 95, 40); ring(h[0], h[1], Math.round(20 + (p - 0.7) * 60), C.white); }
-  },
-  benchNo(p) {                                                        // the hexagonal one bangs on the round hole
-    const b = S.bench; if (!b) return;
-    benchPart(b, p < 0.4 ? lerp(LIFT.over, 40, ease(p / 0.4)) : 40 + Math.abs(Math.sin((p - 0.4) * 12)) * 6 * (1 - p), 0);
   },
   kick(p) {                                                           // THUD! Something flies across the screen
     if (p < 0.35) {

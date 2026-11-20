@@ -307,6 +307,7 @@ function rummageEnd() {
   if (moved > 4) return;
   const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook ? 16 : 10));
   if (top && top.handbook) return takeHandbook(top);                             // the handbook!
+  if (top && JUNK[top.k][1] === 'sensor' && takeBoxSensor(top)) return render();  // an old sensor (not yours): worth a try (sensors.js)
   if (top) { say(JUNK[top.k][0], 'Not what you need.'); render(); }
 }
 
