@@ -11,7 +11,7 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.NO_PUNCTURES = true; });   // no random punctures on the way home (a test turns them on)
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; });   // no random punctures or blocked cards (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
@@ -2395,5 +2395,33 @@ test('the usual post: junk and a reminder that the MOT has run out', async ({ pa
   await start(page, errors);
   await page.evaluate(() => { S.day = 2; S.mins = 7 * 60; pass(70); S.day = 3; S.mins = 7 * 60; pass(70); });
   expect(await page.evaluate(() => S.letters.map(l => l.id).sort())).toEqual(['junk', 'mot']);
+  expect(errors).toEqual([]);
+});
+
+// ---------- card declined: the bank ----------
+test('now and then the card is blocked as you pay: declined everywhere until the bank (Mon to Wed, 10 till 2) asks three security questions and unblocks it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; CARD_BLOCK_CHANCE = 1; });   // a Monday; the next payment gets blocked
+  const money = await page.evaluate(() => S.money);
+  expect(await page.evaluate(() => spend(5))).toBe(false);                 // declined
+  expect(await page.evaluate(() => [S.money, S.flags.cardBlocked, !!findJob('card'), S.msgs[0].from])).toEqual([money, true, true, 'Your Bank']);
+  expect(await page.evaluate(() => spend(1))).toBe(false);                 // and again, until it's sorted
+  // the bank: three questions, all wrong; unblocked anyway
+  await goPlace(page, 'Bank'); await talk(page);
+  expect(await dialogText(page)).toContain('unusual activity');
+  for (let k = 0; k < 3; k++) await page.locator('.dlg button').first().click();
+  expect(await dialogText(page)).toContain("I've unblocked it");
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.cardBlocked, findJob('card').status, spend(1)])).toEqual([false, 'done', true]);   // and only once a game
+  expect(errors).toEqual([]);
+});
+
+test('the bank is open Monday to Wednesday, 10 till 2', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; return closedReason('Bank'); })).toBe(null);   // Monday, 11am: open
+  expect(await page.evaluate(() => { S.mins = 15 * 60; return closedReason('Bank'); })).toContain('Shut at 14:00');
+  expect(await page.evaluate(() => { S.day = 10; S.mins = 11 * 60; return closedReason('Bank'); })).toContain('Closed on THUs');
   expect(errors).toEqual([]);
 });

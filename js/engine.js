@@ -81,6 +81,7 @@ function sleepUntilMorning() {
 }
 // Spend money; false if you can't afford it
 function spend(amount) {
+  if (cardDeclined(amount)) return false;                          // the card's blocked (bank.js): declined
   if (S.money < amount) return false;
   S.money -= amount;
   return true;

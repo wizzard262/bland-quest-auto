@@ -97,6 +97,7 @@ const PLACE_INFO = {
   'The Hesketh Tavern': { open: [11 * 60, 24 * 60], person: 'the barman' },      // the pub: open late, shuts at midnight
   'Spanner & Son': { open: [8 * 60, 17 * 60 + 30], person: 'Mr Spanner' },
   'Post Office': { open: [9 * 60, 17 * 60 + 30], person: 'the woman behind the glass' },
+  'Bank': { open: [10 * 60, 14 * 60], closedDays: ['THU', 'FRI', 'SAT', 'SUN'], person: 'the cashier' },   // as its poster says: Mon to Wed, 10 till 2
   'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
   "Sparky's Auto Electrics": { open: [9 * 60, 16 * 60 + 30], lunch: true, person: 'Sparky' },
   'Main Dealer': { open: [9 * 60, 17 * 60], person: 'the service desk' },
@@ -699,6 +700,7 @@ const TALK = {
     say('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
   },
   'Police Station'() { policeTalk(); },                                  // no help (police.js)
+  'Bank'() { bankTalk(); },                                             // a blocked card: security questions (bank.js)
   'Post Office'() {
     if (payFineAtPost()) return;                                        // a fine to pay: window 3, no queue (police.js)
     if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
