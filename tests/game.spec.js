@@ -414,10 +414,10 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // on the workbench: undo the 4 screws round the sensor (the last one shears), then lift the old sensor out
   await garage(page, 'Workbench');
-  await act(page, 'Undo screw 1'); await ok(page);
-  await act(page, 'Undo screw 2'); await ok(page);
-  await act(page, 'Undo screw 3'); await ok(page);
-  await act(page, 'Undo screw 4'); await ok(page);
+  await tap(page, 'act:screw:1'); await ok(page);
+  await tap(page, 'act:screw:2'); await ok(page);
+  await tap(page, 'act:screw:3'); await ok(page);
+  await tap(page, 'act:screw:4'); await ok(page);
   expect(await page.evaluate(() => S.flags.sheared)).toBe(4);
   await act(page, 'Lift the old sensor out'); await ok(page);
   expect(await flag(page, 'sensorOut')).toBe(true);
@@ -479,7 +479,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Rotate'); await ok(page);
   await act(page, 'Push'); await ok(page);
   expect(await flag(page, 'fits')).toBe(true);
-  await act(page, 'Use the extractor on the snapped screw'); await ok(page);   // the snapped screw's stub, out with the proper extractor
+  await tap(page, 'act:stubmenu'); await choose(page, 'proper extractor'); await ok(page);   // the snapped screw's stub, out with the proper extractor
   expect(await flag(page, 'stubOut')).toBe(true);
   await page.evaluate(() => { S.flags.screw3 = true; finishJob('screw3', 'from the jar'); });   // the third screw from the jar (its own test)
 
@@ -1014,7 +1014,7 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'garage'; render(); });
   await garageTap(page, 'Workbench');
-  expect(await page.locator('.acts button', { hasText: 'Undo screw' }).count()).toBe(0);   // nothing on the bench yet
+  expect(await page.locator('.hs[data-go^="act:screw:"]').count()).toBe(0);   // nothing on the bench yet
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.flags.b1 = S.flags.b2 = S.flags.n3lost = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
   await tap(page, 'act:pull'); await ok(page);
   expect(await page.evaluate(() => findJob('sensor-out').status)).not.toBe('done');
@@ -1023,9 +1023,9 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   await act(page, 'Lift the old sensor out'); await ok(page);           // still screwed in
   expect(await flag(page, 'sensorOut')).toBe(false);
   await tap(page, 'act:screw:2'); await ok(page);                       // the screws can be tapped in the picture too
-  await act(page, 'Undo screw 3'); await ok(page);
-  await act(page, 'Undo screw 4'); await ok(page);                      // the back one, by feel
-  await act(page, 'Undo screw 1');
+  await tap(page, 'act:screw:3'); await ok(page);
+  await tap(page, 'act:screw:4'); await ok(page);                      // the back one, by feel
+  await tap(page, 'act:screw:1');
   expect(await dialogText(page)).toContain('SNAP');                     // the last one always shears
   await ok(page);
   expect(await page.evaluate(() => S.flags.sheared)).toBe(1);
@@ -2209,7 +2209,7 @@ test('big moments flash up their stills: a cup of tea, the screw snapping; then 
   await ok(page);
   // the last screw on the bench: SNAP
   await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2, 4]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
-  await act(page, 'Undo screw 3');
+  await tap(page, 'act:screw:3');
   await page.waitForFunction(() => ANIM && ANIM.kind === 'still');
   await expect(page.locator('.still img')).toHaveAttribute('src', 'stills/snap.svg');
   expect(await dialogText(page)).toContain('SNAP');
@@ -2750,17 +2750,17 @@ test("two snapped fixings need the stud extractor: bolt 2 under the car, and the
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.flags.boxOff = true; S.flags.screws = [1, 2, 3]; job('sensor-out', 'Get the old sensor off', null); S.screen = 'bench'; render(); });
-  await act(page, 'Undo screw 4'); await ok(page);                          // the back one: it shears
+  await tap(page, 'act:screw:4'); await ok(page);                          // the back one: it shears
   expect(await page.evaluate(() => [S.flags.sheared, !!findJob('stub')])).toEqual([4, true]);
   await page.evaluate(() => { S.flags.sensorOut = true; S.flags.fits = true; S.flags.n3found = true; ACTIONS.fit(); });
   expect(await dialogText(page)).toContain('stub still in the box');      // not with the stub in
   await ok(page);
   await page.evaluate(() => { S.inv['extractor-cheap'] = true; render(); });
-  await act(page, 'Use the extractor on the snapped screw');
+  await tap(page, 'act:stubmenu'); await page.locator('.dlg button', { hasText: 'cheap extractor' }).click();
   expect(await dialogText(page)).toContain('snaps');                       // the cheap one snaps, as on bolt 2
   await ok(page);
   await page.evaluate(() => { S.inv['extractor-good'] = true; render(); });
-  await act(page, 'Use the extractor on the snapped screw');
+  await tap(page, 'act:stubmenu'); await page.locator('.dlg button', { hasText: 'proper extractor' }).click();
   expect(await dialogText(page)).toContain('winds out');
   await ok(page);
   expect(await page.evaluate(() => [S.flags.stubOut, findJob('stub').status])).toEqual([true, 'done']);

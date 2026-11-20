@@ -1498,18 +1498,29 @@ const ACTIONS = {
     say(`Screw ${n}`, (+n === 4 ? 'The one at the back, behind the sensor. You can\'t see it: you find it by feel. ' : '') + 'It turns… stiffer… stiffer… SNAP. The head shears clean off. The rest of the screw is stuck in the box.');
   },
   // the snapped screw's stub: the proper extractor gets it out; the cheap one snaps (as on bolt 2)
-  stubout() {
+  // tap the snapped screw: try what you've got on it
+  stubmenu() {
+    const opts = [{ label: 'The screwdriver', run() { anger(3); say('The snapped screw', 'There\'s nothing for a screwdriver to grip: the head\'s gone. It needs an extractor.'); } }];
+    if (S.inv['extractor-cheap']) opts.push({ label: 'The cheap extractor', run() { ACTIONS.stubout('cheap'); } });
+    if (S.inv['extractor-good']) opts.push({ label: 'The proper extractor', run() { ACTIONS.stubout('good'); } });
+    opts.push({ label: 'Leave it', run() {} });
+    say('The snapped screw', 'Its stub is stuck in the box. What do you try on it?', opts);
+  },
+  stubout(kind) {
     pass(10);
-    if (S.inv['extractor-good']) {
+    const good = kind ? kind === 'good' : !!S.inv['extractor-good'];
+    if (good) {
       S.flags.stubOut = true;
-      moment('screwOut', 900); sfx('creak'); sfx('pop', 0.7);
+      moment('stubExtract', 1400); sfx('creak'); sfx('pop', 1.1);    // the extractor in, a slow turn, and out comes the stub
       finishJob('stub', 'The proper extractor got the stub out');
       screwJob();                                                       // now the hole needs a screw (screws.js)
       return say('The stub', 'Tap the extractor in, a slow quarter turn… and the stub winds out. A clean hole.\n\nNow it needs a screw that matches. There\'s a jar of them on the garage shelf.');
     }
     delete S.inv['extractor-cheap']; junkIt('extractor-cheap');   // what's left of it goes in the parts box
     anger(15);
-    sfx('creak'); sfx('snap', 0.6);
+    STUB_SNAP = true;
+    moment('stubExtract', 1300); sfx('creak'); sfx('snap', 0.8);      // it twists… and snaps
+    ANIM.then = () => { STUB_SNAP = false; };
     note('stub', 'The cheap extractor snapped off in the stub', 'x');
     lead('stub', 'stub-extractor2', 'A proper extractor from the Hardware Shop', 'you', 'very sure', 'place:Hardware Shop');
     say('The stub', 'The cheap extractor twists… and snaps. Now there\'s a bit of extractor in the stub as well.');

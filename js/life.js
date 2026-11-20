@@ -38,6 +38,7 @@ function sensorPlug(x, y) {
 }
 
 // ---------- helpers ----------
+let STUB_SNAP = false;                                                 // the extractor on the stub is the cheap one (it snaps)
 const ease = p => p * p * (3 - 2 * p);                               // smooth start and stop
 const PASSED = [];                                                   // where each passing car was last frame (for its whoosh)
 const lerp = (a, b, p) => a + (b - a) * p;
@@ -514,6 +515,17 @@ const MOMENTS = {
   bolt1Out(p) {                                                       // the bolt winds out and comes free
     spanner(194, 120, -2.4 + p * 4, 80);
     if (p > 0.6) nutAt(lerp(194, 150, (p - 0.6) / 0.4), lerp(120, 100, (p - 0.6) / 0.4), 8, p * 12);
+  },
+  stubExtract(p) {                                                    // the extractor on the snapped screw's stub: tapered bit, T-handle, a slow turn
+    [ISO.ox, ISO.oy] = [240, 64];
+    const n = S.flags.sheared || 4, [x, y] = BOX_SCREWS[n], c = P(x, y, 40);
+    const snapped = STUB_SNAP && p > 0.6;
+    const lift = !STUB_SNAP && p > 0.7 ? (p - 0.7) / 0.3 * 24 : 0;      // the proper one: the stub winds up and out with it
+    const top = c[1] - 34 - lift, turn = Math.cos(p * Math.PI * 3);
+    if (!snapped || p < 0.62) pipe(c[0], c[1] - 2 - lift, c[0], top, 3, C.tool);   // the tapered bit
+    else { pipe(c[0], c[1] - 2, c[0], c[1] - 10, 3, C.tool); pipe(c[0] + 10 * (p - 0.6), top + 30 * (p - 0.6), c[0] + 10 * (p - 0.6), top + 30 * (p - 0.6) - 20, 3, C.tool); }   // snapped: half stays in
+    if (!snapped) pipe(c[0] - 14 * turn, top, c[0] + 14 * turn, top, 3, C.steel2);   // the T-handle, turning
+    if (lift) { disc(c[0], c[1] - lift, 2, C.white); }                   // the stub, coming out on its end
   },
   boltSpin(p) {                                                       // the spanner on the rounded bolt: round and round it goes, gripping nothing
     spanner(298, 164, -2.6 + p * Math.PI * 4, 90);

@@ -887,6 +887,7 @@ function benchScrews(f) {
     if (screwedBack) { disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark); line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark); continue; }
     if (f.sheared === n && !f.stubOut) {                               // snapped off: the stub, shiny where it broke (till the extractor gets it out)
       disc(c[0], c[1], 2, C.white); ring(c[0], c[1], 3, C.greyDark);
+      spot('The snapped screw', isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), 'act:stubmenu');
       continue;
     }
     if (out.includes(n)) {                                             // out: just its hole
@@ -895,7 +896,7 @@ function benchScrews(f) {
     }
     disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark);    // in: a screw head with its slot
     line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark);
-    if (!f.sensorOut && n !== 4) spot(`Screw ${n}`, isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), `act:screw:${n}`);   // (the back one's hidden behind the sensor: use its button)
+    if (!f.sensorOut) spot(`Screw ${n}: undo it`, isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), `act:screw:${n}`);   // tap it (the back one, just showing behind the sensor)
   }
 }
 // The hint at the top of the workbench: what's on it and what state it's in
@@ -927,7 +928,7 @@ SCREENS.bench = {
       benchScrews(f);                                                  // its corner holes, and the 4 screws round the sensor: in, out, or snapped off
       const lifting = ANIM && ANIM.kind === 'benchLift';               // the old sensor being lifted out draws itself
       if (!f.sensorOut && !lifting) benchPart({ part: 'old-sensor', rotated: true }, LIFT.in, 0);   // the old sensor, still screwed in
-      if (!f.sensorOut) spot('The old sensor: lift it out', isoArea(86, 82, 114, 108, 40, 90), 'act:boxout');
+      if (!f.sensorOut) spot('The old sensor: lift it out', isoArea(94, 90, 106, 100, 56, 90), 'act:boxout');   // a small box, on the sensor's top, clear of its screws
       // the part being tried: held over the hole, stuck halfway, or in
       const moving = ANIM && ANIM.kind.startsWith('bench');            // while a moment moves the part, it draws it
       if (b && !moving) benchPart(b, LIFT[b.state], 0);
@@ -947,7 +948,6 @@ SCREENS.bench = {
     const f = S.flags, a = [];
     const boxHere = boxOnBench();
     if (boxHere && !f.sensorOut) {                                     // the old sensor is still screwed into the box
-      for (let n = 1; n <= SENSOR_SCREWS; n++) if (!(f.screws || []).includes(n)) a.push({ label: `Undo screw ${n}`, act: `screw:${n}` });
       a.push({ label: 'Lift the old sensor out', act: 'boxout' });
     }
     if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole
@@ -957,7 +957,6 @@ SCREENS.bench = {
     const b = boxHere ? S.bench : null;
     if (b && b.state !== 'in') a.push({ label: 'Push', act: 'push' }, { label: 'Pull', act: 'pullpart' }, { label: 'Rotate', act: 'rotate' }, { label: 'Flip it over', act: 'flip' });
     if (b && b.state === 'stuck' && S.inv.hammer && !S.flags.tapped) a.push({ label: 'Tap it with the hammer', act: 'tapit' });
-    if (boxHere && f.sheared && !f.stubOut && (S.inv['extractor-cheap'] || S.inv['extractor-good'])) a.push({ label: 'Use the extractor on the snapped screw', act: 'stubout' });   // the stub has to come out
     a.push({ label: 'Back to the garage', act: 'go:garage' });
     return a;
   }
