@@ -698,16 +698,24 @@ function spiderAt(x, y, phase, seen = false) {
   const litCol = hex('#6a5038'), darkCol = hex('#0c0c0e');             // brown in the light, nearly black outside it
   const lit = (px_, py_) => seen || inTorchLight(px_, py_);
   const colAt = (px_, py_) => (lit(px_, py_) ? litCol : darkCol);
-  for (let n = 0; n < 4; n++) {                                        // 4 legs a side, scuttling back and forth (a big one)
-    const step = Math.sin(phase + n * 1.6) * 3;                        // each pair of legs swings out of step with the next
-    const lx = x - 5 + n * 3;                                          // where the leg leaves the body
-    const tipX = lx - 7 + n * 5 + step;                                // where its foot lands
-    const knee = [lx + (tipX - lx) / 2, y - 7];                        // legs bend up at the knee
-    line(lx, y, knee[0], knee[1], colAt(lx, y - 3)); line(knee[0], knee[1], tipX, y - 3, colAt(tipX, y - 3));   // a back leg (up the screen)
-    line(lx, y, knee[0] - step, y + 6, colAt(lx, y + 3)); line(knee[0] - step, y + 6, tipX - step * 2, y + 9, colAt(tipX, y + 6));   // a front leg (down the screen)
+  // seen from the side, low down on the floor: its body held up on its legs, the knees high, the feet on the floor (y)
+  const by = y - 7;                                                    // its body, up off the floor
+  const farCol = (px_, py_) => (lit(px_, py_) ? shade(litCol, 0.6) : darkCol);   // the legs on the far side, in its shadow
+  for (const [far, col] of [[true, farCol], [false, colAt]]) {
+    for (let n = 0; n < 4; n++) {                                      // 4 legs a side, scuttling back and forth (a big one)
+      const step = Math.sin(phase + n * 1.6 + (far ? 1.2 : 0)) * 3;    // each leg swings out of step with the next
+      const hip = [x - 4 + n * 2.5, by];                               // where the leg leaves the body
+      const foot = [x - 13 + n * 8 + step + (far ? 2 : 0), y - (far ? 1 : 0)];   // where its foot lands, spread out front to back
+      const knee = [(hip[0] + foot[0]) / 2 + (n < 2 ? -2 : 2), by - 6 - (n === 1 || n === 2 ? 2 : 0)];   // the knee, up above the body
+      line(hip[0], hip[1], knee[0], knee[1], col(hip[0], hip[1]));
+      line(knee[0], knee[1], foot[0], foot[1], col(foot[0], foot[1]));
+    }
+    if (far) {                                                         // the body between the two sides of legs
+      ellipse(x - 4, by, 6, 4, colAt(x - 4, by));                      // its fat abdomen
+      ellipse(x + 4, by + 1, 3, 3, colAt(x + 4, by));                  // its head
+    }
   }
-  disc(x - 4, y, 5, colAt(x - 4, y));                                  // its fat body (the back half)
-  disc(x + 3, y, 3, colAt(x + 3, y));                                  // its head (the front half)
-  if (lit(x - 4, y - 2)) { px(x - 4, y - 2, hex('#a08a68')); px(x - 5, y - 3, hex('#a08a68')); }   // a shine on its back, only in the light
-  if (lit(x + 3, y - 1)) { px(x + 3, y - 1, C.white); px(x + 4, y - 1, C.white); }   // the glint of its eyes, only in the light
+  if (lit(x - 4, by - 2)) { px(x - 5, by - 3, hex('#a08a68')); px(x - 3, by - 3, hex('#a08a68')); }   // a shine on its back, only in the light
+  if (lit(x + 5, by)) { px(x + 6, by, C.white); px(x + 6, by - 1, C.white); }   // the glint of its eyes, only in the light
+  rect(x - 10, y + 1, 20, 1, hex('#08080a'));                          // its shadow on the floor
 }

@@ -303,6 +303,7 @@ Object.assign(ACTIONS, {
   walkhome() {
     show('walkhome');
     sfx('carpass', 3.2);
+    sfx('splash', WALK_MS * 0.5 / 1000);                               // SPLOOSH, as the wheel hits the puddle
     WALK_PART = [0, WALK_SPLASH];                                      // up to the splash…
     moment('walkhome', WALK_MS * WALK_SPLASH);
     ANIM.then = () => flashStill('splash', () => {                      // …the splash, big, as it hits him…
