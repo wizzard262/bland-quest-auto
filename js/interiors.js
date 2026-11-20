@@ -534,9 +534,10 @@ function shopExterior(name, shut) {
   streetFront();                                                         // grass, the road, the kerb and the pavement
   // the shops either side
   ibox(-130, BUILDING_BACK, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);
-  ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);
   // this shop: walls, a sign board along the top, an awning, big windows with stock in them, the door
   ibox(0, BUILDING_BACK, 200, 40, 0, 84, col, C.steel);
+  // the one to its right is nearer to you, so it's drawn after (it hides the shop's side wall)
+  ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);
   onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, shade(col, 1.15));
   frontSign(name, 6, 40, 188, 77, 16);
   if (pub) {                                                                                                         // the pub: timbers, a hanging sign, no awning
