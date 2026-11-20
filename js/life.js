@@ -146,14 +146,16 @@ SCREENS.room.animate = function (t) {
     const [x, y] = manSpot('room'), m = P(x, y);
     sleepZs(t, m[0] + 2, m[1] - 10);
   }
-  const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed: she's beside you as before
-  if ((isAsleep() && !goingToBed) || (goingToBed && S.flags.bedAsleep)) {   // late (or already asleep when you came to bed): in bed, fast asleep
+  const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed
+  const nightHalf = goingToBed && (performance.now() - ANIM.t0) / ANIM.dur < 0.5;   // fading out (then black, then the morning fading in)
+  if ((isAsleep() && !goingToBed) || nightHalf) {                    // late, or going to bed with you: in bed, fast asleep (it goes dark like that)
     sleepingWife(t);
     moveWifeTap([SLEEPING_HEAD[0] + 8, SLEEPING_HEAD[1]], [60, 10]);
     return;
   }
+  if (goingToBed) WIFE.k = 0;                                         // the morning, fading in: she's up, dressed, wherever her day starts (it changed while it was black)
   wifeMove(t);
-  const bedtime = isBedtime() || (ANIM && ANIM.kind === 'night' && S.flags.bedLate);   // from 7 in the evening (and all through the night) she's in her nightie
+  const bedtime = isBedtime() && !goingToBed;                        // from 7 in the evening (and all through the night) she's in her nightie
   wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
   moveWifeTap(WIFE.pos, [-18, 14]);
 };
@@ -291,7 +293,7 @@ SCREENS.garage.animate = function (t) {
   if (flicker(t)) onLeft(0, 30, 90, 74, 77, C.steel2);                                                                 // the strip light
   if (wifeInGarage()) wife(WIFE_IN_GARAGE[0], WIFE_IN_GARAGE[1], 'nightie', { hip: true });                                          // late: she's come to fetch you
 };
-const wifeInGarage = () => isBedtime() && !isAsleep() && S.flags.wifeCalled === nightOf();
+const wifeInGarage = () => isBedtime() && !isAsleep() && S.flags.wifeCalled === nightOf() && S.flags.wifeWentIn !== nightOf();   // (after she's asked, she goes back in)
 SCREENS.bench.animate = function (t) {
   for (let k = 0; k < 10; k++) {                                                                                      // dust in the light
     const x = (hash(k, 1) * W + t * (4 + k)) % W, y = 30 + hash(1, k) * 150 + Math.sin(t + k) * 8;

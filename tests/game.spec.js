@@ -959,26 +959,15 @@ test('late at night the wife comes into the garage in her nightie: come to bed, 
   expect(errors).toEqual([]);
 });
 
-test('late at night, leave the garage after the wife came in and she follows you outside', async ({ page }) => {
+test('late at night the wife comes into the garage to say come to bed; five more minutes, and she goes back in', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.mins = 21 * 60; S.screen = 'home'; S.place = null; render(); });
   await tap(page, 'garage');
-  await choose(page, 'Five more minutes');                              // stay a bit: she waits in the garage
-  await tap(page, 'home');                                              // leave by the door
-  await idle(page);
-  expect(await page.evaluate(() => [S.screen, wifeFollowing()])).toEqual(['home', true]);
-  const start1 = await page.evaluate(() => FOLLOW.pos.slice());
-  expect(Math.hypot(start1[0] - 115, start1[1] - 62)).toBeLessThan(8);  // she comes out of the garage door…
-  await page.waitForTimeout(1500);
-  const gap = await page.evaluate(() => { const t = followTarget(); return Math.hypot(FOLLOW.pos[0] - t[0], FOLLOW.pos[1] - t[1]); });
-  const gap0 = await page.evaluate(s => { const t = followTarget(); return Math.hypot(s[0] - t[0], s[1] - t[1]); }, start1);
-  expect(gap).toBeLessThan(gap0);                                       // …and walks after him
-  await tap(page, 'act:wife');
-  expect(await dialogText(page)).toContain('bed');
-  await ok(page);
-  await tap(page, 'city'); await idle(page);                           // drive off: she doesn't come too
-  expect(await page.evaluate(() => wifeFollowing())).toBe(false);
+  await choose(page, 'Five more minutes');                              // she's counting… and back in she goes
+  expect(await page.evaluate(() => wifeInGarage())).toBe(false);
+  await tap(page, 'home'); await idle(page);                            // leave by the door: she's not following
+  expect(await page.evaluate(() => [S.screen, wifeFollowing()])).toEqual(['home', false]);
   expect(errors).toEqual([]);
 });
 

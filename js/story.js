@@ -173,7 +173,7 @@ function wifeComesIn() {
   SPEAKER = wifeHead();
   say('The wife', '"Come to bed, Husband."', [
     { label: 'Go to bed', run() { show('room'); ACTIONS.bed(); } },
-    { label: 'Five more minutes', run() { SPEAKER = wifeHead(); say('The wife', '"Five minutes, Husband. I\'m counting."'); } }
+    { label: 'Five more minutes', run() { SPEAKER = wifeHead(); say('The wife', '"Five minutes, Husband. I\'m counting."', [{ label: 'OK', run() { S.flags.wifeWentIn = nightOf(); sfx('door'); render(); } }]); } }   // and off she goes, back in
   ]);
 }
 
