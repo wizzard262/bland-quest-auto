@@ -80,10 +80,19 @@ function sleepUntilMorning() {
   deliverParcels();
   runEvents();
 }
-// Spend money; false if you can't afford it
-function spend(amount) {
+// Not enough money: the wife pays it (so you're never stuck), with a text; she keeps count. Returns true: it's paid
+function wifeBailsOut(amount) {
+  S.flags.wifePaid = (S.flags.wifePaid || 0) + 1;                  // how many times she's had to
+  S.flags.wifeOwed = (S.flags.wifeOwed || 0) + amount;             // and how much you owe her
+  anger(10);
+  textMsg('The wife', `Your card didn't have it, so I've paid the £${amount.toFixed(2).replace('.00', '')}. Again. That's £${S.flags.wifeOwed.toFixed(2).replace('.00', '')} you owe me now.`);
+  return true;
+}
+// Spend money; false if the card's blocked (when there isn't enough, the wife pays)
+//   treat: something you only want (a pint): she won't pay for that
+function spend(amount, treat = false) {
   if (cardDeclined(amount)) return false;                          // the card's blocked (bank.js): declined
-  if (S.money < amount) return false;
+  if (S.money < amount) return treat ? false : wifeBailsOut(amount);   // not enough in the account: the wife pays (not for beer)
   S.money -= amount;
   return true;
 }

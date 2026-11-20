@@ -2624,7 +2624,7 @@ test('the code reader unplugs from the port; the glove box torch goes on the gar
 });
 
 // ---------- dead ends, fixed ----------
-test('dead ends: the gearbox shows its bolts once you have the codes (no forum needed); clamped with no money or a blocked card, the wife pays the taxi; the fine you cannot afford, she pays; no clamp while the car is stuck on Mill Lane', async ({ page }) => {
+test('dead ends: the gearbox shows its bolts once you have the codes (no forum needed); clamped with a blocked card, the wife pays the taxi; whatever you cannot afford, she pays (and texts); no clamp while the car is stuck on Mill Lane; no jack once Paul has it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   // the codes, but no forum: the gearbox still gives you the bolts
@@ -2636,14 +2636,17 @@ test('dead ends: the gearbox shows its bolts once you have the codes (no forum n
   expect(await dialogText(page)).toContain('the wife pays');
   expect(await page.evaluate(() => [S.flags.taxi, S.flags.wifePaid])).toEqual([true, 1]);
   await ok(page);
-  // at the Post Office with not enough money: she pays the fine
+  // at the Post Office with not enough money: she pays the fine, and texts you about it
   await page.evaluate(() => { S.flags.cardBlocked = false; S.money = 5; S.place = 'Post Office'; payFineAtPost(); });
   await page.locator('.dlg button').first().click();
-  expect(await dialogText(page)).toContain('holiday money');
-  expect(await page.evaluate(() => [S.fine.paid, S.fine.unclamp, S.money])).toEqual([true, true, 5]);
+  expect(await dialogText(page)).toContain('That\'s paid');
+  expect(await page.evaluate(() => [S.fine.paid, S.fine.unclamp, S.money, S.msgs[0].from, S.flags.wifeOwed > 0])).toEqual([true, true, 5, 'The wife', true]);
   await ok(page);
   // a week unpaid while the car's on a flat on Mill Lane: no clamp yet
   await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: false }; S.road = { spare: true, walked: true }; postArrives(); });
   expect(await page.evaluate(() => S.fine.clamped)).toBe(false);
+  // Paul's got the jack: an empty tray in the boot; fitting a wheel, a neighbour lends you his
+  await page.evaluate(() => { S.flags.jackLent = true; S.inv.wheel = 'Scrap Yard'; ACTIONS.fitwheel(); });
+  expect(await dialogText(page)).toContain('Paul\'s still got it');
   expect(errors).toEqual([]);
 });

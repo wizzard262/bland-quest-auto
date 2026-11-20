@@ -582,6 +582,7 @@ function wifeLine() {
   if (isBedtime()) return S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."';   // in her nightie: bed
   const useful = S.wifeTalks % 3 === 0;
   if (useful) return wifeTip();
+  if (S.flags.wifeOwed && S.wifeTalks % 3 === 1) { anger(5); return `"That's £${Math.round(S.flags.wifeOwed)} you owe me, Husband. For a car I told you to scrap."`; }   // the money she's paid out
   anger(5);                                                            // "scrap it" again: that winds you up
   return WIFE_SCRAP[Math.floor(S.wifeTalks / 3 * 2) % WIFE_SCRAP.length];
 }
@@ -728,7 +729,7 @@ const TALK = {
     const name = 'The Hesketh Tavern';
     const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
       SPEAKER = keeperHead();
-      if (!spend(price)) return say(name, '"Card machine says no, mate."');
+      if (!spend(price, true)) return say(name, '"Card machine says no, mate."');   // (she won't pay for beer)
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
       const drinks = haveADrink();                                     // how many you've had today, this one included
       if (drinks > PUB_LIMIT) return say(name, `He pulls you a ${drink}. ${taste}\n\nYou drink it far too fast. The bar starts to tilt.`, [{ label: 'OK', run: fallOffStool }]);

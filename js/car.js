@@ -37,11 +37,13 @@ SCREENS.boot = {
       bolt(240, 136, 9, false);                                         // the big nut holding it down
       if (S.spare === 'flat') spareScrew(240 + 42, 136 + 32, 4);       // the screw in its tread
     }
-    // the jack: a scissor jack, folded flat in its foam tray
+    // the jack: a scissor jack, folded flat in its foam tray (unless Paul's borrowed it: then just the tray)
     rbox(80, 92, 84, 96, 6, hex('#1e1e22'));
-    for (const [x0, y0, x1, y1] of [[96, 170, 122, 120], [122, 120, 148, 170], [96, 110, 122, 140], [122, 140, 148, 110]]) pipe(x0, y0, x1, y1, 4, C.steel2);
-    rect(92, 170, 60, 6, C.tool); rect(110, 102, 24, 6, C.tool);        // its foot and its saddle
-    pipe(150, 140, 162, 140, 3, C.steel);                               // the screw it winds up on
+    if (!S.flags.jackLent) {
+      for (const [x0, y0, x1, y1] of [[96, 170, 122, 120], [122, 120, 148, 170], [96, 110, 122, 140], [122, 140, 148, 110]]) pipe(x0, y0, x1, y1, 4, C.steel2);
+      rect(92, 170, 60, 6, C.tool); rect(110, 102, 24, 6, C.tool);      // its foot and its saddle
+      pipe(150, 140, 162, 140, 3, C.steel);                             // the screw it winds up on
+    }
     // the wheel brace: an L-shaped bar, clipped down on the right
     rbox(324, 84, 88, 112, 6, hex('#1e1e22'));
     pipe(344, 100, 344, 176, 6, C.steel);
@@ -52,7 +54,7 @@ SCREENS.boot = {
     rbox(196, 242, 88, 16, 2, C.warm);
     text('TT85 KIK', 210, 247, C.ink);
     const spareGo = S.road && !S.road.spare ? 'act:roadspare' : null;   // at the roadside: heave it out
-    zoomZones([['Spare wheel', 172, 68, 136, 136, false, spareGo], ['Jack', 78, 88, 90, 104], ['Wheel brace', 320, 80, 96, 120]]);
+    zoomZones([['Spare wheel', 172, 68, 136, 136, false, spareGo], ['Jack', 78, 88, 90, 104, false, S.flags.jackLent ? 'act:nojack' : null], ['Wheel brace', 320, 80, 96, 120]]);
     hud();
   },
   actions() {

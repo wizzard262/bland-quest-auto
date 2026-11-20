@@ -73,6 +73,7 @@ const BROTHER_HELPS = [
 ];
 
 Object.assign(ACTIONS, {
+  nojack() { say('Jack', 'An empty foam tray. Paul\'s got the jack. "Back Tuesday."'); },   // the boot, once Paul's borrowed it
   // talk to him: the first time he gives your hammer back; then advice, round and round
   brother() {
     if (!brotherHere()) return;

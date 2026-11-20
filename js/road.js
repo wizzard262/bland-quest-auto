@@ -333,7 +333,8 @@ Object.assign(ACTIONS, {
     finishJob('tyre', `Wheel from the ${from} fitted on ${ROADSIDE}. The spare is still flat`);
     spareJob();                                                         // next: the spare, with its screw
     show('home');
-    say('The new wheel', 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\nYou drive your car home. She walks down for hers. She is not happy.\n\n(The spare is still flat, with a screw in it. It needs replacing.)');
+    const jack = S.flags.jackLent ? 'No jack: Paul\'s still got it. A man across the road lends you his, and watches the whole time.\n\n' : '';   // Paul borrowed it
+    say('The new wheel', jack + 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\nYou drive your car home. She walks down for hers. She is not happy.\n\n(The spare is still flat, with a screw in it. It needs replacing.)');
   }
 });
 
