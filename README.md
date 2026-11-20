@@ -24,6 +24,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `task-tree.md`: the full design tree of tasks and snags (branches still to build)
 - `mockups.html`: the still mockups the game was built from
 - `cutscenes.html`: big 1980s anime-style still cutscenes (the kick, the wife); the Pixel button shows them at the game's pixel size
+- `stills/kick.svg`: the still of the kick, one file for both the cutscenes page and the game (it flashes up after the kick, like a comic-book cut)
 - `forest.html`, `spanner-and-son.html`: early scenes
 
 ## Tests

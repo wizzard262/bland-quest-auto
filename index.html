@@ -67,6 +67,18 @@
   .book .pg.torn { position: relative; background: transparent; box-shadow: none; padding: 0; }
   .book .torn .stub { position: absolute; right: 0; top: 0; bottom: 0; width: 9%; background: #f4ecd4; clip-path: polygon(0 0, 100% 0, 100% 100%, 30% 100%, 70% 88%, 10% 76%, 60% 62%, 0 50%, 50% 36%, 20% 22%, 70% 10%); }
 
+  /* ---- the still of the kick: flashed up like a comic-book cut (a white flash; it punches in, then slowly zooms and turns) ---- */
+  .still { inset: 0; background: #0c0814; z-index: 4; }
+  .still img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: .5cqw solid #0c0814; --flip: 1; animation: stillcut 1.8s cubic-bezier(.15, .85, .3, 1) both; }
+  .still.mirror img { --flip: -1; }
+  .still::after { content: ''; position: absolute; inset: 0; background: #fff; animation: stillflash .35s ease-out both; pointer-events: none; }
+  @keyframes stillcut {
+    0% { transform: scaleX(var(--flip)) scale(.72) rotate(-7deg); }
+    14% { transform: scaleX(var(--flip)) scale(1.02) rotate(-2deg); }
+    100% { transform: scaleX(var(--flip)) scale(1.12) rotate(2.5deg); }
+  }
+  @keyframes stillflash { from { opacity: 1; } to { opacity: 0; } }
+
   /* ---- kicking something shakes the picture ---- */
   .shake { animation: shake .5s; }
   @keyframes shake { 0%, 100% { transform: none; } 15% { transform: translate(-10px, 4px) rotate(-1deg); } 35% { transform: translate(9px, -5px) rotate(1deg); } 55% { transform: translate(-6px, 3px); } 75% { transform: translate(4px, -2px); } }

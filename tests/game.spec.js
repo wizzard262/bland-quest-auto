@@ -2126,3 +2126,24 @@ test('the soldering iron is at the Tool Shop and the solder at the Hardware Shop
   expect(await page.evaluate(() => !!S.inv.iron)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+// ---------- the kick: the still flashes up after it, like a comic-book cut ----------
+test('after the kick, the still of it flashes up (zooming and turning), mirrored for the right headlight; then he swears', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { anger(100); render(); });
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'kickstill');   // the kick plays, then the still
+  const still = page.locator('.still img');
+  await expect(still).toHaveAttribute('src', 'stills/kick.svg');
+  await expect(page.locator('.still.mirror')).toHaveCount(0);             // the left headlight: as drawn
+  expect(await still.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);   // the picture loaded
+  expect(await page.locator('.dlg').count()).toBe(0);                     // he swears after it, not over it
+  expect(await dialogText(page)).toContain('$%$£$%^%^');
+  await expect(page.locator('.still')).toHaveCount(0);                    // gone by then
+  await ok(page);
+  await page.evaluate(() => { anger(100); render(); });                  // the next kick: the right headlight, mirrored
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'kickstill');
+  await expect(page.locator('.still.mirror')).toHaveCount(1);
+  await ok(page);
+  expect(errors).toEqual([]);
+});
