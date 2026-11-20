@@ -2847,3 +2847,13 @@ test('the box (the sub-unit) comes off whole: under the car there is an empty mo
   await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, screws: [1, 2, 3], sheared: 3, stubOut: true, fits: true, screw3: true }); show('bench'); });
   expect(errors).toEqual([]);
 });
+
+test('dead ends the explorer found: a walk on a screen he is not drawn on just goes; after losing it you can always get back', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => { let went = false; S.screen = 'rage'; walkTo(10, 10, () => { went = true; }); return went; })).toBe(true);
+  await page.evaluate(() => { RAGE.from = 'home'; RAGE.done = true; ANIM = null; DIALOG = null; S.screen = 'rage'; render(); });
+  await act(page, 'Calm down');
+  expect(await page.evaluate(() => S.screen)).toBe('home');
+  expect(errors).toEqual([]);
+});

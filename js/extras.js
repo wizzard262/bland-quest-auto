@@ -39,7 +39,7 @@ SCREENS.rage = {
     rageCar(RAGE.done || RAGE.already);                                                // once he's kicked it, it stays smashed
     if (RAGE.done) man(RAGE_MAN.standX, RAGE_CAR[1], 'stand', RAGE_MAN.size);                                 // and there he stands
   },
-  actions() { return []; }
+  actions() { return RAGE.done && !ANIM && !DIALOG ? [{ label: 'Calm down', act: 'rageback' }] : []; }   // (never stuck here: the explorer found a way to be)
 };
 // Start the cutscene from wherever you are; when it's over (and he's sworn), you're back where you were
 // side: the headlight he kicks; the right one is the whole scene mirrored (he runs in from the other side)
@@ -645,6 +645,7 @@ function showFuseCopy() {
 // NEW ACTIONS
 // =====================================================================
 Object.assign(ACTIONS, {
+  rageback() { S.screen = RAGE.from || 'home'; render(); },             // after losing it: back where you were
   calm() { calmMenu(); },
   // the manuals
   book(n) {

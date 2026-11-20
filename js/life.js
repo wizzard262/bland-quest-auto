@@ -500,6 +500,7 @@ function walkTo(x, y, then, steady) {
     if (x < BED_AREA[2] && y > BED_AREA[1] && y < BED_AREA[3]) x = BED_AREA[2];   // beside the bed, not on it
     if (crossesBed(from, [x, y])) return walkTo(66, 70, () => walkTo(x, y, then));   // round the end of the bed
   }
+  if (!from || !VIEW[key]) return then();                            // a screen he isn't drawn on: no walk, just go
   const path = routeAround(key, from, [x, y]);                       // round anything in the way
   [x, y] = path[path.length - 1];
   const dist = path.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - path[i][0], q[1] - path[i][1]), 0);
