@@ -1382,9 +1382,18 @@ const ACTIONS = {
   think() { think(); },
   // ----- under the car: the gearbox -----
   bolt1() { pass(10); S.flags.b1 = true; moment('bolt1Out', 1200); sfx('ratchet'); sfx('clink', 0.9); note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.'); },
+  // tap bolt 2: the first time, the spanner; once it's rounded off, try whatever you've got
+  boltmenu() {
+    if (!S.flags.b2round) return ACTIONS.bolt2();
+    const opts = [{ label: 'The spanner', run: ACTIONS.bolt2 }];
+    if (S.inv['extractor-cheap']) opts.push({ label: 'The cheap extractor', run() { ACTIONS.extract('cheap'); } });
+    if (S.inv['extractor-good']) opts.push({ label: 'The proper extractor', run() { ACTIONS.extract('good'); } });
+    opts.push({ label: 'Leave it', run() {} });
+    say('Bolt 2', 'Rounded off. What do you try on it?', opts);
+  },
   bolt2() {
     pass(10);
-    if (S.flags.b2round) return say('Bolt 2', 'Your spanner just spins on it. It\'s rounded off.');
+    if (S.flags.b2round) { anger(5); moment('boltSpin', 1200); sfx('slip'); sfx('slip', 0.5); return say('Bolt 2', 'Your spanner just spins round and round on it. It\'s rounded off.'); }
     S.flags.b2round = true;
     anger(15);
     moment('boltRound', 1200); sfx('ratchet'); sfx('slip', 0.65);
@@ -1401,9 +1410,10 @@ const ACTIONS = {
     lead('nut3', 'search', 'Search the garage floor', 'you', 'hopeful', 'garage');
     say('Nut 3', 'It comes off, drops, bounces off your face… and bounces out from under the car. You hear it skitter across the garage floor. Then nothing.');
   },
-  extract() {
+  extract(kind) {
     pass(20);
-    if (S.inv['extractor-good']) {
+    const good = kind ? kind === 'good' : !!S.inv['extractor-good'];   // which one you used (the proper one if you don't say)
+    if (good) {
       S.flags.b2 = true;
       moment('extractOk', 1400); sfx('creak'); sfx('pop', 1.0);
       finishJob('bolt2', 'The proper extractor got it out');
@@ -1425,7 +1435,7 @@ const ACTIONS = {
     moment('sensorPull', 1100); sfx('pop', 0.15);
     finishJob('sensor-off', 'The box is off, with the old sensor still in it');
     job('sensor-out', 'Get the old sensor out of the box', 'light');   // the next job: on the workbench
-    note('sensor-out', '3 screws hold the sensor in the box.', 'info');
+    note('sensor-out', '4 screws hold the sensor in the box.', 'info');
     lead('sensor-out', 'box-bench', 'Unscrew it on the workbench', 'you', 'sure', 'bench');
     say('The box', 'You pull, and the sensor won\'t come out on its own: it\'s fixed into a box. With a twist and a heave, the whole box comes off, sensor and all.\n\nOff to the workbench with it.');
   },

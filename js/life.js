@@ -515,6 +515,9 @@ const MOMENTS = {
     spanner(194, 120, -2.4 + p * 4, 80);
     if (p > 0.6) nutAt(lerp(194, 150, (p - 0.6) / 0.4), lerp(120, 100, (p - 0.6) / 0.4), 8, p * 12);
   },
+  boltSpin(p) {                                                       // the spanner on the rounded bolt: round and round it goes, gripping nothing
+    spanner(298, 164, -2.6 + p * Math.PI * 4, 90);
+  },
   boltRound(p) {                                                      // the spanner slips round the bolt head
     const slip = p > 0.55 ? (p - 0.55) * 6 : 0;
     spanner(298, 164, -2.6 + Math.min(p, 0.55) * 1.4 + slip, 90);

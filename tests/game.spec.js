@@ -394,21 +394,21 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // under the car: two bolts and a nut
   await garage(page, 'Under the car');
-  await act(page, 'Zoom in: gearbox');
+  await tap(page, 'underZoom');                                            // tap the gearbox to look closer
   expect(await flag(page, 'sensorJob')).toBe(true);
-  await act(page, 'Undo bolt 1'); await ok(page);
-  await act(page, 'Undo bolt 2'); await ok(page);
-  await act(page, 'Undo nut 3'); await ok(page);
+  await tap(page, 'act:bolt1'); await ok(page);                            // tap the bolts
+  await tap(page, 'act:boltmenu'); await ok(page);                         // bolt 2: the spanner slips, it's rounded off
+  await tap(page, 'act:nut3'); await ok(page);
 
   // the cheap extractor snaps; the proper one works
   await goPlace(page, 'Tool Shop'); await talk(page); await choose(page, 'cheap');
-  await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
-  await act(page, 'Use the extractor'); await ok(page);
+  await garage(page, 'Under the car'); await tap(page, 'underZoom');
+  await tap(page, 'act:boltmenu'); await choose(page, 'cheap extractor'); await ok(page);
   await goPlace(page, 'Hardware Shop'); await talk(page); await choose(page, 'proper');
-  await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
-  await act(page, 'Use the extractor'); await ok(page);
+  await garage(page, 'Under the car'); await tap(page, 'underZoom');
+  await tap(page, 'act:boltmenu'); await choose(page, 'proper extractor'); await ok(page);
   expect(await flag(page, 'b2')).toBe(true);
-  await act(page, 'Take the box off'); await ok(page);                     // the sensor comes off in its box
+  await tap(page, 'act:pull'); await ok(page);                             // tap the box: the sensor comes off in its box
   expect(await flag(page, 'boxOff')).toBe(true);
   expect(await flag(page, 'sensorOut')).toBe(false);
 
@@ -484,8 +484,8 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await page.evaluate(() => { S.flags.screw3 = true; finishJob('screw3', 'from the jar'); });   // the third screw from the jar (its own test)
 
   // fit it and start the car: the red light goes off… and the ABS light comes on
-  await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
-  await act(page, 'Fit the box back on'); await ok(page);
+  await garage(page, 'Under the car'); await tap(page, 'underZoom');
+  await tap(page, 'act:fit'); await ok(page);                              // tap the empty mount: the box goes back on
   await garage(page, "Driver's seat");
   await startCar(page);
   expect(await dialogText(page)).toContain('ABS');
@@ -510,7 +510,7 @@ test('a big moment plays before its message: the nut drops and rolls away', asyn
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
-  await act(page, 'Undo nut 3');
+  await tap(page, 'act:nut3');
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutDrop');
   expect(await page.locator('.dlg').count()).toBe(0);                  // the message waits…
   await idle(page);
@@ -1016,7 +1016,7 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   await garageTap(page, 'Workbench');
   expect(await page.locator('.acts button', { hasText: 'Undo screw' }).count()).toBe(0);   // nothing on the bench yet
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.flags.b1 = S.flags.b2 = S.flags.n3lost = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
-  await act(page, 'Take the box off'); await ok(page);
+  await tap(page, 'act:pull'); await ok(page);
   expect(await page.evaluate(() => findJob('sensor-out').status)).not.toBe('done');
   await act(page, 'Zoom out'); await act(page, 'Get out from under'); await ok(page);
   await garageTap(page, 'Workbench');
@@ -1407,7 +1407,7 @@ test('the nut bounces out and hides under the tool chest; you need a torch to se
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
-  await act(page, 'Undo nut 3');
+  await tap(page, 'act:nut3');
   expect(await dialogText(page)).toContain('bounces out');
   await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
@@ -2638,7 +2638,7 @@ test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ro
   // the codes, but you don't know what P0705 is: the gearbox is just bolts; Old Ron at the pub knows, and then it's the sensor
   await page.evaluate(() => { S.flags.codes = true; job('meaning', 'What does P0705 mean?', 'light'); show('underZoom'); });
   expect(await page.evaluate(() => S.flags.sensorJob)).toBeFalsy();
-  await expect(page.locator('.acts button', { hasText: 'Undo bolt 1' })).toHaveCount(0);
+  await expect(page.locator('.hs[data-go="act:bolt1"]')).toHaveCount(0);
   await page.evaluate(() => { S.mins = 19 * 60; S.place = 'The Hesketh Tavern'; S.inside = true; ACTIONS.punter(1); });
   expect(await dialogText(page)).not.toContain('selector sensor');            // Dodgy Dave doesn't know
   await ok(page);
@@ -2647,7 +2647,7 @@ test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ro
   await ok(page);
   await page.evaluate(() => { S.inside = false; show('underZoom'); });
   expect(await page.evaluate(() => S.flags.sensorJob)).toBe(true);
-  await expect(page.locator('.acts button', { hasText: 'Undo bolt 1' })).toHaveCount(1);
+  await expect(page.locator('.hs[data-go="act:bolt1"]')).toHaveCount(1);
   // clamped, card blocked: the taxi still comes (the wife pays)
   await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: true }; S.flags.cardBlocked = true; ringTaxi(); });
   expect(await dialogText(page)).toContain('the wife pays');

@@ -806,7 +806,7 @@ SCREENS.under = {
     tip('Under the car', 'Point at things to see what they are; tap to look closer.', 1, 82);
     hud();
   },
-  actions() { return [{ label: 'Zoom in: gearbox', act: 'go:underZoom' }, { label: 'Get out from under', act: 'go:garage' }]; }
+  actions() { return [{ label: 'Get out from under', act: 'go:garage' }]; }   // (tap the gearbox to look closer)
 };
 
 SCREENS.underZoom = {
@@ -848,20 +848,19 @@ SCREENS.underZoom = {
       const d = Math.hypot(x - 250, (y - 140) * 1.2), k = d < 110 ? 1.12 : Math.max(0.45, 1.12 - (d - 110) / 220);
       const i = (y * W + x) * 4; img.data[i] *= k; img.data[i + 1] *= k; img.data[i + 2] *= k;
     }
+    if (f.sensorJob && !f.boxOff) {                                    // the box still on: its fixings, and the box itself, to tap
+      if (!f.b1) spot('Bolt 1: undo it', [180, 106, 28, 28], 'act:bolt1');
+      if (!f.b2) spot(f.b2round ? 'Bolt 2: rounded off' : 'Bolt 2: undo it', [284, 150, 28, 28], 'act:boltmenu');
+      if (!f.n3lost) spot('Nut 3: undo it', [180, 148, 28, 28], 'act:nut3');
+      spot('The sensor box: take it off', [212, 110, 62, 60], 'act:pull');
+    }
+    if (f.boxOff && !f.fitted) spot('The empty mount: fit the box back on', [180, 108, 132, 64], 'act:fit');
     const zoomTip = !f.sensorJob ? (f.codes ? 'The gearbox. Lots of bolts. Which bit matters? Find out what P0705 means: a book, someone who knows, or online.' : 'The gearbox. Lots of bolts. Which bit matters? The codes would tell you: plug a reader into the port under the steering wheel.') : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
     tip('Under the car › Gearbox', zoomTip, 1, 8);
     hud();
   },
   actions() {
     const f = S.flags, a = [];
-    if (f.sensorJob && !f.boxOff) {                                    // the box (sensor and all) is still on the car
-      if (!f.b1) a.push({ label: 'Undo bolt 1', act: 'bolt1' });
-      if (!f.b2) a.push({ label: f.b2round ? 'Try bolt 2 again' : 'Undo bolt 2', act: 'bolt2' });
-      if (f.b2round && !f.b2 && (S.inv['extractor-cheap'] || S.inv['extractor-good'])) a.push({ label: 'Use the extractor on bolt 2', act: 'extract' });
-      if (!f.n3lost) a.push({ label: 'Undo nut 3', act: 'nut3' });
-      a.push({ label: 'Take the box off (sensor and all)', act: 'pull' });
-    }
-    if (f.boxOff && !f.fitted) a.push({ label: 'Fit the box back on', act: 'fit' });
     if (leadOpen('loom')) a.push({ label: 'Check the wiring', act: 'wiring' });
     a.push({ label: 'Zoom out', act: 'go:under' });
     return a;
