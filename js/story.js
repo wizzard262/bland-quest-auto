@@ -1784,6 +1784,7 @@ const LOOKS = {
   'Battery': 'It reads 12.6 volts on the dash. Fine.',
   'Spare wheel': 'A spare wheel, bolted down in its well. The tyre feels a bit soft. Good to know it\'s there for a flat tyre. Probably.',
   'Jack': 'The scissor jack, folded flat in its foam tray. It winds up very, very slowly.',
+  'Dog poo': 'Dog poo. Lots of it, all over the yard. Every scrap yard you\'ve ever been to: a dog, and this.\n\nThe dog watches you look at it.',
   'Wheel brace': 'The wheel brace, for the wheel nuts. It\'s the short one, so it won\'t shift a nut that\'s on tight.',
   'Air filter': 'Full of leaves. Not the problem, but you feel judged.',
   'Coolant': 'Pink, at MAX. Fine.',

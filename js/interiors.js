@@ -258,14 +258,25 @@ function shopInterior(name, shut) {
   // you
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
+// A friend's house: red brick or cream render (each house always the same)
+function houseWalls(name) {
+  const k = Math.floor(hash(name.length, name.charCodeAt(0)) * 3);
+  return [[C.brick, true], [C.cream, false], [hex('#d8c8a8'), false]][k];
+}
 // A friend's front door, with them at it
 function houseDoorstep(name, col, shut, look) {
   ground(-300, -300, 500, 500, C.grass);
   ground(-300, 120, 500, 140, C.drive);
-  ibox(0, 0, 160, 40, 0, 70, col);
-  bricks(0, 0, 160, 40, 70, shade(col, 0.85));
-  onLeft(40, 66, 90, 0, 44, C.white); onLeft(40, 68, 88, 0, 42, C.door);
-  winLeft(40, 20, 44, 26, 46); winLeft(40, 112, 136, 26, 46);
+  const [wall, brick] = houseWalls(name);                             // red brick, or cream render
+  ibox(0, BUILDING_BACK, 160, 40, 0, 54, wall);
+  if (brick) bricks(0, BUILDING_BACK, 160, 40, 54, C.brickLine);
+  ibox(118, -24, 132, -10, 60, 96, wall);                            // the chimney (drawn before the roof, so the roof hides its foot)
+  gableRoof(-3, BUILDING_BACK - 3, 163, 43, 54, 26, wall, C.roof);
+  ibox(118, -24, 132, -10, 76, 96, wall); ibox(117, -25, 133, -9, 96, 98, C.steel2);   // the chimney stack above the roof, and its cap
+  onLeft(40, 66, 90, 0, 34, C.white); onLeft(40, 68, 88, 0, 33, C.door);   // the front door
+  winLeft(40, 20, 44, 10, 30); winLeft(40, 112, 136, 10, 30);         // downstairs
+  winLeft(40, 20, 44, 36, 50); winLeft(40, 70, 86, 38, 50); winLeft(40, 112, 136, 36, 50);   // upstairs
+  winRight(160, -30, -6, 12, 30);                                     // the side window
   for (const x of [8, 140]) { ibox(x, 44, x + 14, 54, 0, 6, C.tree2); for (let k = 0; k < 6; k++) px(...P(x + 2 + k * 2, 49, 7), [C.red, C.warm, C.white][k % 3]); }
   ground(66, 40, 90, 120, C.concrete);
   if (name === MUM_DAD) mumDadDrive();                               // their drive: your car, bonnet up
@@ -428,6 +439,14 @@ const WRECKS = [
 ];
 const MAYBE_YOURS = 6;                                   // the first six are the ones that might be yours
 const YARD_VIEW = [240, 70];
+// Every scrap yard has a dog. Every scrap yard is full of dog poo
+const YARD_POO = [[60, 120], [-20, 90], [150, 60], [100, 170], [10, 170], [170, 130], [-40, 20], [120, 10]];
+function dogPoo(x, y) {
+  const brown = hex('#5a3a1e'), dark = hex('#3e2614');
+  ellipse(x, y, 4, 2, dark);                                          // the bottom coil
+  ellipse(x, y - 2, 3, 1, brown);                                     // the middle
+  px(x, y - 4, brown); px(x + 1, y - 3, brown);                       // the twist on top
+}
 SCREENS.yard = {
   size: [480, 270],
   paint() {
@@ -451,6 +470,8 @@ SCREENS.yard = {
       isoCar(x, y, 1, shade(col, 0.85), Object.assign({ broken: true, shape, dz: stacked ? 12 : 0 }, how));
     });
     const d = P(190, 0); rect(d[0] - 10, d[1] - 7, 18, 7, hex('#8a6a4a')); rect(d[0] + 6, d[1] - 11, 5, 5, hex('#8a6a4a'));   // the dog
+    for (const [x, y] of YARD_POO) dogPoo(...P(x, y));                // and, as at every scrap yard, what the dog leaves
+    spot('Something on the ground', isoArea(YARD_POO[0][0] - 4, YARD_POO[0][1] - 4, YARD_POO[0][0] + 4, YARD_POO[0][1] + 4, 0, 4), 'act:look:Dog poo');
     if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
     WRECKS.forEach(([x, y, , stacked, , shape], i) => {
       const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
@@ -486,7 +507,7 @@ function petrolFront(name, shut) {
   ground(-40, 40, 240, 104, C.concreteDark);                                              // the forecourt
   for (let x = -40; x < 240; x += 20) line(...P(x, 40), ...P(x, 104), shade(C.concreteDark, 0.92));
   // the kiosk: white with a red band, its window and door
-  ibox(0, 0, 200, 40, 0, 60, C.white, C.steel);
+  ibox(0, BUILDING_BACK, 200, 40, 0, 60, C.white, C.steel);
   onLeft(40, 0, 200, 46, 58, C.red); frontSign(name, 6, 40, 188, 57, 11);
   onLeft(40, 10, 136, 8, 40, C.glass);
   for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 9, 14 + (k % 3) * 4, [C.red, C.warm, C.car, C.white][k % 4]);   // snacks in the window
@@ -501,6 +522,7 @@ function petrolFront(name, shut) {
   ibox(14, 46, 112, 104, 70, 76, C.red, C.white);                                        // the canopy roof
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
+const BUILDING_BACK = -60;                                                // how far back the buildings on the street go (their fronts are at y = 40)
 function shopExterior(name, shut) {
   if (name === 'Petrol Station') return petrolFront(name, shut);
   const info = PLACE_INFO[name] || {}, style = placeStyle(name), pub = style === 'pub';
@@ -508,10 +530,10 @@ function shopExterior(name, shut) {
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
   streetFront();                                                         // grass, the road, the kerb and the pavement
   // the shops either side
-  ibox(-130, 0, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);
-  ibox(202, 0, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, 0, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);
+  ibox(-130, BUILDING_BACK, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);
+  ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);
   // this shop: walls, a sign board along the top, an awning, big windows with stock in them, the door
-  ibox(0, 0, 200, 40, 0, 84, col, C.steel);
+  ibox(0, BUILDING_BACK, 200, 40, 0, 84, col, C.steel);
   onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, shade(col, 1.15));
   frontSign(name, 6, 40, 188, 77, 16);
   if (pub) {                                                                                                         // the pub: timbers, a hanging sign, no awning

@@ -1,16 +1,17 @@
 // Bland Quest Auto: the dead-end explorer. Plays the game at random (taps whatever can be tapped, picks dialog
 // options, waits for the moments) and reports anywhere it gets stuck: a screen with nothing to tap, a moment that
 // never ends, a page error, or a screen it can't get off for a long time.
-//   node explore.js [runs] [steps]      e.g. node explore.js 6 600
+//   node explore.js [runs] [steps] [seed]      e.g. node explore.js 6 600, or node explore.js 1 400 16838 to replay one
 // Headed, as all browser work here is (a visible window, a little slowMo).
 const { chromium } = require('playwright');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const RUNS = +process.argv[2] || 4;                                  // how many games to play
+const RUNS = +process.argv[2] || 4;                                  // (with a seed given, that one game)                                  // how many games to play
 const STEPS = +process.argv[3] || 500;                               // taps in each
 const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
-const STUCK_STEPS = 60;                                              // this many taps on one screen without leaving it: worth a look
+const STUCK_STEPS = 60;
+const ONE_SEED = +process.argv[4] || 0;                              // replay just this seed                                              // this many taps on one screen without leaving it: worth a look
 
 // A little seeded random, so a run that finds something can be played again
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -46,7 +47,7 @@ async function play(seed) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
   const found = [];
   const note = (what, extra) => found.push({ what, ...extra });
-  page.on('pageerror', e => note('page error', { msg: e.message }));
+  page.on('pageerror', e => note('page error', { msg: e.message, at: (e.stack || '').split('\n').slice(1, 4).map(l => l.trim()).join(' < ') }));
   await page.addInitScript(() => { window.NO_CALLS = false; });
   await page.goto(GAME);
   await page.evaluate(() => localStorage.clear());
@@ -82,7 +83,7 @@ async function play(seed) {
 
 (async () => {
   for (let r = 0; r < RUNS; r++) {
-    const seed = 1000 + r * 7919;
+    const seed = ONE_SEED || 1000 + r * 7919;
     const { found, end } = await play(seed);
     console.log(`\n=== run ${r + 1} (seed ${seed}): day ${end.day}, on ${end.screen}`);
     console.log(`  jobs done: ${end.done.join(', ') || 'none'}`);
