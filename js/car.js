@@ -86,6 +86,19 @@ function batteryLeads() {
     text(side === 'plus' ? '+' : '-', x - 2, y + 6, C.white);
   }
 }
+// A headlight seen from above, under the bonnet: whole (yellow), or smashed (dull, cracked, a bit missing). Tap it
+const BONNET_LAMP = { left: [376, 222], right: [32, 222] };          // where each sits (the car's left is on your right)
+function bonnetLamp(side) {
+  const [x, y] = BONNET_LAMP[side], smashed = kickedLamps()[side];
+  rbox(x, y, 72, 20, 5, C.ink);                                        // its housing
+  rect(x + 3, y + 3, 66, 14, smashed ? shade(C.warm, 0.45) : C.warm);  // the lens
+  rect(x + 8, y + 5, 14, 3, smashed ? shade(C.white, 0.5) : C.white);  // a shine
+  if (smashed) {                                                        // the crack, and a bit missing
+    line(x + 10, y + 16, x + 28, y + 6, C.white); line(x + 28, y + 6, x + 40, y + 14, C.white); line(x + 40, y + 14, x + 58, y + 4, C.white);
+    rect(x + 44, y + 8, 10, 7, C.ink);
+  }
+  spot(`${side === 'left' ? 'Left' : 'Right'} headlight${smashed ? ': smashed' : ''}`, [x, y - 4, 72, 28], 'act:lamp:' + side);
+}
 SCREENS.bonnet = {
   size: [480, 270],
   paint() {
@@ -95,7 +108,8 @@ SCREENS.bonnet = {
     pipe(420, 50, 380, 26, 2, C.steel);
     rbox(18, 50, 444, 214, 10, C.car); grime(48, 56, 384, 190, hex('#26241f'), 0.25, 33);
     rect(48, 56, 384, 6, hex('#1a1a1a'));
-    rect(80, 226, 320, 16, hex('#3a3c40')); for (let x = 82; x < 398; x += 3) rect(x, 228, 1, 12, hex('#55585c'));
+    rect(110, 226, 260, 16, hex('#3a3c40')); for (let x = 112; x < 368; x += 3) rect(x, 228, 1, 12, hex('#55585c'));   // the radiator, between the headlights
+    for (const side of ['left', 'right']) bonnetLamp(side);           // both headlights, from above (the car's left is on your right: you're stood at the front)
     rbox(18, 244, 444, 20, 6, C.car); rect(200, 250, 80, 6, C.ink); disc(240, 253, 4, C.steel);
     rbox(62, 70, 98, 80, 8, C.ink); grime(66, 74, 90, 72, hex('#2a2a2a'), 0.2, 34);
     for (const [x, y] of [[62, 90], [62, 130], [158, 90], [158, 130]]) rect(x - 2, y, 5, 8, C.steel2);
@@ -109,7 +123,7 @@ SCREENS.bonnet = {
     rbox(352, 152, 68, 56, 4, hex('#202020'));
     for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const fc = FUSECOLS[(r * 6 + k * 5) % 5][0]; rect(358 + k * 10, 158 + r * 12, 7, 9, fc); rect(360 + k * 10, 160 + r * 12, 3, 2, shade(fc, 0.7)); }
     rbox(64, 166, 56, 50, 10, hex('#e4e0d4')); rect(68, 190, 48, 22, hex('#e080a0')); disc(92, 166, 8, C.warm); text('MAX', 70, 186, C.ink);
-    disc(420, 222, 7, C.car); ring(420, 222, 7, C.carDark);
+    disc(360, 210, 7, C.car); ring(360, 210, 7, C.carDark);
     for (const [x0, y0, x1, y1] of [[160, 160, 340, 170], [330, 170, 352, 180], [322, 120, 354, 120]]) pipe(x0, y0, x1, y1, 4, C.ink);
     for (let x = 180; x < 330; x += 22) rect(x, 158, 3, 10, hex('#3a3a3a'));
     zoomZones([['Fuse box', 348, 148, 76, 64, true, 'fuseZoom'], ['Battery', 350, 106, 72, 40, false, 'act:look:Battery'], ['Engine', 170, 74, 154, 124, false, 'act:look:Engine'], ['Air filter', 58, 66, 106, 88, false, 'act:look:Air filter'], ['Coolant', 60, 160, 64, 60, false, 'act:look:Coolant'], ['Brake fluid', 326, 58, 34, 36, false, 'act:look:Brake fluid']]);
@@ -121,8 +135,6 @@ SCREENS.bonnet = {
   },
   actions() {
     const a = [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }];
-    const spares = spareLamps(), smashed = brokeOpen('headlight') || brokeOpen('headlight2');
-    if (smashed && (spares.left || spares.right)) a.push({ label: 'Fit a new headlight', act: 'fitlight' });   // from the shelf (it might be the wrong side)
     a.push({ label: 'Close the bonnet', act: 'go:garage' });
     return a;
   }

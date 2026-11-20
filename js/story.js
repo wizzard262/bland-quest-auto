@@ -524,6 +524,21 @@ function waitItOff() {
   show('place');                                                       // back outside, by the car
   say('The wall', `You sit on the wall by the car for ${mins >= 60 ? Math.round(mins / 60 * 10) / 10 + ' hours' : mins + ' minutes'}. It wears off.\n\nYou're cold and you need the loo, but you're fit to drive.`);
 }
+// A new headlight in on this side: the smashed one comes out (into the parts box)
+function fitLamp(side) {
+  const have = spareLamps();
+  pass(30); sfx('ratchet');
+  have[side] -= 1;
+  finishJob(side === 'left' ? 'broke-headlight' : 'broke-headlight2', `New ${side} headlight fitted`);
+  junkIt(side === 'left' ? 'lamp-left' : 'lamp-right');               // the smashed one goes in the parts box
+  say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.\n\nThe smashed one goes in the parts box.');
+}
+// The spare on the shelf is for the other side
+function wrongLamp(side) {
+  const got = side === 'left' ? 'right' : 'left';
+  pass(15); anger(10);
+  say('The headlight', `You try the one off the shelf. It doesn't go. It's a ${got} one, and the smashed one is the ${side}.\n\nIt goes back on the shelf. One day that side will need it.`);
+}
 // The code reader out of the port: back on the garage shelf
 function unplugReader() {
   S.flags.readerIn = false;
@@ -1048,22 +1063,21 @@ const ACTIONS = {
     say(p.name, line);
   },
   // the phone's torch: on (so you can see under things) or off; then put the phone away
-  // fit the new headlight (under the bonnet)
+  // a spare headlight off the garage shelf: fit it on the side it's for, if that one's smashed
   fitlight() {
     const have = spareLamps();
-    const left = brokeOpen('headlight') && have.left > 0;               // a left spare, and the left one is smashed
-    const right = brokeOpen('headlight2') && have.right > 0;            // a right spare, and the right one is smashed
-    pass(15);
-    if (!left && !right) {                                              // the wrong side: it doesn't fit
-      anger(10);
-      const got = have.left ? 'a left one' : 'a right one', need = brokeOpen('headlight') ? 'left' : 'right';
-      return say('The headlight', `You try it. It doesn't go. It's ${got}, and the smashed one is the ${need}.\n\nIt goes back on the shelf. One day that side will need it.`);
-    }
-    pass(15); sfx('ratchet');
-    if (left) { have.left -= 1; finishJob('broke-headlight', 'New left headlight fitted'); }
-    else { have.right -= 1; finishJob('broke-headlight2', 'New right headlight fitted'); }
-    junkIt(left ? 'lamp-left' : 'lamp-right');                         // the smashed one goes in the parts box
-    say('The headlight', 'Four clips, two screws and one skinned knuckle later, it works.\n\nThe smashed one goes in the parts box.');
+    if (brokeOpen('headlight') && have.left > 0) return fitLamp('left');
+    if (brokeOpen('headlight2') && have.right > 0) return fitLamp('right');
+    const need = brokeOpen('headlight') ? 'left' : 'right';
+    return wrongLamp(need);
+  },
+  // tap a headlight under the bonnet: smashed and you've a spare for that side, it goes in
+  lamp(side) {
+    const id = side === 'left' ? 'headlight' : 'headlight2', have = spareLamps(), other = side === 'left' ? 'right' : 'left';
+    if (!brokeOpen(id)) return say(`The ${side} headlight`, 'Whole. For now.');
+    if (have[side] > 0) return fitLamp(side);
+    if (have[other] > 0) return wrongLamp(side);
+    say(`The ${side} headlight`, `Smashed. You need a new ${side} one: a parts shop, Zamanon or TheeBay online, or one off a wreck at the Scrap Yard.`);
   },
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
@@ -1395,7 +1409,7 @@ const ACTIONS = {
       finishJob('bolt2', 'The proper extractor got it out');
       return say('Bolt 2', 'The proper extractor bites… and the bolt turns. It\'s out!');
     }
-    delete S.inv['extractor-cheap'];
+    delete S.inv['extractor-cheap']; junkIt('extractor-cheap');   // what's left of it goes in the parts box
     anger(20);
     moment('extractSnap', 1300); sfx('creak'); sfx('snap', 0.75);
     note('bolt2', 'The cheap extractor snapped off inside the bolt', 'x');
@@ -1483,7 +1497,7 @@ const ACTIONS = {
       screwJob();                                                       // now the hole needs a screw (screws.js)
       return say('The stub', 'Tap the extractor in, a slow quarter turn… and the stub winds out. A clean hole.\n\nNow it needs a screw that matches. There\'s a jar of them on the garage shelf.');
     }
-    delete S.inv['extractor-cheap'];
+    delete S.inv['extractor-cheap']; junkIt('extractor-cheap');   // what's left of it goes in the parts box
     anger(15);
     sfx('creak'); sfx('snap', 0.6);
     note('stub', 'The cheap extractor snapped off in the stub', 'x');

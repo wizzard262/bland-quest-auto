@@ -214,7 +214,8 @@ const JUNKED = {
   'lamp-left': ['Your smashed headlight (left)', 'lamp', 'The left headlight you kicked in. Glass rattles about inside it.'],
   'lamp-right': ['Your smashed headlight (right)', 'lamp', 'The right headlight you kicked in. It still has a bit of your boot print on it.'],
   'reader-old': ["Gaz's code reader", 'reader', "Gaz's reader, round plug and all. From 1994. You really should give it back."],
-  'reader-cheap': ['The MegaMart code reader', 'reader', '"Fits all cars*". *Fits all lorries.'],
+  'reader-cheap': ['The Zamanon code reader', 'reader', '"Fits all cars*". *Fits all lorries.'],
+  'extractor-cheap': ['The cheap extractor (snapped)', 'extractor', 'Half of the cheap bolt extractor. The other half is still stuck in something.'],
   'old-sensor': ['The old sensor', 'badsensor', 'The old sensor, its plug cut off. It was never the sensor anyway. Probably.']
 };
 // A thing found to be no good: its name, how it's drawn and what you think (the wrong sensors come from SENSORS)
@@ -266,6 +267,11 @@ function drawJunked(j) {
     poly([corner(-9, -13), corner(9, -13), corner(9, 13), corner(-9, 13)], hex('#d0a020'));
     poly([corner(-6, -10), corner(6, -10), corner(6, -2), corner(-6, -2)], hex('#0a2a20'));
     pipe(...corner(0, 13), ...corner(10, 24), 2, C.ink);
+    return;
+  }
+  if (kind === 'extractor') {                                                // the snapped extractor: a short tapered bit, its broken end bright
+    poly([corner(-12, -3), corner(6, -2), corner(6, 2), corner(-12, 3)], C.tool);
+    poly([corner(6, -2), corner(9, -1), corner(9, 1), corner(6, 2)], C.white);
     return;
   }
   const col = j.junk === 'old-sensor' ? BLACKPART : sensorColour(j.junk);   // a sensor: its body end on, its colour

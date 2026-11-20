@@ -1063,7 +1063,7 @@ test('after kicking the headlight it stays smashed: the TheeBay one is the wrong
   await choose(page, 'Take its headlight');
   expect(await page.evaluate(() => S.lamps.left)).toBe(1);
   await page.evaluate(() => { S.screen = 'bonnet'; render(); });
-  await act(page, 'Fit a new headlight'); await ok(page);
+  await tap(page, 'act:lamp:left'); await ok(page);                     // under the bonnet: tap the smashed one
   expect(await page.evaluate(() => brokeOpen('headlight'))).toBe(false);
   expect(errors).toEqual([]);
 });
@@ -1123,21 +1123,21 @@ test('kicks take turns: the left headlight, then (mirrored) the right, then the 
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: true });
   // a right one in the post while the left is smashed too: fit it, then try another right one for the left… it goes back on the shelf
   await page.evaluate(() => { openParcel('headlight-bay'); openParcel('headlight-bay'); DIALOG = null; QUEUE.length = 0; S.screen = 'bonnet'; render(); });
-  await act(page, 'Fit a new headlight'); await ok(page);               // the right one goes in
+  await tap(page, 'act:lamp:right'); await ok(page);                   // the right one goes in
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: false });
-  await act(page, 'Fit a new headlight');                               // the other right one: wrong side
+  await tap(page, 'act:lamp:left');                                     // the other right one: wrong side
   expect(await dialogText(page)).toContain('back on the shelf');
   await ok(page);
   expect(await page.evaluate(() => [S.lamps.right, storeList().some(([n]) => n === 'Headlight (Zafira, right)')])).toEqual([1, true]);
   // a left one from the yard: fit it; both whole again
   await page.evaluate(() => { addLamp('left'); render(); });
-  await act(page, 'Fit a new headlight'); await ok(page);
+  await tap(page, 'act:lamp:left'); await ok(page);
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: false, right: false });
   expect(await kick()).toEqual([false, '']);                            // kick 3: the left again
   expect(await page.evaluate(() => [kickedLamps(), findJob('broke-headlight').status])).toEqual([{ left: true, right: false }, 'open']);
   expect(await kick()).toEqual([true, 'scaleX(-1)']);                   // kick 4: the right, and the spare on the shelf fits it
   await page.evaluate(() => { S.screen = 'bonnet'; render(); });
-  await act(page, 'Fit a new headlight'); await ok(page);
+  await tap(page, 'act:lamp:right'); await ok(page);
   expect(await page.evaluate(() => [kickedLamps().right, S.lamps.right])).toEqual([false, 0]);
   expect(errors).toEqual([]);
 });
@@ -2557,7 +2557,7 @@ test('a spare headlight on the garage shelf: tap it to fit it (the smashed one g
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { job('broke-headlight', 'Replace the smashed left headlight', null); addLamp('left'); show('garage'); });
-  await expect(page.locator('.acts button', { hasText: 'Fit the new headlight' })).toHaveCount(1);
+  await expect(page.locator('.acts button', { hasText: 'Fit the new headlight' })).toHaveCount(0);   // no button: tap the headlight under the bonnet, or the spare on the shelf
   await page.evaluate(() => { show('stores'); const k = storeList().findIndex(i => i[0].startsWith('Headlight (Zafira, left')); ACTIONS.storelook(k); });
   await page.locator('.dlg button', { hasText: 'Fit it to the car' }).click();
   expect(await dialogText(page)).toContain('parts box');
@@ -2898,5 +2898,25 @@ test('with the card blocked, every till says: card declined, go to the bank to f
   await start(page, errors);
   await page.evaluate(() => { S.flags.cardBlocked = true; S.flags.cardWasBlocked = true; buy('extractor-cheap', 'Tool Shop'); });
   expect(await dialogText(page)).toContain('Go to the bank to fix it');
+  expect(errors).toEqual([]);
+});
+
+test('under the bonnet both headlights show from above (the smashed one cracked): tap it to fit a spare; the snapped cheap extractor goes in the parts box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('broke-headlight', 'Replace the smashed left headlight', null); S.screen = 'bonnet'; render(); });
+  await expect(page.locator('.hs[data-go="act:lamp:left"]')).toHaveCount(1);
+  await expect(page.locator('.hs[data-go="act:lamp:right"]')).toHaveCount(1);
+  await expect(page.locator('.acts button', { hasText: 'headlight' })).toHaveCount(0);   // no button for it
+  await tap(page, 'act:lamp:left');
+  expect(await dialogText(page)).toContain('You need a new left one');      // no spare yet
+  await ok(page);
+  await page.evaluate(() => { addLamp('left'); render(); });
+  await tap(page, 'act:lamp:left'); await ok(page);
+  expect(await page.evaluate(() => brokeOpen('headlight'))).toBe(false);
+  // the cheap extractor snaps on bolt 2: it goes in the parts box
+  await page.evaluate(() => { S.inv['extractor-cheap'] = true; S.flags.b2round = true; ACTIONS.extract(); });
+  await ok(page);
+  expect(await page.evaluate(() => S.junked.includes('extractor-cheap'))).toBe(true);
   expect(errors).toEqual([]);
 });

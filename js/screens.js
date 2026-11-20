@@ -751,8 +751,6 @@ SCREENS.garage = {
   },
   actions() {
     if (brotherHere()) return [{ label: 'Let Paul help', act: 'brotherhelp' }];   // he's round (brother.js)
-    const spares = spareLamps(), smashed = brokeOpen('headlight') || brokeOpen('headlight2');
-    if (smashed && (spares.left || spares.right)) return [{ label: 'Fit the new headlight', act: 'fitlight' }];   // a spare on the shelf, a smashed one on the car
     return [];                                                         // everything is in the picture: tap it
   }
 };
