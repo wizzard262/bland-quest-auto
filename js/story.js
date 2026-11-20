@@ -83,20 +83,35 @@ const HUNCHES = {
 // ---------- skint: Mum & Dad (every few days) or Paul (once) help out ----------
 const SKINT = 30;                                                       // less than this: you're skint
 const MUM_MONEY = 50, MUM_EVERY = 3, PAUL_MONEY = 20;
+// Running out of money: a job, with where you might get some
+function skintJob() {
+  if (S.money >= SKINT) return;
+  const j = findJob('money');
+  if (j && j.status === 'open') return;
+  if (j) j.status = 'open';
+  job('money', 'Get some money (you\'re skint)', null);
+  lead('money', 'mum-money', 'Ask Mum & Dad', 'you', 'fairly sure', 'place:Mum & Dad\'s');
+  lead('money', 'paul-money', 'Ask Paul (ring him)', 'you', 'maybe', 'phone');
+  lead('money', 'bank-loan', 'A loan from the bank (Mon to Wed, 10 till 2)', 'you', 'maybe', 'place:Bank');
+}
+// Money in again: off the list, if that's enough
+function moneyIn(amount, how) {
+  S.money += amount;
+  sfx('kerching');
+  if (S.money >= SKINT && findJob('money') && findJob('money').status === 'open') finishJob('money', how);
+}
 function askMumForMoney(title) {
   if (S.money >= SKINT) return false;
   if (S.flags.mumMoneyDay !== undefined && S.day < S.flags.mumMoneyDay + MUM_EVERY) return false;   // not again so soon
   S.flags.mumMoneyDay = S.day;
-  S.money += MUM_MONEY;
-  sfx('kerching');
+  moneyIn(MUM_MONEY, `£${MUM_MONEY} from Mum`);
   say(title, `"You sound skint, love. I'll put £${MUM_MONEY} in your account. Don't tell your father."\n\nIn the background: "I HEARD THAT."`);
   return true;
 }
 function askPaulForMoney() {
   if (S.money >= SKINT || S.flags.paulLent) return false;
   S.flags.paulLent = true;
-  S.money += PAUL_MONEY;
-  sfx('kerching');
+  moneyIn(PAUL_MONEY, `£${PAUL_MONEY} from Paul`);
   say('Ringing Paul', `"Skint again? Here, I'll send you twenty. Don't tell Mum."\n\n£${PAUL_MONEY}. He'll mention it every Christmas for the rest of your life.`);
   return true;
 }
@@ -150,6 +165,7 @@ const PLACE_INFO = {
   'Scrap Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog', byAppointment: true },   // only in a slot you've booked by phone
   'MOT Test Centre': { open: [8 * 60, 17 * 60 + 30], person: 'the tester' },
   'Trusty Autos': { gone: true },
+  'The Old Bank': { gone: true },                                       // the bank's moved to the grand building with the columns
   "Dave's Garage": { holiday: true },
   'Clutch & Co': { closedDays: ['TUE', 'WED'] }
 };
@@ -1135,7 +1151,15 @@ const ACTIONS = {
     if (have[other] > 0) return wrongLamp(side);
     say(`The ${side} headlight`, `Smashed. You need a new ${side} one: a parts shop, Zamanon or TheeBay online, or one off a wreck at the Scrap Yard.`);
   },
-  nbclose() { back(); },                                                // the notebook: put it away
+  nbclose() { back(); },
+  wifecar() {                                                           // her car: only when yours is stuck (then: where to?)
+    if (!inWifesCar()) return say('The wife', '"That\'s my car, Husband. I need it. Use your own."');
+    say('Her car', 'Her little purple car. Where to?', [
+      { label: 'Into town', run() { goTo('city'); } },
+      { label: `To your car (${ROADSIDE})`, run() { ACTIONS.toroad(); } },
+      { label: 'Not yet', run() {} }
+    ]);
+  },                                                // the notebook: put it away
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
   phonetorch() {

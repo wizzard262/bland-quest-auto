@@ -82,7 +82,8 @@ async function goPlace(page, name) {
   if (screen === 'place') await page.evaluate(() => { S.screen = 'city'; render(); });
   else if (screen !== 'city') {
     await page.evaluate(() => { if (S.screen !== 'home') { S.screen = 'home'; render(); } });
-    await tap(page, 'city'); await idle(page);                            // tap the car
+    if (await page.locator('.hs[data-go="city"]').count()) { await tap(page, 'city'); await idle(page); }   // tap the car
+    else { await tap(page, 'act:wifecar'); await page.locator('.dlg button', { hasText: 'Into town' }).click(); await idle(page); }   // yours is stuck: hers
   }
   const i = await page.evaluate(n => placeIndex(n), name);
   await page.click(`[data-act="cam:${i % 7},${Math.floor(i / 7)}"]`);   // look at that part of town on the little map
@@ -1905,9 +1906,9 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await page.evaluate(() => [S.inv.wheel, S.money])).toEqual(['Tyre Place', money - 35]);
   // back to Mill Lane in her car, and fit it
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await act(page, 'Drive to your car');
+  await tap(page, 'act:wifecar'); await page.locator('.dlg button', { hasText: 'To your car' }).click();   // her car: to yours on Mill Lane
   expect(await page.evaluate(() => S.screen)).toBe('roadside');
-  await act(page, 'Fit the wheel');
+  await tap(page, 'act:roadtyre');                                           // tap the flat tyre: the wheel goes on
   expect(await dialogText(page)).toContain('spare is still flat');
   await ok(page);
   expect(await page.evaluate(() => [S.screen, S.road, findJob('tyre').status, S.flags.punctured])).toEqual(['home', null, 'done', true]);
@@ -1951,7 +1952,7 @@ test('the flat spare has a screw in it: the Tyre Place puts a new tyre on it (re
   await start(page, errors);
   // fixed the puncture: the spare is still flat, and that's the next job
   await page.evaluate(() => { job('tyre', 'Sort out the flat tyre', null); S.road = { spare: true, walked: true }; S.spare = 'flat'; S.inv.wheel = 'Tyre Place'; S.screen = 'roadside'; render(); });
-  await act(page, 'Fit the wheel');
+  await tap(page, 'act:roadtyre');                                           // tap the flat tyre: the wheel goes on
   expect(await dialogText(page)).toContain('screw in it');
   await ok(page);
   expect(await page.evaluate(() => [findJob('spare').status, leadOpen('spare-yard'), leadOpen('spare-shop')])).toEqual(['open', true, true]);
@@ -2932,5 +2933,40 @@ test('the playtest batch: tap the multimeter; a golf club in the parts box; tap 
   expect(await page.evaluate(() => [S.money, askPaulForMoney()])).toEqual([25, false]);
   // the wife: about the card
   expect(await page.evaluate(() => { S.flags.cardBlocked = true; return wifeTip(); })).toContain('bank');
+  expect(errors).toEqual([]);
+});
+
+test("the wife's car lives on its own drive the other side of the house: she needs it, unless yours is stuck on Mill Lane", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'home'; render(); });
+  await tap(page, 'act:wifecar');
+  expect(await dialogText(page)).toContain('I need it');
+  await ok(page);
+  await page.evaluate(() => { S.road = { spare: true, walked: true }; render(); });   // yours on a flat, walked home
+  await tap(page, 'act:wifecar');                                            // hers: where to?
+  await page.locator('.dlg button', { hasText: 'Into town' }).click();
+  expect(await page.evaluate(() => S.screen)).toBe('city');
+  expect(errors).toEqual([]);
+});
+
+test('the bank is in the grand building with the columns (where the library was); its old shop is boarded up', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => [placeIndex('Bank') >= 0, placeIndex('Library (free Wi-Fi)'), placeIndex('The Old Bank') >= 0, !!PLACE_INFO['The Old Bank'].gone])).toEqual([true, -1, true, true]);
+  await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; S.place = 'Bank'; S.inside = false; show('place'); });
+  expect(errors).toEqual([]);
+});
+
+test('running out of money goes on the list (Mum & Dad, Paul, a bank loan); the bank lends you £200 once', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.money = 30; spend(5); });                      // under £30: skint
+  expect(await page.evaluate(() => [findJob('money').status, leadOpen('bank-loan')])).toEqual(['open', true]);
+  await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; S.place = 'Bank'; bankTalk(); });
+  await page.locator('.dlg button', { hasText: 'Sign for' }).click();
+  expect(await dialogText(page)).toContain('five years');
+  await ok(page);
+  expect(await page.evaluate(() => [S.money, findJob('money').status, S.flags.bankLoan])).toEqual([225, 'done', true]);
   expect(errors).toEqual([]);
 });

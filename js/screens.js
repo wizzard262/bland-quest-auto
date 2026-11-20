@@ -86,8 +86,9 @@ SCREENS.home = {
     gableRoof(177, 7, 239, 63, 40, 20, hex('#e8a8c0'), C.roof);
     winLeft(60, 190, 204, 16, 30); winLeft(60, 214, 228, 16, 30);
     // the car, the bin, parcels by the door, you
+    ground(WIFE_DRIVE[0] - 4, 62, WIFE_DRIVE[0] + 28, 130, C.drive);                       // her drive, the other side of the house
+    isoCar(WIFE_DRIVE[0], WIFE_DRIVE[1], 1, WIFE_CAR, { shape: 'city' });                 // her little purple car, on it
     if (!carAway()) isoCar(102, 72);                                                      // your car on the drive (not on Mill Lane or outside the pub)
-    else if (inWifesCar()) isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' });              // or hers, while yours is on a flat
     drawClamp();                                                                          // clamped, for an unpaid fine (police.js)
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
     const vanComing = ANIM && ANIM.kind === 'van';                                         // the courier's on his way: the parcel isn't there till he's been
@@ -98,7 +99,9 @@ SCREENS.home = {
       return hud();
     }
     if (carClamped() && !S.flags.taxi) spot('Car: clamped (read the note)', isoArea(102, 72, 126, 118, 0, 22), 'act:clampnote', [96, 96]);
-    else spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
+    else if (!carAway()) spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
+    const [wx, wy] = WIFE_DRIVE, herL = CAR_SHAPES.city.L;               // her car: yours if yours is stuck; otherwise she needs it
+    spot(inWifesCar() ? 'Her car: drive it' : 'Her car', isoArea(wx, wy, wx + 24, wy + herL, 0, 20), 'act:wifecar', [wx + 30, wy + herL / 2]);
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
     const mail = S.doorstep.length ? ['Mailbox: a parcel!', 'act:parcel']                 // a parcel first; then the post; else empty
@@ -114,7 +117,7 @@ SCREENS.home = {
   },
   actions() {
     return [
-      ...(inWifesCar() ? [{ label: 'Drive to your car (Mill Lane)', act: 'toroad' }] : [])   // yours is on a flat: back to it in hers
+
     ];
   }
 };
@@ -244,9 +247,9 @@ function kerbMailbox(full) {
 // =====================================================================
 const PLACES = [
   // [name, category]  (one per lot, 7 across x 6 down)
-  ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Library (free Wi-Fi)', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
+  ['Motor Factors', 'parts'], ['Quickfix Motors', 'mech'], ['Bank', 'other'], ['Gearbox Gurus', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
   ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
-  ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
+  ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['The Old Bank', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Scrap Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Paul's", 'people'], ['Clutch & Co', 'trans'], ['Police Station', 'other'], ['Café', 'other'],
   ['Home', 'home'], ["Neighbour Ken's", 'people'], ['Wired Up Auto Electric', 'elec'], ['Trusty Autos', 'mech'], ['Pattern Parts', 'parts'], ['Hardware Shop', 'tools'], ['Pound Shop', 'other']
@@ -327,7 +330,8 @@ function building(lot) {
     return 30;
   }
   const name = lot.place[0];
-  if (name === 'Library (free Wi-Fi)') return library(x0, y0, x1, y1);
+  if (name === 'Bank') return grandBuilding(x0, y0, x1, y1, 'BANK');   // stone, steps and columns
+  if ((PLACE_INFO[name] || {}).gone) { const h = shopUnit(lot, x0, y0, x1, y1, col, false); boardedUp(x0, y0, x1, y1); return h; }   // closed down: boards over it
   if (name === 'Café') return cafe(x0, y0, x1, y1);
   if (name === 'Petrol Station') return petrolStation(x0, y0, x1, y1);
   if (MOTOR_CATS.includes(cat) || MOTOR_NAMES.includes(name)) return motorUnit(lot, x0, y0, x1, y1, col);
@@ -365,8 +369,14 @@ function shopUnit(lot, x0, y0, x1, y1, col, big) {
   for (let y = y0 + a + 8; y < y1 - a - 6; y += 12) winRight(x1 - a, y, y + 6, h - 12, h - 7);
   return h + 2;
 }
-// The library: stone, steps up to a row of columns, a triangle of roof over them
-function library(x0, y0, x1, y1) {
+// Boards nailed over a closed-down shop's window and door (on the town map)
+function boardedUp(x0, y0, x1, y1) {
+  const a = 10, yf = y1 - a;
+  onLeft(yf, x0 + a + 4, x0 + 40, 2, 6, C.wood); onLeft(yf, x0 + a + 4, x0 + 40, 8, 12, shade(C.wood, 0.85));   // over the window
+  onLeft(yf, x0 + 44, x0 + 50, 0, 8, C.wood);                                                                  // over the door
+}
+// The grand building (the bank): stone, steps up to a row of columns, a triangle of roof over them
+function grandBuilding(x0, y0, x1, y1, sign) {
   const stone = hex('#d8d0b8'), h = 22;
   ground(x0 + 4, y0 + 4, x1 - 4, y1 - 4, C.grassLine);
   ibox(x0 + 10, y0 + 10, x1 - 10, y1 - 22, 0, h, stone, hex('#c0b8a0'));                  // the main hall
@@ -375,7 +385,7 @@ function library(x0, y0, x1, y1) {
   ibox(x0 + 12, y1 - 26, x1 - 12, y1 - 21, h - 2, h, stone);                              // the beam across the top
   poly([P(x0 + 12, y1 - 21, h), P(x1 - 12, y1 - 21, h), P((x0 + x1) / 2, y1 - 21, h + 9)], shade(stone, 0.95));   // the pediment
   onLeft(y1 - 22, x0 + 32, x0 + 38, 3, 14, C.ink);                                        // the big door
-  frontSign('LIBRARY', x0 + 12, y1 - 21, x1 - x0 - 24, h - 3, 5);
+  frontSign(sign, x0 + 12, y1 - 21, x1 - x0 - 24, h - 3, 5);
   return h + 9;
 }
 // The petrol station: a forecourt with pumps under a canopy, the kiosk at the back, a price sign by the road

@@ -7,7 +7,8 @@
 
 let PUNCTURE_CHANCE = window.NO_PUNCTURES ? 0 : 1 / 6;             // the chance on each drive home (the tests turn it off, or up to 1)
 const ROADSIDE = 'Mill Lane';                                       // where it happens
-const WIFE_CAR = hex('#9a5ac8');                                    // her little purple car, lent to you
+const WIFE_CAR = hex('#9a5ac8');                                    // her little purple car (lent to you while yours is stuck)
+const WIFE_DRIVE = [-58, 70];                                         // where it lives: its own drive, the other side of the house
 const ROAD_VIEW = [250, 70];                                        // the roadside: the same street view as a shop front
 // The screens that need your car to be at home (in the garage)
 const CAR_SCREENS = ['dash', 'bonnet', 'fuseZoom', 'boot', 'under', 'underZoom', 'port', 'ecu', 'glovebox'];
@@ -82,7 +83,6 @@ SCREENS.roadside = {
   actions() {
     const a = [];
     if (!S.road) return [{ label: 'Drive home', act: 'roadhome' }];
-    if (S.inv.wheel) a.push({ label: 'Fit the wheel', act: 'fitwheel' });
     if (!S.road.walked) {
       if (!S.road.spare) a.push({ label: 'Open the boot', act: 'roadboot' });
       else if (!S.flags.phoneDead) a.push({ label: 'Ring for help', act: 'roadring' });
@@ -112,7 +112,7 @@ function rainDrops(t, level) {
 // What the note at the top says, step by step
 function roadsideTip() {
   if (!S.road) return 'Your car, with four good tyres. For now.';
-  if (S.inv.wheel) return 'You\'ve got a wheel. Fit it.';
+  if (S.inv.wheel) return 'You\'ve got a wheel. Tap the flat tyre to change it.';
   if (S.road.walked) return 'Your car, still on a flat. Get a wheel from the Scrap Yard or a car shop.';
   if (!S.road.spare) return 'A flat front tyre. There\'s a spare in the boot: open it.';
   if (!S.flags.phoneDead) return 'The spare\'s flat too. Ring for help?';
@@ -296,7 +296,10 @@ Object.assign(ACTIONS, {
     say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat. Completely flat. There\'s a screw in it. It has probably been flat since 2019.');
   },
   roadboot() { sfx('click'); show('boot'); },                          // open the boot: the spare, the jack, the brace
-  roadtyre() { say('The flat tyre', 'Front left. Flat as a pancake, with a screw in it. Of course there\'s a screw in it.'); },
+  roadtyre() {                                                          // the flat tyre: with a wheel to hand, change it
+    if (S.inv.wheel) return ACTIONS.fitwheel();
+    say('The flat tyre', 'Front left. Flat as a pancake, with a screw in it. Of course there\'s a screw in it.');
+  },
   // ring for help: the phone dies
   roadring() {
     if (S.flags.phoneDead) return say('Your phone', 'Still dead.');

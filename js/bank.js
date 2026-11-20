@@ -42,7 +42,20 @@ function bankQuestions(n = 0) {
     say(BANK, '"…That\'s not what we\'ve got either."\n\nA long pause. Some typing.\n\n"I\'ve unblocked it. Please don\'t buy any more car parts."');
   } })));
 }
+// A loan from the bank, once: when you're skint
+const BANK_LOAN = 200;
+function bankLoan() {
+  say(BANK, `"A loan? Let me see… £${BANK_LOAN}, over five years, at 39.9 percent."\n\nShe slides a form across. It's eleven pages long.`, [
+    { label: `Sign for £${BANK_LOAN}`, run() {
+      S.flags.bankLoan = true;
+      moneyIn(BANK_LOAN, `£${BANK_LOAN} loan from the bank (39.9 percent)`);
+      say(BANK, '"Lovely. Your first payment\'s due next month. And every month. For five years."');
+    } },
+    { label: 'No thanks', run() {} }
+  ]);
+}
 function bankTalk() {
   if (S.flags.cardBlocked) return bankQuestions(0);
+  if (S.money < SKINT && !S.flags.bankLoan) return bankLoan();        // skint: a loan
   say(BANK, '"We\'re here for you." (Monday to Wednesday, 10 till 2.)');
 }

@@ -390,7 +390,8 @@ function solidsFor(key) {
   if (key === 'garage' && !carAway()) out.push({ box: [40, 46, 70, 104], draw: () => isoCar(40, 46, 1.25) });   // your car (1.25 size: 30 wide, 57 long)
   if (key === 'home') {
     if (!carAway()) out.push({ box: [102, 72, 126, 118], draw() { isoCar(102, 72); drawClamp(); } });         // your car on the drive (and the clamp on it)
-    else if (inWifesCar()) out.push({ box: [102, 72, 126, 72 + CAR_SHAPES.city.L], draw: () => isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' }) });   // or hers
+    const [wx, wy] = WIFE_DRIVE;                                      // and hers, on her drive
+    out.push({ box: [wx, wy, wx + 24, wy + CAR_SHAPES.city.L], draw: () => isoCar(wx, wy, 1, WIFE_CAR, { shape: 'city' }) });
   }
   if (key === 'yard') WRECKS.forEach(([x, y, , , , shape], i) => out.push({ box: [x, y, x + 24, y + CAR_SHAPES[shape].L], draw: () => drawWreck(i) }));   // the wrecks
   if (key === 'place' && S.inside && hasCounter(S.place)) out.push({ box: COUNTER.slice() });   // the shop counter (he stays this side of it)

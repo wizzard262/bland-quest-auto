@@ -94,6 +94,7 @@ function spend(amount, treat = false) {
   if (cardDeclined(amount)) return false;                          // the card's blocked (bank.js): declined
   if (S.money < amount) return treat ? false : wifeBailsOut(amount);   // not enough in the account: the wife pays (not for beer)
   S.money -= amount;
+  if (typeof skintJob === 'function') skintJob();                  // running low: it goes on the list (story.js)
   return true;
 }
 // Change anger; at 100 you kick something and break it

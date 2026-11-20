@@ -4,7 +4,7 @@
 // ---------- what kind of inside each place has ----------
 const STYLE_BY_CAT = { parts: 'parts', mech: 'garage', elec: 'elec', trans: 'gearbox', tools: 'tools', big: 'aisles', yard: 'yard' };
 const STYLE_BY_NAME = {
-  'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Library (free Wi-Fi)': 'books', 'Café': 'cafe',
+  'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Café': 'cafe',
   'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Tyre Place': 'tyres', 'MOT Test Centre': 'garage',
   'Machine Shop (lathe)': 'workshop', 'Police Station': 'police', 'Bank': 'bank',
   'The Hesketh Tavern': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
@@ -525,9 +525,28 @@ function petrolFront(name, shut) {
   ibox(14, 46, 112, 104, 70, 76, C.red, C.white);                                        // the canopy roof
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
-const BUILDING_BACK = -60;                                                // how far back the buildings on the street go (their fronts are at y = 40)
+const BUILDING_BACK = -60;
+// Outside the bank: stone, three steps up to a row of columns, a pediment over them, big doors (as on the town map)
+function bankFront(name, shut) {
+  ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
+  streetFront();
+  const stone = hex('#d8d0b8');
+  ibox(-130, BUILDING_BACK, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);   // the shop to its left
+  ibox(0, BUILDING_BACK, 200, 26, 0, 70, stone, hex('#c0b8a0'));                     // the main hall, set back behind its columns
+  for (let k = 0; k < 3; k++) ibox(2, 26 + k * 5, 198, 31 + k * 5, 0, 6 - k * 2, shade(stone, 0.92 - k * 0.04));   // the steps up to it
+  for (let x = 10; x <= 186; x += 22) ibox(x, 28, x + 6, 34, 6, 62, C.white);        // the columns
+  ibox(2, 26, 198, 36, 62, 70, stone);                                               // the beam along the top
+  poly([P(2, 36, 70), P(198, 36, 70), P(100, 36, 92)], shade(stone, 0.95));           // the pediment
+  frontSign(name.toUpperCase(), 20, 36, 160, 69, 7);
+  onLeft(26, 146, 178, 6, 46, shut ? C.ink : hex('#5a3a22'));                         // the big doors
+  onLeft(26, 161, 163, 6, 46, C.ink);
+  ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);   // the one to its right (in front)
+  drivenCar(40, 72, 1);                                                              // your car at the kerb
+  if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+}                                                // how far back the buildings on the street go (their fronts are at y = 40)
 function shopExterior(name, shut) {
   if (name === 'Petrol Station') return petrolFront(name, shut);
+  if (name === 'Bank') return bankFront(name, shut);
   const info = PLACE_INFO[name] || {}, style = placeStyle(name), pub = style === 'pub';
   const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = pub ? C.cream : hex(CAT[cat][1]);   // the pub: cream, with black timbers
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
