@@ -803,10 +803,12 @@ const TALK = {
   // the Tyre Place: a part-worn wheel when your car's on a flat (road.js); otherwise, tyres you don't need
   'Tyre Place'() {
     if (wheelWanted()) return buyWheel('Tyre Place');
+    if (spareAt('Tyre Place')) return;                                  // the flat spare: a new tyre on it (road.js)
     say('Tyre Place', '"Tyres? Your tyres are fine, mate. For now."');
   },
   'Scrap Yard'() {
     if (wheelWanted()) return buyWheel('Scrap Yard');                   // your car's on a flat: a wheel off a wreck
+    if (spareAt('Scrap Yard')) return;                                  // the flat spare: one off a wreck (road.js)
     if (brokeOpen('wiper')) {
       finishJob('broke-wiper', 'A wiper arm from the Scrap Yard: £2'); closeLead('wiper', 'ok'); spend(2);
       return say('Scrap Yard', '"A wiper arm? Help yourself, they\'re all the same. Two quid."\n\nThey\'re not all the same, but this one fits.');
@@ -1300,7 +1302,7 @@ const ACTIONS = {
     }
     testAllFuses();
   },
-  look(what) { pass(5); say(what, LOOKS[what] || 'Looks fine. Probably.'); },
+  look(what) { pass(5); say(what, (what === 'Spare wheel' ? spareLook() : LOOKS[what]) || 'Looks fine. Probably.'); },   // the spare: as it is now (road.js)
   // ----- the workbench -----
   // a screw holding the old sensor in the box: the first two come out; the last one always shears off
   screw(n) {

@@ -852,14 +852,17 @@ SCREENS.boot = {
     // inside: the boot floor lifted out, so you see the well underneath
     rbox(60, 42, 360, 190, 8, hex('#2a2a30'));
     grime(66, 48, 348, 178, hex('#2a2a30'), 0.25, 42);
-    // the spare wheel, lying flat in its round well, bolted down in the middle
+    // the spare wheel, lying flat in its round well, bolted down in the middle (or not there: at the Tyre Place)
     disc(240, 136, 66, hex('#18181c'));                                 // the well
-    disc(240, 136, 60, C.tyre);                                         // the tyre
-    for (let a = 0; a < 6.28; a += 0.2) px(240 + Math.cos(a) * 54, 136 + Math.sin(a) * 54, hex('#34343a'));   // tread
-    disc(240, 136, 36, C.rim);                                          // the steel wheel
-    ring(240, 136, 36, C.steel2);
-    for (let k = 0; k < 4; k++) disc(240 + Math.cos(k * 1.571) * 20, 136 + Math.sin(k * 1.571) * 20, 3, C.steel2);   // its stud holes
-    bolt(240, 136, 9, false);                                           // the big nut holding it down
+    if (S.spare !== 'away') {
+      disc(240, 136, 60, C.tyre);                                       // the tyre
+      for (let a = 0; a < 6.28; a += 0.2) px(240 + Math.cos(a) * 54, 136 + Math.sin(a) * 54, hex('#34343a'));   // tread
+      disc(240, 136, 36, C.rim);                                        // the steel wheel
+      ring(240, 136, 36, C.steel2);
+      for (let k = 0; k < 4; k++) disc(240 + Math.cos(k * 1.571) * 20, 136 + Math.sin(k * 1.571) * 20, 3, C.steel2);   // its stud holes
+      bolt(240, 136, 9, false);                                         // the big nut holding it down
+      if (S.spare === 'flat') spareScrew(240 + 42, 136 + 32, 4);       // the screw in its tread
+    }
     // the jack: a scissor jack, folded flat in its foam tray
     rbox(80, 92, 84, 96, 6, hex('#1e1e22'));
     for (const [x0, y0, x1, y1] of [[96, 170, 122, 120], [122, 120, 148, 170], [96, 110, 122, 140], [122, 140, 148, 110]]) pipe(x0, y0, x1, y1, 4, C.steel2);

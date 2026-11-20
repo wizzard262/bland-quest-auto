@@ -1914,3 +1914,47 @@ test('The Myth of Sisyphus is on the manuals shelf: open it and there is a pictu
   await expect(page.locator('.book')).toContainText('Sisyphus');
   expect(errors).toEqual([]);
 });
+
+// ---------- the flat spare: a screw in it, so it has to be replaced ----------
+test('the flat spare has a screw in it: the Tyre Place puts a new tyre on it (ready tomorrow), or the Scrap Yard has one off a wreck', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // fixed the puncture: the spare is still flat, and that's the next job
+  await page.evaluate(() => { job('tyre', 'Sort out the flat tyre', null); S.road = { spare: true, walked: true }; S.spare = 'flat'; S.inv.wheel = 'Tyre Place'; S.screen = 'roadside'; render(); });
+  await act(page, 'Fit the wheel');
+  expect(await dialogText(page)).toContain('screw in it');
+  await ok(page);
+  expect(await page.evaluate(() => [findJob('spare').status, leadOpen('spare-yard'), leadOpen('spare-shop')])).toEqual(['open', true, true]);
+  // in the boot: the screw
+  await page.evaluate(() => { S.screen = 'boot'; render(); });
+  await tap(page, 'act:look:Spare wheel');
+  expect(await dialogText(page)).toContain('screw in the tread');
+  await ok(page);
+  // the Tyre Place: a new tyre on it, tomorrow
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  const money = await page.evaluate(() => S.money);
+  await goPlace(page, 'Tyre Place'); await talk(page);
+  expect(await dialogText(page)).toContain('Ready tomorrow');
+  await ok(page);
+  expect(await page.evaluate(() => [S.spare, S.money])).toEqual(['away', money - 35]);
+  await talk(page);
+  expect(await dialogText(page)).toContain('I said tomorrow');
+  await ok(page);
+  await page.evaluate(() => { S.day += 1; S.mins = 10 * 60; });
+  await talk(page);
+  expect(await dialogText(page)).toContain('New tyre on it');
+  await ok(page);
+  expect(await page.evaluate(() => [S.spare, findJob('spare').status])).toEqual(['good', 'done']);
+  expect(errors).toEqual([]);
+});
+
+test('the flat spare: a spare off a wreck at the Scrap Yard, in your slot', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.spare = 'flat'; spareJob(); S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; });
+  await goPlace(page, 'Scrap Yard'); await talk(page);
+  expect(await dialogText(page)).toContain('Tenner');
+  await ok(page);
+  expect(await page.evaluate(() => [S.spare, findJob('spare').status])).toEqual(['good', 'done']);
+  expect(errors).toEqual([]);
+});

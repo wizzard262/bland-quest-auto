@@ -107,6 +107,12 @@ function roadsideSpare() {
   const w = P(124, 50);                                            // on the pavement, past the car
   ellipse(w[0], w[1], 12, 6, C.tyre);
   ellipse(w[0], w[1] - 1, 6, 3, C.rim);
+  spareScrew(w[0] + 9, w[1] + 2, 1);                                // the screw in it
+}
+// A screw head stuck in a tyre: a steel disc with a slot across it (s: how big)
+function spareScrew(x, y, s) {
+  disc(x, y, 1 + s, C.steel);
+  rect(x - s, y, 2 * s + 1, 1, C.ink);
 }
 // The car's hazard lights: all four corners flash orange (twice a second)
 SCREENS.roadside.animate = function (t) {
@@ -213,11 +219,12 @@ Object.assign(ACTIONS, {
     if (!S.road || S.road.walked) return;
     if (S.road.spare) return say('The spare', 'Still flat.');
     S.road.spare = true;
+    S.spare = 'flat';                                                   // punctured: a screw in it
     pass(20);
     anger(15);
     sfx('ratchet');
     note('tyre', 'The spare is flat too (probably since 2019)', 'x');
-    say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat. Completely flat. It has probably been flat since 2019.');
+    say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat. Completely flat. There\'s a screw in it. It has probably been flat since 2019.');
   },
   roadtyre() { say('The flat tyre', 'Front left. Flat as a pancake, with a screw in it. Of course there\'s a screw in it.'); },
   // ring for help: the phone dies
@@ -253,10 +260,63 @@ Object.assign(ACTIONS, {
     delete S.inv.wheel;
     S.road = null;
     finishJob('tyre', `Wheel from the ${from} fitted on ${ROADSIDE}. The spare is still flat`);
+    spareJob();                                                         // next: the spare, with its screw
     show('home');
-    say('The new wheel', 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\nYou drive your car home. She walks down for hers. She is not happy.\n\n(The spare is still flat.)');
+    say('The new wheel', 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\nYou drive your car home. She walks down for hers. She is not happy.\n\n(The spare is still flat, with a screw in it. It needs replacing.)');
   }
 });
+
+// =====================================================================
+// THE FLAT SPARE: a screw in it, so it can't be pumped up; it has to be replaced.
+//   S.spare: undefined (never looked), 'flat' (the screw), 'away' (at the Tyre Place till S.spareReady), 'good'
+// =====================================================================
+// A job for it, with two places to get one
+function spareJob() {
+  if (findJob('spare')) return;
+  job('spare', 'Replace the flat spare (a screw in it)', null);
+  lead('spare', 'spare-yard', 'A spare off a wreck at the Scrap Yard', 'you', 'fairly sure', 'place:Scrap Yard');
+  lead('spare', 'spare-shop', 'A new tyre on it at the Tyre Place', 'you', 'sure', 'place:Tyre Place');
+}
+// Do you still need one? (the spare's flat, and your car's back home)
+const spareWanted = () => S.spare === 'flat' && !S.road;
+// What you see when you look at it in the boot
+function spareLook() {
+  if (S.spare === 'flat') return 'The spare. Flat, with a screw in the tread. It won\'t pump up with a hole in it. It needs replacing.';
+  if (S.spare === 'away') return 'An empty well. The spare is at the Tyre Place till ' + (S.spareReady > S.day ? 'tomorrow' : 'today') + '.';
+  if (S.spare === 'good') return 'A good spare, at last, bolted down in its well. Touch wood.';
+  return LOOKS['Spare wheel'];                                         // before the puncture: it just feels a bit soft
+}
+// At the Scrap Yard or the Tyre Place, about the spare. Returns true if that's what you talked about
+function spareAt(place) {
+  if (place === 'Tyre Place' && S.spare === 'away') {                  // come to collect it
+    if (S.day < S.spareReady) { anger(5); say(place, '"Tomorrow, mate. I said tomorrow."'); return true; }
+    S.spare = 'good';
+    closeLead('spare-collect', 'ok');
+    finishJob('spare', 'New tyre on the spare, from the Tyre Place');
+    say(place, '"There you go. New tyre on it, pumped up."\n\nYou put it back in the boot.');
+    return true;
+  }
+  if (!spareWanted()) return false;
+  const yard = place === 'Scrap Yard';
+  const price = yard ? 10 : 35;
+  if (!spend(price)) { anger(10); say(place, 'Card declined.'); return true; }
+  sfx('beep');
+  if (yard) {                                                           // off a wreck: straight in the boot
+    S.spare = 'good';
+    closeLead('spare-yard', 'ok');
+    closeLead('spare-shop', 'skip');
+    finishJob('spare', 'A spare off a wreck at the Scrap Yard: £10');
+    say(place, '"A spare? Off that one. It\'s got a bit of tread left. Tenner."\n\nYou swap it for the one with the screw in. He keeps that one. He seems pleased.');
+    return true;
+  }
+  S.spare = 'away';                                                     // the Tyre Place: a new tyre on it, tomorrow
+  S.spareReady = S.day + 1;
+  closeLead('spare-shop', 'ok', 'Tyre Place: a new tyre on the spare, £35, ready tomorrow');
+  closeLead('spare-yard', 'skip');
+  lead('spare', 'spare-collect', 'Collect the spare from the Tyre Place (tomorrow)', 'the Tyre Place', 'sure', 'place:Tyre Place');
+  say(place, '"A screw? Can\'t plug that, it\'s in the shoulder. New tyre on your wheel: thirty-five quid. Ready tomorrow."\n\nYou leave the spare with him.');
+  return true;
+}
 // Home at last, soaked: the phone goes on charge, and the wife has a plan
 function homeSoaked() {
   pass(80);
