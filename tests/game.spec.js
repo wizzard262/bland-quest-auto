@@ -2573,18 +2573,52 @@ test('the first look under anything with a light: there is always a spider', asy
   expect(errors).toEqual([]);
 });
 
-test('soaked by the puddle: he shrugs, sinks, and trudges on head down at half his pace', async ({ page }) => {
+test('soaked by the puddle: he sighs, his shoulders drop, and he trudges on head down at half his pace; the rain gets heavier from the puncture to the walk', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  expect(await page.evaluate(() => { man(100, 200, 'shrug', 4); man(100, 200, 'trudge', 4, 1); return true; })).toBe(true);
+  expect(await page.evaluate(() => { man(100, 200, 'trudge', 4, 1); return true; })).toBe(true);
+  // the rain: spitting at the puncture, steady with the flat spare, heavy once the phone dies, a downpour on the walk
+  const levels = await page.evaluate(() => {
+    const out = [];
+    S.road = { spare: false, walked: false }; out.push(rainLevel('roadside'));
+    S.road.spare = true; out.push(rainLevel('roadside'));
+    S.flags.phoneDead = true; out.push(rainLevel('roadside'));
+    out.push(rainLevel('walkhome'));
+    S.road.walked = true; out.push(rainLevel('roadside'));
+    return out;
+  });
+  expect(levels).toEqual([1, 2, 3, 4, 0]);
   // half pace: the trudge covers the rest of the pavement in about twice the time the plain walk would
   const ratio = await page.evaluate(() => {
     const rest = WALK.to - lerp(WALK.from, WALK.to, WALK_SPLASH);                // what's left of the pavement
     const plainSpeed = (WALK.to - WALK.from) / WALK_MS;                          // his normal pace
-    const trudgeSpeed = rest / (WALK_AFTER_MS * (1 - WALK_SINK));               // after the shrug and the sinking
+    const trudgeSpeed = rest / (WALK_AFTER_MS * (1 - WALK_SINK));               // after the sigh and the sinking
     return trudgeSpeed / plainSpeed;
   });
   expect(ratio).toBeGreaterThan(0.4);
   expect(ratio).toBeLessThan(0.6);
+  expect(errors).toEqual([]);
+});
+
+test('the code reader unplugs from the port; the glove box torch goes on the garage shelf; the fine is held up clear of the dialog', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // the code reader: plugged in, then out
+  await page.evaluate(() => { S.flags.readerIn = true; S.flags.hatch = true; show('dash'); });
+  await act(page, 'Unplug the code reader');
+  expect(await dialogText(page)).toContain('back on the garage shelf');
+  expect(await page.evaluate(() => S.flags.readerIn)).toBe(false);
+  await ok(page);
+  // the glove box torch, onto the shelf
+  await page.evaluate(() => show('glovebox'));
+  await tap(page, 'act:glove:2');
+  await page.locator('.dlg button', { hasText: 'Put it on the garage shelf' }).click();
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.gloveTorch, storeList().some(i => i[0] === GLOVE_TORCH)])).toEqual([true, true]);
+  // the fine: top right, above where the dialog sits
+  expect(await page.evaluate(() => BREATH_TICKET[1] < 60)).toBe(true);
+  // the pub: people drawn big enough for the bar; the street scenes are iso; a police car draws its light bar
+  expect(await page.evaluate(() => PUB.size >= 5)).toBe(true);
+  expect(await page.evaluate(() => { [ISO.ox, ISO.oy] = ROAD_STREET_VIEW; isoCar(0, 76, 1, C.white, { alongX: true, shape: 'saloon', police: true, flash: true }); return !!POLICE_BAR; })).toBe(true);
   expect(errors).toEqual([]);
 });

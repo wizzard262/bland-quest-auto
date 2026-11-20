@@ -91,6 +91,22 @@ const SOUNDS = {
   sad(t) { tone(t, [440, 415], 0.3, 0.12, 'triangle'); tone(t + 0.3, [392, 370], 0.5, 0.12, 'triangle'); },
   fanfare(t) { [523, 659, 784, 1046].forEach((f, i) => tone(t + i * 0.12, f, 0.35, 0.15, 'triangle')); },
   siren(t) { for (let i = 0; i < 4; i++) tone(t + i * 0.45, i % 2 ? 700 : 950, 0.42, 0.08, 'triangle'); },   // nee-naw
+  policesiren(t) {                                                     // a proper police two-tone: nee-naw, coming up behind, louder and louder, then off as it pulls in
+    const o1 = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
+    o1.type = 'sawtooth'; o2.type = 'square';                          // two horns, a little apart: a hard, brassy sound
+    for (let i = 0; i < 10; i++) {                                     // hi, lo, hi, lo… half a second each
+      const at = t + i * 0.5, hz = i % 2 ? 725 : 960;
+      o1.frequency.setValueAtTime(hz, at); o2.frequency.setValueAtTime(hz * 1.01, at);
+    }
+    f.type = 'lowpass'; f.frequency.value = 2600;                      // take the fizz off the top
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.02, t + 0.4);                // far off behind you…
+    g.gain.exponentialRampToValueAtTime(0.09, t + 3.6);                // …right on your bumper
+    g.gain.setValueAtTime(0.09, t + 4.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 5);                // and off
+    o1.connect(f); o2.connect(f); f.connect(g); g.connect(MASTER);
+    o1.start(t); o2.start(t); o1.stop(t + 5.1); o2.stop(t + 5.1);
+  },
   beep3(t) { for (let i = 0; i < 3; i++) tone(t + i * 0.25, 2000, 0.12, 0.14, 'square'); },                     // the breathalyser at red
   ringtone(t) { for (let i = 0; i < 6; i++) tone(t + i * 0.08, i % 2 ? 1320 : 1040, 0.07, 0.1, 'square'); }   // a mobile ringing (one burst)
 };
@@ -301,13 +317,26 @@ const AMBIENCE = {
   bench() { loopTone(100, 0.01); },
   yard() { loopNoise(500, 0.03); every(5, 10, 'bark'); }
 };
+// Rain: a hiss of drops (louder and fuller the harder it rains), and the odd drip off something
+function rainSound(level) {
+  loopNoise(5000, 0.012 * level, 'highpass');                         // the patter
+  loopNoise(1400, 0.008 * level, 'bandpass');                         // the body of it
+  if (level >= 3) loopNoise(300, 0.02 * (level - 2));                 // a downpour: a low roar under it
+  every(0.4, 1.6 / level, 'drip');
+}
 // Called after every repaint: the right background, and the engine running or not
 function soundScene(screen, engineRunning) {
   if (!AC || AC.state !== 'running' || MUTED) { stopAmbience(); engineOff(); radioOff(); return; }
   // the radio: only heard sitting in the car, with the key at I or more
   const radio = typeof S !== 'undefined' && S.radio;
   if (radio && radio.on && S.key >= 1 && screen === 'dash') radioOn(radio.station); else radioOff();
-  if (AMB.name !== screen) { stopAmbience(); AMB.name = screen; if (AMBIENCE[screen]) AMBIENCE[screen](); }
+  const rain = typeof rainLevel === 'function' ? rainLevel(screen) : 0;   // raining here? (road.js)
+  const name = screen + (rain ? ':rain' + rain : '');                      // the background changes when the rain does
+  if (AMB.name !== name) {
+    stopAmbience(); AMB.name = name;
+    if (AMBIENCE[screen]) AMBIENCE[screen]();
+    if (rain) rainSound(rain);
+  }
   const near = ['dash', 'garage', 'bonnet', 'under', 'underZoom', 'toolbox', 'bench'].includes(screen);
   if (engineRunning && near) engineOn(screen === 'dash' ? 0.22 : 0.1); else engineOff();
 }
@@ -339,6 +368,8 @@ function engineRev() {
   ENGINE.lfo.frequency.setValueAtTime(13, t); ENGINE.lfo.frequency.linearRampToValueAtTime(40, t + 0.35); ENGINE.lfo.frequency.exponentialRampToValueAtTime(13, t + 1.6);
 }
 // More one-off sounds for the backgrounds
+SOUNDS.drip = t => tone(t, [1800 + Math.random() * 1400, 900], 0.05, 0.03);   // a drop off a gutter
+SOUNDS.sigh = t => { hiss(t, [900, 260], 1.3, 0.07, 'bandpass', 1.5); tone(t, [190, 120], 1.1, 0.02); };   // a long, heavy sigh
 SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };
 SOUNDS.hornnear = t => carHorn(t, 0.5, 0.22, 3200);                // our own horn, right here
 SOUNDS.horn = t => carHorn(t, 0.35, 0.03, 1400);                     // someone else's, down the street (duller)

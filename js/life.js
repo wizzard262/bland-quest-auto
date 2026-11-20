@@ -681,18 +681,23 @@ MOMENTS.collapse = function (p) {                                    // he sways
   man(m[0], m[1], 'lie', MAN_SIZE.room);
 };
 let SPIDER_RUN = { x: 400, y: 214 };                                  // where the spider was when the beam caught it
-MOMENTS.spider = function (p) {                                      // under something: a spider caught in the torch beam scurries off into the dark
-  const run = ease(p);                                                 // how far it has run (quick start, slowing as it goes)
+const SPIDER_FREEZE = 0.3;                                            // how long it sits frozen in the beam before it runs
+MOMENTS.spider = function (p) {                                      // under something: a spider caught in the torch beam freezes, then scurries off
+  if (p < SPIDER_FREEZE) return spiderAt(SPIDER_RUN.x, SPIDER_RUN.y, 0, true);   // frozen in the light: there it is
+  const q = (p - SPIDER_FREEZE) / (1 - SPIDER_FREEZE);
+  const run = ease(q);                                                 // how far it has run (quick start, slowing as it goes)
   const x = lerp(SPIDER_RUN.x, SPIDER_RUN.x + 140, run);               // from where it sat, off to the right…
-  const y = lerp(SPIDER_RUN.y, SPIDER_RUN.y - 40, run) + Math.sin(p * 18) * 2;   // …and back into the dark, zig-zagging a little
-  spiderAt(x, y, p * 40);
+  const y = lerp(SPIDER_RUN.y, SPIDER_RUN.y - 40, run) + Math.sin(q * 18) * 2;   // …and back into the dark, zig-zagging a little
+  spiderAt(x, y, q * 40, true);                                        // you see it all the way: your eyes follow it
 };
 Object.assign(MOMENTS, MOMENTS_MORE);                                  // the rest of the moments
 
 // A spider running to the right at x, y; each part is lit only where it's in the torchlight, so at the edge it's half lit
-function spiderAt(x, y, phase) {
-  const litCol = hex('#4a3a2a'), darkCol = hex('#0c0c0e');             // brown in the light, nearly black outside it
-  const colAt = (px_, py_) => (inTorchLight(px_, py_) ? litCol : darkCol);
+//   seen: drawn lit wherever it is (once the beam's found it, you can see it)
+function spiderAt(x, y, phase, seen = false) {
+  const litCol = hex('#6a5038'), darkCol = hex('#0c0c0e');             // brown in the light, nearly black outside it
+  const lit = (px_, py_) => seen || inTorchLight(px_, py_);
+  const colAt = (px_, py_) => (lit(px_, py_) ? litCol : darkCol);
   for (let n = 0; n < 4; n++) {                                        // 4 legs a side, scuttling back and forth (a big one)
     const step = Math.sin(phase + n * 1.6) * 3;                        // each pair of legs swings out of step with the next
     const lx = x - 5 + n * 3;                                          // where the leg leaves the body
@@ -703,6 +708,6 @@ function spiderAt(x, y, phase) {
   }
   disc(x - 4, y, 5, colAt(x - 4, y));                                  // its fat body (the back half)
   disc(x + 3, y, 3, colAt(x + 3, y));                                  // its head (the front half)
-  if (inTorchLight(x - 4, y - 2)) px(x - 4, y - 2, hex('#8a7a60'));    // a shine on its back, only in the light
-  if (inTorchLight(x + 3, y - 1)) px(x + 3, y - 1, C.white);           // a glint of an eye, only in the light
+  if (lit(x - 4, y - 2)) { px(x - 4, y - 2, hex('#a08a68')); px(x - 5, y - 3, hex('#a08a68')); }   // a shine on its back, only in the light
+  if (lit(x + 3, y - 1)) { px(x + 3, y - 1, C.white); px(x + 4, y - 1, C.white); }   // the glint of its eyes, only in the light
 }

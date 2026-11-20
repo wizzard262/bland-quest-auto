@@ -468,16 +468,21 @@ function waitItOff() {
   show('place');                                                       // back outside, by the car
   say('The wall', `You sit on the wall by the car for ${mins >= 60 ? Math.round(mins / 60 * 10) / 10 + ' hours' : mins + ' minutes'}. It wears off.\n\nYou're cold and you need the loo, but you're fit to drive.`);
 }
+// The code reader out of the port: back on the garage shelf
+function unplugReader() {
+  S.flags.readerIn = false;
+  sfx('click');
+  say('Code reader', 'You unplug it. It goes back on the garage shelf.');
+}
 // Driving off after a drink: first the police car behind you, pulling you over (road.js); then the knock on the window
 function pullOver() {
-  sfx('siren');
+  sfx('policesiren');                                                  // the two-tone, all the way through
   show('pullover');
   moment('pullover', PULLOVER_MS);
   ANIM.then = policeStop;
 }
 // Driving off after a drink: you always get pulled over
 function policeStop() {
-  sfx('siren');
   say('Blue lights', 'You get as far as the end of the road. Blue lights in the mirror.\n\nA policeman taps on your window. "Evening, sir. Had a drink tonight, have we? Blow into this, please."', [{ label: 'OK', run: breathStart }]);
 }
 // The breath test: hold to blow for about 6 seconds; the lights climb from green to red
@@ -951,13 +956,17 @@ const ACTIONS = {
   go(target) { goTo(target); },
   keytry() { keyTry(); },                                               // the car door: try the key in the lock
   keygiveup() { keyStuck(); },
-  dicedown() { takeDiceDown(); },                                       // the driver's seat: the dice off the mirror (extras.js)                                          // the car door: give up on the lock
+  dicedown() { takeDiceDown(); },
+  unplug() { unplugReader(); },                                         // the driver's seat: the code reader out of the port                                       // the driver's seat: the dice off the mirror (extras.js)                                          // the car door: give up on the lock
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
   hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
   hbclose() { show('garage'); },                                        // put it down, back in the garage
   batlead(side) { batteryLead(side); },
   glovebox() { sfx('click'); show('glovebox'); },                       // the driver's seat: open the glove box
-  glove(k) { lookAtThing(GLOVE_THINGS, k); },                          // look at a thing in it
+  glove(k) {                                                            // look at a thing in it
+    if (GLOVE_THINGS[+k][0] === 'Torch') return gloveTorch();           // the torch: take it to the garage shelf
+    lookAtThing(GLOVE_THINGS, k);
+  },
   gloveshut() { sfx('click'); show('dash'); },                          // shut it, back in the driver's seat                                 // under the bonnet: a battery lead off, or back on
   // the shopkeeper: you go up to the counter (a close-up of him), then he talks
   talk() {
@@ -1070,7 +1079,7 @@ const ACTIONS = {
     const spider = !S.flags.spiderSeen || Math.random() < SPIDER_CHANCE;   // the first time, always; then now and then
     UNDER_SPIDER = spider ? { x: 250 + Math.random() * 180, y: 172 + Math.random() * 50 } : null;   // a spider somewhere in the dark
     render();
-    if (where === 'the workbench' && !S.flags.screwsSpilt) {
+    if (SCREWS_SPILL && where === 'the workbench' && !S.flags.screwsSpilt) {   // (saved for later: off for now)
       S.flags.screwsSpilt = true; anger(10); moment('screws', 1500); sfx('screws');
       return say('Under the workbench', 'You lean on the bench to look underneath and knock a box of hundreds of screws off it. They go everywhere.');
     }
@@ -1184,7 +1193,10 @@ const ACTIONS = {
       sfx('click');
       return say('Under the steering wheel', 'You pop the little hatch off. Behind it: a flat socket with 16 pins. The diagnostic port.');
     }
-    if (S.flags.readerIn) return say('Diagnostic port', 'Your code reader is plugged in.');
+    if (S.flags.readerIn) return say('Diagnostic port', 'Your code reader is plugged in.', [
+      { label: 'Unplug it', run: unplugReader },
+      { label: 'Leave it in', run() {} }
+    ]);
     if (ownedPlugs().length) return show('port');                        // got a reader or two: close up on the port, to try them
     S.flags.hatch = false;                                               // nothing to plug in: put the hatch back
     sfx('click');
@@ -1594,6 +1606,8 @@ function lookAtThing(list, k) {
   const [name, words] = list[+k] || [];
   if (name) say(name, words);
 }
+// Knocking the box of screws off the workbench when you look under it: saved for later, not used yet
+const SCREWS_SPILL = false;
 // The torch beam has moved (the pointer, under something): a spider in it runs; the lost nut in it glints
 function underBeamMoved() {
   if (S.screen !== 'lookunder' || !haveLight() || ANIM || DIALOG) return;
@@ -1607,7 +1621,7 @@ function underBeamMoved() {
     UNDER_SPIDER = null;
     S.flags.spiderSeen = true;
     sfx('creak');
-    moment('spider', 1600);
+    moment('spider', 2600);                                           // it freezes in the light, then runs for it
     say('Under ' + S.under, 'Something in the beam moves. A spider. A big one. It scurries off into the dark.');
   }
 }

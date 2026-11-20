@@ -73,6 +73,7 @@ SCREENS.roadside = {
       spot('Boot: open it', isoArea(ROAD_CAR[0] - 4, 72, ROAD_CAR[0] + 8, 96, 4, 20), 'act:roadboot', [ROAD_CAR[0] - 6, 66]);
       spot('The flat tyre', isoArea(ROAD_CAR[0] + 30, 92, ROAD_CAR[0] + 42, 98, 0, 10), 'act:roadtyre', [ROAD_CAR[0] + 36, 100]);
     }
+    nightShade(0, 0, W, H, 0.07 * rainLevel('roadside'));          // greyer as the rain sets in
     tip(ROADSIDE, roadsideTip(), 1, 8);
     hud();
   },
@@ -88,6 +89,24 @@ SCREENS.roadside = {
     return a;
   }
 };
+// How hard it's raining (0 none … 4 a downpour): it starts with the puncture and gets worse with every setback
+function rainLevel(screen) {
+  if (screen === 'walkhome') return 4;                              // the walk home: chucking it down
+  if (!S.road || S.road.walked) return 0;                           // no puncture (or home and dry)
+  if (screen !== 'roadside' && screen !== 'boot') return 0;
+  if (S.flags.phoneDead) return 3;                                  // the phone's died: heavy
+  if (S.road.spare) return 2;                                       // the spare's flat: steady
+  return 1;                                                         // the puncture: spitting
+}
+// The rain over the picture: more drops the harder it's raining
+function rainDrops(t, level) {
+  const n = [0, 30, 70, 110, 160][level];
+  for (let k = 0; k < n; k++) {
+    const x = (hash(k, 1) * W + t * 40) % W;
+    const y = 18 + (hash(1, k) * (H - 18) + t * 300 + k * 7) % (H - 18);
+    line(x, y, x - 2, y + 6, hex('#b8c4d0'));
+  }
+}
 // What the note at the top says, step by step
 function roadsideTip() {
   if (!S.road) return 'Your car, with four good tyres. For now.';
@@ -112,6 +131,7 @@ function spareScrew(x, y, s) {
 // The car's hazard lights: all four corners flash orange (twice a second)
 SCREENS.roadside.animate = function (t) {
   if (!S.road) return;
+  rainDrops(t, rainLevel('roadside'));                              // the rain, getting heavier
   if (Math.floor(t * 2) % 2) return;                                // off half the time
   ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
   const [x, y] = ROAD_CAR;
@@ -122,140 +142,118 @@ SCREENS.roadside.animate = function (t) {
 };
 
 // =====================================================================
-// THE WALK HOME: grey sky, rain, and a car through a puddle
+// THE STREET, IN ISO: like outside the house. A terrace of houses, the pavement, the road (the walk home; pulled over)
 // =====================================================================
-const WALK = { ground: 214, puddle: [250, 234], from: 20, to: 470, size: 4 };
-// The street side-on: a terrace of houses, the pavement, the kerb and the road (the walk home; being pulled over)
-//   dim: how dark it is (1 = day; lower at night)
-function sideStreet(dim) {
-  for (let y = 0; y < 150; y++) rect(0, y, W, 1, shade(hex('#7a8088'), (0.8 + y / 600) * dim));   // the sky, lighter low down
-  for (let k = 0; k < 6; k++) disc(40 + k * 90, 30 + (k % 2) * 14, 40, shade(hex('#6a7078'), dim));   // heavy clouds
-  for (let k = 0; k < 8; k++) {                                     // the terrace of houses over the road
-    const x = k * 64 - 10;
-    rect(x, 96, 62, 104, shade(C.brick, 0.75 * dim));
-    rect(x, 90, 62, 8, shade(C.roof, 0.8 * dim));
-    const lit = dim < 0.8 && hash(k, 3) > 0.5;                      // at night, some windows are lit
-    rect(x + 8, 110, 14, 14, lit ? hex('#e8c870') : shade(C.winGlass, 0.6 * dim));
-    rect(x + 40, 110, 14, 14, shade(C.winGlass, 0.6 * dim));
-    rect(x + 26, 150, 12, 50, shade(C.door, 0.6 * dim));
+const STREET_LAMPS = [-150, 50, 250];                               // the street lamps along the pavement (x)
+const ROAD_STREET_VIEW = [240, 96];                                      // where the street sits on screen
+function isoStreet() {
+  [ISO.ox, ISO.oy] = ROAD_STREET_VIEW;
+  streetFront();                                                    // grass, the road, the kerb and the pavement
+  // a long terrace of red brick houses behind the pavement, each with a door and windows
+  ibox(-340, -20, 540, 36, 0, 50, C.brick);
+  bricks(-340, -20, 540, 36, 50, C.brickLine);
+  gableRoof(-343, -23, 543, 39, 50, 18, C.brick, C.roof);
+  for (let x = -330, n = 0; x < 530; x += 44, n++) {
+    onLeft(36, x + 4, x + 14, 0, 26, C.white); onLeft(36, x + 5, x + 13, 0, 25, [C.door, C.red, hex('#2a6a3a')][n % 3]);   // a front door
+    winLeft(36, x + 20, x + 36, 10, 24);                            // the front room window
+    winLeft(36, x + 6, x + 14, 32, 44); winLeft(36, x + 24, x + 36, 32, 44);   // and upstairs
   }
-  rect(0, 200, W, 18, shade(C.drive, 0.75 * dim));                  // the pavement
-  rect(0, 218, W, 2, shade(C.steel2, dim));                         // the kerb
-  rect(0, 220, W, 50, shade(C.road, 0.8 * dim));                    // the road
+  // street lamps at the kerb
+  for (const lx of STREET_LAMPS) {
+    ibox(lx, 60, lx + 3, 63, 0, 70, C.greyDark);
+    ibox(lx - 4, 58, lx + 7, 66, 70, 73, C.greyDark);
+    onLeft(66, lx - 2, lx + 5, 69, 70, C.warm);
+  }
 }
+
+// =====================================================================
+// THE WALK HOME: grey and gloomy, rain, and a car through a puddle
+// =====================================================================
+const WALK = { y: 54, from: -130, to: 380, puddle: [120, 70], size: 2 };   // along the pavement (x), and the puddle in the gutter
 SCREENS.walkhome = {
   size: [480, 270],
   paint() {
-    sideStreet(1);                                                  // the street, in the grey daylight
-    const [px0, py0] = WALK.puddle;
-    ellipse(px0, py0, 34, 6, hex('#4a5a68'));                       // the puddle by the kerb
-    ellipse(px0 - 6, py0 - 1, 18, 2, hex('#6a7a88'));
+    isoStreet();
+    const [px0, py0] = WALK.puddle;                                 // the puddle by the kerb
+    poly([P(px0 - 16, py0 - 3), P(px0 + 16, py0 - 3), P(px0 + 16, py0 + 6), P(px0 - 16, py0 + 6)], hex('#5a7088'));   // grey sky in it
+    line(...P(px0 - 10, py0), ...P(px0 + 8, py0), hex('#a8c0d8'));   // a shine across it
+    line(...P(px0 - 4, py0 + 3), ...P(px0 + 10, py0 + 3), hex('#8aa0b8'));
+    nightShade(0, 0, W, H, 0.3);                                    // a grey, gloomy day
     tip('The walk home', 'It starts to rain.', 1, 8);
     hud();
   },
-  animate(t) {
-    for (let k = 0; k < 140; k++) {                                 // the rain, slanting down
-      const x = (hash(k, 1) * W + t * 40) % W;
-      const y = (hash(1, k) * H + t * 300 + k * 7) % H;
-      line(x, y, x - 2, y + 6, hex('#b8c4d0'));
-    }
-  }
+  animate(t) { rainDrops(t, 4); }                                   // chucking it down
 };
-// A car seen side-on, driving right (for the walk home, and being pulled over)
-//   s: how big (2 is to scale with him on the walk home: a car's about two and a half of him long)
-//   opts.estate: our Zafira's long roof, right to the back; opts.police: a police car (white, a yellow and blue check
-//   down the side, a light bar on the roof); opts.flash: which of its blue lights is lit
-function sideCar(x, y, col, s = 1, opts = {}) {
-  const X = v => x + v * s, Y = v => y - v * s;                     // the car's own units, scaled from its back wheel's road line
-  rbox(X(0), Y(20), 96 * s, 16 * s, 5 * s, col);                    // the body
-  if (opts.estate) {                                                // the estate: the roof runs back, the tailgate slopes a little
-    poly([[X(2), Y(20)], [X(6), Y(36)], [X(66), Y(36)], [X(78), Y(20)]], col);
-    poly([[X(7), Y(21)], [X(9), Y(33)], [X(30), Y(33)], [X(30), Y(21)]], C.glass);   // the back side window
-    poly([[X(33), Y(21)], [X(33), Y(33)], [X(49), Y(33)], [X(49), Y(21)]], C.glass);
-    poly([[X(52), Y(21)], [X(52), Y(33)], [X(65), Y(33)], [X(73), Y(21)]], C.glass);
-  } else {                                                          // a saloon
-    poly([[X(22), Y(20)], [X(34), Y(34)], [X(66), Y(34)], [X(78), Y(20)]], col);   // the cabin
-    poly([[X(27), Y(21)], [X(36), Y(31)], [X(49), Y(31)], [X(49), Y(21)]], C.glass);
-    poly([[X(52), Y(21)], [X(52), Y(31)], [X(64), Y(31)], [X(73), Y(21)]], C.glass);
-  }
-  const police = opts.police ? { flash: opts.flash } : null;
-  if (police) {
-    for (let k = 0; k < 12; k++) rect(X(2 + k * 7.6), Y(14), 7.6 * s, 5 * s, k % 2 ? hex('#f0d020') : hex('#2050d0'));   // the check down the side
-    rect(X(40), Y(37), 20 * s, 3 * s, C.ink);                       // the light bar
-    rect(X(41), Y(37), 8 * s, 3 * s, police.flash ? hex('#4080ff') : hex('#203060'));   // blue, flashing
-    rect(X(51), Y(37), 8 * s, 3 * s, police.flash ? hex('#203060') : hex('#4080ff'));
-    if (police.flash) disc(X(45), Y(36), 10 * s, hex('#2848a0'));   // its glow
-  }
-  for (const wx of [20, 76]) { disc(X(wx), Y(3), 8 * s, C.tyre); disc(X(wx), Y(3), 4 * s, C.rim); }
-  rect(X(92), Y(16), 4 * s, 4 * s, C.warm);                         // its headlight
-  rect(X(0), Y(16), 2 * s, 4 * s, C.red);                           // its tail light
-}
-// =====================================================================
-// PULLED OVER: driving off after a drink, the police car comes up behind you, blue lights, and you pull in
-// =====================================================================
-const PULLOVER_MS = 5000;
-SCREENS.pullover = {
-  size: [480, 270],
-  paint() {
-    sideStreet(0.45);                                               // the street, at night
-    for (let k = 0; k < 4; k++) {                                   // street lamps along the pavement
-      const x = 40 + k * 130;
-      rect(x, 120, 3, 82, C.greyDark);
-      rect(x - 4, 116, 12, 4, C.greyDark);
-      disc(x + 2, 121, 6, hex('#5a5030'));
-      rect(x - 1, 120, 6, 2, hex('#f0d080'));
-    }
-    tip('Driving home', 'Blue lights in the mirror.', 1, 8);
-    hud();
-  }
-};
-MOMENTS.pullover = function (p) {
-  const yours = lerp(-120, 240, ease(Math.min(1, p / 0.8)));         // your Zafira: along the road, slowing, pulling in
-  const theirs = lerp(-420, 16, ease(Math.min(1, p / 0.85)));        // the police car, catching up and pulling in behind
-  const inY = 262 - Math.round(Math.max(0, p - 0.45) / 0.55 * 10);  // both drift in towards the kerb
-  const flash = Math.floor(p * PULLOVER_MS / 180) % 2 === 0;         // the blue lights
-  sideCar(theirs, inY, C.white, 2, { police: true, flash });
-  sideCar(yours, inY, C.car, 2, { estate: true });
-  if (flash) for (let x = 0; x < W; x += 6) rect(x, 219, 3, 1, hex('#4060c0'));   // blue on the wet road
-};
-
-
 // The moment: he walks home in the rain; halfway, a car hits the puddle and soaks him
 const SOAKED = { shirt: hex('#8a3028'), shirtDark: hex('#6a2018'), jeans: hex('#283a68'), jeansDark: hex('#1c2a50'), hair: hex('#402810') };
 const WALK_MS = 7000;                                                  // the whole walk home
 const WALK_SPLASH = 0.6;                                               // how far through it: the water has hit him (it lands at 0.5)
-const WALK_AFTER_MS = 7500;                                            // after the splash: a shrug, then on at half pace
-const WALK_SHRUG = 0.12, WALK_SINK = 0.22;                             // how far through the rest of it: the shrug ends; the sinking ends
+const WALK_AFTER_MS = 7500;                                            // after the splash: a sigh, then on at half pace
+const WALK_SIGH = 0.12, WALK_SINK = 0.22;                              // how far through the rest of it: the sigh ends; the sinking ends
 let WALK_PART = [0, 1];                                                // the part of the walk this moment plays
 MOMENTS.walkhome = function (part) {
+  [ISO.ox, ISO.oy] = ROAD_STREET_VIEW;
   const after = WALK_PART[0] >= WALK_SPLASH;                           // the rest of the walk, after the splash
   const p = after ? WALK_SPLASH + part * WALK_AFTER_MS / WALK_MS : lerp(WALK_PART[0], WALK_PART[1], part);   // the time so far, as a share of the plain walk (the car and the splash go by it)
   const hit = 0.5;                                                  // when the car hits the puddle
   const wet = p > hit;
   const look = wet ? SOAKED : null;
-  let x = lerp(WALK.from, WALK.to, Math.min(p, WALK_SPLASH));        // him, along the pavement (stopped where the splash got him)
-  if (!after) man(x, WALK.ground, 'walk', WALK.size, p * 90, look);
-  else if (part < WALK_SHRUG) man(x, WALK.ground, 'shrug', WALK.size, 0, look);   // a shrug: what else can you do
-  else if (part < WALK_SINK) man(x, WALK.ground, 'trudge', WALK.size, 0, look);   // he sinks
-  else {                                                            // and trudges on home, head down, at half his pace
-    const q = (part - WALK_SINK) / (1 - WALK_SINK);
-    x = lerp(x, WALK.to, q);
-    man(x, WALK.ground, 'trudge', WALK.size, part * 45, look);
+  let wx = lerp(WALK.from, WALK.to, Math.min(p, WALK_SPLASH));       // him, along the pavement (stopped where the splash got him)
+  let pose = 'walk', phase = p * 90;
+  if (after && part < WALK_SIGH) pose = 'stand';                     // he stands there, dripping, and sighs
+  else if (after && part < WALK_SINK) pose = 'trudge';               // his shoulders drop
+  else if (after) {                                                 // and trudges on home, head down, at half his pace
+    wx = lerp(wx, WALK.to, (part - WALK_SINK) / (1 - WALK_SINK));
+    pose = 'trudge'; phase = part * 45;
   }
-  if (wet) for (let k = 0; k < 6; k++) rect(x + 4 + k * 3, WALK.ground + ((p * 400 + k * 13) % 14), 1, 2, hex('#b8c4d0'));   // dripping
-  // the car: in from the left, through the puddle, off to the right
-  const carX = lerp(-360, 556, (p - 0.35) / 0.3);                    // its front wheel (152 along it) reaches the puddle at 0.5, as the water goes up
-  if (p > 0.35 && p < 0.65) sideCar(carX, 262, hex('#c8c8c0'), 2);   // a full-size car, to scale with him
-  // the splash: a wall of water over him
-  if (p > hit && p < hit + 0.12) {
-    const q = (p - hit) / 0.12;
-    for (let k = 0; k < 90; k++) {
-      const a = -0.3 - hash(k, 7) * 2.4, r = Math.sin(q * 3.1) * (50 + hash(7, k) * 90);
-      rect(WALK.puddle[0] + Math.cos(a) * r, WALK.puddle[1] - 4 + Math.sin(a) * r * 1.3, 3, 3, k % 3 ? hex('#a8c0d8') : C.white);
+  const m = P(wx, WALK.y);
+  man(m[0], m[1], pose, WALK.size, phase, look);
+  if (wet) for (let k = 0; k < 4; k++) rect(m[0] + 1 + k * 2, m[1] - 4 + ((p * 400 + k * 13) % 8), 1, 2, hex('#b8c4d0'));   // dripping
+  // the car: along the road from the left, through the puddle, off to the right
+  const carX = lerp(-400, 566, (p - 0.35) / 0.3);                    // its front wheel (37 along it) reaches the puddle at 0.5, as the water goes up
+  if (p > 0.35 && p < 0.65) isoCar(carX, 70, 1, hex('#c8c8c0'), { alongX: true, shape: 'saloon' });
+  // the splash: a wall of water, up over the pavement and him
+  if (p > hit && p < hit + 0.16) {                                  // a huge wave of it: a sheet of water and a spray of drops, up and over him
+    const q = (p - hit) / 0.16, rise = Math.sin(q * 3.1);
+    const c = P(WALK.puddle[0], WALK.puddle[1]);
+    for (let k = 0; k < 14; k++) {                                   // the sheet: a fan of thick streaks off the wheel
+      const a = -0.5 - k * 0.16, r = rise * (40 + hash(k, 3) * 30);
+      pipe(c[0], c[1] - 2, c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3, 3, k % 2 ? hex('#a8c0d8') : hex('#d8e8f4'));
+    }
+    for (let k = 0; k < 260; k++) {                                  // the spray: drops flung far and wide
+      const a = -0.3 - hash(k, 7) * 2.6, r = rise * (20 + hash(7, k) * 95);
+      const s2 = k % 5 ? 2 : 3;
+      rect(c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3 + q * q * 30 * hash(k, 9), s2, s2, k % 3 ? hex('#a8c0d8') : C.white);   // falling back as it goes
     }
   }
 };
 
+// =====================================================================
+// PULLED OVER: driving off after a drink, a police car comes up behind you, blue lights and siren, and you pull in
+// =====================================================================
+const PULLOVER_MS = 5000;
+SCREENS.pullover = {
+  size: [480, 270],
+  paint() {
+    isoStreet();
+    nightShade(0, 0, W, H, 0.62);                                   // night
+    for (const lx of STREET_LAMPS) { const g = P(lx + 2, 62, 68); lampGlow(g[0], g[1], 26, 0.62); }   // the street lamps, lit
+    for (let x = -330; x < 530; x += 88) { const w = P(x + 28, 36, 17); lampGlow(w[0], w[1], 10, 0.62); }   // a lit window here and there
+    tip('Driving home', 'Blue lights in the mirror.', 1, 8);
+    hud();
+  }
+};
+MOMENTS.pullover = function (p) {
+  [ISO.ox, ISO.oy] = ROAD_STREET_VIEW;
+  const yours = lerp(-160, 150, ease(Math.min(1, p / 0.8)));          // your Zafira: along the road, slowing, pulling in to the kerb
+  const theirs = lerp(-420, 60, ease(Math.min(1, p / 0.85)));        // the police car, catching up and pulling in behind
+  const inY = 76 - Math.round(Math.max(0, p - 0.45) / 0.55 * 6);      // both drift in towards the kerb
+  const flash = Math.floor(p * PULLOVER_MS / 160) % 2 === 0;         // the blue lights, left and right in turn
+  isoCar(theirs, inY, 1, shade(C.white, 0.78), { alongX: true, shape: 'saloon', police: true, flash });
+  const bar = POLICE_BAR;                                            // where its light bar is on screen (isoCar sets it)
+  isoCar(yours, inY, 1, shade(C.car, 0.7), { alongX: true });
+  if (bar) blueGlow(bar[0], bar[1], 60);                             // blue light washing over the street
+};
 // =====================================================================
 // GETTING YOUR CAR BACK: a wheel from the Scrap Yard or the Tyre Place, fitted at the roadside
 // =====================================================================
@@ -309,7 +307,8 @@ Object.assign(ACTIONS, {
     moment('walkhome', WALK_MS * WALK_SPLASH);
     ANIM.then = () => flashStill('splash', () => {                      // …the splash, big, as it hits him…
       WALK_PART = [WALK_SPLASH, 1];                                    // …then on home, dripping
-      moment('walkhome', WALK_AFTER_MS);                              // (a shrug, then slower)
+      moment('walkhome', WALK_AFTER_MS);                              // (a sigh, then slower)
+      sfx('sigh');
       ANIM.then = homeSoaked;
     });
   },

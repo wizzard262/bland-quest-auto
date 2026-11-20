@@ -110,7 +110,7 @@ const FONT = {
   '!': ['.#.', '.#.', '.#.', '...', '.#.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '&': ['.#.', '#.#', '.#.', '#.#', '.##'],
   '-': ['...', '...', '###', '...', '...'], ':': ['...', '.#.', '...', '.#.', '...'], '/': ['..#', '..#', '.#.', '#..', '#..'],
   '(': ['.#.', '#..', '#..', '#..', '.#.'], ')': ['.#.', '..#', '..#', '..#', '.#.'], '>': ['#..', '.#.', '..#', '.#.', '#..'],
-  '+': ['...', '.#.', '###', '.#.', '...'], '£': ['.##', '#..', '###', '#..', '###'], ' ': ['...', '...', '...', '...', '...']
+  '+': ['...', '.#.', '###', '.#.', '...'], '£': ['.##', '.#.', '###', '.#.', '###'], ' ': ['...', '...', '...', '...', '...']
 };
 function text(str, x, y, c, s = 1) {
   x = Math.round(x); y = Math.round(y);
@@ -346,7 +346,37 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   carDetails(K, Q, side, nose, col, broken, pillar, i1, kicked, ours);
   if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
   carWheels(K, Q, side, col, broken, opts);
+  if (opts.police) policeLivery(K, side, F, opts.flash);                                // a police car: the check down the side, the light bar
   if (broken) rustOn(Q, L, x);
+}
+// A police car's livery: a yellow and blue check down the side, and the blue light bar on the roof (flash: which half's lit)
+let POLICE_BAR = null;                                                // where the last police car's light bar is on screen (for its glow)
+function policeLivery(K, side, F, flash) {
+  const L = K.L, n = 10;
+  for (let k = 0; k < n; k++) {                                      // the check, along the side
+    const b0 = 2 + k * (L - 4) / n, b1 = b0 + (L - 4) / n;
+    poly(side([[b0, 7], [b1, 7], [b1, 11], [b0, 11]]), k % 2 ? hex('#f0d020') : hex('#2050d0'));
+  }
+  const mid = (K.ry0 + K.ry1) / 2, z = K.rz;                         // the middle of the roof
+  const lamp = (a0, a1, lit) => {                                    // one half of the bar: its top and its side towards us
+    const col = lit ? hex('#60a0ff') : hex('#203070');
+    poly(F([[a0, mid - 2, z + 2], [a1, mid - 2, z + 2], [a1, mid + 2, z + 2], [a0, mid + 2, z + 2]]), col);
+    poly(F([[a1, mid - 2, z], [a1, mid + 2, z], [a1, mid + 2, z + 2], [a1, mid - 2, z + 2]]), shade(col, 0.75));
+  };
+  lamp(5, 12, flash); lamp(12, 19, !flash);
+  const c = F([[flash ? 8 : 16, mid, z + 2]])[0];                   // the lit half
+  POLICE_BAR = [Math.round(c[0]), Math.round(c[1])];
+  disc(POLICE_BAR[0], POLICE_BAR[1], 2, C.white);                   // its hot centre
+}
+// A blue light washing over everything near it, fading out to radius r
+function blueGlow(x, y, r) {
+  const dd = img.data;
+  for (let yy = Math.max(18, Math.floor(y - r)); yy <= Math.min(H - 1, y + r); yy++) for (let xx = Math.max(0, Math.floor(x - r)); xx <= Math.min(W - 1, x + r); xx++) {
+    const f = 1 - Math.hypot(xx - x, yy - y) / r;
+    if (f <= 0) continue;
+    const i = (yy * W + xx) * 4, a = f * f * 0.7;
+    dd[i] += (60 - dd[i]) * a * 0.5; dd[i + 1] += (120 - dd[i + 1]) * a * 0.5; dd[i + 2] += (255 - dd[i + 2]) * a;
+  }
 }
 // A car's back (when it's facing away): the tailgate, bumper, number plate, rear lights
 function carBack(K, tail, col, broken) {
@@ -486,14 +516,6 @@ function man(x, y, pose, s = 1, phase = 0, look) {
     R(1, -12, 5, 2, K.shirt); R(1, -11, 5, 1, K.shirtDark);           // his back, flat across
     R(6, -11, 2, 3, K.skin); R(6, -11, 1, 2, K.hair);                 // his head, hanging down
     L(4, -10, 4, -6, K.shirt); D(4, -5, K.skin);                       // an arm, hand on his knee
-    return;
-  }
-  if (pose === 'shrug') {                                // soaked: shoulders up round his ears, hands out, palms up
-    R(0, -18, 2, 3, K.skin); R(0, -18, 2, 1, K.hair);   // his head, sunk down between his shoulders
-    R(0, -15, 2, 5, K.shirt); R(-1, -15, 4, 1, K.shirt); D(0, -10, K.jeans);   // his shoulders, hunched up
-    L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);
-    L(-1, -14, -2, -11, K.shirtDark); L(-2, -11, -3, -12, K.shirtDark); D(-4, -13, K.skin);   // one arm out, palm up
-    L(2, -14, 3, -11, K.shirt); L(3, -11, 4, -12, K.shirt); D(5, -13, K.skin);              // and the other
     return;
   }
   if (pose === 'trudge') {                               // head down, shoulders slumped, a short dragging step; phase = how far through it

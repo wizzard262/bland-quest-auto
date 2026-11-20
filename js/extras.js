@@ -501,6 +501,7 @@ function storeList() {
   }
   if (S.inv.hammer && !(S.bought && S.bought['Claw hammer'])) list.push(['Claw hammer', 'hammer', 1]);   // bought before there was a basket
   if (S.inv.handbook) list.push([HANDBOOK_NAME, 'handbook', 1]);                     // found in the parts box
+  if (S.flags.gloveTorch) list.push([GLOVE_TORCH, 'torch', 1]);                     // out of the glove box (car.js)
   const lamps = spareLamps();                                                       // spare headlights, waiting for a side to break
   if (lamps.left) list.push(['Headlight (Zafira, left)', 'box', lamps.left]);
   if (lamps.right) list.push(['Headlight (Zafira, right)', 'box', lamps.right]);
@@ -572,6 +573,7 @@ function takeDiceDown() {
 }
 // A little picture of a thing, in a 32 x 32 slot
 function drawIcon(kind, x, y, n) {
+  if (kind === 'torch') { pipe(x + 5, y + 18, x + 22, y + 18, 7, hex('#1c1c1c')); rect(x + 21, y + 13, 8, 10, hex('#d0a020')); rect(x + 11, y + 15, 3, 2, C.red); return; }
   if (kind === 'dice') { for (const [dx, dy] of [[5, 9], [15, 13]]) { rbox(x + dx, y + dy, 12, 12, 3, hex('#f080b8')); px(x + dx + 3, y + dy + 3, C.ink); px(x + dx + 8, y + dy + 8, C.ink); px(x + dx + 6, y + dy + 6, C.ink); } return; }
   if (kind === 'handbook') { rbox(x + 7, y + 4, 18, 25, 2, HANDBOOK_BLUE); rect(x + 9, y + 7, 14, 4, C.white); rect(x + 11, y + 15, 10, 5, C.car); return; }
   if (kind === 'hammer') { pipe(x + 9, y + 27, x + 21, y + 11, 3, C.wood); poly([[x + 12, y + 5], [x + 26, y + 15], [x + 23, y + 19], [x + 9, y + 9]], C.tool); return; }
@@ -712,6 +714,7 @@ Object.assign(ACTIONS, {
     if (name === 'Batteries') return useBoughtBatteries();           // AAs off a shop shelf
     if (name.startsWith('Headlight (Zafira')) return shelfHeadlight(name);   // a spare headlight: fit it, if one's smashed
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
+    if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it

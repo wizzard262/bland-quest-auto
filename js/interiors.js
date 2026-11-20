@@ -122,12 +122,20 @@ function counterSpots(name) {
 const counterKeeperHead = () => [COUNTER_VIEW.keeper + 4, COUNTER_VIEW.top + 10 - 20 * COUNTER_VIEW.size];
 
 // ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
-const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [250, 300, 350], size: 3 };   // people drawn 3x here, to suit the stools   // the bar's top, the floor, the barman, the stools (yours first)
-const PUB_FLOOR_AT = [196, 250];                                     // where he lands when he falls off his stool
-const PUB_SEAT_Y = 223;                                       // where someone sat on a stool is drawn from (their hips on the seat)
+const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [236, 296, 356], size: 5 };   // the bar's top, the floor, the barman, the stools (yours first); people drawn 5x, to scale with the bar
+const PUB_FLOOR_AT = [130, 262];                                     // where he lands when he falls off his stool
+const PUB_SEAT_Y = 237;                                              // where someone sat on a stool is drawn from (their hips on the seat, 9 up)
+const PUB_WALL = hex('#4a2e20');                                     // the back wall's dark wood
+// Fade what's on the back wall towards the wall's own colour, so the people in front stand out
+function fadeBackWall(y0, y1, k) {
+  const dd = img.data, [wr, wg, wb] = PUB_WALL;                         // the wall's red, green and blue
+  for (let i = y0 * W * 4; i < y1 * W * 4; i += 4) {
+    dd[i] += (wr - dd[i]) * k; dd[i + 1] += (wg - dd[i + 1]) * k; dd[i + 2] += (wb - dd[i + 2]) * k;
+  }
+}
 function pubScene(shut) {
   // the back wall: dark wood panels, a big mirror, shelves of drinks
-  rect(0, 18, W, PUB.floor - 18, hex('#4a2e20'));
+  rect(0, 18, W, PUB.floor - 18, PUB_WALL);
   for (let x = 0; x < W; x += 40) rect(x, 18, 1, PUB.floor - 18, hex('#3a2218'));     // the joins between the panels
   rect(0, 58, W, 2, hex('#6a4430'));                                                   // the dado rail
   rect(150, 62, 180, 56, hex('#8aa0a8')); rect(154, 66, 172, 48, hex('#a8c0c8'));    // the mirror
@@ -146,6 +154,7 @@ function pubScene(shut) {
   LABELS.push(`<div class="front" style="left:${22 / W * 100}%;top:${74 / H * 100}%;width:${60 / W * 100}%;height:${36 / H * 100}%;font-size:${7 / W * 100}cqw;line-height:${10 / W * 100}cqw;text-align:center;transform:none">QUIZ NIGHT THURSDAY<br>no car talk</div>`);
   rect(400, 110, 50, PUB.floor - 110, hex('#7a2a8a')); rect(408, 120, 34, 22, hex('#202030'));
   for (const rx of [411, 422, 433]) rect(rx, 124, 7, 14, C.white);                      // its reels
+  fadeBackWall(18, PUB.floor, 0.6);                                                  // all of that faded back, so the people stand out
   // the barman, behind the bar (it hides his legs)
   if (!shut) man(PUB.keeper, PUB.barTop + 8, 'stand', PUB.size, 0, KEEPER.pub);
   // the bar: its top, the front panels, a brass foot rail; the pumps on top; your pint
@@ -159,43 +168,44 @@ function pubScene(shut) {
   rect(0, PUB.floor, W, H - PUB.floor, hex('#6a2a2a'));
   for (let x = 0; x < W; x += 12) for (let y = PUB.floor + 4; y < H; y += 10) px(x + (y % 20 ? 6 : 0), y, hex('#a04a30'));
   // the bar stools, two regulars, and you (sat at the bar once you've ordered; by the door before)
-  for (const sx of PUB.stools) {
-    rect(sx - 8, 196, 18, 4, C.redDim); rect(sx, 200, 2, PUB.floor - 200, C.steel2);
-    rect(sx - 4, 216, 10, 1, C.steel2); rect(sx - 6, PUB.floor - 2, 14, 2, C.steel2);
+  for (const sx of PUB.stools) {                                     // tall stools: the seat at hip height when sat
+    rect(sx - 12, 192, 26, 5, C.redDim); rect(sx, 197, 3, PUB.floor - 197, C.steel2);
+    rect(sx - 6, 216, 15, 2, C.steel2); rect(sx - 9, PUB.floor - 2, 21, 2, C.steel2);
   }
   PUNTERS.forEach((p, k) => man(PUB.stools[k + 1], PUB_SEAT_Y, 'sit', PUB.size, 0, p.look));
-  if (ON_PHONE) phoneToEar();                                         // on the phone to the wife
   if (S.flags.pubSat) man(PUB.stools[0], PUB_SEAT_Y, 'sit', PUB.size);
   else if (S.flags.pubFloor) { if (!(ANIM && ANIM.kind === 'stoolFall')) man(PUB_FLOOR_AT[0], PUB_FLOOR_AT[1], 'lie', PUB.size); }   // flat out by his stool
-  else man(80, PUB.floor + 6, 'stand', PUB.size);
+  else man(86, PUB.floor + 6, 'stand', PUB.size);
+  if (ON_PHONE) phoneToEar();                                         // on the phone to the wife
   // the way out: a see-through door on the left
-  const d = [[16, 140], [56, 140]];
-  dashedLine([16, PUB.floor], d[0], C.mint); dashedLine(d[0], d[1], C.mint); dashedLine(d[1], [56, PUB.floor], C.mint);
-  rect(50, 186, 3, 2, C.mint);
+  const d = [[12, 120], [62, 120]];                                  // a door tall enough for him
+  dashedLine([12, PUB.floor], d[0], C.mint); dashedLine(d[0], d[1], C.mint); dashedLine(d[1], [62, PUB.floor], C.mint);
+  rect(55, 180, 3, 2, C.mint);
 }
 // Where he is in the pub: on his stool, or standing inside the door
-function pubMe() { return S.flags.pubSat ? [PUB.stools[0], PUB_SEAT_Y] : [80, PUB.floor + 6]; }
-// The phone held to his ear (drawn just before him, so his head is in front of it)
+function pubMe() { return S.flags.pubSat ? [PUB.stools[0], PUB_SEAT_Y] : [86, PUB.floor + 6]; }
+// The phone held to his ear (drawn just after him, beside his head)
 function phoneToEar() {
-  const [x, y] = pubMe();
-  rect(x + 5, y - 58, 4, 9, C.ink);                                   // the phone
-  rect(x + 6, y - 57, 2, 6, hex('#6080c0'));                           // its lit screen
-  rect(x + 5, y - 49, 4, 3, C.skin);                                   // his hand round it
+  const [x, y] = pubMe(), s = PUB.size;
+  rect(x + 2 * s, y - 19 * s, 5, 3 * s, C.ink);                        // the phone
+  rect(x + 2 * s + 1, y - 19 * s + 1, 3, 3 * s - 4, hex('#6080c0'));   // its lit screen
+  rect(x + 2 * s, y - 16 * s, 5, 4, C.skin);                           // his hand round it
 }
 // Where her voice comes out: the phone at his ear
 function phoneInHand() {
-  const [x, y] = pubMe();
-  return [x + 7, y - 60];
+  const [x, y] = pubMe(), s = PUB.size;
+  return [x + 2 * s + 2, y - 19 * s - 2];
 }
 // What you can tap in the pub
 function pubSpots(shut) {
-  if (!shut) spot('Talk to the barman', [PUB.keeper - 16, PUB.barTop - 58, 36, 64], 'act:talk');
-  PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 12, 150, 28, 76], 'act:punter:' + k));
-  spot('Door: leave', [14, 138, 44, PUB.floor - 138], 'act:leave');
+  const s = PUB.size;
+  if (!shut) spot('Talk to the barman', [PUB.keeper - 16, PUB.barTop + 8 - 20 * s, 44, 20 * s - 8], 'act:talk');
+  PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 14, PUB_SEAT_Y - 20 * s, 34, 18 * s], 'act:punter:' + k));
+  spot('Door: leave', [10, 118, 54, PUB.floor - 118], 'act:leave');
 }
 // Where the pub people's heads are (for their speech bubbles)
-const pubKeeperHead = () => [PUB.keeper + 3, PUB.barTop + 8 - 60];
-const pubPunterHead = k => [PUB.stools[k + 1] + 3, PUB_SEAT_Y - 60];
+const pubKeeperHead = () => [PUB.keeper + PUB.size, PUB.barTop + 8 - 20 * PUB.size];
+const pubPunterHead = k => [PUB.stools[k + 1] + PUB.size, PUB_SEAT_Y - 20 * PUB.size];
 // The two regulars at the bar
 const PUNTERS = [
   { name: 'Old Ron', look: { shirt: hex('#7a6040'), shirtDark: hex('#5a4428'), jeans: hex('#4a4a50'), jeansDark: hex('#3a3a40'), hair: C.steel },

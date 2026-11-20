@@ -393,6 +393,7 @@ SCREENS.dash = {
       rbox(2, 160, 54, 96, 8, hex('#d0a020')); rect(7, 168, 44, 40, hex('#0a2a20'));
       for (const [x, y] of [[8, 216], [30, 216], [8, 234], [30, 234]]) rbox(x, y, 18, 12, 3, hex('#3a3a3a'));
       pipe(56, 226, 76, 236, 4, C.ink);                                                     // its lead, into the port
+      spot('Code reader: unplug it', [2, 160, 54, 96], 'act:unplug');
       LABELS.push(`<div class="scr" style="left:${8 / W * 100}%;top:${169 / H * 100}%;width:${42 / W * 100}%;height:${38 / H * 100}%">${S.key >= 2 && carPowered() ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
     if (S.key >= 1 && carPowered()) LABELS.push(`<div class="scr radio" style="left:${321 / W * 100}%;top:${121 / H * 100}%;width:${78 / W * 100}%;height:${28 / H * 100}%">${radioScreenHtml()}</div>`);
@@ -418,6 +419,7 @@ SCREENS.dash = {
   actions() {
     const a = [];
     if (!S.flags.readerIn && ownedPlugs().length) a.push({ label: 'Try a reader in the port', act: 'port' });   // got a reader: try its plug
+    if (S.flags.readerIn) a.push({ label: 'Unplug the code reader', act: 'unplug' });   // out of the port, back on the shelf
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
     a.push({ label: 'Sit and think (1 hour)', act: 'think' });
     return a;
@@ -435,6 +437,15 @@ const GLOVE_THINGS = [
   ['Torch', 'A torch. Click. Nothing. Click click. The batteries inside have gone furry.', [286, 116, 92, 40]],
   ['Phone charger', 'A phone charger. It fits a phone you had in 2009.', [196, 160, 120, 40]]
 ];
+// The torch in the glove box: dead, but it can go on the garage shelf
+const GLOVE_TORCH = 'Torch (from the glove box)';
+function gloveTorch() {
+  const [, words] = GLOVE_THINGS.find(t => t[0] === 'Torch');
+  say('Torch', words, [
+    { label: 'Put it on the garage shelf', run() { S.flags.gloveTorch = true; sfx('click'); say('Torch', 'It goes on the garage shelf. Furry batteries and all.'); } },
+    { label: 'Leave it', run() {} }
+  ]);
+}
 // The glove box's lid on the dashboard, shut
 function gloveBoxLid() {
   const [x, y, w, h] = GLOVE_BOX;
@@ -459,16 +470,18 @@ SCREENS.glovebox = {
     pipe(200, 140, 262, 116, 6, C.steel2);
     disc(264, 115, 10, C.white); ring(264, 115, 10, C.steel);
     line(264, 115, 264, 108, C.red);                                // the needle, on 0
-    // the torch with dead batteries
-    pipe(296, 136, 356, 136, 12, hex('#1c1c1c'));
-    rect(354, 128, 16, 16, hex('#d0a020'));                         // its head
-    rect(368, 131, 3, 10, hex('#5a5a40'));                          // the glass, no light
-    rect(318, 130, 6, 3, C.red);                                    // the switch
+    // the torch with dead batteries (until you take it to the garage shelf)
+    if (!S.flags.gloveTorch) {
+      pipe(296, 136, 356, 136, 12, hex('#1c1c1c'));
+      rect(354, 128, 16, 16, hex('#d0a020'));                       // its head
+      rect(368, 131, 3, 10, hex('#5a5a40'));                        // the glass, no light
+      rect(318, 130, 6, 3, C.red);                                  // the switch
+    }
     // the phone charger: a white plug and its cable, in a tangle
     rbox(206, 170, 22, 18, 3, C.white);
     for (let k = 0; k < 5; k++) ring(250 + k * 12, 182, 7, hex('#d8d8d8'));
     rect(306, 180, 8, 4, C.steel2);                                 // the old, wrong-shaped plug on the end
-    GLOVE_THINGS.forEach(([name, , area], k) => spot(name, area, 'act:glove:' + k));
+    GLOVE_THINGS.forEach(([name, , area], k) => { if (name === 'Torch' && S.flags.gloveTorch) return; spot(name, area, 'act:glove:' + k); });   // (the torch, once taken)
     tip('The glove box', 'Tap a thing to look at it.', 1, 8);
     hud();
   },

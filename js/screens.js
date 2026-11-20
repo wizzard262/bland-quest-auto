@@ -576,17 +576,18 @@ function appHTML(app) {
     ${findJob('new-sensor') ? product('sensor-lot', 'Used · No returns · arrives in 2 days') : '<tr><td>Job lot of car sensors (approx 300) no idea what from<br><span class="meta">No returns</span></td><td>£45.00</td><td class="red">Too far</td></tr>'}</table></div>`;
   return `<div class="top">${APP_ICON.TechDocs}<b class="logo">Wonkypedia</b><span class="meta">The free car manual that anyone can make worse</span></div><div class="cols">
     <div class="side"><span>Main page</span><span>Random fault</span><span>Help</span><span>Talk</span></div><div class="body">
+    <h2>Fuse box (engine bay) — allocation, MY 03–05</h2><table>
+      <tr><td>F21</td><td>Infotainment / ICM (KL30)</td></tr><tr><td>F22</td><td>B+ ECM/PCM (see table 4-2)</td></tr>
+      <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
+      <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
+      <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
+      <p><button data-act="fusenote">${S.flags.fuseCopy ? 'Copied into your notebook' : 'Copy it into your notebook (20 min)'}</button></p>
     <h2>SB-0471/09 Rev C — TCM DTC P0705/P0706 sporadic, MY 03–05, see note 4</h2>
     <div class="meta">From Wonkypedia. This article is superseded by Rev B. [citation needed]</div>
     <p><b>1.</b> With KL15 ON and KL50 OFF, measure resistance between X12/3 (BK/WH) and X12/7 (BU/RD). Specified value: 4.7 kΩ ± 12% (see table 9, not included).</p>
     <p><b>2.</b> If value is within specification, continue at step 4. If not, continue at step 2.</p><p><b>3.</b> Step deleted.</p>
     <p class="red">Diagram 12 of 12 failed to load.</p><p><button data-act="readdocs">Try to make sense of it (20 min)</button></p>
-    ${leadExists('fusediagram') ? `<h2>Fuse box (engine bay) — allocation, MY 03–05</h2><table>
-      <tr><td>F21</td><td>Infotainment / ICM (KL30)</td></tr><tr><td>F22</td><td>B+ ECM/PCM (see table 4-2)</td></tr>
-      <tr><td>F23</td><td>IPC / TCM sensor supply (KL15/R)</td></tr><tr><td>F24</td><td>— (MX7 only)</td></tr>
-      <tr><td>F25</td><td>X13/4 → K38 (relay, see SB-0119)</td></tr><tr><td>F26</td><td>ABS/ESP (except M32, see F26a)</td></tr>
-      <tr><td>F27–28</td><td>Spare</td></tr><tr><td>F29</td><td>Not used* (*used)</td></tr></table>
-      <p><button data-act="fusenote">${S.flags.fuseCopy ? 'Copied into your notebook' : 'Copy it into your notebook (20 min)'}</button></p>` : ''}
+
     ${S.flags.colourMismatch ? `<h2>Selector sensor (TRS, 3-wire): wire colours, MY 03–05</h2><table>
       <tr><td>BN (brown)</td><td>→ RD (red): supply, KL15</td></tr><tr><td>BU (blue)</td><td>→ GN (green): signal (see note 9)</td></tr>
       <tr><td>WH (white)</td><td>→ YE (yellow): earth</td></tr></table>
@@ -1252,6 +1253,11 @@ function keyDrift(t) {
   const dy = Math.cos(t * 1.7) + Math.sin(t * 2.3 + 2) * 0.5 + (Math.random() - 0.5) * 0.3;
   return [KEY.aim[0] + dx * a, KEY.aim[1] + dy * a];
 }
+// His arm on the car door screen: a straight band from (x0, y0) to (x1, y1), w wide
+function keyArm(x0, y0, x1, y1, w, col) {
+  const len = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / len * w / 2, ny = (x1 - x0) / len * w / 2;   // half the width, at right angles to it
+  poly([[x0 + nx, y0 + ny], [x1 + nx, y1 + ny], [x1 - nx, y1 - ny], [x0 - nx, y0 - ny]], col);
+}
 SCREENS.keyhole = {
   size: [480, 270],
   paint() {
@@ -1272,6 +1278,9 @@ SCREENS.keyhole = {
   animate(t) {
     KEY.pos = keyDrift(t);
     const [x, y] = KEY.pos;
+    keyArm(x + 64, y + 2, x + 230, y + 160, 24, C.shirtDark);                    // his arm, in its red sleeve, from off the bottom right
+    keyArm(x + 61, y, x + 224, y + 156, 16, C.shirt);
+    rect(x + 58, y - 10, 12, 22, shade(C.shirt, 1.15));                           // the cuff
     rect(x, y - 2, 30, 4, C.steel); rect(x + 6, y + 2, 4, 2, C.steel); rect(x + 14, y + 2, 4, 2, C.steel);   // the blade, with its teeth
     disc(x + 40, y, 10, C.steel); disc(x + 40, y, 3, shade(C.car, 0.6));      // the bow (and its hole)
     rect(x + 44, y - 12, 26, 24, C.skin); rect(x + 46, y - 14, 20, 4, C.skin); // his hand holding it
@@ -1283,6 +1292,7 @@ SCREENS.keyhole = {
 const BREATH_BOX = [140, 70, 200, 150];                          // the breathalyser: x, y, w, h
 const breathLedAt = k => [BREATH_BOX[0] + 22 + k * 16, BREATH_BOX[1] + 80];   // light k, left (green) to right (red)
 const BREATH_COLOURS = [hex('#30c040'), hex('#30c040'), hex('#60d040'), hex('#a0d030'), hex('#d8d020'), hex('#f0b020'), hex('#f08020'), hex('#f05020'), hex('#e02020'), hex('#e02020')];
+const BREATH_TICKET = [344, 30];                                // where the fine is held up: top right, above the dialog
 SCREENS.breath = {
   size: [480, 270],
   paint() {
@@ -1294,10 +1304,11 @@ SCREENS.breath = {
     text('BLOW', x + 70, y + 26, hex('#40c070'), 2);
     for (let k = 0; k < BREATH_LEDS; k++) { const [lx, ly] = breathLedAt(k); disc(lx, ly, 5, C.ink); disc(lx, ly, 4, shade(BREATH_COLOURS[k], 0.3)); }   // the lights, off
     rect(x + 30, y + h, 60, 40, C.skin); rect(x + 26, y + h + 30, 70, 30, hex('#202838'));   // the policeman's hand, his sleeve
-    if (BREATH.ticket) {                                                       // the fine, on paper
-      rect(344, 150, 130, 100, C.white); rect(344, 150, 130, 14, C.red);
-      text('FIXED PENALTY', 352, 154, C.white);
-      text('£' + BREATH_FINE, 372, 190, C.ink, 3);
+    if (BREATH.ticket) {                                                       // the fine, on paper: up top, clear of what he says
+      const [tx, ty] = BREATH_TICKET;
+      rect(tx, ty, 130, 90, C.white); rect(tx, ty, 130, 14, C.red);
+      text('FIXED PENALTY', tx + 8, ty + 4, C.white);
+      text('£' + BREATH_FINE, tx + 28, ty + 36, C.ink, 3);
     }
     const msg = BREATH.ticket ? 'You\'ve been fined.' : BREATH.short ? 'Not long enough! Press and hold to blow, and keep going.' : 'Press and hold to blow into it. Keep going till he says stop (about ' + BREATH_TIME.secs + ' seconds).';
     tip('The breath test', msg, 1, 8);
