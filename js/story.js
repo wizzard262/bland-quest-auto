@@ -1413,6 +1413,7 @@ const ACTIONS = {
     if (!S.flags.fits) return say('Fit it', S.flags.boxOff ? 'The box is on the workbench, and there\'s no sensor in it that fits yet.' : 'You haven\'t got one that fits yet.');
     if (!S.flags.n3found) return say('Fit it', 'Two bolts… and nut 3 is still lost.');
     if (S.flags.sheared && !S.flags.stubOut) return say('Fit it', 'Not with the snapped screw\'s stub still in the box: the sensor\'s only held by two. Get the stub out with the extractor first.');
+    if (S.flags.sheared && !S.flags.screw3) return say('Fit it', 'The sensor\'s only held by two screws. Find a third that matches: the screw jar on the garage shelf.');
     pass(30);
     S.flags.fitted = true;
     moment('sensorFit', 1300); sfx('clink', 0.8); sfx('ratchet', 0.95);
@@ -1472,7 +1473,8 @@ const ACTIONS = {
       S.flags.stubOut = true;
       moment('screwOut', 900); sfx('creak'); sfx('pop', 0.7);
       finishJob('stub', 'The proper extractor got the stub out');
-      return say('The stub', 'Tap the extractor in, a slow quarter turn… and the stub winds out. A clean hole. The third screw can go in.');
+      screwJob();                                                       // now the hole needs a screw (screws.js)
+      return say('The stub', 'Tap the extractor in, a slow quarter turn… and the stub winds out. A clean hole.\n\nNow it needs a screw that matches. There\'s a jar of them on the garage shelf.');
     }
     delete S.inv['extractor-cheap'];
     anger(15);
@@ -1523,7 +1525,8 @@ const ACTIONS = {
     finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
     closeLead('try-p4l', 'ok'); closeLead('try-soldered', 'ok');
     lead('light', 'fit', 'Fit the box (new sensor and all) back on the car', 'you', 'sure', 'underZoom');
-    const stub = S.flags.sheared && !S.flags.stubOut ? '\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it: get that out with the extractor, then the third screw can go in.' : '\n\nAll three screws hold it in.';
+    const stub = S.flags.sheared && !S.flags.stubOut ? '\n\nTwo screws hold it in. The third hole still has the stub of the snapped screw in it: get that out with the extractor, then find a third screw.'
+      : S.flags.sheared && !S.flags.screw3 ? '\n\nTwo screws hold it in. The third hole needs a screw that matches: the jar on the garage shelf.' : '\n\nAll three screws hold it in.';
     say('Push', 'Click. It fits. It actually fits.' + stub + '\n\nThen fit the box back on the car.');
   },
   pullpart() {

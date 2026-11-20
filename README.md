@@ -22,6 +22,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/road.js`: road snags: now and then on the way home, a puncture (the roadside, the flat spare, the dead phone, the walk home in the rain and the splash, a wheel from the Scrap Yard or the Tyre Place in the wife's car); and being pulled over by the police after a drink, side-on in the street at night
 - `js/brother.js`: your brother comes round to "help"
 - `js/police.js`: the police station, the post (letters in the mailbox), the drink-driving fine, the clamp and the taxi
+- `js/screws.js`: the screw jar: it spills all over the garage floor, you sweep it up with a dustpan, then try screws from a tray in the third hole
 - `js/bank.js`: now and then the card is blocked as you pay; the bank (Mon to Wed, 10 till 2) and its security questions
 - `js/engine.js`: game state, time, money, anger, the notebook, dialogs, saving
 - `task-tree.md`: the full design tree of tasks and snags (branches still to build)

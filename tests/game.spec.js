@@ -480,6 +480,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   expect(await flag(page, 'fits')).toBe(true);
   await act(page, 'Use the extractor on the snapped screw'); await ok(page);   // the snapped screw's stub, out with the proper extractor
   expect(await flag(page, 'stubOut')).toBe(true);
+  await page.evaluate(() => { S.flags.screw3 = true; finishJob('screw3', 'from the jar'); });   // the third screw from the jar (its own test)
 
   // fit it and start the car: the red light goes off… and the ABS light comes on
   await garage(page, 'Under the car'); await act(page, 'Zoom in: gearbox');
@@ -2769,5 +2770,36 @@ test('the splash: as the car hits the puddle he is level with it, and stops dead
   await start(page, errors);
   const [at, puddle] = await page.evaluate(() => [lerp(WALK.from, WALK.to, WALK_HIT), WALK.puddle[0]]);
   expect(Math.abs(at - puddle)).toBeLessThan(6);                             // right beside it
+  expect(errors).toEqual([]);
+});
+
+test('the screw jar: once the stub is out you need a third screw; the jar on the garage shelf spills everywhere; sweep it up with the dustpan; try screws from the tray till one fits', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // before you need one: just a jar of screws
+  await page.evaluate(() => { show('stores'); ACTIONS.storelook(storeList().findIndex(i => i[0] === SCREW_JAR)); });
+  expect(await dialogText(page)).toContain('None of them match');
+  await ok(page);
+  // the stub's out: the box won't go back on with two screws
+  await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, sheared: 3, stubOut: true, fits: true, n3found: true }); screwJob(); ACTIONS.fit(); });
+  expect(await dialogText(page)).toContain('screw jar');
+  await ok(page);
+  // take the jar down: it spills; sweep up
+  await page.evaluate(() => { show('stores'); ACTIONS.storelook(storeList().findIndex(i => i[0] === SCREW_JAR)); });
+  await page.locator('.dlg button', { hasText: 'Take the jar down' }).click();
+  expect(await dialogText(page)).toContain('bottom falls out');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('sweep');
+  await page.evaluate(() => { for (let y = 40; y <= 260; y += 10) for (let x = 24; x <= 456; x += 20) sweepMove(x, y); });   // over the whole floor
+  expect(await dialogText(page)).toContain('Swept up');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.jarSwept, S.screen])).toEqual([true, 'screwtray']);
+  // the tray: a wrong one, then the right one
+  await tap(page, 'act:trayscrew:2');
+  expect(await dialogText(page)).toContain('too long');
+  await ok(page);
+  await tap(page, 'act:trayscrew:7');
+  expect(await dialogText(page)).toContain('Three screws');
+  expect(await page.evaluate(() => [S.flags.screw3, findJob('screw3').status, S.screen])).toEqual([true, 'done', 'bench']);
   expect(errors).toEqual([]);
 });

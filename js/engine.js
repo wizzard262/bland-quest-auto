@@ -567,6 +567,12 @@ stage.addEventListener('pointermove', e => {
   BEAM = { x: Math.max(0, Math.min(W, x)), y: Math.max(150, Math.min(H, y)) };   // on the floor
   underBeamMoved();
 });
+// Sweeping up the screws: the pointer moves the dustpan (screws.js)
+stage.addEventListener('pointermove', e => {
+  if (S.screen !== 'sweep' || DIALOG || ANIM) return;
+  const [x, y] = picturePoint(e);
+  sweepMove(x, y);
+});
 // Under the tool chest: the pointer moves the stick
 stage.addEventListener('pointermove', e => {
   if (S.screen !== 'fish' || DIALOG) return;
