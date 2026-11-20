@@ -324,6 +324,15 @@ function dashStreet() {
   for (let x = 0; x < W; x += 6) rect(x, 33, 1, 8, hex('#3a3c42'));                                  // its slats
 }
 
+// Fluffy dice, hanging from the rear-view mirror on their strings
+const DICE_SPOT = [182, 48, 36, 32];
+function drawDice() {
+  line(196, 49, 192, 62, C.white); line(204, 49, 208, 64, C.white);   // the strings
+  for (const [x, y] of [[186, 62], [202, 64]]) {
+    rbox(x, y, 12, 12, 3, hex('#f080b8'));                          // a fluffy pink die
+    px(x + 3, y + 3, C.ink); px(x + 6, y + 6, C.ink); px(x + 8, y + 8, C.ink);   // its spots
+  }
+}
 SCREENS.dash = {
   size: [480, 270],
   paint() {
@@ -399,6 +408,10 @@ SCREENS.dash = {
     spot('Door handle: get out', DOOR_HANDLE, 'garage');
     spot('Glove box', GLOVE_BOX, 'act:glovebox');
     spot('Panel under the dash', ECU_PANEL, 'act:ecu');
+    if (diceUp()) {                                                  // fluffy dice on the mirror (extras.js)
+      drawDice();
+      spot('Fluffy dice: take them down', DICE_SPOT, 'act:dicedown');
+    }
     tip("Driver's seat", S.flags.running ? 'Engine running.' : ['Key at 0: off. Tap the key to turn it.', 'Key at I: radio on.', 'Key at II: dash lights on. Tap again to start.', ''][S.key], 1, 8);
     hud();
   },

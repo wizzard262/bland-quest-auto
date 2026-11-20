@@ -849,7 +849,7 @@ test('a drink or three, and the key will not go in the car door: it wobbles abou
   await ok(page);
   expect(await page.evaluate(() => S.screen)).toBe('breath');
   // sober (no drinks today): straight into the car
-  await page.evaluate(() => { S.drinks = null; });
+  await page.evaluate(() => { S.drinks = null; S.booze = null; });
   await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'city');
   await idle(page);
@@ -869,7 +869,7 @@ async function blow(page, ms) {
 test('driving off after a drink, the police breath test you: hold to blow; one drink is half way and a pass; two is red, three beeps, again, and a £300 fine', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.mins = 20 * 60; S.place = 'The Hesketh Tavern'; S.drinks = { day: S.day, n: 1 }; BREATH_TIME.secs = 0.6; breathStart(); });
+  await page.evaluate(() => { S.mins = 20 * 60; S.place = 'The Hesketh Tavern'; S.drinks = { day: S.day, n: 1 }; S.booze = { level: 1, at: nowAbs() }; BREATH_TIME.secs = 0.6; breathStart(); });
   expect(await page.evaluate(() => S.screen)).toBe('breath');
   // let go too soon: blow again
   await blow(page, 150);
@@ -882,7 +882,7 @@ test('driving off after a drink, the police breath test you: hold to blow; one d
   await ok(page);
   expect(await page.evaluate(() => S.screen)).toBe('city');
   // two drinks: all the way to red; a fail, blow again, a fail, and the fine on paper
-  const money = await page.evaluate(() => { S.drinks = { day: S.day, n: 2 }; breathStart(); return S.money; });
+  const money = await page.evaluate(() => { S.drinks = { day: S.day, n: 2 }; S.booze = { level: 2, at: nowAbs() }; breathStart(); return S.money; });
   await blow(page, 900);
   expect(await page.evaluate(() => [BREATH.lit, BREATH.beeped])).toEqual([10, true]);
   expect(await dialogText(page)).toContain('do it again');
@@ -2476,5 +2476,99 @@ test('the wife sits on the sofa with her legs crossed, turned side-on, her face 
   // the scrap yard: any of these cars might do for parts one day
   await page.evaluate(() => TALK['Scrap Yard']());
   expect(await dialogText(page)).toContain('good for parts one day');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the BOOZE meter, stuck at the car door, pulled over, the dice, the headlight off the shelf, the wife asleep, spiders ----------
+test('the BOOZE meter: each drink fills it, it wears off an hour a drink, and sleep clears it; under ANGER on the strip', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; boozeAdd(2); render(); });
+  expect(await page.evaluate(() => [boozeNow(), boozePercent(), boozeDrinks()])).toEqual([2, 50, 2]);
+  await expect(page.locator('.anger.booze')).toHaveCount(1);              // the bar, under ANGER
+  await page.evaluate(() => pass(90));                                      // an hour and a half later
+  expect(await page.evaluate(() => [boozeNow(), boozeDrinks()])).toEqual([0.5, 1]);
+  await page.evaluate(() => pass(30));                                      // and it's gone
+  expect(await page.evaluate(() => boozeNow())).toBe(0);
+  await page.evaluate(() => { boozeAdd(3); sleepUntilMorning(); });         // or sleep it off
+  expect(await page.evaluate(() => [boozeNow(), S.booze])).toEqual([0, null]);
+  expect(errors).toEqual([]);
+});
+
+test("drunk at the car door: give up (or miss 8 times) and you're stuck till it wears off; sit on the wall, then you can drive", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; S.flags.pubCall = S.day; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  await lagers(page, 2);
+  await ok(page);
+  await tap(page, 'act:leave'); await idle(page);
+  await tap(page, 'city'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('keyhole');
+  await act(page, 'Give up');
+  expect(await dialogText(page)).toContain("stuck here till it wears off");
+  await page.locator('.dlg button', { hasText: 'Sit on the wall' }).click();
+  expect(await dialogText(page)).toContain('fit to drive');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, boozeNow()])).toEqual(['place', 0]);
+  await tap(page, 'city'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('city');                 // sober: straight in and off
+  // eight misses and you give up anyway
+  await page.evaluate(() => { boozeAdd(2); KEY.scratches = []; for (let k = 0; k < 7; k++) KEY.scratches.push([0, 0]); KEY.pos = [10, 10]; S.screen = 'keyhole'; keyTry(); });
+  expect(await dialogText(page)).toContain('8 new scratches');
+  expect(errors).toEqual([]);
+});
+
+test('driving off after a drink: the police car comes up behind with its blue lights and pulls you over, then the knock on the window', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 21 * 60; boozeAdd(2); pullOver(); });
+  expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['pullover', 'pullover']);
+  expect(await dialogText(page)).toContain('Blue lights');
+  expect(errors).toEqual([]);
+});
+
+test('fluffy dice: hang them in the car from the garage shelf; take them down in the car and they go back on the shelf', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.bought = { 'Fluffy dice': { kind: 'box', n: 1 } }; show('stores'); });
+  expect(await page.evaluate(() => storeList().map(i => i[0]))).toContain('Fluffy dice');
+  await page.evaluate(() => { const k = storeList().findIndex(i => i[0] === 'Fluffy dice'); ACTIONS.storelook(k); });
+  await page.locator('.dlg button', { hasText: 'Hang them in the car' }).click();
+  await ok(page);
+  expect(await page.evaluate(() => [diceUp(), storeList().some(i => i[0] === 'Fluffy dice')])).toEqual([true, false]);   // off the shelf, on the mirror
+  await page.evaluate(() => show('dash'));
+  await tap(page, 'act:dicedown');
+  expect(await dialogText(page)).toContain('back on the garage shelf');
+  expect(await page.evaluate(() => [diceUp(), storeList().some(i => i[0] === 'Fluffy dice')])).toEqual([false, true]);
+  expect(errors).toEqual([]);
+});
+
+test('a spare headlight on the garage shelf: tap it to fit it (the smashed one goes in the parts box); the garage offers it too', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('broke-headlight', 'Replace the smashed left headlight', null); addLamp('left'); show('garage'); });
+  await expect(page.locator('.acts button', { hasText: 'Fit the new headlight' })).toHaveCount(1);
+  await page.evaluate(() => { show('stores'); const k = storeList().findIndex(i => i[0].startsWith('Headlight (Zafira, left')); ACTIONS.storelook(k); });
+  await page.locator('.dlg button', { hasText: 'Fit it to the car' }).click();
+  expect(await dialogText(page)).toContain('parts box');
+  expect(await page.evaluate(() => [brokeOpen('headlight'), spareLamps().left])).toEqual([false, 0]);
+  expect(errors).toEqual([]);
+});
+
+test('going to bed when she is already asleep: she stays in bed through the night', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 23 * 60 + 30; show('room'); ACTIONS.bed(); });
+  expect(await page.evaluate(() => [S.flags.bedAsleep, ANIM && ANIM.kind])).toEqual([true, 'night']);
+  expect(errors).toEqual([]);
+});
+
+test('the first look under anything with a light: there is always a spider', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.phoneTorch = true; S.flags.screwsSpilt = true; ACTIONS.search('the shelves'); });
+  expect(await page.evaluate(() => !!UNDER_SPIDER)).toBe(true);
   expect(errors).toEqual([]);
 });

@@ -490,7 +490,10 @@ const ITEM_KIND = { 'reader-good': 'reader', 'reader-cheap': 'reader', 'reader-o
 // Everything you've bought: [name, how it's drawn, how many]
 function storeList() {
   const list = [];
-  for (const [name, b] of Object.entries(S.bought || {})) list.push([name, b.kind, b.n]);
+  for (const [name, b] of Object.entries(S.bought || {})) {
+    if (name === DICE) { const n = b.n - (diceUp() ? 1 : 0); if (n > 0) list.push([name, 'dice', n]); continue; }   // the dice: not while they're hanging in the car
+    list.push([name, b.kind, b.n]);
+  }
   for (const id of Object.keys(S.inv)) {
     const it = ITEMS[id];
     if (!it || it.none || !S.inv[id]) continue;                                    // not a thing you bought
@@ -539,8 +542,37 @@ SCREENS.stores = {
   },
   actions() { return [{ label: 'Back to the garage', act: 'go:garage' }]; }
 };
+// A spare headlight on the shelf: fit it, if one of yours is smashed (the old one goes in the parts box)
+function shelfHeadlight(name) {
+  const smashed = brokeOpen('headlight') || brokeOpen('headlight2');
+  if (!smashed) return say(name, 'On your garage shelf. For when you next lose your temper.');
+  say(name, 'A new headlight, still in its box.', [
+    { label: 'Fit it to the car', run() { ACTIONS.fitlight(); } },
+    { label: 'Leave it on the shelf', run() {} }
+  ]);
+}
+// ---------- fluffy dice: off the shelf onto the rear-view mirror, and back ----------
+const DICE = 'Fluffy dice';
+const diceUp = () => !!S.flags.diceUp;                              // hanging in the car
+function shelfDice() {
+  say(DICE, 'Pink. Fluffy. Very nearly dice.', [
+    { label: 'Hang them in the car', run: hangDice },
+    { label: 'Leave them on the shelf', run() {} }
+  ]);
+}
+function hangDice() {
+  S.flags.diceUp = true;                                            // off the shelf, onto the mirror
+  sfx('click');
+  say(DICE, 'You hang them on the rear-view mirror. The car is now worth slightly less.');
+}
+function takeDiceDown() {
+  S.flags.diceUp = false;                                           // back on the garage shelf
+  sfx('click');
+  say(DICE, 'You take them down. They go back on the garage shelf.');
+}
 // A little picture of a thing, in a 32 x 32 slot
 function drawIcon(kind, x, y, n) {
+  if (kind === 'dice') { for (const [dx, dy] of [[5, 9], [15, 13]]) { rbox(x + dx, y + dy, 12, 12, 3, hex('#f080b8')); px(x + dx + 3, y + dy + 3, C.ink); px(x + dx + 8, y + dy + 8, C.ink); px(x + dx + 6, y + dy + 6, C.ink); } return; }
   if (kind === 'handbook') { rbox(x + 7, y + 4, 18, 25, 2, HANDBOOK_BLUE); rect(x + 9, y + 7, 14, 4, C.white); rect(x + 11, y + 15, 10, 5, C.car); return; }
   if (kind === 'hammer') { pipe(x + 9, y + 27, x + 21, y + 11, 3, C.wood); poly([[x + 12, y + 5], [x + 26, y + 15], [x + 23, y + 19], [x + 9, y + 9]], C.tool); return; }
   if (kind === 'spanners') { pipe(x + 7, y + 25, x + 24, y + 8, 3, C.steel); ring(x + 26, y + 6, 4, C.steel2); ring(x + 5, y + 27, 3, C.steel2); return; }
@@ -678,6 +710,8 @@ Object.assign(ACTIONS, {
     if (name === HANDBOOK_NAME) return openHandbook();               // the handbook: read it
     if (name === 'Torch') return useBoughtTorch();                   // a torch off a shop shelf
     if (name === 'Batteries') return useBoughtBatteries();           // AAs off a shop shelf
+    if (name.startsWith('Headlight (Zafira')) return shelfHeadlight(name);   // a spare headlight: fit it, if one's smashed
+    if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it

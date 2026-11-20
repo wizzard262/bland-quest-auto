@@ -72,6 +72,7 @@ function paintBehind() {
 }
 // Jump to tomorrow morning (going to bed)
 function sleepUntilMorning() {
+  soberUp();                                                       // slept it off (story.js)
   S.day += 1;
   S.mins = 8 * 60;
   S.anger = Math.max(0, S.anger - 20);
@@ -228,7 +229,7 @@ function goTo(target) {
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
   if (target === 'city' && S.screen !== 'city' && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
-  if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && drinksToday() > 0) return keyStart();   // had a drink or three: get the key in the door first
+  if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && boozeNow() > 0) return keyStart();   // had a drink or three: get the key in the door first
   show(target);
 }
 // The garage's roller door rattles up, then you're inside
@@ -372,6 +373,7 @@ function hudInfo() {
     clock: clockText(),
     task: j ? j.title.toUpperCase().slice(0, 64) : 'NOTHING… FOR NOW',
     anger: S.anger,
+    booze: boozePercent(),                                         // how drunk: 0 to 100 (story.js)
     unread: S.msgs.filter(m => !m.read).length
   };
 }

@@ -125,23 +125,28 @@ SCREENS.roadside.animate = function (t) {
 // THE WALK HOME: grey sky, rain, and a car through a puddle
 // =====================================================================
 const WALK = { ground: 214, puddle: [250, 234], from: 20, to: 470, size: 4 };
-// A flat, side-on street: grey sky, a terrace of houses, the pavement and the road
+// The street side-on: a terrace of houses, the pavement, the kerb and the road (the walk home; being pulled over)
+//   dim: how dark it is (1 = day; lower at night)
+function sideStreet(dim) {
+  for (let y = 0; y < 150; y++) rect(0, y, W, 1, shade(hex('#7a8088'), (0.8 + y / 600) * dim));   // the sky, lighter low down
+  for (let k = 0; k < 6; k++) disc(40 + k * 90, 30 + (k % 2) * 14, 40, shade(hex('#6a7078'), dim));   // heavy clouds
+  for (let k = 0; k < 8; k++) {                                     // the terrace of houses over the road
+    const x = k * 64 - 10;
+    rect(x, 96, 62, 104, shade(C.brick, 0.75 * dim));
+    rect(x, 90, 62, 8, shade(C.roof, 0.8 * dim));
+    const lit = dim < 0.8 && hash(k, 3) > 0.5;                      // at night, some windows are lit
+    rect(x + 8, 110, 14, 14, lit ? hex('#e8c870') : shade(C.winGlass, 0.6 * dim));
+    rect(x + 40, 110, 14, 14, shade(C.winGlass, 0.6 * dim));
+    rect(x + 26, 150, 12, 50, shade(C.door, 0.6 * dim));
+  }
+  rect(0, 200, W, 18, shade(C.drive, 0.75 * dim));                  // the pavement
+  rect(0, 218, W, 2, shade(C.steel2, dim));                         // the kerb
+  rect(0, 220, W, 50, shade(C.road, 0.8 * dim));                    // the road
+}
 SCREENS.walkhome = {
   size: [480, 270],
   paint() {
-    for (let y = 0; y < 150; y++) rect(0, y, W, 1, shade(hex('#7a8088'), 0.8 + y / 600));   // a grey sky, lighter low down
-    for (let k = 0; k < 6; k++) disc(40 + k * 90, 30 + (k % 2) * 14, 40, hex('#6a7078'));     // heavy clouds
-    for (let k = 0; k < 8; k++) {                                   // the terrace of houses over the road
-      const x = k * 64 - 10;
-      rect(x, 96, 62, 104, shade(C.brick, 0.75));
-      rect(x, 90, 62, 8, shade(C.roof, 0.8));
-      rect(x + 8, 110, 14, 14, shade(C.winGlass, 0.6));
-      rect(x + 40, 110, 14, 14, shade(C.winGlass, 0.6));
-      rect(x + 26, 150, 12, 50, shade(C.door, 0.6));
-    }
-    rect(0, 200, W, 18, shade(C.drive, 0.75));                      // the pavement he walks along
-    rect(0, 218, W, 2, C.steel2);                                   // the kerb
-    rect(0, 220, W, 50, shade(C.road, 0.8));                        // the road
+    sideStreet(1);                                                  // the street, in the grey daylight
     const [px0, py0] = WALK.puddle;
     ellipse(px0, py0, 34, 6, hex('#4a5a68'));                       // the puddle by the kerb
     ellipse(px0 - 6, py0 - 1, 18, 2, hex('#6a7a88'));
@@ -156,17 +161,65 @@ SCREENS.walkhome = {
     }
   }
 };
-// A car seen side-on, driving right (for the walk home)
+// A car seen side-on, driving right (for the walk home, and being pulled over)
 //   s: how big (2 is to scale with him on the walk home: a car's about two and a half of him long)
-function sideCar(x, y, col, s = 1) {
+//   opts.estate: our Zafira's long roof, right to the back; opts.police: a police car (white, a yellow and blue check
+//   down the side, a light bar on the roof); opts.flash: which of its blue lights is lit
+function sideCar(x, y, col, s = 1, opts = {}) {
   const X = v => x + v * s, Y = v => y - v * s;                     // the car's own units, scaled from its back wheel's road line
   rbox(X(0), Y(20), 96 * s, 16 * s, 5 * s, col);                    // the body
-  poly([[X(22), Y(20)], [X(34), Y(34)], [X(66), Y(34)], [X(78), Y(20)]], col);   // the cabin
-  poly([[X(27), Y(21)], [X(36), Y(31)], [X(49), Y(31)], [X(49), Y(21)]], C.glass);
-  poly([[X(52), Y(21)], [X(52), Y(31)], [X(64), Y(31)], [X(73), Y(21)]], C.glass);
+  if (opts.estate) {                                                // the estate: the roof runs back, the tailgate slopes a little
+    poly([[X(2), Y(20)], [X(6), Y(36)], [X(66), Y(36)], [X(78), Y(20)]], col);
+    poly([[X(7), Y(21)], [X(9), Y(33)], [X(30), Y(33)], [X(30), Y(21)]], C.glass);   // the back side window
+    poly([[X(33), Y(21)], [X(33), Y(33)], [X(49), Y(33)], [X(49), Y(21)]], C.glass);
+    poly([[X(52), Y(21)], [X(52), Y(33)], [X(65), Y(33)], [X(73), Y(21)]], C.glass);
+  } else {                                                          // a saloon
+    poly([[X(22), Y(20)], [X(34), Y(34)], [X(66), Y(34)], [X(78), Y(20)]], col);   // the cabin
+    poly([[X(27), Y(21)], [X(36), Y(31)], [X(49), Y(31)], [X(49), Y(21)]], C.glass);
+    poly([[X(52), Y(21)], [X(52), Y(31)], [X(64), Y(31)], [X(73), Y(21)]], C.glass);
+  }
+  const police = opts.police ? { flash: opts.flash } : null;
+  if (police) {
+    for (let k = 0; k < 12; k++) rect(X(2 + k * 7.6), Y(14), 7.6 * s, 5 * s, k % 2 ? hex('#f0d020') : hex('#2050d0'));   // the check down the side
+    rect(X(40), Y(37), 20 * s, 3 * s, C.ink);                       // the light bar
+    rect(X(41), Y(37), 8 * s, 3 * s, police.flash ? hex('#4080ff') : hex('#203060'));   // blue, flashing
+    rect(X(51), Y(37), 8 * s, 3 * s, police.flash ? hex('#203060') : hex('#4080ff'));
+    if (police.flash) disc(X(45), Y(36), 10 * s, hex('#2848a0'));   // its glow
+  }
   for (const wx of [20, 76]) { disc(X(wx), Y(3), 8 * s, C.tyre); disc(X(wx), Y(3), 4 * s, C.rim); }
   rect(X(92), Y(16), 4 * s, 4 * s, C.warm);                         // its headlight
+  rect(X(0), Y(16), 2 * s, 4 * s, C.red);                           // its tail light
 }
+// =====================================================================
+// PULLED OVER: driving off after a drink, the police car comes up behind you, blue lights, and you pull in
+// =====================================================================
+const PULLOVER_MS = 5000;
+SCREENS.pullover = {
+  size: [480, 270],
+  paint() {
+    sideStreet(0.45);                                               // the street, at night
+    for (let k = 0; k < 4; k++) {                                   // street lamps along the pavement
+      const x = 40 + k * 130;
+      rect(x, 120, 3, 82, C.greyDark);
+      rect(x - 4, 116, 12, 4, C.greyDark);
+      disc(x + 2, 121, 6, hex('#5a5030'));
+      rect(x - 1, 120, 6, 2, hex('#f0d080'));
+    }
+    tip('Driving home', 'Blue lights in the mirror.', 1, 8);
+    hud();
+  }
+};
+MOMENTS.pullover = function (p) {
+  const yours = lerp(-120, 240, ease(Math.min(1, p / 0.8)));         // your Zafira: along the road, slowing, pulling in
+  const theirs = lerp(-420, 16, ease(Math.min(1, p / 0.85)));        // the police car, catching up and pulling in behind
+  const inY = 262 - Math.round(Math.max(0, p - 0.45) / 0.55 * 10);  // both drift in towards the kerb
+  const flash = Math.floor(p * PULLOVER_MS / 180) % 2 === 0;         // the blue lights
+  sideCar(theirs, inY, C.white, 2, { police: true, flash });
+  sideCar(yours, inY, C.car, 2, { estate: true });
+  if (flash) for (let x = 0; x < W; x += 6) rect(x, 219, 3, 1, hex('#4060c0'));   // blue on the wet road
+};
+
+
 // The moment: he walks home in the rain; halfway, a car hits the puddle and soaks him
 const SOAKED = { shirt: hex('#8a3028'), shirtDark: hex('#6a2018'), jeans: hex('#283a68'), jeansDark: hex('#1c2a50'), hair: hex('#402810') };
 const WALK_MS = 7000;                                                  // the whole walk home

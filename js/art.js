@@ -178,6 +178,10 @@ function angerBar(anger, x, y, w, h) {
   const shake = anger > 50 ? ` shaking" style="--speed:${(0.5 - (anger - 50) / 50 * 0.42).toFixed(2)}s;` : '" style="';
   LABELS.push(`<div class="anger ${colour}${bump}${shake}left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"><i style="width:${anger}%"></i></div>`);
 }
+// The BOOZE bar, under the anger bar: amber, filling with each drink, emptying as it wears off
+function boozeBar(pct, x, y, w, h) {
+  LABELS.push(`<div class="anger booze" style="left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${h / H * 100}%"><i style="width:${pct}%"></i></div>`);
+}
 // ---------- the same strip on every world screen: time, task, anger, phone ----------
 // s = how big the pixels of the strip are (2 on the bigger city picture, so it reads the same)
 let HUD_SHOWN = false;                                      // does the screen now showing have the strip (and so the phone)?
@@ -190,6 +194,8 @@ function hud() {
   text('JOB: ' + info.task, 4 * s, 10 * s, C.ui, s);
   text('ANGER', W - 74 * s, 3 * s, C.dim, s);
   angerBar(info.anger, W - 50 * s, 3 * s, 46 * s, 5 * s);           // the anger bar (it shakes when you're wound up)
+  text('BOOZE', W - 74 * s, 10 * s, C.dim, s);
+  boozeBar(info.booze || 0, W - 50 * s, 10 * s, 46 * s, 5 * s);     // under it, how drunk you are (it wears off)
   // phone in your pocket, with a red dot for unread texts (while it rings, it's drawn moving instead: ringingPhone)
   const [x, y] = phoneIconAt(s);
   if (!CALL) phoneIcon(x, y, s, info.unread);

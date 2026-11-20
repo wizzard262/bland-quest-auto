@@ -161,7 +161,7 @@ SCREENS.room.animate = function (t) {
     sleepZs(t, m[0] + 2, m[1] - 10);
   }
   const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed: she's beside you as before
-  if (isAsleep() && !goingToBed) {                                    // late: she's in bed, fast asleep
+  if ((isAsleep() && !goingToBed) || (goingToBed && S.flags.bedAsleep)) {   // late (or already asleep when you came to bed): in bed, fast asleep
     sleepingWife(t);
     moveWifeTap([SLEEPING_HEAD[0] + 8, SLEEPING_HEAD[1]], [60, 10]);
     return;
@@ -693,15 +693,16 @@ Object.assign(MOMENTS, MOMENTS_MORE);                                  // the re
 function spiderAt(x, y, phase) {
   const litCol = hex('#4a3a2a'), darkCol = hex('#0c0c0e');             // brown in the light, nearly black outside it
   const colAt = (px_, py_) => (inTorchLight(px_, py_) ? litCol : darkCol);
-  for (let n = 0; n < 4; n++) {                                        // 4 legs a side, scuttling back and forth
-    const step = Math.sin(phase + n * 1.6) * 2;                        // each pair of legs swings out of step with the next
-    const lx = x - 3 + n * 2;                                          // where the leg leaves the body
-    const tipX = lx - 4 + n * 3 + step;                                // where its foot lands
-    line(lx, y, tipX, y - 5, colAt(lx, y - 3));                        // a back leg (up the screen)
-    line(lx, y, tipX - step * 2, y + 5, colAt(lx, y + 3));             // a front leg (down the screen)
+  for (let n = 0; n < 4; n++) {                                        // 4 legs a side, scuttling back and forth (a big one)
+    const step = Math.sin(phase + n * 1.6) * 3;                        // each pair of legs swings out of step with the next
+    const lx = x - 5 + n * 3;                                          // where the leg leaves the body
+    const tipX = lx - 7 + n * 5 + step;                                // where its foot lands
+    const knee = [lx + (tipX - lx) / 2, y - 7];                        // legs bend up at the knee
+    line(lx, y, knee[0], knee[1], colAt(lx, y - 3)); line(knee[0], knee[1], tipX, y - 3, colAt(tipX, y - 3));   // a back leg (up the screen)
+    line(lx, y, knee[0] - step, y + 6, colAt(lx, y + 3)); line(knee[0] - step, y + 6, tipX - step * 2, y + 9, colAt(tipX, y + 6));   // a front leg (down the screen)
   }
-  disc(x - 3, y, 3, colAt(x - 3, y));                                  // its fat body (the back half)
-  disc(x + 2, y, 2, colAt(x + 2, y));                                  // its head (the front half)
+  disc(x - 4, y, 5, colAt(x - 4, y));                                  // its fat body (the back half)
+  disc(x + 3, y, 3, colAt(x + 3, y));                                  // its head (the front half)
   if (inTorchLight(x - 4, y - 2)) px(x - 4, y - 2, hex('#8a7a60'));    // a shine on its back, only in the light
   if (inTorchLight(x + 3, y - 1)) px(x + 3, y - 1, C.white);           // a glint of an eye, only in the light
 }

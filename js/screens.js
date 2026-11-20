@@ -749,6 +749,8 @@ SCREENS.garage = {
   },
   actions() {
     if (brotherHere()) return [{ label: 'Let Paul help', act: 'brotherhelp' }];   // he's round (brother.js)
+    const spares = spareLamps(), smashed = brokeOpen('headlight') || brokeOpen('headlight2');
+    if (smashed && (spares.left || spares.right)) return [{ label: 'Fit the new headlight', act: 'fitlight' }];   // a spare on the shelf, a smashed one on the car
     return [];                                                         // everything is in the picture: tap it
   }
 };
@@ -968,7 +970,7 @@ const UNDER_LINES = {
   dust: 'Dust. A lot of dust.', spider: 'A dead spider, on its back. Its legs in the air.', sandwich: 'Half a sandwich. You don\'t remember the other half.',
   screw: 'Screws. Hundreds of them. Everywhere.', nut: 'Your nut! Right at the back.'
 };
-const SPIDER_CHANCE = 0.3;                                            // how often a spider is sitting somewhere under there
+const SPIDER_CHANCE = 0.6;                                            // how often a spider is sitting somewhere under there (always the first time)
 const BEAM_SIZE = { rx: 70, ry: 30 };                                 // the torch beam's pool of light on the floor
 const BEAM_START = { x: 120, y: 226 };                                // where it points to start with: down by your hand
 let BEAM = { x: BEAM_START.x, y: BEAM_START.y };                      // where the beam is pointing now (follows the pointer)
@@ -1266,6 +1268,7 @@ SCREENS.keyhole = {
     tip('Your car door', 'Get the key in the lock. It won\'t keep still. Tap when the tip is in the slot.', 1, 8);
     hud();
   },
+  actions() { return [{ label: 'Give up', act: 'keygiveup' }]; },   // you can't get in: stuck till it wears off
   animate(t) {
     KEY.pos = keyDrift(t);
     const [x, y] = KEY.pos;

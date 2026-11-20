@@ -267,8 +267,30 @@ const nowAbs = () => S.day * 1440 + S.mins;                            // the ti
 function haveADrink() {
   if (!S.drinks || S.drinks.day !== S.day) S.drinks = { day: S.day, n: 0 };   // a new day: start counting again
   S.drinks.n += 1;
+  boozeAdd(1);                                                         // and it goes on the BOOZE meter
   return S.drinks.n;
 }
+// ---------- the BOOZE meter: each drink puts one on; one wears off an hour; a night's sleep clears it ----------
+//   S.booze: { level (drinks' worth when last topped up), at (when, counted from the start of the game) }
+const BOOZE_WEARS = 60;                                                // minutes for one drink to wear off
+const BOOZE_FULL = PUB_LIMIT + 1;                                      // the meter's full: off your stool
+// How much is in you now (drinks' worth, wearing off as the time goes by)
+function boozeNow() {
+  if (!S.booze) return 0;                                              // not had a drink
+  const worn = (nowAbs() - S.booze.at) / BOOZE_WEARS;                  // how many have worn off since
+  return Math.max(0, S.booze.level - worn);
+}
+// A drink (or more) on top of what's still in you
+function boozeAdd(n) {
+  const level = boozeNow() + n;
+  S.booze = { level, at: nowAbs() };
+}
+// Sober again: slept it off
+function soberUp() { S.booze = null; }
+// How many drinks' worth is still in you, rounded up (half a drink still counts)
+const boozeDrinks = () => Math.ceil(boozeNow() - 0.001);
+// How full the meter is, 0 to 100
+const boozePercent = () => Math.min(100, Math.round(boozeNow() / BOOZE_FULL * 100));
 // How many drinks you've had today
 const drinksToday = () => (S.drinks && S.drinks.day === S.day ? S.drinks.n : 0);
 // Still drunk? (from being thrown out until 7 the next morning, or a night's sleep)
@@ -403,7 +425,7 @@ function missedCall() {
 }
 // After a drink or three: the key in the car door (a little game: the key wobbles and drifts about)
 function keyStart() {
-  KEY.drinks = drinksToday();
+  KEY.drinks = boozeDrinks();                                          // how much is still in you
   KEY.scratches = [];
   KEY.aim = [KEYHOLE[0] + 120, KEYHOLE[1] + 60];                       // his hand starts off to one side
   show('keyhole');
@@ -416,12 +438,42 @@ function keyTry() {
     KEY.scratches.push([kx, ky]);
     sfx('slip');
     anger(2);
+    if (KEY.scratches.length >= KEY_GIVE_UP) return keyStuck();        // that's enough: you're not getting in
     return render();
   }
   sfx('click');
   const tries = KEY.scratches.length;
   const scratched = tries ? ` (and ${tries} new scratch${tries > 1 ? 'es' : ''} round the lock)` : '';
-  say('The car door', `Click. It goes in at last${scratched}. You get in and sit very still for a minute.`, [{ label: 'OK', run: policeStop }]);
+  say('The car door', `Click. It goes in at last${scratched}. You get in and sit very still for a minute.`, [{ label: 'OK', run: pullOver }]);
+}
+// How many misses before you give up on the lock
+const KEY_GIVE_UP = 8;
+// You can't get the key in: you're stuck here until it wears off
+function keyStuck() {
+  const n = KEY.scratches.length;
+  const scratches = n ? `${n} new scratch${n > 1 ? 'es' : ''} round the lock, and ` : '';
+  const hours = Math.max(1, Math.ceil(boozeNow() * BOOZE_WEARS / 60));  // how long it'll take to wear off
+  say('The car door', `${scratches}the key still won't go in. You're not driving anywhere like this.\n\nYou're stuck here till it wears off: about ${hours} hour${hours > 1 ? 's' : ''}.`, [
+    { label: 'Sit on the wall till it wears off', run: waitItOff },
+    { label: 'Leave it for now', run() { show('place'); } }
+  ]);
+}
+// Sitting on the wall outside till the drink wears off: then you can drive
+function waitItOff() {
+  const mins = Math.max(15, Math.ceil(boozeNow() * BOOZE_WEARS / 15) * 15);   // to the next quarter of an hour
+  pass(mins);
+  soberUp();
+  anger(5);
+  KEY.scratches = [];
+  show('place');                                                       // back outside, by the car
+  say('The wall', `You sit on the wall by the car for ${mins >= 60 ? Math.round(mins / 60 * 10) / 10 + ' hours' : mins + ' minutes'}. It wears off.\n\nYou're cold and you need the loo, but you're fit to drive.`);
+}
+// Driving off after a drink: first the police car behind you, pulling you over (road.js); then the knock on the window
+function pullOver() {
+  sfx('siren');
+  show('pullover');
+  moment('pullover', PULLOVER_MS);
+  ANIM.then = policeStop;
 }
 // Driving off after a drink: you always get pulled over
 function policeStop() {
@@ -435,7 +487,7 @@ const BREATH_LEDS = 10;                                                // the ro
 const BREATH_FINE = 300;
 const BREATH = { drinks: 1, t0: null, lit: 0, tries: 0, beeped: false, ticket: false };
 function breathStart() {
-  BREATH.drinks = drinksToday();
+  BREATH.drinks = boozeDrinks();                                       // what's still in you
   BREATH.tries = 0;
   BREATH.ticket = false;
   breathReset();
@@ -898,6 +950,8 @@ const ACTIONS = {
   // ----- moving round -----
   go(target) { goTo(target); },
   keytry() { keyTry(); },                                               // the car door: try the key in the lock
+  keygiveup() { keyStuck(); },
+  dicedown() { takeDiceDown(); },                                       // the driver's seat: the dice off the mirror (extras.js)                                          // the car door: give up on the lock
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
   hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
   hbclose() { show('garage'); },                                        // put it down, back in the garage
@@ -987,6 +1041,7 @@ const ACTIONS = {
   bed() {
     sfx('door');
     S.flags.bedLate = isBedtime();                                     // late: she's in her nightie and comes too (it's morning by the time you wake)
+    S.flags.bedAsleep = isAsleep();                                    // she's already asleep: she stays in bed
     sleepUntilMorning();
     moment('night', 3200);                                           // dusk, black, then morning (the message waits for it)
     say('Next morning', `It's ${weekday()} morning. You feel a bit better.`);
@@ -1012,7 +1067,8 @@ const ACTIONS = {
     if (hunting) { closeLead('search', 'ok'); anger(3); }
     BEAM = { x: BEAM_START.x, y: BEAM_START.y };                       // the torch starts pointing down by your hand
     UNDER_SEEN = {};
-    UNDER_SPIDER = Math.random() < SPIDER_CHANCE ? { x: 250 + Math.random() * 180, y: 172 + Math.random() * 50 } : null;   // now and then, a spider somewhere in the dark
+    const spider = !S.flags.spiderSeen || Math.random() < SPIDER_CHANCE;   // the first time, always; then now and then
+    UNDER_SPIDER = spider ? { x: 250 + Math.random() * 180, y: 172 + Math.random() * 50 } : null;   // a spider somewhere in the dark
     render();
     if (where === 'the workbench' && !S.flags.screwsSpilt) {
       S.flags.screwsSpilt = true; anger(10); moment('screws', 1500); sfx('screws');
@@ -1549,6 +1605,7 @@ function underBeamMoved() {
   if (UNDER_SPIDER && inTorchLight(UNDER_SPIDER.x, UNDER_SPIDER.y)) {   // caught in the light: it runs for the dark
     SPIDER_RUN = UNDER_SPIDER;
     UNDER_SPIDER = null;
+    S.flags.spiderSeen = true;
     sfx('creak');
     moment('spider', 1600);
     say('Under ' + S.under, 'Something in the beam moves. A spider. A big one. It scurries off into the dark.');
