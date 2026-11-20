@@ -2258,3 +2258,75 @@ test('the title screen: the logo on three lines, our hero with his spanner, pane
   await expect(page.locator('#help')).toHaveClass(/open/);                // then How to play, the first time
   expect(errors).toEqual([]);
 });
+
+// ---------- your brother comes round ----------
+test('ring your brother and he comes round the next day: your hammer back, advice, and his "help" (a battery lead off, codes cleared, the jack borrowed); then he goes', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('hammer', 'Find a hammer', null); });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="ring:Brother"]').click();
+  expect(await dialogText(page)).toContain('come round tomorrow');
+  await ok(page);
+  expect(await page.evaluate(() => S.flags.brotherDay)).toBe(await page.evaluate(() => S.day + 1));
+  await page.evaluate(() => { S.screen = 'garage'; render(); });           // not today: he isn't there
+  expect(await page.evaluate(() => brotherHere())).toBe(false);
+  await page.evaluate(() => { S.day += 1; S.mins = 10 * 60; S.screen = 'home'; render(); });
+  await tap(page, 'garage'); await idle(page);                               // tomorrow: there he is
+  expect(await dialogText(page)).toContain('give you a hand');
+  await ok(page);
+  expect(await page.evaluate(() => brotherHere())).toBe(true);
+  await tap(page, 'act:brother');                                            // the hammer, back after four years
+  expect(await dialogText(page)).toContain('your hammer');
+  await ok(page);
+  expect(await page.evaluate(() => [S.inv.hammer, findJob('hammer').status])).toEqual([true, 'done']);
+  await tap(page, 'act:brother');
+  expect(await dialogText(page)).toContain('timing belt');
+  await ok(page);
+  await act(page, 'Let your brother help');                                  // the battery lead off
+  expect(await dialogText(page)).toContain('resets the computer');
+  await ok(page);
+  expect(await page.evaluate(() => carPowered())).toBe(false);
+  await act(page, 'Let your brother help');                                  // the codes cleared; the light comes back
+  expect(await dialogText(page)).toContain('Huh');
+  await ok(page);
+  await act(page, 'Let your brother help');                                  // the jack, and off he goes
+  expect(await dialogText(page)).toContain('Back Tuesday');
+  await ok(page);
+  expect(await page.evaluate(() => [brotherHere(), S.flags.jackLent])).toEqual([false, true]);
+  await expect(page.locator('.acts button', { hasText: 'Let your brother help' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the multimeter out on the fuse box; the splash still mid-walk ----------
+test('get the multimeter out on the fuse box: tap a fuse and the probes go on it; 0.0 and a beep if good, OL if blown; all of them and that is the lot', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); lead('meaning', 'fuses', 'Check your fuses first', 'MrTorque', 'tbh', 'fuseZoom'); S.flags.knowF23 = S.flags.f23Checked = S.flags.meterOK = true; S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Get the multimeter out');
+  expect(await page.evaluate(() => meterOut())).toBe(true);
+  await tap(page, 'act:testfuse:5');
+  expect(await page.evaluate(() => [S.meterFuse, meterReading(5), S.fusesChecked])).toEqual([5, '0.0', [5]]);
+  await tap(page, 'act:testfuse:17');
+  expect(await dialogText(page)).toContain('OL');
+  await ok(page);
+  for (let n = 1; n <= 30; n++) if (![5, 17, 27, 28].includes(n)) await page.evaluate(k => { act('testfuse:' + k); DIALOG = null; }, n);
+  expect(await page.evaluate(() => [S.flags.fusesTested, leadOpen('fuses')])).toEqual([true, false]);
+  await act(page, 'Put the multimeter away');
+  expect(await page.evaluate(() => meterOut())).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('the walk home: the SPLOOSH still flashes up as the water hits him, then the rest of the walk, then home', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.road = { spare: true, walked: false }; S.flags.phoneDead = true; job('tyre', 'Sort out the flat tyre', null); S.screen = 'roadside'; render(); });
+  await act(page, 'Walk home');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'still');      // part way along: the still
+  expect(await page.evaluate(() => [S.screen, WALK_PART[1] === WALK_SPLASH])).toEqual(['walkhome', true]);
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'walkhome');   // then the rest of the walk
+  expect(await page.evaluate(() => WALK_PART[0] === WALK_SPLASH && WALK_PART[1] === 1)).toBe(true);
+  expect(await dialogText(page)).toContain('SOAKED');                   // then home
+  expect(await page.evaluate(() => S.screen)).toBe('room');
+  expect(errors).toEqual([]);
+});

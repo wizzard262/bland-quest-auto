@@ -130,24 +130,50 @@ SCREENS.bonnet = {
 const FUSE_BLOWN = 17;                                              // the cigarette lighter: blown for years
 const fuseAt = n => [50 + ((n - 1) % 6) * 40, 54 + Math.floor((n - 1) / 6) * 38];   // fuse n's top-left corner
 const fuseEmpty = n => n === 27 || n === 28;                        // two empty slots
-// A dot on each fuse tested so far: green if it's good, red if it's blown
-function fuseMarks(upTo) {
-  for (let n = 1; n <= upTo; n++) {
-    if (fuseEmpty(n)) continue;
-    const [x, y] = fuseAt(n);
-    disc(x + 23, y + 3, 3, n === FUSE_BLOWN ? C.red : hex('#48c060'));
-  }
+// A dot on a fuse that's been tested: green if it's good, red if it's blown
+function fuseMark(n) {
+  if (fuseEmpty(n)) return;
+  const [x, y] = fuseAt(n);
+  disc(x + 23, y + 3, 3, n === FUSE_BLOWN ? C.red : hex('#48c060'));
 }
-// The moment: the meter's probes go along the fuses one by one, leaving a dot on each
+// The dots on every fuse up to n (the sweep, and once they've all been done)
+function fuseMarks(upTo) {
+  for (let n = 1; n <= upTo; n++) fuseMark(n);
+}
+// THE MULTIMETER, out on the fuse box (where the lid's paper was): yellow, its screen, its dial, two leads to the probes
+const METER = { x: 328, y: 52, w: 116, h: 190 };
+const meterOut = () => !!S.flags.meterOK && !!S.flags.meterOut;
+// What its screen says with the probes on fuse n: a good fuse reads 0.0 (and beeps); the blown one reads OL; resting, dashes
+const meterReading = n => (!n || fuseEmpty(n) ? '- - -' : n === FUSE_BLOWN ? 'OL' : '0.0');
+// The meter, with its probes on fuse n (0: resting on the box's edge); leads: draw the leads and probes too
+function drawMeter(n, leads = true) {
+  const { x, y, w, h } = METER;
+  rbox(x, y, w, h, 12, hex('#d0a020'));                             // its yellow rubber case
+  rbox(x + 6, y + 6, w - 12, h - 12, 8, hex('#e8b830'));
+  rect(x + 14, y + 16, w - 28, 44, hex('#0a2a20'));                 // its screen
+  text(meterReading(n), x + 22, y + 26, C.mint, 4);
+  disc(x + w / 2, y + 104, 26, hex('#1c1c1c'));                     // the dial
+  ring(x + w / 2, y + 104, 26, C.steel2);
+  pipe(x + w / 2, y + 104, x + w / 2 - 14, y + 84, 4, C.white);      // set to Ω (continuity)
+  text('V', x + 16, y + 74, C.ink); text('A', x + w - 22, y + 74, C.ink); text('BEEP', x + 30, y + 140, C.ink);
+  disc(x + 34, y + h - 22, 7, C.red); disc(x + w - 34, y + h - 22, 7, C.ink);   // the two sockets
+  if (!leads) return;
+  const fuse = n && !fuseEmpty(n) ? fuseAt(n) : null;
+  const tips = fuse ? [[fuse[0] + 6, fuse[1] + 24], [fuse[0] + 20, fuse[1] + 24]] : [[290, 248], [300, 252]];   // on its two legs, or resting
+  [[x + 34, C.red], [x + w - 34, C.ink]].forEach(([sx, col], k) => {
+    const [tx, ty] = tips[k];
+    const sag = [(sx + tx) / 2, Math.max(y + h, ty) + 18];          // the lead hangs down between them
+    pipe(sx, y + h - 22, sag[0], sag[1], 3, col);
+    pipe(sag[0], sag[1], tx + 6, ty + 14, 3, col);
+    pipe(tx + 6, ty + 14, tx, ty, 4, col);                           // the probe itself
+    disc(tx, ty, 2, C.steel);                                        // its point
+  });
+}
+// The moment: the probes go along the fuses one by one, the screen reading each, a dot on each
 function fuseTestDraw(p) {
   const n = Math.min(30, Math.floor(p * 30) + 1);                   // the fuse being tested now
   fuseMarks(n - 1);
-  if (fuseEmpty(n)) return;
-  const [x, y] = fuseAt(n);
-  pipe(x + 6, y + 24, x - 20, H, 2, C.red);                         // the red probe on one leg
-  pipe(x + 20, y + 24, x + 46, H, 2, C.ink);                        // the black probe on the other
-  disc(x + 6, y + 24, 2, C.red);
-  disc(x + 20, y + 24, 2, C.steel2);
+  drawMeter(n);
 }
 
 SCREENS.fuseZoom = {
@@ -166,13 +192,27 @@ SCREENS.fuseZoom = {
     }
     const testing = ANIM && ANIM.kind === 'fusetest';                 // being tested now: the marks go on one by one (the moment)
     if (S.flags.fusesTested && !testing) fuseMarks(30);              // tested: a green dot on each good one, red on F17
-    rbox(316, 34, 140, 222, 8, hex('#1c1c1c')); rect(326, 46, 120, 196, hex('#d8d4c4'));
+    if (!testing) (S.fusesChecked || []).forEach(fuseMark);           // the ones tested one at a time
+    rbox(316, 34, 140, 222, 8, hex('#1c1c1c'));
+    if (meterOut() || testing) {                                     // the multimeter's out, on the box where the lid's paper was
+      rect(326, 46, 120, 196, hex('#24241f'));
+      if (!testing) drawMeter(S.meterFuse || 0);                     // (while testing, the moment draws it)
+      if (!testing) for (let n = 1; n <= 30; n++) if (!fuseEmpty(n)) { const [x, y] = fuseAt(n); spot('F' + n + ': test it', [x - 2, y - 2, 30, 30], 'act:testfuse:' + n); }
+      hud();
+      return;
+    }
+    rect(326, 46, 120, 196, hex('#d8d4c4'));
     for (let n = 0; n < 2000; n++) px(326 + hash(n, 5) * 120, 46 + hash(5, n) * 196, hex('#b8b4a4'));
     const fuses = [['F21', 'Radio'], ['F22', '▒▒▒ ▒▒'], ['F23', 'Instr. (see note 7)'], ['F24', '—'], ['F25', 'Spare?'], ['F26', 'ABS / ESP / ???'], ['F27', 'Spare'], ['F28', 'Spare'], ['F29', 'Not used*'], ['F30', '*see F29']];
     LABELS.push(`<div class="lid" style="left:${330 / W * 100}%;top:${52 / H * 100}%;width:${112 / W * 100}%">${fuses.map(([fn, t]) => `<div><b>${fn}</b> ${esc(t)}</div>`).join('')}<div class="note">Note 7: see owner's manual</div></div>`);
     hud();
   },
-  actions() { return [{ label: 'Check every fuse', act: 'fuses' }, { label: 'Zoom out', act: 'go:bonnet' }]; }
+  actions() {
+    const a = [{ label: 'Check every fuse', act: 'fuses' }];
+    if (S.flags.meterOK) a.push(meterOut() ? { label: 'Put the multimeter away', act: 'meterout:0' } : { label: 'Get the multimeter out', act: 'meterout:1' });
+    a.push({ label: 'Zoom out', act: 'go:bonnet' });
+    return a;
+  }
 };
 
 // =====================================================================

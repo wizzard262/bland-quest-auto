@@ -719,6 +719,7 @@ SCREENS.garage = {
     for (const [wx, wy] of [[83, 61], [91, 61], [83, 85], [91, 85]]) { const w = P(wx, wy, 0.6); ellipse(w[0], w[1], 2, 1, C.tyre); }   // the creeper's little wheels
     ibox(82, 60, 92, 86, 1, 3, C.red);
     standingMan('garage');
+    drawBrother();                                                     // your brother, if he's round (brother.js)
     spot('Toolbox', isoArea(60, 0, 86, 18, 0, 50), 'toolbox', [73, 26]);
     spot('Shelves: what you\'ve bought', isoArea(2, 0, 56, 10, 0, 78), 'stores', [30, 24]);
     spot('Workbench', isoArea(98, 0, 176, 26, 0, 40), 'bench', [132, 34]);
@@ -742,6 +743,7 @@ SCREENS.garage = {
     hud();
   },
   actions() {
+    if (brotherHere()) return [{ label: 'Let your brother help', act: 'brotherhelp' }];   // he's round (brother.js)
     return [];                                                         // everything is in the picture: tap it
   }
 };

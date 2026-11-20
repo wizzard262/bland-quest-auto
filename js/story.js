@@ -854,6 +854,7 @@ function buy(id, place) {
 const SCREEN_ENTER = {
   garage() {
     if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
+    if (brotherArrives()) return;                                       // your brother, come to help (brother.js)
     if (!S.flags.n3lost || S.flags.nutEscaped) return;
     S.flags.nutEscaped = true;
     moment('nutEscape', 2200); sfx('drop');
@@ -1398,6 +1399,7 @@ const ACTIONS = {
   ring(who) {
     pass(5);
     if (who === 'Yard') return ringYard();                              // the Scrap Yard: book a slot
+    if (who === 'Brother') return ringBrother();                        // your brother: he'll come round (brother.js)
     if (who === 'Wife') {                                              // she says just what she'd say to your face
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();
@@ -1494,6 +1496,8 @@ function askForBattery(place) {
 function testAllFuses() {
   pass(45);
   S.flags.fusesTested = true;
+  S.flags.meterOut = true;                                             // the multimeter, out on the box
+  S.meterFuse = 0;
   moment('fusetest', 3600);
   for (let k = 0; k < 28; k++) sfx('beep', 0.1 + k * 0.12);         // a beep for each fuse (F27 and F28 are empty)
   closeLead('testfuses', 'ok');
@@ -1501,6 +1505,30 @@ function testAllFuses() {
   say('Every fuse', 'Forty-five minutes. Twenty-eight fuses, twenty-eight beeps.\n\nAll fine. Except F17, the cigarette lighter, which has probably been blown since 2011.\n\nSo it\'s not the fuses.');
 }
 
+// The multimeter out (or away) on the fuse box
+ACTIONS.meterout = on => {
+  S.flags.meterOut = on === '1';
+  S.meterFuse = 0;
+  sfx('click');
+};
+// The probes on one fuse: the screen reads 0.0 and beeps if it's good; OL, and no beep, if it's blown
+ACTIONS.testfuse = n => {
+  const k = +n;
+  if (!meterOut() || fuseEmpty(k)) return;
+  pass(2);
+  S.meterFuse = k;
+  S.fusesChecked = S.fusesChecked || [];
+  if (!S.fusesChecked.includes(k)) S.fusesChecked.push(k);
+  if (k === FUSE_BLOWN) { sfx('click'); return say('F17', 'OL on the screen, and no beep. F17: the cigarette lighter. Blown.\n\nIt\'s probably been blown since 2011.'); }
+  sfx('beep');
+  const all = S.fusesChecked.length >= 28;                             // every fuse (bar the two empty slots)
+  if (all && !S.flags.fusesTested) {
+    S.flags.fusesTested = true;
+    closeLead('testfuses', 'ok');
+    closeLead('fuses', 'x', 'Every fuse tested: all fine (bar F17, the cigarette lighter)');
+    say('Every fuse', 'That\'s the lot. Twenty-eight fuses, one at a time. All fine, bar the cigarette lighter.\n\nSo it\'s not the fuses.');
+  }
+};
 // Look at thing k in a close-up's list of [name, what you find, where it is]: its name, and what you find
 function lookAtThing(list, k) {
   const [name, words] = list[+k] || [];

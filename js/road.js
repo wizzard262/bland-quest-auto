@@ -157,25 +157,31 @@ SCREENS.walkhome = {
   }
 };
 // A car seen side-on, driving right (for the walk home)
-function sideCar(x, y, col) {
-  rbox(x, y - 20, 96, 16, 5, col);                                  // the body
-  poly([[x + 22, y - 20], [x + 34, y - 34], [x + 66, y - 34], [x + 78, y - 20]], col);   // the cabin
-  poly([[x + 27, y - 21], [x + 36, y - 31], [x + 49, y - 31], [x + 49, y - 21]], C.glass);
-  poly([[x + 52, y - 21], [x + 52, y - 31], [x + 64, y - 31], [x + 73, y - 21]], C.glass);
-  for (const wx of [x + 20, x + 76]) { disc(wx, y - 3, 8, C.tyre); disc(wx, y - 3, 4, C.rim); }
-  rect(x + 92, y - 16, 4, 4, C.warm);                               // its headlight
+//   s: how big (2 is to scale with him on the walk home: a car's about two and a half of him long)
+function sideCar(x, y, col, s = 1) {
+  const X = v => x + v * s, Y = v => y - v * s;                     // the car's own units, scaled from its back wheel's road line
+  rbox(X(0), Y(20), 96 * s, 16 * s, 5 * s, col);                    // the body
+  poly([[X(22), Y(20)], [X(34), Y(34)], [X(66), Y(34)], [X(78), Y(20)]], col);   // the cabin
+  poly([[X(27), Y(21)], [X(36), Y(31)], [X(49), Y(31)], [X(49), Y(21)]], C.glass);
+  poly([[X(52), Y(21)], [X(52), Y(31)], [X(64), Y(31)], [X(73), Y(21)]], C.glass);
+  for (const wx of [20, 76]) { disc(X(wx), Y(3), 8 * s, C.tyre); disc(X(wx), Y(3), 4 * s, C.rim); }
+  rect(X(92), Y(16), 4 * s, 4 * s, C.warm);                         // its headlight
 }
 // The moment: he walks home in the rain; halfway, a car hits the puddle and soaks him
 const SOAKED = { shirt: hex('#8a3028'), shirtDark: hex('#6a2018'), jeans: hex('#283a68'), jeansDark: hex('#1c2a50'), hair: hex('#402810') };
-MOMENTS.walkhome = function (p) {
+const WALK_MS = 7000;                                                  // the whole walk home
+const WALK_SPLASH = 0.6;                                               // how far through it: the water has hit him (it lands at 0.5)
+let WALK_PART = [0, 1];                                                // the part of the walk this moment plays
+MOMENTS.walkhome = function (part) {
+  const p = lerp(WALK_PART[0], WALK_PART[1], part);                    // how far through the whole walk
   const x = lerp(WALK.from, WALK.to, p);                            // him, along the pavement
   const hit = 0.5;                                                  // when the car hits the puddle
   const wet = p > hit;
   man(x, WALK.ground, 'walk', WALK.size, p * 90, wet ? SOAKED : null);
   if (wet) for (let k = 0; k < 6; k++) rect(x + 4 + k * 3, WALK.ground + ((p * 400 + k * 13) % 14), 1, 2, hex('#b8c4d0'));   // dripping
   // the car: in from the left, through the puddle, off to the right
-  const carX = lerp(-140, W + 40, (p - 0.35) / 0.3);
-  if (p > 0.35 && p < 0.65) sideCar(carX, 254, hex('#c8c8c0'));
+  const carX = lerp(-360, 556, (p - 0.35) / 0.3);                    // its front wheel (152 along it) reaches the puddle at 0.5, as the water goes up
+  if (p > 0.35 && p < 0.65) sideCar(carX, 262, hex('#c8c8c0'), 2);   // a full-size car, to scale with him
   // the splash: a wall of water over him
   if (p > hit && p < hit + 0.12) {
     const q = (p - hit) / 0.12;
@@ -235,8 +241,13 @@ Object.assign(ACTIONS, {
   walkhome() {
     show('walkhome');
     sfx('carpass', 3.2);
-    moment('walkhome', 7000);
-    ANIM.then = () => flashStill('splash', homeSoaked);                // the splash, big; then home
+    WALK_PART = [0, WALK_SPLASH];                                      // up to the splash…
+    moment('walkhome', WALK_MS * WALK_SPLASH);
+    ANIM.then = () => flashStill('splash', () => {                      // …the splash, big, as it hits him…
+      WALK_PART = [WALK_SPLASH, 1];                                    // …then on home, dripping
+      moment('walkhome', WALK_MS * (1 - WALK_SPLASH));
+      ANIM.then = homeSoaked;
+    });
   },
   // back to the car (her car, with the wheel)
   toroad() {
