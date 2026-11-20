@@ -439,6 +439,12 @@ const WRECKS = [
 ];
 const MAYBE_YOURS = 6;                                   // the first six are the ones that might be yours
 const YARD_VIEW = [240, 70];
+// One wreck (and the one it's stacked on, if it is)
+function drawWreck(i) {
+  const [x, y, col, stacked, , shape, how] = WRECKS[i];
+  if (stacked) isoCar(x + 2, y - 4, 1, shade([C.steel2, C.redDim][i % 2], 0.8), { broken: true, noWheels: true, shape: 'zafiraOld' });   // the wreck underneath
+  isoCar(x, y, 1, shade(col, 0.85), Object.assign({ broken: true, shape, dz: stacked ? 12 : 0 }, how));
+}
 // Every scrap yard has a dog. Every scrap yard is full of dog poo
 const YARD_POO = [[60, 120], [-20, 90], [150, 60], [100, 170], [10, 170], [170, 130], [-40, 20], [120, 10]];
 function dogPoo(x, y) {
@@ -465,14 +471,11 @@ SCREENS.yard = {
       ellipse(p[0], p[1], 7, 3, C.tyre);
       ellipse(p[0], p[1], 4, 2, hex('#7a6a50'));
     }
-    WRECKS.forEach(([x, y, col, stacked, , shape, how], i) => {
-      if (stacked) isoCar(x + 2, y - 4, 1, shade([C.steel2, C.redDim][i % 2], 0.8), { broken: true, noWheels: true, shape: 'zafiraOld' });   // the wreck underneath
-      isoCar(x, y, 1, shade(col, 0.85), Object.assign({ broken: true, shape, dz: stacked ? 12 : 0 }, how));
-    });
+    WRECKS.forEach((w, i) => drawWreck(i));
     const d = P(190, 0); rect(d[0] - 10, d[1] - 7, 18, 7, hex('#8a6a4a')); rect(d[0] + 6, d[1] - 11, 5, 5, hex('#8a6a4a'));   // the dog
     for (const [x, y] of YARD_POO) dogPoo(...P(x, y));                // and, as at every scrap yard, what the dog leaves
     spot('Something on the ground', isoArea(YARD_POO[0][0] - 4, YARD_POO[0][1] - 4, YARD_POO[0][0] + 4, YARD_POO[0][1] + 4, 0, 4), 'act:look:Dog poo');
-    if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+    if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); inFront('yard', x, y); }   // (behind a wreck: it hides him)
     WRECKS.forEach(([x, y, , stacked, , shape], i) => {
       const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
       spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + k.L, 0, k.rz + (stacked ? 12 : 0)), 'act:wreck:' + i, [x + 30, y + 30]);

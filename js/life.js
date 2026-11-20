@@ -395,6 +395,88 @@ function standingMan(screen) {
   const [x, y] = manSpot(screen), m = P(x, y);
   if (screen === 'room' && S.flags.onFloor) return man(m[0], m[1], 'lie', MAN_SIZE.room);   // asleep on the floor
   man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
+  inFront(spotKey(screen), x, y);                                     // behind the car: it hides him
+}
+// ---------- solid things on the floor: he walks round them, and goes behind them ----------
+// On each screen: { box: [x0, y0, x1, y1] (world, on the floor), draw (to draw it again, over him, when he's behind it) }
+function solidsFor(key) {
+  const out = [];
+  if (key === 'garage' && !carAway()) out.push({ box: [40, 46, 70, 104], draw: () => isoCar(40, 46, 1.25) });   // your car (1.25 size: 30 wide, 57 long)
+  if (key === 'home') {
+    if (!carAway()) out.push({ box: [102, 72, 126, 118], draw() { isoCar(102, 72); drawClamp(); } });         // your car on the drive (and the clamp on it)
+    else if (inWifesCar()) out.push({ box: [102, 72, 126, 72 + CAR_SHAPES.city.L], draw: () => isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' }) });   // or hers
+  }
+  if (key === 'yard') WRECKS.forEach(([x, y, , , , shape], i) => out.push({ box: [x, y, x + 24, y + CAR_SHAPES[shape].L], draw: () => drawWreck(i) }));   // the wrecks
+  if (key === 'place' && S.inside && hasCounter(S.place)) out.push({ box: COUNTER.slice() });   // the shop counter (he stays this side of it)
+  return out;
+}
+// He's drawn at (x, y) on this screen: draw again anything he's behind, so it hides him
+function inFront(key, x, y) {
+  const view = VIEW[key];
+  if (!view) return;
+  const m = P(x, y);
+  for (const s of solidsFor(key)) {
+    const [x0, y0, x1, y1] = s.box;
+    if (!s.draw || !(x < x1 && y < y1)) continue;                     // he's in front of it (or past it)
+    const near = P(x1, y1), far = P(x0, y0);                          // does it cover him on screen at all?
+    const left = P(x0, y1)[0], right = P(x1, y0)[0];
+    if (m[0] + 6 < left || m[0] - 6 > right || m[1] < far[1] || m[1] - 40 > near[1]) continue;
+    [ISO.ox, ISO.oy] = view;
+    s.draw();
+    [ISO.ox, ISO.oy] = view;
+  }
+}
+// A way from a to b that doesn't go through anything solid: [a, …corners, b]
+const SOLID_GAP = 6;                                                  // how far he keeps off them
+function routeAround(key, a, b) {
+  const boxes = solidsFor(key).map(s => [s.box[0] - SOLID_GAP, s.box[1] - SOLID_GAP, s.box[2] + SOLID_GAP, s.box[3] + SOLID_GAP])
+    .filter(bx => !inBox(a, bx));                                     // (if he's somehow inside one, let him out)
+  for (const bx of boxes) if (inBox(b, bx)) b = nearestEdge(b, bx);   // a target inside one: the nearest point outside it
+  const clear = (p, q) => boxes.every(bx => !segmentCrosses(p, q, bx));
+  if (clear(a, b)) return [a, b];
+  const nodes = [a, b, ...boxes.flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x0, y1], [x1, y1]])];
+  const dist = nodes.map(() => Infinity), prev = nodes.map(() => -1), done = nodes.map(() => false);
+  dist[0] = 0;
+  for (;;) {                                                          // the shortest way, corner to corner
+    let u = -1;
+    for (let i = 0; i < nodes.length; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+    if (u < 0 || u === 1) break;
+    done[u] = true;
+    for (let v = 0; v < nodes.length; v++) {
+      if (done[v] || !clear(nodes[u], nodes[v])) continue;
+      const d = dist[u] + Math.hypot(nodes[v][0] - nodes[u][0], nodes[v][1] - nodes[u][1]);
+      if (d < dist[v]) { dist[v] = d; prev[v] = u; }
+    }
+  }
+  if (prev[1] < 0) return [a, b];                                     // no way round: straight there
+  const path = [];
+  for (let i = 1; i >= 0; i = prev[i]) path.unshift(nodes[i]);
+  return path;
+}
+const inBox = (p, [x0, y0, x1, y1]) => p[0] > x0 && p[0] < x1 && p[1] > y0 && p[1] < y1;
+// Does the line from p to q pass through the box? (touching its corners and edges is fine)
+function segmentCrosses(p, q, bx) {
+  for (let k = 1; k < 24; k++) {
+    const t = k / 24, pt = [lerp(p[0], q[0], t), lerp(p[1], q[1], t)];
+    if (inBox(pt, [bx[0] + 0.5, bx[1] + 0.5, bx[2] - 0.5, bx[3] - 0.5])) return true;
+  }
+  return false;
+}
+// The nearest point just outside a box
+function nearestEdge([x, y], [x0, y0, x1, y1]) {
+  const options = [[x0, y, x - x0], [x1, y, x1 - x], [x, y0, y - y0], [x, y1, y1 - y]];
+  options.sort((m, n) => m[2] - n[2]);
+  return [options[0][0], options[0][1]];
+}
+// Where he is along a path, a share p of the way
+function alongPath(path, p) {
+  const legs = path.slice(1).map((q, i) => Math.hypot(q[0] - path[i][0], q[1] - path[i][1]));
+  let go = p * legs.reduce((s, d) => s + d, 0);
+  for (let i = 0; i < legs.length; i++) {
+    if (go <= legs[i] || i === legs.length - 1) { const t = legs[i] ? Math.min(1, go / legs[i]) : 1; return [lerp(path[i][0], path[i + 1][0], t), lerp(path[i][1], path[i + 1][1], t)]; }
+    go -= legs[i];
+  }
+  return path[path.length - 1];
 }
 // Walk from where he is to a spot, then do `then` (open the screen he walked to)
 // In the house: keep him on the floor (not on the sofa or the bed) and walk round the bed, not over it
@@ -418,9 +500,11 @@ function walkTo(x, y, then, steady) {
     if (x < BED_AREA[2] && y > BED_AREA[1] && y < BED_AREA[3]) x = BED_AREA[2];   // beside the bed, not on it
     if (crossesBed(from, [x, y])) return walkTo(66, 70, () => walkTo(x, y, then));   // round the end of the bed
   }
-  const dist = Math.hypot(x - from[0], y - from[1]);
+  const path = routeAround(key, from, [x, y]);                       // round anything in the way
+  [x, y] = path[path.length - 1];
+  const dist = path.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - path[i][0], q[1] - path[i][1]), 0);
   if (dist < 3) return then();
-  ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], screen: key, then() {
+  ANIM = { kind: 'walk', t0: performance.now(), dur: Math.max(500, dist * 28), from, to: [x, y], path, screen: key, then() {
     S.spot = S.spot || {};
     S.spot[key] = [x, y];
     then();
@@ -437,10 +521,11 @@ const MOMENTS = {
   walk(p) {                                                           // the man walks across to what you tapped
     const a = ANIM, [vx, vy] = VIEW[a.screen];
     ISO.ox = vx; ISO.oy = vy;
-    let x = lerp(a.from[0], a.to[0], p), y = lerp(a.from[1], a.to[1], p);
+    let [x, y] = a.path ? alongPath(a.path, p) : [lerp(a.from[0], a.to[0], p), lerp(a.from[1], a.to[1], p)];
     if (isDrunk()) { x += Math.sin(p * 22) * 4; y += Math.cos(p * 17) * 3; }   // drunk: he weaves about
     const m = P(x, y);
     man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90);
+    inFront(a.screen, x, y);                                          // behind the car (or a wreck): it hides him
   },
   bolt1Out(p) {                                                       // the bolt winds out and comes free
     spanner(194, 120, -2.4 + p * 4, 80);

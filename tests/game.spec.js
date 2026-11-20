@@ -2803,3 +2803,23 @@ test('the screw jar: once the stub is out you need a third screw; the jar on the
   expect(await page.evaluate(() => [S.flags.screw3, findJob('screw3').status, S.screen])).toEqual([true, 'done', 'bench']);
   expect(errors).toEqual([]);
 });
+
+test('he walks round things, not over them: round the wrecks at the yard, this side of a shop counter, round the car in the garage', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const crosses = await page.evaluate(() => {
+    const bad = [];
+    const check = (key, a, b) => {
+      const path = routeAround(key, a, b);
+      for (const s of solidsFor(key)) for (let i = 1; i < path.length; i++) if (segmentCrosses(path[i - 1], path[i], s.box)) bad.push([key, a, b]);
+    };
+    S.screen = 'yard'; check('yard', [100, 150], [-20, 20]); check('yard', [-30, 40], [180, 160]);
+    S.screen = 'garage'; check('garage', [20, 70], [90, 80]);
+    S.place = 'Tool Shop'; S.inside = true; check('place', [105, 140], [100, 30]);
+    return bad;
+  });
+  expect(crosses).toEqual([]);
+  // the shop counter: tapping behind it, he stops this side
+  expect(await page.evaluate(() => { const p = routeAround('place', [105, 140], [100, 60]); const end = p[p.length - 1]; return end[1] >= COUNTER[3] || end[1] <= COUNTER[1] || end[0] <= COUNTER[0] || end[0] >= COUNTER[2]; })).toBe(true);
+  expect(errors).toEqual([]);
+});
