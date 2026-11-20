@@ -125,7 +125,8 @@ const ITEMS = {
   'part-mega': { name: 'Gearbox sensor, "fits all models*"', price: 17.49 },
   'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 },
   'headlight-bay': { name: 'Zafira headlight (used)', price: 18 },
-  'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 }
+  'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 },
+  'battery-23a': { name: '23A 12V battery (pack of 5)', price: 3.49 }
 };
 
 // Spare headlights you own (on the garage shelf): how many left ones and right ones
@@ -749,7 +750,12 @@ const TALK = {
     say("Gaz's", '"Found it! It\'s the old type, mind."\n\nTry it in the car: the port is under the dash.');
   },
   'Tool Shop'() { shopCounter('Tool Shop', '"What are you after?"'); },
+  'Pound Shop'() {
+    if (askForBattery('Pound Shop')) return;                         // after a battery for the meter: no luck
+    say('Pound Shop', '"Everything\'s a pound. Except the things that aren\'t."');
+  },
   'Hardware Shop'() {
+    if (askForBattery('Hardware Shop')) return;                      // after a battery for the meter: no luck
     if (S.flags.needHammer && !S.inv.hammer && !S.flags.hammerAsked) {   // they say they haven't got one; they have
       S.flags.hammerAsked = true;
       closeLead('hammer-shop', 'x', 'Hardware Shop: "no hammers"');
@@ -926,10 +932,22 @@ const ACTIONS = {
     anger(5);                                                           // waiting about: it winds you up
     pass(60);
     if (S.screen === 'place' && S.place === 'Post Office' && S.inside && !postFirst()) {   // in the queue: it doesn't move
-      return say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside when it opens at 9:00.`);
+      return say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside before it opens at 9:00. Good luck with the traffic.`);
     }
     const where = S.screen === 'place' && !S.inside ? ' on the pavement' : '';
     say('You wait', `An hour goes by${where}. It's ${hhmm(S.mins)}.`);
+  },
+  // outside the post office at night: sleep in the car, and wake at 5:45 first in the queue
+  carsleep() {
+    if (!poCanSleep()) return;
+    const toWake = (PO_WAKE - S.mins + 1440) % 1440;                     // minutes until 5:45 (tomorrow, or later tonight)
+    pass(toWake);                                                       // overnight, you're first in the queue (poStayedOvernight)
+    if (!poInQueue()) S.po = { day: S.day, arrived: 0 };                // slept here after midnight: still here before anyone
+    S.spot.outside = poSlot(0);                                         // by the door
+    anger(5);                                                           // a terrible night's sleep
+    textMsg('The wife', 'Where ARE you?? Are you asleep in the car outside the POST OFFICE??');
+    moment('night', 3200);                                              // dark, black, then the morning (the message waits for it)
+    say('5:45 am', "You wake with a stiff neck and the handbrake in your ribs. Your breath has fogged up every window.\n\nNobody else here yet. You're first in the queue!\n\nIt opens at 9. Tap the watch to wait.");
   },
   // look at another part of town on the map (centre it on that block)
   cam(arg) {
@@ -1148,7 +1166,7 @@ const ACTIONS = {
   },
   find10() { pass(10); anger(5); sfx('clink'); sfx('clink', 0.3); say('The 10 mm', "It's not there. It's never there. There's a 10-shaped gap in the foam."); },
   findspanner() { pass(15); anger(5); sfx('screws'); say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and not the one you need.'); },
-  meter() { pass(5); sfx('beep'); say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.'); },
+  meter() { testMeter(); },
   // ----- dashboard -----
   key(pos) {
     S.key = +pos;
@@ -1256,8 +1274,19 @@ const ACTIONS = {
       lead('meaning', 'fusebook', 'Note 7: the owner\'s handbook', 'the fuse box lid', 'sure', 'act:handbook');
       return say('The fuses', 'Thirty fuses. Which one is the gearbox? The lid says F23 "Instr. (see note 7)". Note 7 says "see owner\'s manual".');
     }
-    closeLead('fuses', 'x', 'Fuse F23 is fine'); closeLead('checkf23', 'x');
-    say('Fuse F23', 'You pull F23 and hold it up to the light. It\'s fine.');
+    if (!S.flags.f23Checked) {                                      // F23 first: it looks fine, but you can't tell by looking
+      S.flags.f23Checked = true;
+      closeLead('checkf23', 'x', 'Fuse F23 looks fine');
+      lead('meaning', 'meter', 'Test every fuse with the multimeter (toolbox, drawer 5)', 'you', 'sure', 'toolbox');
+      if (S.flags.meterFlat) meterBatteryJob();                     // you already know its battery's flat
+      return say('Fuse F23', 'You pull F23 and hold it up to the light. It looks fine.\n\nBut you can\'t always tell by looking. The only way to be sure: test every fuse with a multimeter. There\'s one in the toolbox.');
+    }
+    if (S.flags.fusesTested) return say('The fuses', 'You\'ve tested all thirty. All fine, except the cigarette lighter.');
+    if (!S.flags.meterOK) {                                         // nothing to test them with yet
+      if (S.flags.meterFlat) return say('The fuses', 'Thirty fuses, and nothing to test them with. The multimeter\'s battery is flat.');
+      return say('The fuses', 'Thirty fuses. You need the multimeter from the toolbox to test them.');
+    }
+    testAllFuses();
   },
   look(what) { pass(5); say(what, LOOKS[what] || 'Looks fine. Probably.'); },
   // ----- the workbench -----
@@ -1368,6 +1397,7 @@ const ACTIONS = {
     if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from MegaMart (due tomorrow)');
     if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on eBuy (2 days)');
     if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the MegaMart sensor (due tomorrow)'); }
+    if (id === 'battery-23a') closeLead('bat-online', 'ok', 'Ordered 23A batteries on MegaMart (due tomorrow)');
     say('Order placed', `${item.name}: £${item.price.toFixed(2)}. It'll be left by the front door.`);
   },
   readforum() {
@@ -1393,6 +1423,58 @@ const ACTIONS = {
     say('ViewTube', '"Right lads, first get the car on a ramp…" It\'s for the Excite. Yours is the Plus.');
   }
 };
+// =====================================================================
+// THE MULTIMETER AND THE FUSES: test every fuse; the meter's battery is flat, and it's an odd one
+// (a tiny 12 volt 23A). The Pound Shop and the Hardware Shop haven't got one; only MegaMart online has.
+// =====================================================================
+// The multimeter, in drawer 5 of the toolbox
+function testMeter() {
+  pass(5);
+  sfx('beep');
+  if (S.flags.meterOK) return say('The multimeter', 'It works. Touch the probes together and it beeps. Very satisfying.');
+  const boughtAAs = S.bought && S.bought['Batteries'];              // batteries off a shop shelf: the wrong ones
+  if (S.flags.meterFlat && boughtAAs && !S.flags.triedAAs) {
+    S.flags.triedAAs = true;
+    anger(5);
+    return say('The multimeter', 'You try the batteries from the shop. They\'re AAs. The meter takes one tiny battery the size of your little finger.\n\nNo.');
+  }
+  S.flags.meterFlat = true;
+  if (leadExists('meter')) meterBatteryJob();                       // you need it for the fuses: a job to get a battery
+  say('The multimeter', 'You turn it on. The screen fades, flickers and dies. Its battery is flat.\n\nYou open the back: one tiny 12 volt battery, type 23A. You\'ve never seen one in a shop.');
+}
+// A job in the notebook: get a battery for the multimeter (once), with three places to try
+function meterBatteryJob() {
+  if (findJob('meter-battery')) return;
+  job('meter-battery', 'Get a battery for the multimeter', 'meaning');
+  lead('meter-battery', 'bat-pound', 'The Pound Shop sells batteries', 'you', 'hopeful', 'place:Pound Shop');
+  lead('meter-battery', 'bat-hardware', 'The Hardware Shop might have one', 'you', 'maybe', 'place:Hardware Shop');
+  lead('meter-battery', 'bat-online', 'Order one online', 'you', 'fairly sure', 'app:MegaMart');
+}
+// Asking for a 23A in a shop: they haven't got one. Returns true if it was asked (the shop said its piece)
+function askForBattery(place) {
+  const id = place === 'Pound Shop' ? 'bat-pound' : 'bat-hardware';
+  if (!leadOpen(id)) return false;
+  anger(5);
+  if (place === 'Pound Shop') {
+    closeLead(id, 'x', 'Pound Shop: AA, AAA and watch batteries. No 23A');
+    say(place, '"Batteries are on aisle 3, love. AA, AAA, and them flat ones for watches.\n\nTwelve volt? In a battery that small? Don\'t be daft."');
+    return true;
+  }
+  closeLead(id, 'x', 'Hardware Shop: no 23A ("try online")');
+  say(place, '"A 23A? Ooh. We used to get them in for garage door remotes. Not for years, mate. Try the internet."');
+  return true;
+}
+// Test all thirty fuses with the working meter: a beep for each, and they're all fine (bar one nobody cares about)
+function testAllFuses() {
+  pass(45);
+  S.flags.fusesTested = true;
+  moment('fusetest', 3600);
+  for (let k = 0; k < 28; k++) sfx('beep', 0.1 + k * 0.12);         // a beep for each fuse (F27 and F28 are empty)
+  closeLead('testfuses', 'ok');
+  closeLead('fuses', 'x', 'Every fuse tested: all fine (bar F17, the cigarette lighter)');
+  say('Every fuse', 'Forty-five minutes. Twenty-eight fuses, twenty-eight beeps.\n\nAll fine. Except F17, the cigarette lighter, which has probably been blown since 2011.\n\nSo it\'s not the fuses.');
+}
+
 // A reader's plug tried in the port (after its moment): the wrong ones don't fit; the right one goes in
 function plugTried(id) {
   const first = !S.flags['tried-' + id];                               // the first go makes you cross; after that you knew
@@ -1419,6 +1501,14 @@ function openParcel(item) {
     S.inv['reader-cheap'] = true;
     lead('codes', 'try-cheap', 'Try the MegaMart reader in the port', 'you', 'hopeful', 'dash');
     return say('A parcel', 'A code reader! "Fits all cars*". Its plug looks… big.\n\nThe port is under the dash.');
+  }
+  if (item === 'battery-23a') {                                         // the meter's battery, at last
+    S.inv['battery-23a'] = true;
+    S.flags.meterOK = true;
+    finishJob('meter-battery', 'A pack of five 23A batteries from MegaMart. Needed one');
+    closeLead('meter', 'ok', 'The multimeter works');
+    lead('meaning', 'testfuses', 'Test every fuse with the multimeter', 'you', 'sure', 'fuseZoom');
+    return say('A parcel', 'Five tiny 12 volt batteries in a blister pack. You needed one.\n\nOne goes in the multimeter. It beeps! Now test the fuses.');
   }
   if (item === 'reader-good') {
     S.inv['reader-good'] = true;

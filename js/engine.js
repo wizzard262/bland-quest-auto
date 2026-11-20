@@ -52,8 +52,10 @@ function clockText() { return `${weekday()} ${hhmm(S.mins)}   DAY ${S.day}   £$
 
 // Let time pass; fires any timed events and parcel deliveries on the way
 function pass(mins) {
+  const dayBefore = S.day;
   S.mins += mins;
   while (S.mins >= 1440) { S.mins -= 1440; S.day += 1; }
+  if (S.day !== dayBefore) poStayedOvernight();                   // a night outside the post office: first in the queue
   deliverParcels();
   runEvents();
 }
@@ -251,12 +253,18 @@ function travelFrom() { /* the car is always ready; the trip is charged when you
 // Go to a place in town: the trip costs 20 minutes
 function visit(name) {
   if (name === 'Home') { S.place = 'Home'; return show('home'); }
-  pass(20);
+  const jam = name === 'Post Office' ? poJam() : null;             // the post office in the morning: the roadworks
+  pass(jam ? jam.mins : 20);
   S.place = name;
   if (S.screen !== 'place') S.history.push(S.screen);
   S.screen = 'place';
   sfx('car');
   arriveAt(name);
+  if (jam) {                                                       // held up: cross, and told why
+    anger(10);
+    sfx('hornnear', 0.3);
+    return say('Traffic', jam.words);
+  }
   render();
 }
 

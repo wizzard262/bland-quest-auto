@@ -478,7 +478,11 @@ SCREENS.place = {
     tip(name, shut ? esc(shut) : 'Tap the ' + (style === 'house' ? 'door' : 'shopkeeper') + ' to talk. Walk round and look at things.', 1, 8);
     hud();
   },
-  actions() { return atCounter() ? [{ label: 'Step back', act: 'counteroff' }] : []; }   // at the counter: step back into the shop (to wait, tap the watch)
+  actions() {
+    if (atCounter()) return [{ label: 'Step back', act: 'counteroff' }];   // at the counter: step back into the shop (to wait, tap the watch)
+    if (poCanSleep()) return [{ label: 'Sleep in the car till morning', act: 'carsleep' }];   // outside the post office at night: beat the queue
+    return [];
+  }
 };
 
 // =====================================================================
@@ -544,6 +548,7 @@ function appHTML(app) {
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
     ${true ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
+    ${S.flags.meterFlat || findJob('meter-battery') ? product('battery-23a', '<span class="stars">★★★★☆</span> · "for garage door remotes, car alarms, multimeters" · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i><i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
     ${product('reader-good', 'Used · "works fine (I think)" · arrives in 2 days')}
@@ -912,6 +917,30 @@ SCREENS.bonnet = {
   }
 };
 
+// Testing the fuses with the multimeter: where each fuse is, and the marks it leaves
+const FUSE_BLOWN = 17;                                              // the cigarette lighter: blown for years
+const fuseAt = n => [50 + ((n - 1) % 6) * 40, 54 + Math.floor((n - 1) / 6) * 38];   // fuse n's top-left corner
+const fuseEmpty = n => n === 27 || n === 28;                        // two empty slots
+// A dot on each fuse tested so far: green if it's good, red if it's blown
+function fuseMarks(upTo) {
+  for (let n = 1; n <= upTo; n++) {
+    if (fuseEmpty(n)) continue;
+    const [x, y] = fuseAt(n);
+    disc(x + 23, y + 3, 3, n === FUSE_BLOWN ? C.red : hex('#48c060'));
+  }
+}
+// The moment: the meter's probes go along the fuses one by one, leaving a dot on each
+function fuseTestDraw(p) {
+  const n = Math.min(30, Math.floor(p * 30) + 1);                   // the fuse being tested now
+  fuseMarks(n - 1);
+  if (fuseEmpty(n)) return;
+  const [x, y] = fuseAt(n);
+  pipe(x + 6, y + 24, x - 20, H, 2, C.red);                         // the red probe on one leg
+  pipe(x + 20, y + 24, x + 46, H, 2, C.ink);                        // the black probe on the other
+  disc(x + 6, y + 24, 2, C.red);
+  disc(x + 20, y + 24, 2, C.steel2);
+}
+
 SCREENS.fuseZoom = {
   size: [480, 270],
   paint() {
@@ -926,6 +955,8 @@ SCREENS.fuseZoom = {
       rect(x + 6, y + 8, 14, 2, shade(col, 0.6));
       text('F' + n, x + 4, y + 30, C.dim);
     }
+    const testing = ANIM && ANIM.kind === 'fusetest';                 // being tested now: the marks go on one by one (the moment)
+    if (S.flags.fusesTested && !testing) fuseMarks(30);              // tested: a green dot on each good one, red on F17
     rbox(316, 34, 140, 222, 8, hex('#1c1c1c')); rect(326, 46, 120, 196, hex('#d8d4c4'));
     for (let n = 0; n < 2000; n++) px(326 + hash(n, 5) * 120, 46 + hash(5, n) * 196, hex('#b8b4a4'));
     const fuses = [['F21', 'Radio'], ['F22', '▒▒▒ ▒▒'], ['F23', 'Instr. (see note 7)'], ['F24', '—'], ['F25', 'Spare?'], ['F26', 'ABS / ESP / ???'], ['F27', 'Spare'], ['F28', 'Spare'], ['F29', 'Not used*'], ['F30', '*see F29']];

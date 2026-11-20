@@ -484,6 +484,8 @@ function sickPuddle(grow) {
 //   (6am nobody, 7am 3, 8am 6); people join behind you until 9. From 9 to 10 it all goes in.
 //   Here before 6: you're first, served at 9. Here from 6 to 9: you're served at 10 (an hour's wait outside).
 //   Inside, after 9: ten people, and it never moves.
+//   Getting there: drive over between midnight and 9 and you hit the roadworks (shut all night, a jam
+//   from 6), so you park at 9:10, too late. The way to beat it: be there the night before and sleep in the car.
 // =====================================================================
 const PO_OPENS = 9 * 60, PO_SERVED_LATE = 10 * 60;                  // the door opens; when the rest of the morning queue is through
 const PO_QUEUE_STARTS = 6 * 60;                                     // the first ones turn up
@@ -499,6 +501,39 @@ function poInQueue() { return !!S.po && S.po.day === S.day && S.po.arrived < PO_
 function poAhead() { return poInQueue() ? poQueueBy(S.po.arrived) : 0; }
 // When you get served: at 9 if you were first, at 10 if anyone was in front of you
 function poServedAt() { return poAhead() === 0 ? PO_OPENS : PO_SERVED_LATE; }
+
+// ----- the roadworks on the way, and sleeping in the car outside -----
+const PO_JAM_PARKED = PO_OPENS + 10;                                // stuck in the roadworks, you park at 9:10
+const PO_ROAD_OPENS = 6 * 60;                                       // the road's shut all night for the works, until 6
+const PO_WAKE = 5 * 60 + 45;                                        // asleep in the car, you wake at 5:45
+// Driving to the post office: between midnight and 9 the roadworks hold you up until 9:10.
+// Returns null (no hold-up), or { mins: how long the trip takes, words: what happened }
+function poJam() {
+  if (S.place === 'Post Office') return null;                       // already here
+  const t = S.mins;
+  if (t >= PO_OPENS) return null;                                   // after 9 the roads are clear (no point, by then)
+  const mins = Math.max(20, PO_JAM_PARKED - t);                     // however early you set off, you park at 9:10
+  const parked = `It's ${hhmm(t + mins)} by the time you park. The queue has already gone in.`;
+  const hint = '\n\nAt this rate you\'d have to get here the night before.';
+  if (t < PO_ROAD_OPENS) {                                          // the night: the road's shut, then the jam
+    return { mins, words: `ROAD CLOSED: NIGHT WORKS UNTIL 6:00.\n\nYou sit at the barrier with the engine off. At six it opens, straight onto the back of a queue of traffic. Temporary lights on Station Road, stuck on red.\n\n${parked}${hint}` };
+  }
+  return { mins, words: `Roadworks on Station Road. Temporary lights, stuck on red. Nobody moves.\n\n${parked}${hint}` };
+}
+// Can you sleep in the car outside the post office now? (it's shut for the night, and it's not yet 5:45)
+function poCanSleep() {
+  if (S.screen !== 'place' || S.place !== 'Post Office' || S.inside) return false;   // only outside it, in the car
+  const evening = S.mins >= (PLACE_INFO['Post Office'].open[1]);  // shut for the day
+  const night = S.mins < PO_WAKE;                                   // or the small hours
+  return evening || night;
+}
+// Time passes while you're outside the post office: if you've been here since the day before, you're first in the queue
+function poStayedOvernight() {
+  if (S.screen !== 'place' || S.place !== 'Post Office' || S.inside) return;
+  if (!S.po || S.po.day !== S.day - 1) return;                      // got here today, or long ago
+  S.po = { day: S.day, arrived: 0 };                                // here all night: since before anyone
+  S.spot.outside = poSlot(0);                                       // at the door, first
+}
 // Where slot k of the outside queue is: along the pavement by the wall, from the door leftwards
 const poSlot = k => [160 - k * 12, 45];
 // Draw the queue outside: the ones in front of you, then the ones who came after you (they all go in between 9 and 10)

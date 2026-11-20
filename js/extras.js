@@ -413,7 +413,7 @@ function shelfSpots() {
 // THE GARAGE SHELVES: everything you've bought, in a grid of slots
 // =====================================================================
 // How each thing you can own is drawn (things bought off shop shelves keep their own kind)
-const ITEM_KIND = { 'reader-good': 'reader', 'reader-cheap': 'reader', 'reader-old': 'reader', 'part-mega': 'sensor', 'part-p4l': 'sensor', 'extractor-cheap': 'drivers', 'extractor-good': 'drivers', 'fuses': 'box' };
+const ITEM_KIND = { 'reader-good': 'reader', 'reader-cheap': 'reader', 'reader-old': 'reader', 'part-mega': 'sensor', 'part-p4l': 'sensor', 'extractor-cheap': 'drivers', 'extractor-good': 'drivers', 'fuses': 'box', 'battery-23a': 'box' };
 // Everything you've bought: [name, how it's drawn, how many]
 function storeList() {
   const list = [];

@@ -1275,7 +1275,7 @@ test('the horn in the middle of the steering wheel goes PARP, with the key off o
   expect(errors).toEqual([]);
 });
 
-test('the post office: ten in the queue and it never moves, unless you were outside when it opened at 9', async ({ page }) => {
+test('the post office: ten in the queue and it never moves; the roadworks make you late every morning; sleep in the car outside and you are first', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   // late: at the back of the queue, and waiting gets you nowhere
@@ -1288,13 +1288,46 @@ test('the post office: ten in the queue and it never moves, unless you were outs
   expect(await dialogText(page)).toContain("hasn't moved");
   await ok(page);
   expect(await page.evaluate(() => S.flags.poFirst)).toBeFalsy();
-  // next morning: get there before nine, wait outside, go in when it opens: first
+  // next morning: set off at 7 to beat the queue… the roadworks: you park at 9:10, too late
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await sleep(page); await ok(page);
+  await page.evaluate(() => { S.mins = 7 * 60; });
+  const anger = await page.evaluate(() => S.anger);
   await goPlace(page, 'Post Office');
-  while (await page.evaluate(() => S.mins < poServedAt())) { await tap(page, 'act:wait'); await ok(page); }   // wait outside until it's your turn
+  expect(await dialogText(page)).toContain('Roadworks');
+  expect(await dialogText(page)).toContain('the night before');
+  await ok(page);
+  expect(await page.evaluate(() => [S.mins, poInQueue()])).toEqual([9 * 60 + 10, false]);
+  expect(await page.evaluate(() => S.anger)).toBeGreaterThan(anger);
+  // set off at 3am: the road's shut all night, then the jam: 9:10 again
+  await page.evaluate(() => { S.day += 1; S.mins = 3 * 60; S.screen = 'home'; S.place = null; render(); });
+  await goPlace(page, 'Post Office');
+  expect(await dialogText(page)).toContain('ROAD CLOSED');
+  await ok(page);
+  expect(await page.evaluate(() => S.mins)).toBe(9 * 60 + 10);
+  // so: drive over the evening before (no roadworks then), sleep in the car, wake first in the queue
+  await page.evaluate(() => { S.mins = 20 * 60; S.screen = 'home'; S.place = null; render(); });
+  await goPlace(page, 'Post Office'); await idle(page);
+  expect(await page.locator('.dlg').count()).toBe(0);                  // no jam in the evening
+  const day = await page.evaluate(() => S.day);
+  await act(page, 'Sleep in the car till morning');
+  expect(await dialogText(page)).toContain("You're first");
+  await ok(page);
+  expect(await page.evaluate(() => [S.day, S.mins, poInQueue(), poAhead()])).toEqual([day + 1, 5 * 60 + 45, true, 0]);
+  expect(await page.evaluate(() => S.msgs[0].body)).toContain('POST OFFICE');   // the wife wants to know where you are
+  while (await page.evaluate(() => S.mins < poServedAt())) { await tap(page, 'act:wait'); await ok(page); }   // wait outside until it opens
   await talk(page);
   expect(await dialogText(page)).toContain('first');
+  expect(errors).toEqual([]);
+});
+
+test('waiting outside the shut post office all night (the watch) also makes you first in the queue', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 22 * 60; });
+  await goPlace(page, 'Post Office'); await idle(page);
+  for (let k = 0; k < 4; k++) { await tap(page, 'act:wait'); await ok(page); }   // 22:20 to 2:20
+  expect(await page.evaluate(() => [poInQueue(), poAhead(), poServedAt()])).toEqual([true, 0, 9 * 60]);
   expect(errors).toEqual([]);
 });
 
@@ -1721,5 +1754,65 @@ test('the panel under the dashboard unscrews to show the ECU, covered in sticker
   await tap(page, 'act:ecu');                                          // the second time: straight in, no screws
   expect(await page.locator('.dlg').count()).toBe(0);
   expect(await page.evaluate(() => S.screen)).toBe('ecu');
+  expect(errors).toEqual([]);
+});
+
+// ---------- check every fuse: the multimeter and its odd battery ----------
+test('check every fuse: F23 looks fine but you need the multimeter; its 23A battery is flat; the Pound Shop and Hardware Shop have not got one; MegaMart has; then all fuses test fine bar the cigarette lighter', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); lead('meaning', 'fuses', 'Check your fuses first', 'MrTorque', 'tbh', 'fuseZoom'); S.flags.knowF23 = true; S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Check every fuse');                                 // F23: it looks fine, but test them all
+  expect(await dialogText(page)).toContain('multimeter');
+  await ok(page);
+  expect(await page.evaluate(() => leadOpen('meter'))).toBe(true);
+  // the multimeter in drawer 5: flat, and it's an odd battery
+  await page.evaluate(() => { S.screen = 'toolbox'; render(); });
+  await tap(page, 'act:drawer:5');
+  await act(page, 'Test the multimeter');
+  expect(await dialogText(page)).toContain('23A');
+  await ok(page);
+  expect(await page.evaluate(() => ['bat-pound', 'bat-hardware', 'bat-online'].map(leadOpen))).toEqual([true, true, true]);
+  await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Check every fuse');
+  expect(await dialogText(page)).toContain('flat');
+  await ok(page);
+  // the shops: no luck
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Pound Shop'); await talk(page);
+  expect(await dialogText(page)).toContain('Twelve volt');
+  await ok(page);
+  await goPlace(page, 'Hardware Shop'); await talk(page);
+  expect(await dialogText(page)).toContain('Try the internet');
+  await ok(page);
+  expect(await page.evaluate(() => [leadOpen('bat-pound'), leadOpen('bat-hardware')])).toEqual([false, false]);
+  // online: MegaMart has them
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'MegaMart'; render(); });
+  await page.locator('[data-act="buy:battery-23a"]').click();
+  expect(await dialogText(page)).toContain('Order placed');
+  await ok(page);
+  expect(await page.evaluate(() => [leadOpen('bat-online'), S.parcels.some(p => p.item === 'battery-23a')])).toEqual([false, true]);
+  await page.evaluate(() => { S.parcels = []; openParcel('battery-23a'); });
+  expect(await dialogText(page)).toContain('It beeps');
+  await ok(page);
+  expect(await page.evaluate(() => [findJob('meter-battery').status, S.flags.meterOK])).toEqual(['done', true]);
+  // now every fuse: a beep each, all fine except F17
+  await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
+  await act(page, 'Check every fuse');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('fusetest');
+  expect(await dialogText(page)).toContain('F17');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.fusesTested, leadOpen('fuses'), leadOpen('testfuses')])).toEqual([true, false, false]);
+  expect(errors).toEqual([]);
+});
+
+test('AA batteries off the shop shelf do not fit the multimeter', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.meterFlat = true; S.bought = { Batteries: { kind: 'box', n: 1 } }; S.screen = 'toolbox'; render(); });
+  await tap(page, 'act:drawer:5');
+  await act(page, 'Test the multimeter');
+  expect(await dialogText(page)).toContain('AAs');
+  await ok(page);
   expect(errors).toEqual([]);
 });
