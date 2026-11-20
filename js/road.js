@@ -217,16 +217,19 @@ MOMENTS.walkhome = function (part) {
   if (p > 0.35 && p < 0.65) isoCar(carX, 70, 1, hex('#c8c8c0'), { alongX: true, shape: 'saloon' });
   // the splash: a wall of water, up over the pavement and him
   if (p > hit && p < hit + 0.16) {                                  // a huge wave of it: a sheet of water and a spray of drops, up and over him
-    const q = (p - hit) / 0.16, rise = Math.sin(q * 3.1);
+    const q = (p - hit) / 0.16;
+    const rise = q < 0.5 ? Math.sin(q * Math.PI) : 1 + (q - 0.5) * 0.5;   // up to its peak, then on outwards (never back into the puddle)
+    const fade = q < 0.5 ? 0 : (q - 0.5) / 0.5;                       // past the peak it thins out to nothing
     const c = P(WALK.puddle[0], WALK.puddle[1]);
-    for (let k = 0; k < 14; k++) {                                   // the sheet: a fan of thick streaks off the wheel
+    if (q < 0.7) for (let k = 0; k < 14; k++) {                      // the sheet: a fan of thick streaks off the wheel (it breaks up into drops)
       const a = 0.1 - k * 0.13, r = rise * (40 + hash(k, 3) * 34);   // up and towards the pavement (up and to the right): at him
       pipe(c[0], c[1] - 2, c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3, 3, k % 2 ? hex('#a8c0d8') : hex('#d8e8f4'));
     }
     for (let k = 0; k < 260; k++) {                                  // the spray: drops flung far and wide
       const a = 0.2 - hash(k, 7) * 2.0, r = rise * (20 + hash(7, k) * 95);   // mostly up and over him, some back over the road
+      if (hash(k, 11) < fade) continue;                              // thinning out
       const s2 = k % 5 ? 2 : 3;
-      rect(c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3 + q * q * 30 * hash(k, 9), s2, s2, k % 3 ? hex('#a8c0d8') : C.white);   // falling back as it goes
+      rect(c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 1.3 - q * q * 16 * hash(k, 9), s2, s2, k % 3 ? hex('#a8c0d8') : C.white);   // drifting up and out as it goes
     }
   }
 };

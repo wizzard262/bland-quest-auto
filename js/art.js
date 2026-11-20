@@ -311,6 +311,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   // the side: below the windows, the sill, then the cabin above
   poly(side([[0, 4], [0, K.tz], [K.sy, K.sz], [L, K.nz], [L, 4]]), col);
   poly(side([[0, 4], [L, 4], [L, 6], [0, 6]]), shade(col, 0.7));
+  poly(F([[i1, 0, K.tz], [24, 0, K.tz], [24, K.sy, K.sz], [i1, K.sy, K.sz]]), shade(col, 1.1));   // the shoulder along the top of the side, up to the cabin
   if (rev) carBack(K, tail, col, broken);                                               // facing away: its back, lights and plate
   poly(F([[i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i1, K.ry1, K.rz], [i1, K.sy, K.sz]]), col);
   const win = K.win || [[K.hy + 2, K.tz + 1], [K.ry0 + 1, K.rz - 1], [K.ry1 - 1, K.rz - 1], [K.sy - 2, K.sz + 0.5]];

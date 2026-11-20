@@ -434,12 +434,18 @@ SCREENS.yard = {
     ISO.ox = YARD_VIEW[0]; ISO.oy = YARD_VIEW[1];
     grime(0, 0, W, H, hex('#8a7a60'), 0.25, 91);                                               // dirt and gravel
     ground(-60, -60, 220, 200, hex('#7a6a50'));
-    for (let n = 0; n < 500; n++) { const p = P(-60 + hash(n, 1) * 280, -60 + hash(1, n) * 260); px(p[0], p[1], hash(n, n) < 0.5 ? hex('#5a4a38') : hex('#a89878')); }
+    for (let n = 0; n < 500; n++) { const p = P(-60 + hash(n, 1) * 280, -60 + hash(1, n) * 260); px(p[0], p[1], hash(n, n) < 0.5 ? hex('#6e6a62') : hex('#a8a090')); }   // gravel: grey stones
     for (let x = -60; x <= 220; x += 14) { ibox(x, -62, x + 2, -60, 0, 30, C.wood); }            // the fence
     line(...P(-60, -61, 26), ...P(220, -61, 26), C.wood); line(...P(-60, -61, 14), ...P(220, -61, 14), C.wood);
     ibox(170, -50, 214, -20, 0, 34, hex('#e0e0d0'), C.steel); winLeft(-20, 178, 194, 14, 26); onLeft(-20, 200, 210, 0, 24, C.door);   // the office
     for (let n = 0; n < 4; n++) { const p = P(-40, 140, 3 + n * 6); ellipse(p[0], p[1], 12, 6, C.tyre); ellipse(p[0], p[1], 5, 2, hex('#5a4a38')); }   // tyres
-    for (let n = 0; n < 3; n++) { const p = P(-30, 40 + n * 20, 3); ellipse(p[0], p[1], 10, 5, C.tyre); }
+    for (let n = 0; n < 3; n++) {                                     // tyres lying flat: a black ring, its tread catching the light, the hole in the middle
+      const p = P(-30, 40 + n * 20, 3);
+      ellipse(p[0], p[1], 10, 5, C.tyre);
+      ellipse(p[0], p[1] - 1, 9, 4, shade(C.tyre, 1.6));
+      ellipse(p[0], p[1], 7, 3, C.tyre);
+      ellipse(p[0], p[1], 4, 2, hex('#7a6a50'));
+    }
     WRECKS.forEach(([x, y, col, stacked, , shape, how], i) => {
       if (stacked) isoCar(x + 2, y - 4, 1, shade([C.steel2, C.redDim][i % 2], 0.8), { broken: true, noWheels: true, shape: 'zafiraOld' });   // the wreck underneath
       isoCar(x, y, 1, shade(col, 0.85), Object.assign({ broken: true, shape, dz: stacked ? 12 : 0 }, how));
