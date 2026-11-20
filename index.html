@@ -239,6 +239,13 @@
   .help button.alt { background: #34434d; color: var(--ui); }
   @media (max-width: 600px) { .help ul { columns: 1; } .help .card { font-size: 13px; } }
 
+  /* ---- a letter from the mailbox: on paper, typed ---- */
+  .letter { left: 22%; top: 8%; width: 56%; height: 78%; background: #fbf8ee; color: #202020; padding: 2.4cqw 3cqw; box-sizing: border-box; font: 1.4cqw/1.5 'Courier New', monospace; box-shadow: 0 0 0 .3cqw #d8d0b8, .8cqw .8cqw 0 rgba(0,0,0,.4); display: flex; flex-direction: column; }
+  .letter .lfrom { font: bold 1.1cqw Tahoma, sans-serif; color: #6a6250; text-transform: uppercase; letter-spacing: .1cqw; }
+  .letter h3 { margin: .8cqw 0; font: bold 1.9cqw 'Courier New', monospace; }
+  .letter .pgnav { margin-top: auto; display: flex; align-items: center; justify-content: space-between; font: bold 1.1cqw Tahoma, sans-serif; color: #6a5a38; }
+  .letter .flip { width: 2.4em; font-size: 1.1em; background: #e0d4b0; border: 1px solid #b8ab88; cursor: pointer; }
+
   /* ---- the title screen: panels of the game cut up behind him (like a game box), our hero with his spanner held high, the logo ---- */
   .titlescreen { position: fixed; inset: 0; background: #14101e; display: none; align-items: center; justify-content: center; z-index: 11; cursor: pointer; }
   .titlescreen.open { display: flex; }
@@ -311,6 +318,7 @@
 <script src="js/sensors.js"></script>
 <script src="js/road.js"></script>
 <script src="js/brother.js"></script>
+<script src="js/police.js"></script>
 <script src="js/engine.js"></script>
 <script>
 // How to play: open from the header; close with its button, a tap outside the card, or Escape

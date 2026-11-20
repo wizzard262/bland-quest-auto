@@ -480,10 +480,10 @@ function breathUp() {
   }
   // failed again: the fine, on paper
   BREATH.ticket = true;
-  S.money -= BREATH_FINE;
+  fineIssued();                                                        // the fine comes in the post (police.js)
   anger(15);
   render();
-  say('The policeman', `"Red again, sir." He writes you a ticket and hands it through the window: a £${BREATH_FINE} fine.\n\n"Leave the car here and walk home. And don't let me see you behind the wheel tonight."`, [{ label: 'OK', run: walkHomeFined }]);
+  say('The policeman', `"Red again, sir." He writes you up. "A £${BREATH_FINE} fixed penalty. It'll come in the post."\n\n"Leave the car here and walk home. And don't let me see you behind the wheel tonight."`, [{ label: 'OK', run: walkHomeFined }]);
 }
 // After the fine: you walk home; the car's left where they stopped you, until the morning
 function walkHomeFined() {
@@ -698,7 +698,9 @@ const TALK = {
     // after that: ask him whatever you like
     say('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
   },
+  'Police Station'() { policeTalk(); },                                  // no help (police.js)
   'Post Office'() {
+    if (payFineAtPost()) return;                                        // a fine to pay: window 3, no queue (police.js)
     if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
     anger(5);
     say('Post Office', 'You join the back of the queue. Ten people. Nobody moves.');   // waiting in it: the watch

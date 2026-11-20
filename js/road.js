@@ -340,6 +340,7 @@ function homeSoaked() {
 
 // Where your car is drawn: yours, or (while yours is stuck on Mill Lane) her little purple one
 function drivenCar(x, y, s) {
+  if (S.flags.taxi) return isoCar(x, y, s, hex('#f8d038'), { alongX: true, shape: 'saloon' });   // the taxi (police.js)
   if (inWifesCar()) return isoCar(x, y, s, WIFE_CAR, { alongX: true, shape: 'city' });
   isoCarX(x, y, s, C.car);
 }

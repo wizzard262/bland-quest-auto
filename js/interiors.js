@@ -6,7 +6,7 @@ const STYLE_BY_CAT = { parts: 'parts', mech: 'garage', elec: 'elec', trans: 'gea
 const STYLE_BY_NAME = {
   'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Library (free Wi-Fi)': 'books', 'Café': 'cafe',
   'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Tyre Place': 'tyres', 'MOT Test Centre': 'garage',
-  'Machine Shop (lathe)': 'workshop', 'Makerspace (3D printer)': 'workshop', 'Bank': 'bank',
+  'Machine Shop (lathe)': 'workshop', 'Police Station': 'police', 'Bank': 'bank',
   'The Hesketh Tavern': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
 };
 function placeStyle(name) {
@@ -17,6 +17,7 @@ function placeStyle(name) {
 // The shopkeeper's clothes for each kind of place
 const BLUE_OVERALLS = { shirt: hex('#2848a0'), shirtDark: hex('#1c3478'), jeans: hex('#2848a0'), jeansDark: hex('#1c3478'), hair: hex('#202020') };
 const KEEPER = {
+  police: { shirt: C.white, shirtDark: hex('#c8c8d0'), jeans: hex('#1c2a4a'), jeansDark: hex('#101a30'), hair: hex('#303030') },
   parts: { shirt: hex('#e08830'), shirtDark: hex('#b06820'), jeans: C.greyDark, jeansDark: C.ink, hair: hex('#c8a060') },
   garage: BLUE_OVERALLS, gearbox: BLUE_OVERALLS, tyres: BLUE_OVERALLS, workshop: BLUE_OVERALLS,
   elec: { shirt: C.warm, shirtDark: C.warmDim, jeans: C.greyDark, jeansDark: C.ink, hair: hex('#803020') },
@@ -33,6 +34,7 @@ const KEEPER = {
 };
 // What you find when you look at the stock, and what the posters say
 const BROWSE = {
+  police: 'A noticeboard: HAVE YOU SEEN THIS CAT? A list of lost property: one hubcap. A rack of forms: all for something else.',
   parts: 'Boxes and boxes of parts. Brake pads, filters, bulbs, wiper blades. Nothing says Zafira. One box says "UNIVERSAL*".',
   garage: 'A board of car keys with paper tags, a calendar from 2019, and a coffee machine that says OUT OF ORDER.',
   elec: 'Batteries, reels of wire in every colour, bulbs, fuses and a machine with a hundred plugs. None is yours.',
@@ -51,6 +53,7 @@ const BROWSE = {
   house: 'Net curtains. Someone is definitely in.'
 };
 const POSTERS = {
+  police: ['HAVE YOU SEEN THIS CAT?', 'reward: none'],
   parts: ['WE PRICE MATCH*', '*not online'], garage: ['ALL WORK GUARANTEED', 'for 7 days'],
   elec: ['WE FIX IT', 'OR WE CHARGE YOU'], gearbox: ['AUTOMATIC?', 'WE CAN HELP (MAYBE)'],
   tools: ['LIFETIME GUARANTEE', 'keep your receipt'], aisles: ['EVERYTHING £1', '(some things more)'],
@@ -263,7 +266,7 @@ function posters(style) {
   onRight(0, 70, 110, 30, 56, C.white); onRight(0, 72, 108, 32, 54, C.warm);
   onRight(0, 118, 140, 34, 56, C.white); onRight(0, 120, 138, 36, 54, hex('#e070a8'));
   wallText(a, 110, 50, 40, 8); wallText(b, 110, 41, 40, 6);
-  wallText('SALE', 140, 50, 22, 8);
+  wallText(style === 'police' ? 'WANTED' : 'SALE', 140, 50, 22, 8);   // (the police don't have a sale on)
 }
 // Two posters on the back wall (shops whose side wall is all shelves)
 function backPosters(style) {
@@ -287,6 +290,14 @@ function shelves(fill, from = 10, to = 190) {
   }
 }
 const STOCK = {
+  police() {                                                          // the police station: grey filing cabinets, and a cork noticeboard
+    for (let k = 0; k < 4; k++) {
+      ibox(20 + k * 24, 2, 40 + k * 24, 14, 0, 42, C.steel2, C.steel);
+      for (const z of [10, 24, 36]) onLeft(14, 26 + k * 24, 34 + k * 24, z, z + 2, C.tool);   // the drawer handles
+    }
+    onLeft(0, 128, 192, 18, 62, hex('#a07850'));                       // the noticeboard
+    for (let n = 0; n < 9; n++) { const x = 132 + (n % 3) * 20, z = 24 + Math.floor(n / 3) * 12; onLeft(0, x, x + 14, z, z + 9, n % 4 ? C.white : C.warm); }   // papers pinned up
+  },
   parts(col) {
     shelves((x, z, k) => { ibox(x, 1, x + 8, 10, z, z + 9 + (k % 3), [CARDBOARD, C.white, C.red, C.car][(k + z) % 4]); onLeft(10, x + 2, x + 6, z + 3, z + 6, C.ink); });
     for (let k = 0; k < 4; k++) line(...P(0, 20 + k * 6, 70), ...P(0, 50 + k * 6, 30), C.steel);     // exhaust pipes on the side wall

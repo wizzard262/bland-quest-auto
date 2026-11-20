@@ -56,6 +56,7 @@ function pass(mins) {
   S.mins += mins;
   while (S.mins >= 1440) { S.mins -= 1440; S.day += 1; }
   if (S.day !== dayBefore) poStayedOvernight();                   // a night outside the post office: first in the queue
+  postArrives();                                                   // the post comes at 8; an unpaid fine moves on (police.js)
   deliverParcels();
   runEvents();
 }
@@ -74,6 +75,7 @@ function sleepUntilMorning() {
   S.day += 1;
   S.mins = 8 * 60;
   S.anger = Math.max(0, S.anger - 20);
+  postArrives();                                                   // the morning post (police.js)
   deliverParcels();
   runEvents();
 }
@@ -215,6 +217,9 @@ function goTo(target) {
   if (target === 'phone' && S.screen === 'roadside' && !S.flags.phoneDead) return act('roadring');   // on a flat on Mill Lane: the phone dies
   const stuck = strandedReason(target);                               // your car's on a flat on Mill Lane
   if (stuck) return say('Your car', stuck);
+  const clamped = clampedReason(target);                              // clamped on the drive: not going anywhere in it (police.js)
+  if (clamped) return say('Your car', clamped);
+  if (target === 'home' && S.flags.taxi) { S.place = 'Home'; show('home'); return taxiHome(); }   // home in the taxi
   if (target === 'home' && punctureOnTheWayHome()) return;           // now and then, on the way home: a puncture
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
@@ -257,6 +262,7 @@ function travelFrom() { /* the car is always ready; the trip is charged when you
 // Go to a place in town: the trip costs 20 minutes
 function visit(name) {
   if (name === 'Home') {
+    if (S.flags.taxi) { S.place = 'Home'; show('home'); return taxiHome(); }   // home in the taxi (police.js)
     if (punctureOnTheWayHome()) return;                              // now and then, on the way home: a puncture
     S.place = 'Home';
     return show('home');

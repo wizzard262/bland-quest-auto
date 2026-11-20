@@ -88,17 +88,22 @@ SCREENS.home = {
     // the car, the bin, parcels by the door, you
     if (!carStranded()) isoCar(102, 72);                                                  // your car on the drive
     else if (inWifesCar()) isoCar(102, 72, 1, WIFE_CAR, { shape: 'city' });              // or hers, while yours is on a flat
+    drawClamp();                                                                          // clamped, for an unpaid fine (police.js)
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
-    kerbMailbox(S.doorstep.length > 0);                                                   // the mailbox at the kerb: a parcel sticks out when there is one
+    kerbMailbox(S.doorstep.length > 0 || unreadLetters() > 0);                            // the mailbox at the kerb: a parcel or the post sticks out
     standingMan('home');
     if (S.flags.drunkHome) {                                          // home from the pub: all he can manage is the front door
       spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
       return hud();
     }
-    spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
+    if (carClamped() && !S.flags.taxi) spot('Car: clamped (read the note)', isoArea(102, 72, 126, 118, 0, 22), 'act:clampnote', [96, 96]);
+    else spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
-    spot(S.doorstep.length ? 'Mailbox: a parcel!' : 'Mailbox (empty)', isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), S.doorstep.length ? 'act:parcel' : 'act:look:Mailbox', [MAILBOX[0] + 4, MAILBOX[1] - 8]);
+    const mail = S.doorstep.length ? ['Mailbox: a parcel!', 'act:parcel']                 // a parcel first; then the post; else empty
+      : unreadLetters() ? ['Mailbox: post!', 'act:letters']
+      : (S.letters || []).length ? ['Mailbox: your letters', 'act:letters'] : ['Mailbox (empty)', 'act:look:Mailbox'];
+    spot(mail[0], isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), mail[1], [MAILBOX[0] + 4, MAILBOX[1] - 8]);
     if (wifeFollowing()) {                                             // late: she's followed him out (drawn in life.js); last, so she's on top of the garage when she stands by it
       const [fx, fy] = FOLLOW.pos || followTarget();
       spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 12, fy + 10]);
@@ -242,7 +247,7 @@ const PLACES = [
   ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ["Dave's Garage", 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
   ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['Bank', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Scrap Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
-  ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Makerspace (3D printer)', 'other'], ['Café', 'other'],
+  ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Brother's", 'people'], ['Clutch & Co', 'trans'], ['Police Station', 'other'], ['Café', 'other'],
   ['Home', 'home'], ["Neighbour Ken's", 'people'], ['Wired Up Auto Electric', 'elec'], ['Trusty Autos', 'mech'], ['Pattern Parts', 'parts'], ['Hardware Shop', 'tools'], ['Pound Shop', 'other']
 ];
 const CAT = {
@@ -606,7 +611,7 @@ SCREENS.phone = {
     if (S.flags.phoneDead) return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs"><div class="m"><b>Your phone</b>The screen stays black. The battery is flat.</div></div></div>`;   // dead: nothing works
     const msgs = S.msgs.map(m => `<div class="m"><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs">${msgs}</div>
-      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div>${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
+      <div class="tabs"><div data-act="ring:Gaz">Ring Gaz</div><div data-act="ring:Mum">Ring Mum</div><div data-act="ring:Brother">Ring Brother</div><div data-act="ring:Wife">Ring the wife</div>${carClamped() ? '<div data-act="taxi">Ring for a taxi</div>' : ''}${S.flags.yardNumber ? '<div data-act="ring:Yard">Ring the Scrap Yard</div>' : ''}<div data-act="phonetorch" class="${S.flags.phoneTorch ? 'on' : ''}">🔦 Torch ${S.flags.phoneTorch ? 'off' : 'on'}</div></div></div>`;
   },
   actions() { return []; }
 };

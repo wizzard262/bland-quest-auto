@@ -20,6 +20,8 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/extras.js`: anger (calm-down menu, breaking things on the car), the manuals shelf, shop shelves close up (the hammer), the fuse diagram online
 - `js/sensors.js`: every gearbox sensor you can try in the box on the workbench (`SENSORS`: name, long part number, shape, how it fits, colour), where the wrong ones come from (the eBuy job lot, the Scrap Yard, Car Spares Direct, the parts box), and the soldering game (join the three wires in the right order, then the iron)
 - `js/road.js`: road snags: now and then on the way home, a puncture (the roadside, the flat spare, the dead phone, the walk home in the rain and the splash, a wheel from the Scrap Yard or the Tyre Place in the wife's car)
+- `js/brother.js`: your brother comes round to "help"
+- `js/police.js`: the police station, the post (letters in the mailbox), the drink-driving fine, the clamp and the taxi
 - `js/engine.js`: game state, time, money, anger, the notebook, dialogs, saving
 - `task-tree.md`: the full design tree of tasks and snags (branches still to build)
 - `mockups.html`: the still mockups the game was built from

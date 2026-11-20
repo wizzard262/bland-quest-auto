@@ -888,8 +888,8 @@ test('driving off after a drink, the police breath test you: hold to blow; one d
   expect(await dialogText(page)).toContain('do it again');
   await page.locator('.dlg').click();
   await blow(page, 900);
-  expect(await dialogText(page)).toContain('£300 fine');
-  expect(await page.evaluate(() => [BREATH.ticket, S.money])).toEqual([true, money - 300]);
+  expect(await dialogText(page)).toContain('£300 fixed penalty');
+  expect(await page.evaluate(() => [BREATH.ticket, S.money, !!S.fine, !!findJob('fine')])).toEqual([true, money, true, true]);   // it comes in the post
   await page.locator('.dlg').click();
   expect(await dialogText(page)).toContain('long walk home');
   await ok(page);
@@ -2328,5 +2328,72 @@ test('the walk home: the SPLOOSH still flashes up as the water hits him, then th
   expect(await page.evaluate(() => WALK_PART[0] === WALK_SPLASH && WALK_PART[1] === 1)).toBe(true);
   expect(await dialogText(page)).toContain('SOAKED');                   // then home
   expect(await page.evaluate(() => S.screen)).toBe('room');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the fine: letters, the clamp, a taxi, paying at the Post Office ----------
+test('the fine comes in the post; unpaid, a reminder (£450), then the car is clamped with a note; a taxi to the Post Office; pay; home, and a man takes the clamp off', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { fineIssued(); S.screen = 'home'; render(); });
+  // the next morning: the letter in the mailbox
+  await page.evaluate(() => { S.day += 1; S.mins = 7 * 60; pass(70); render(); });
+  await expect(page.locator('.hs[data-go="act:letters"]')).toHaveCount(1);
+  await tap(page, 'act:letters');
+  await expect(page.locator('.letter')).toContainText('FIXED PENALTY');
+  await expect(page.locator('.letter')).toContainText('£300');
+  await act(page, 'Put them down');
+  expect(await page.evaluate(() => fineOwed())).toBe(300);
+  // day 4: the reminder, and it's £450
+  await page.evaluate(() => { S.day += 3; S.mins = 7 * 60; pass(70); render(); });
+  expect(await page.evaluate(() => [fineOwed(), S.letters.map(l => l.id).includes('finelate')])).toEqual([450, true]);
+  // a week: clamped; the car won't go; the note on the windscreen
+  await page.evaluate(() => { S.day += 3; S.mins = 7 * 60; pass(70); S.screen = 'home'; render(); });
+  expect(await page.evaluate(() => [carClamped(), fineOwed()])).toEqual([true, 550]);
+  await tap(page, 'act:clampnote');
+  expect(await dialogText(page)).toContain('IMMOBILISED');
+  await ok(page);
+  await page.evaluate(() => { goTo('city'); });
+  expect(await dialogText(page)).toContain("It's clamped");
+  await ok(page);
+  // a taxi into town (£15), and the Post Office: window 3, no queue
+  const money = await page.evaluate(() => { S.money = 1000; return S.money; });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="taxi"]').click();
+  expect(await dialogText(page)).toContain('taxi');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, S.flags.taxi, S.money])).toEqual(['city', true, money - 15]);
+  await page.evaluate(() => { S.mins = 11 * 60; });
+  await goPlace(page, 'Post Office'); await talk(page);
+  expect(await dialogText(page)).toContain('Window 3');
+  await choose(page, 'Pay £550');
+  expect(await page.evaluate(() => [S.fine.paid, findJob('fine').status, S.fine.unclamp])).toEqual([true, 'done', true]);
+  // home in the taxi (£15): a man's taking the clamp off
+  await page.evaluate(() => { goTo('home'); });
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('unclamp');
+  expect(await dialogText(page)).toContain('taking the clamp off');
+  await ok(page);
+  expect(await page.evaluate(() => [carClamped(), S.flags.taxi, S.fine.unclamp, S.money])).toEqual([false, false, false, money - 15 - 550 - 15]);
+  expect(errors).toEqual([]);
+});
+
+test('the police station is on the map, and no help at all', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 11 * 60; });
+  await goPlace(page, 'Police Station'); await talk(page);
+  expect(await dialogText(page)).toContain('Fill in a form');
+  await ok(page);
+  await page.evaluate(() => { fineIssued(); });
+  await talk(page);
+  expect(await dialogText(page)).toContain('Post Office');
+  expect(errors).toEqual([]);
+});
+
+test('the usual post: junk and a reminder that the MOT has run out', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.day = 2; S.mins = 7 * 60; pass(70); S.day = 3; S.mins = 7 * 60; pass(70); });
+  expect(await page.evaluate(() => S.letters.map(l => l.id).sort())).toEqual(['junk', 'mot']);
   expect(errors).toEqual([]);
 });
