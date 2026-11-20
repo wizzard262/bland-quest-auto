@@ -15,6 +15,7 @@ async function start(page, errors, skipOpening) {
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
+  await page.click('#title-play');                         // the title screen: in
   await page.click('#help-close');
   if (skipOpening) return;
   await talk(page);
@@ -2234,5 +2235,26 @@ test('a smashed headlight, once replaced, goes in the parts box', async ({ page 
   await page.evaluate(() => { job('broke-headlight', 'Replace the left headlight', null); spareLamps().left = 1; act('fitlight'); });
   expect(await dialogText(page)).toContain('parts box');
   expect(await page.evaluate(() => S.junked)).toEqual(['lamp-left']);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the title screen ----------
+test('the title screen: the logo on three lines, our hero with his spanner, panels of the game behind; tap to go in, then How to play', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; });
+  await page.goto(pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href);
+  await page.evaluate(() => { localStorage.clear(); });
+  await page.reload();
+  await expect(page.locator('#title')).toBeVisible();
+  await expect(page.locator('.tlogo')).toContainText('BLAND');
+  await expect(page.locator('.tlogo')).toContainText('QUEST');
+  await expect(page.locator('.tlogo')).toContainText('AUTO-matic Transmission');
+  await expect(page.locator('.tpanel img')).toHaveCount(7);
+  for (const img of await page.locator('.tpanel img, .thero').all()) expect(await img.evaluate(i => i.complete && i.naturalWidth > 0)).toBe(true);   // every picture loads
+  await expect(page.locator('#help')).not.toHaveClass(/open/);            // How to play waits for the title
+  await page.locator('.tcard').click({ position: { x: 30, y: 30 } });     // tap anywhere on it
+  await expect(page.locator('#title')).toBeHidden();
+  await expect(page.locator('#help')).toHaveClass(/open/);                // then How to play, the first time
   expect(errors).toEqual([]);
 });

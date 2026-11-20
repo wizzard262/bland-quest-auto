@@ -25,6 +25,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `mockups.html`: the still mockups the game was built from
 - `cutscenes.html`: big 1980s anime-style still cutscenes (the kick, the wife); the Pixel button shows them at the game's pixel size
 - `stills/`: the big stills, one file each (`kick`, `pubfloor`, `sick`, `asleep`, `tea`, `breath`, `breathpass`, `splash`, `snap`, `click`, `abs`), shown on the cutscenes page and flashed up in the game after each big moment like a comic-book cut (`flashStill` / `stillAfter` in `js/engine.js`)
+- The title screen (in `index.html`): `stills/hero.svg` (him with his spanner held high) over seven panels of the game, `stills/panels/*.png`, which are the game's own screens: redraw them with `node make-title-panels.js` in the `tests` folder
 - `forest.html`, `spanner-and-son.html`: early scenes
 
 ## Tests
