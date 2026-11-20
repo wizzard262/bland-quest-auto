@@ -2833,3 +2833,17 @@ test('stranded on Mill Lane: no Back button off the roadside; and if you are in 
   expect(await page.evaluate(() => S.screen)).toBe('roadside');
   expect(errors).toEqual([]);
 });
+
+test('the box (the sub-unit) comes off whole: under the car there is an empty mount, not the box with no sensor; on the bench, once the new sensor fits, its screws go back in', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // the box on: alloy where it sits; off: dark
+  const at = async () => page.evaluate(() => { const d = ctx.getImageData(345, 90, 1, 1).data; return d[0] + d[1] + d[2]; });
+  await page.evaluate(() => { S.flags.boxOff = false; show('under'); });
+  const on = await at();
+  await page.evaluate(() => { S.flags.boxOff = true; render(); });
+  expect(await at()).toBeLessThan(on / 2);                                    // an empty dark mount
+  // the bench: fitted, all three screws back in (the third once found)
+  await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, screws: [1, 2, 3], sheared: 3, stubOut: true, fits: true, screw3: true }); show('bench'); });
+  expect(errors).toEqual([]);
+});

@@ -795,7 +795,13 @@ SCREENS.under = {
     grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
     grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
     bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
-    if (!S.flags.boxOff || S.flags.fitted) { disc(352, 98, 5, S.flags.fitted ? sensorColour(S.flags.fittedPart || 'part-p4l') : C.ink); px(351, 96, C.white); }   // the sensor (in its box), unless the box is off
+    if (!S.flags.boxOff || S.flags.fitted) {                          // the box (the sub-unit), with the sensor in it
+      rbox(338, 86, 28, 22, 4, shade(ALLOY, 0.8)); rect(340, 87, 24, 1, shade(ALLOY, 1.15));
+      disc(352, 98, 5, S.flags.fitted ? sensorColour(S.flags.fittedPart || 'part-p4l') : C.ink); px(351, 96, C.white);
+    } else {                                                          // the box is off (it's on the workbench): just the empty mount, dark, and its bolt holes
+      rbox(338, 86, 28, 22, 4, hex('#1c1c1e'));
+      for (const [x, y] of [[341, 89], [363, 105], [341, 105]]) disc(x, y, 1, C.ink);
+    }
     line(357, 98, 368, 92, C.red); line(357, 99, 368, 94, C.warm);
     rect(436, 60, 12, 166, hex('#202020'));
     zoomZones([['Rear suspension', 62, 54, 66, 54, false, 'act:look:Rear suspension'], ['Fuel tank', 126, 166, 78, 58, false, 'act:look:Fuel tank'], ['Exhaust', 234, 118, 96, 44, false, 'act:look:Exhaust'], ['Brake lines', 206, 216, 120, 18, false, 'act:look:Brake lines'], ['Gearbox', 324, 56, 60, 68, true, 'underZoom'], ['Engine', 386, 68, 46, 68, false, 'act:look:Engine']]);
@@ -827,9 +833,9 @@ SCREENS.underZoom = {
       rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
       disc(246, 140, 30, sensorColour(f.fitted ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
     } else {
-      rbox(176, 104, 140, 72, 18, shade(ALLOY, 1.08));                                     // a clean patch where the box sat
-      grime(176, 104, 140, 4, shade(ALLOY, 0.5), 0.35, 23); grime(176, 172, 140, 4, shade(ALLOY, 0.5), 0.35, 24);   // a line of muck round its edge
-      disc(246, 140, 9, C.ink); ring(246, 140, 9, C.greyDark);                              // the hole the sensor's nose went into
+      rbox(170, 98, 152, 84, 20, shade(ALLOY, 0.55));                                      // a ring of muck where the box sat
+      rbox(178, 106, 136, 68, 16, hex('#141416'));                                        // and the empty, dark opening it sat in
+      for (let k = 0; k < 6; k++) rect(196 + k * 18, 132 + (k % 2) * 8, 10, 2, hex('#2a2a2e'));   // the gearbox's insides, just visible in the dark
     }
     const hole = (x, y) => { disc(x, y, 7, C.ink); ring(x, y, 7, C.greyDark); ring(x, y, 4, shade(C.greyDark, 1.3)); };
     if (!f.b1 || f.fitted) bolt(194, 120, 8); else hole(194, 120);
@@ -876,6 +882,8 @@ function benchScrews(f) {
   for (const n of [1, 2, 3]) {
     const [x, y] = BOX_SCREWS[n];
     const c = P(x, y, 40);                                             // on the box's top face
+    const screwedBack = f.fits && (n !== f.sheared || f.screw3);       // the new sensor's in: screwed back in (the third once you've found a screw)
+    if (screwedBack) { disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark); line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark); continue; }
     if (f.sheared === n && !f.stubOut) {                               // snapped off: the stub, shiny where it broke (till the extractor gets it out)
       disc(c[0], c[1], 2, C.white); ring(c[0], c[1], 3, C.greyDark);
       continue;
