@@ -7,6 +7,7 @@
 
 let CARD_BLOCK_CHANCE = window.NO_CARD_BLOCKS ? 0 : 1 / 8;           // the chance on each payment (the tests turn it off, or up to 1)
 const BANK = 'Bank';
+const DECLINED = 'Card declined. Go to the bank to fix it.';         // what a till says while your card's blocked
 
 // Paying by card: blocked now? (and now and then, it gets blocked as you pay)
 function cardDeclined(amount) {

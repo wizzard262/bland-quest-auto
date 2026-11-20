@@ -850,7 +850,7 @@ const TALK = {
     if (S.flags.codes) return say('Main Dealer', '"Anything else? That\'ll be £120."');
     say('Main Dealer', '"We can plug it in, sir. That\'s £120 for the diagnostic."', [
       { label: 'Pay £120', run() {
-        if (!spend(120)) { anger(10); return say('Main Dealer', 'Card declined.'); }
+        if (!spend(120)) { anger(10); return say('Main Dealer', DECLINED); }
         pass(30);
         closeLead('dealer', 'ok', 'Main dealer read the codes (£120)');
         readCodes('main dealer, £120');
@@ -918,7 +918,7 @@ const TALK = {
     if (now() < S.flags.p4lReady) return say('Parts 4 Less', '"Not come over yet. Try later."');
     say('Parts 4 Less', '"Here it is. £31.50."', [
       { label: 'Pay £31.50', run() {
-        if (!spend(31.5)) return say('Parts 4 Less', 'Card declined.');
+        if (!spend(31.5)) return say('Parts 4 Less', DECLINED);
         S.inv['part-p4l'] = true;
         closeLead('p4l', 'ok', 'Bought a sensor at Parts 4 Less');
         lead('new-sensor', 'try-p4l', 'Try the new sensor on the bench', 'you', 'hopeful', 'bench');
@@ -956,7 +956,7 @@ function shopCounter(place, greeting) {
 function buy(id, place) {
   const item = ITEMS[id];
   if (item.none) { anger(5); return say(place, '"A 9? There\'s no such thing as a 9, mate."'); }
-  if (!spend(item.price)) { anger(10); return say(place, 'Card declined.'); }
+  if (!spend(item.price)) { anger(10); return say(place, DECLINED); }
   S.inv[id] = true;
   sfx('kerching');                                                     // the till
   if (id === 'extractor-cheap') closeLead('extractor', 'ok');
@@ -1576,7 +1576,7 @@ const ACTIONS = {
   buy(id) {
     const item = ITEMS[id];
     if (S.flags['ordered-' + id]) return say('Already ordered', 'It\'s on its way.');
-    if (!spend(item.price)) { anger(10); return say('Payment', 'Card declined.'); }
+    if (!spend(item.price)) { anger(10); return say('Payment', DECLINED); }
     S.flags['ordered-' + id] = true;
     const fromBay = ['reader-good', 'headlight-bay', 'sensor-lot'].includes(id);   // TheeBay: used, 2 days; Zamanon: next day
     order(id, fromBay ? 2 : 1, fromBay ? 'eBuy' : 'MegaMart');

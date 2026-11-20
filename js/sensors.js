@@ -206,7 +206,7 @@ function csdSensor() {
   if (!S.flags.csdReady) {
     say(shop, '"A gearbox sensor? We can order it in. Day after tomorrow. Twenty-two quid."', [
       { label: 'Order it (£22)', run() {
-        if (!spend(22)) return say(shop, 'Card declined.');
+        if (!spend(22)) return say(shop, DECLINED);
         S.flags.csdReady = S.day + 2;
         closeLead('csd', 'ok');
         lead('new-sensor', 'csd-collect', 'Collect the sensor from Car Spares Direct (the day after tomorrow)', shop, 'sure', 'place:' + shop);

@@ -269,7 +269,7 @@ const wheelWanted = () => inWifesCar() && !S.inv.wheel;
 function buyWheel(place) {
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
-  if (!spend(price)) { anger(10); return say(place, 'Card declined.'); }
+  if (!spend(price)) { anger(10); return say(place, DECLINED); }
   S.inv.wheel = place;
   sfx('kerching');                                                     // the till
   closeLead(yard ? 'wheel-yard' : 'wheel-shop', 'ok', `A wheel from the ${place}: £${price}`);
@@ -377,7 +377,7 @@ function spareAt(place) {
   if (!spareWanted()) return false;
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
-  if (!spend(price)) { anger(10); say(place, 'Card declined.'); return true; }
+  if (!spend(price)) { anger(10); say(place, DECLINED); return true; }
   sfx('kerching');                                                     // the till
   if (yard) {                                                           // off a wreck: straight in the boot
     S.spare = 'good';

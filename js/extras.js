@@ -689,7 +689,7 @@ Object.assign(ACTIONS, {
     const items = basketHere();
     if (!items.length) return say('The till', '"Can I help you?"\n\nYour basket\'s empty. The shelves are along the left wall.');
     const total = basketTotal();
-    if (!spend(total)) return say('The till', '£' + total.toFixed(2) + '. Card declined.');
+    if (!spend(total)) return say('The till', '£' + total.toFixed(2) + '. ' + DECLINED);
     pass(5);
     sfx('kerching');                                                    // the till
     S.bought = S.bought || {};

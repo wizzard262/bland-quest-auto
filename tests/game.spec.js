@@ -2892,3 +2892,11 @@ test("leaving a place for the town map (however you got there), the map is centr
   expect(off).toEqual([0, 0]);
   expect(errors).toEqual([]);
 });
+
+test('with the card blocked, every till says: card declined, go to the bank to fix it', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.cardBlocked = true; S.flags.cardWasBlocked = true; buy('extractor-cheap', 'Tool Shop'); });
+  expect(await dialogText(page)).toContain('Go to the bank to fix it');
+  expect(errors).toEqual([]);
+});
