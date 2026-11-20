@@ -1958,3 +1958,43 @@ test('the flat spare: a spare off a wreck at the Scrap Yard, in your slot', asyn
   expect(await page.evaluate(() => [S.spare, findJob('spare').status])).toEqual(['good', 'done']);
   expect(errors).toEqual([]);
 });
+
+// ---------- bought things that do something: the torch and the batteries ----------
+test('a torch off a shop shelf: batteries not included; with AAs from the shop it works, and lights up under the tool chest instead of the phone', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const useOnShelf = async name => {                                     // tap it on the garage shelves
+    await page.evaluate(() => { S.screen = 'stores'; render(); });
+    const k = await page.evaluate(n => storeList().findIndex(r => r[0] === n), name);
+    await tap(page, 'act:storelook:' + k);
+    return dialogText(page);
+  };
+  await page.evaluate(() => { S.bought = { Torch: { kind: 'can', n: 1 } }; });
+  expect(await useOnShelf('Torch')).toContain('Batteries not included');
+  await ok(page);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await tap(page, 'act:search:the tool chest');
+  expect(await dialogText(page)).toContain('Pitch black');                 // no light yet (and the phone's torch is off)
+  await ok(page);
+  await page.evaluate(() => { S.bought.Batteries = { kind: 'box', n: 1 }; });
+  expect(await useOnShelf('Batteries')).toContain('the new torch');
+  await ok(page);
+  expect(await flag(page, 'torchLit')).toBe(true);
+  await page.evaluate(() => { S.screen = 'garage'; render(); });
+  await tap(page, 'act:search:the tool chest');
+  expect(await dialogText(page)).not.toContain('Pitch black');             // lit by the torch, not the phone
+  expect(await flag(page, 'phoneTorch')).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('AA batteries from the shop also fix the old torch from the toolbox, and that counts for the nut hunt', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('nut3', 'Find nut 3', null); lead('nut3', 'batteries', 'Batteries for the torch', 'you', 'sure', 'home'); S.inv.torch = true; S.bought = { Batteries: { kind: 'box', n: 1 } }; S.screen = 'stores'; render(); });
+  const k = await page.evaluate(() => storeList().findIndex(r => r[0] === 'Batteries'));
+  await tap(page, 'act:storelook:' + k);
+  expect(await dialogText(page)).toContain('old torch from the toolbox');
+  await ok(page);
+  expect(await page.evaluate(() => [S.flags.torchLit, leadOpen('batteries'), leadOpen('search')])).toEqual([true, false, true]);
+  expect(errors).toEqual([]);
+});

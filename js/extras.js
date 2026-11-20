@@ -527,6 +527,35 @@ function boughtHammer() {
   lead('new-sensor', 'tap', 'Tap the stuck part with the hammer', 'you', 'sure', 'bench');
   return '\n\nThe hammer: "Oh. Didn\'t know we had one of them."';
 }
+// =====================================================================
+// BOUGHT THINGS THAT DO SOMETHING (tap them on the garage shelves). So far: the torch and the batteries
+// A working torch lights up under the shelves, the tool chest, the workbench, the car (no need for the phone's)
+// =====================================================================
+const boughtOne = name => !!(S.bought && S.bought[name]);
+// A torch that works: what made it work goes in the notebook if you were after batteries for the nut hunt
+function torchWorks(how) {
+  S.flags.torchLit = true;
+  sfx('click');
+  if (!leadOpen('batteries')) return;
+  closeLead('batteries', 'ok', how);
+  lead('nut3', 'search', 'Search the garage floor (with the torch)', 'you', 'hopeful', 'garage');
+}
+// The torch off a shop shelf: batteries not included
+function useBoughtTorch() {
+  if (S.flags.torchLit) return say('Torch', 'It works. Point it under anything: the shelves, the tool chest, the workbench, the car.');
+  if (!boughtOne('Batteries')) return say('Torch', 'A new torch. You click it: nothing. On the back of the box: "Batteries not included."');
+  torchWorks('A new torch, with AAs from the shop: it works');
+  say('Torch', 'Two of the AAs from the shop go in the new torch. Click. Light!\n\nNow you can see under things without your phone.');
+}
+// AA batteries off a shop shelf: into a torch, if you've got one
+function useBoughtBatteries() {
+  if (S.flags.torchLit) return say('Batteries', 'Spare AAs. The torch already works.');
+  const torch = boughtOne('Torch') ? 'the new torch' : S.inv.torch ? 'the old torch from the toolbox' : null;   // a torch to put them in
+  if (!torch) return say('Batteries', 'AA batteries. Nothing you own takes AAs. Yet.');
+  torchWorks(`AA batteries from the shop in ${torch}: it works`);
+  say('Batteries', `Two AAs in ${torch}. Click. Light!\n\nNow you can see under things without your phone.`);
+}
+
 // Open the notebook at its last page: the fuse diagram you copied off TechDocs
 function showFuseCopy() {
   S.nbPage = 999;                                                       // as far as it goes (the notebook stops at its last spread)
@@ -596,6 +625,8 @@ Object.assign(ACTIONS, {
     const [name, , n] = storeList()[+k] || [];
     if (!name) return;
     if (name === HANDBOOK_NAME) return openHandbook();               // the handbook: read it
+    if (name === 'Torch') return useBoughtTorch();                   // a torch off a shop shelf
+    if (name === 'Batteries') return useBoughtBatteries();           // AAs off a shop shelf
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it
