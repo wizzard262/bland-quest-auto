@@ -11,7 +11,7 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; });   // no random punctures, blocked cards or phone calls (a test turns them on)
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; window.NO_SUNBATHING = true; });   // no random punctures, blocked cards, phone calls or the wife out sunbathing (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
@@ -44,6 +44,11 @@ async function choose(page, words) {
 }
 // The words in the dialog now showing
 const dialogText = async page => { await idle(page); return page.locator('.dlg').innerText(); };
+// The ◀ Back button, top left (the only way back: no "Back to the garage" buttons)
+async function goBack(page) {
+  await idle(page);
+  await page.locator('#stage .back').click();
+}
 // Click a button under the picture
 async function act(page, label) {
   await idle(page);
@@ -57,10 +62,10 @@ async function tap(page, go) {
 // In a tool shop: the hammer is in the middle of shelf 2; into the basket, then pay at the till
 async function buyHammer(page) {
   await idle(page);
-  if (await page.evaluate(() => atCounter())) await act(page, 'Step back');   // up at the counter: step back to see the shelves
+  if (await page.evaluate(() => atCounter())) await goBack(page);   // up at the counter: step back to see the shelves
   await tap(page, 'act:shelfzoom:1');
   await tap(page, 'act:shelfitem:1:4');
-  await act(page, 'Step back');
+  await goBack(page);
   await tap(page, 'act:checkout');
 }
 // Go indoors, into the room (the computer, the bed, the kettle)
@@ -151,6 +156,7 @@ test('the game starts at the MOT Test Centre: lovely car, but the red light is a
   expect(verdict).toContain('fail');
   expect(await page.evaluate(() => [findJob('pickup').status, !!findJob('codes'), !!S.inv['mot-sheet']])).toEqual(['done', true, true]);
   expect(await page.locator('.dlg button').count()).toBe(0);           // nothing to choose yet: tap to carry on
+  expect(await page.locator('.dlg').textContent()).not.toContain('carry on');   // no words telling you to tap (Steve)
   await page.locator('.dlg').click();
   expect(await dialogText(page)).toContain('Anything else');
   // you ask in your own speech bubble; a tap anywhere carries on to his answer
@@ -233,7 +239,8 @@ test('the manuals: a book comes off the shelf and opens; three pages; tapping of
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'shelf'; render(); });
   expect(await page.evaluate(() => BOOKS.map(b => b[0]).join('|'))).toContain('Fly Fishing');
-  await tap(page, 'act:book:14');
+  const fanged = await page.evaluate(() => BOOKS.findIndex(b => b[0].startsWith('Fanged Noumena')));
+  await tap(page, 'act:book:' + fanged);
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('book');   // off the shelf first
   await expect(page.locator('.book')).toContainText('Fanged Noumena');
   await expect(page.locator('.book')).toContainText('Page 1 of 3');
@@ -273,12 +280,13 @@ test('look under the garage things any time: black without a light, lit with the
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'garage'; render(); });
-  for (const where of ['the shelves', 'the tool chest', 'the workbench', 'the car', 'the parts boxes']) await expect(page.locator(`.hs[data-go="act:search:${where}"]`)).toHaveCount(1);
-  await tap(page, 'act:search:the car');
+  for (const where of ['the shelves', 'the tool chest', 'the workbench', 'the parts boxes']) await expect(page.locator(`.hs[data-go="act:search:${where}"]`)).toHaveCount(1);
+  await expect(page.locator('.hs[data-go="act:search:the car"]')).toHaveCount(0);   // you don't look under the car (that's lying under it)
+  await tap(page, 'act:search:the workbench');
   expect(await dialogText(page)).toContain('Pitch black');
   await ok(page);
-  await act(page, 'Get up');
-  await page.evaluate(() => { S.flags.phoneTorch = true; render(); });
+  await goBack(page);
+  await page.evaluate(() => { S.flags.torchLit = true; render(); });
   await tap(page, 'act:search:the tool chest'); await idle(page);        // he walks over and gets down
   expect(await page.evaluate(() => [S.screen, !!UNDER_LIT])).toEqual(['lookunder', true]);   // lit: aim the beam about
   expect(await page.locator('.dlg').count()).toBe(0);
@@ -296,7 +304,7 @@ test('look under the garage things any time: black without a light, lit with the
 test('look under a garage thing with a light: a spider sits in the dark now and then, and runs only when the beam finds it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.screen = 'garage'; S.flags.phoneTorch = true; render(); });
+  await page.evaluate(() => { S.screen = 'garage'; S.flags.torchLit = true; render(); });
   await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0; });   // a spider this time, at (250, 172)
   await tap(page, 'act:search:the shelves'); await idle(page);
   await page.evaluate(() => { Math.random = window.realRandom; });
@@ -308,7 +316,7 @@ test('look under a garage thing with a light: a spider sits in the dark now and 
   expect(await dialogText(page)).toContain('scurries off into the dark');
   await ok(page);
   expect(await page.evaluate(() => UNDER_SPIDER)).toBe(null);
-  await act(page, 'Get up');
+  await goBack(page);
   await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });   // and this time there's none
   await tap(page, 'act:search:the shelves'); await idle(page);
   await page.evaluate(() => { Math.random = window.realRandom; });
@@ -332,7 +340,7 @@ test('open the boot in the garage: the spare wheel, the jack and the wheel brace
     expect(await dialogText(page)).toContain(says);
     await ok(page);
   }
-  await act(page, 'Close the boot');
+  await goBack(page);
   expect(await page.evaluate(() => S.screen)).toBe('garage');
   expect(errors).toEqual([]);
 });
@@ -425,15 +433,15 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // find nut 3: torch (flat) from the toolbox, batteries from the kitchen, see it under the chest, a stick, hook it out
   await garage(page); await ok(page);
-  await garageTap(page, 'Search under the car'); await ok(page);                         // too dark
-  await act(page, 'Get up');
+  await garageTap(page, 'Search under the workbench'); await ok(page);                   // too dark
+  await goBack(page);
   await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:5'); await act(page, 'Take the torch'); await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await goRoom(page); await act(page, 'Look for batteries'); await ok(page);
   await garage(page);
   await garageTap(page, 'Search under the tool chest');
   await aimTorch(page, ...NUT_SPOT); await ok(page);                                     // the beam finds it
-  await act(page, 'Get up');
+  await goBack(page);
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await tap(page, 'act:stick'); await ok(page);                            // tap the hedge: a long stick
   await garage(page);
@@ -445,7 +453,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   expect(await flag(page, 'n3found')).toBe(true);
 
   // order the sensor, sleep on it, collect it from the other branch
-  await goPlace(page, 'Motor Factors'); await talk(page); await ok(page);
+  await goPlace(page, 'Halfords Car Parts'); await talk(page); await ok(page);
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await sleep(page); await ok(page);
   await goPlace(page, 'Parts 4 Less'); await ok(page);
@@ -468,7 +476,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await act(page, 'Try the Parts 4 Less sensor'); await ok(page);          // the pins not lined up: it jams
   expect(await page.evaluate(() => S.bench.state)).toBe('stuck');
   await act(page, 'Pull'); await ok(page);                                 // jammed: needs a hammer
-  await act(page, 'Back to the garage'); await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:6'); await act(page, 'Look for the hammer'); await ok(page);
+  await goBack(page); await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:6'); await act(page, 'Look for the hammer'); await ok(page);
   await goPlace(page, 'Hardware Shop'); await talk(page); await ok(page);   // "not got any"
   await buyHammer(page); await ok(page);
   expect(await page.evaluate(() => !!S.inv.hammer)).toBe(true);
@@ -603,7 +611,7 @@ test('shop shelves: along the left wall in sections; arrows move along; things g
   await expect(page.locator('.basket')).toContainText('1 thing');
   const [name, price] = await page.evaluate(() => sectionStock(S.place, 0)[0]);
   const money = await page.evaluate(() => S.money);
-  await act(page, 'Step back');
+  await goBack(page);
   await tap(page, 'act:checkout');
   expect(await dialogText(page)).toContain(name);
   await ok(page);
@@ -689,11 +697,16 @@ test('the phone shows over the screen you were on; its torch lights up under the
   await page.locator('.phoneoff').click({ position: { x: 10, y: 200 } });   // …tap off the phone to put it away
   expect(await page.evaluate(() => S.screen)).toBe('garage');
   await page.click('.go[data-go="phone"]'); await idle(page);
+  await expect(page.locator('[data-act="phonetorch"] .nope')).toHaveCount(1);   // crossed out
   await page.locator('[data-act="phonetorch"]').click();
-  expect(await page.evaluate(() => [S.flags.phoneTorch, S.screen])).toEqual([true, 'garage']);
+  expect(await dialogText(page)).toContain('broken');                   // the phone's torch is broken…
+  expect(await page.evaluate(() => [!!S.flags.phoneTorch, S.screen])).toEqual([false, 'phone']);   // …and the phone stays open
+  await page.locator('.phoneoff').click({ position: { x: 10, y: 200 } });   // tap off it to put it away
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  await page.evaluate(() => { S.flags.torchLit = true; });              // a proper torch, from the toolbox
   await tap(page, 'act:search:the tool chest'); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('lookunder');
-  await aimTorch(page, ...NUT_SPOT);                                    // the phone's torch on the back corner: the nut glints
+  await aimTorch(page, ...NUT_SPOT);                                    // the torch on the back corner: the nut glints
   expect(await dialogText(page)).toContain('THERE');
   await ok(page);
   expect(errors).toEqual([]);
@@ -971,6 +984,7 @@ test('late at night the wife comes into the garage to say come to bed; five more
 
 test('ring the wife on the phone: she says what she would say in person', async ({ page }) => {
   const errors = [];
+  const FEMALE_VOICE_T = 290;                                           // the woman's voice (engine.js FEMALE_VOICE)
   await start(page, errors);
   await page.evaluate(() => { S.mins = 11 * 60; S.screen = 'garage'; render(); });
   const said = [];
@@ -980,9 +994,8 @@ test('ring the wife on the phone: she says what she would say in person', async 
   };
   await page.evaluate(() => { window.PITCHES = []; chatter = (n, pitch) => PITCHES.push(pitch); });   // listen for the garbled speech
   for (let k = 0; k < 3; k++) { await ringWife(); said.push(await dialogText(page)); await ok(page); }
-  const pitches = await page.evaluate(() => PITCHES);
-  expect(pitches.length).toBe(3);                                       // her voice down the phone, every time…
-  expect(Math.min(...pitches)).toBeGreaterThan(215);                    // …higher than anyone else's
+  const pitches = (await page.evaluate(() => PITCHES)).filter(p => p === FEMALE_VOICE_T);   // (you talk too now: just hers)
+  expect(pitches.length).toBe(3);                                       // her voice down the phone, every time: the woman's voice
   await page.evaluate(() => { S.screen = 'room'; render(); });
   await tap(page, 'act:wife');                                          // in the house: the same voice
   expect(await page.evaluate(() => PITCHES[PITCHES.length - 1])).toBe(pitches[0]);
@@ -1005,7 +1018,7 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.flags.b1 = S.flags.b2 = S.flags.n3lost = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
   await tap(page, 'act:pull'); await ok(page);
   expect(await page.evaluate(() => findJob('sensor-out').status)).not.toBe('done');
-  await act(page, 'Zoom out'); await act(page, 'Get out from under'); await ok(page);
+  await page.evaluate(() => { S.screen = 'garage'; DIALOG = null; render(); });   // out from under the car (it was set straight onto the close-up, so Back has nowhere to step back to)
   await garageTap(page, 'Workbench');
   await act(page, 'Lift the old sensor out'); await ok(page);           // still screwed in
   expect(await flag(page, 'sensorOut')).toBe(false);
@@ -1035,7 +1048,7 @@ test('going into the garage: the roller door rolls up first', async ({ page }) =
   expect(errors).toEqual([]);
 });
 
-test('after kicking the headlight it stays smashed: the TheeBay one is the wrong side; the Scrap Yard has one; fit it under the bonnet', async ({ page }) => {
+test('after kicking the headlight it stays smashed: the Thee Bay one is the wrong side; the Scrap Yard has one; fit it under the bonnet', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { anger(100); render(); });
@@ -1086,7 +1099,7 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   });
   expect(new Set(states).size).toBeGreaterThan(2);                       // on, off, and one without the other
   expect(states).toContain('true,false');
-  // the TheeBay headlight is a right one: now that's the one you need
+  // the Thee Bay headlight is a right one: now that's the one you need
   await page.evaluate(() => { openParcel('headlight-bay'); render(); });
   expect(await dialogText(page)).toContain('exactly right');
   await ok(page);
@@ -1424,10 +1437,11 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await start(page, errors);
   await garage(page);
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
-  expect(await page.locator('.spine').count()).toBe(20);                                    // 20 books, the last The Myth of Sisyphus
-  await page.locator('.hs[data-go="act:book:7"]').click();
+  expect(await page.locator('.spine').count()).toBe(21);                                    // 21 books (no handbook yet: it's in the parts box)
+  const sierra = await page.evaluate(() => BOOKS.findIndex(b => b[0].startsWith('Ford Sierra')));
+  await page.locator(`.hs[data-go="act:book:${sierra}"]`).click();
   await expect(page.locator('.book')).toContainText('Sierra');           // not your car's handbook: that's in the parts box
-  await act(page, 'Put it back');
+  await page.locator('.bookoff').click({ position: { x: 5, y: 200 } });   // tap off the book: it goes back
   await expect(page.locator('.book')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -1477,7 +1491,7 @@ test('fill a basket and walk out without paying: you leave without the things, a
   await tap(page, 'act:enter'); await idle(page);
   await tap(page, 'act:shelfzoom:1');
   await tap(page, 'act:shelfitem:1:4');                                  // the hammer, into the basket
-  await act(page, 'Step back');
+  await goBack(page);
   expect(await page.evaluate(() => basketHere().length)).toBe(1);
   const money = await page.evaluate(() => S.money);
   await tap(page, 'act:leave');                                          // out of the door, not to the till
@@ -1496,10 +1510,10 @@ test('a shop shelf, close up: the hammer they said they had not got is on the mi
   await goPlace(page, 'Hardware Shop'); await talk(page);
   expect(await dialogText(page)).toContain('Not got any');
   await ok(page);
-  await act(page, 'Step back');                                         // away from the counter, to see the shelves
+  await goBack(page);                                         // away from the counter, to see the shelves
   await tap(page, 'act:shelfzoom:0');
   expect(await page.locator('.lab', { hasText: 'Claw hammer' }).count()).toBe(0);   // not on the first shelf
-  await act(page, 'Step back');
+  await goBack(page);
   await buyHammer(page);
   expect(await dialogText(page)).toContain("Didn't know we had one");
   await ok(page);
@@ -1558,21 +1572,53 @@ test('the car handbook: the wife says look in it; not on the shelf; found in the
   expect(await page.evaluate(() => S.screen)).toBe('garage');
   await page.evaluate(() => { S.day += 1; S.screen = 'partsbox'; render(); });   // it's not back in the box the next day
   expect(await page.evaluate(() => PILE.some(j => j.handbook))).toBe(false);
-  await page.evaluate(() => { S.screen = 'stores'; render(); });          // it's on the garage shelf, and opens from there
-  const i = await page.evaluate(() => storeList().findIndex(r => r[0] === HANDBOOK_NAME));
-  expect(i).toBeGreaterThanOrEqual(0);
-  await page.evaluate(k => ACTIONS.storelook(String(k)), i);
+  expect(await page.evaluate(() => storeList().map(r => r[0]).includes(HANDBOOK_NAME))).toBe(false);   // not on the garage shelves…
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });           // …it's on the manuals shelf, at the end, and opens from there
+  await expect(page.locator('.spine', { hasText: "Owner's Handbook" })).toHaveCount(1);
+  await tap(page, 'act:handbook');
   expect(await page.evaluate(() => S.screen)).toBe('handbook');
+  await act(page, 'Put it down');
+  expect(await page.evaluate(() => S.screen)).toBe('shelf');              // back on the shelf
   expect(errors).toEqual([]);
 });
 
-test('the handbook found and put off till later goes on the garage shelf', async ({ page }) => {
+test('the handbook found and put off till later goes on the manuals shelf', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await findHandbook(page);
   await choose(page, 'Later');
   expect(await page.evaluate(() => [S.inv.handbook, S.screen])).toEqual([true, 'partsbox']);
-  expect(await page.evaluate(() => storeList().map(r => r[0]))).toContain('Car handbook');
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });
+  await expect(page.locator('.hs[data-go="act:handbook"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('the computer: Yoo Toob shows a still of Gaz in his workshop with our car up on the lift; the mail app is called E-mail; Thee Bay has a space', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'ViewTube'; render(); });
+  await expect(page.locator('.video svg.thumb')).toHaveCount(1);                       // the video's still
+  await expect(page.locator('.video svg.thumb')).toHaveAttribute('aria-label', /our car up on the lift/);
+  expect(await page.evaluate(() => APPS.map(a => a[1]))).toEqual(expect.arrayContaining(['E-mail', 'Thee Bay', 'Instant Gramme', 'Weak-a-pedia']));
+  await page.evaluate(() => { S.app = 'eBuy'; render(); });
+  await expect(page.locator('.logo')).toContainText('Thee Bay');
+  await page.evaluate(() => { S.app = 'Pics'; render(); });               // Instant Gramme: your posts are real little photos
+  await expect(page.locator('.app-Pics .grid svg')).toHaveCount(6);
+  await expect(page.locator('.logo')).toContainText('Instant Gramme');
+  expect(errors).toEqual([]);
+});
+
+test('the manuals shelf: The Trial is there, the kinds of book are mixed up along it, and they all fit on the board', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const titles = await page.evaluate(() => BOOKS.map(b => b[0]));
+  expect(titles.some(t => t.startsWith('The Trial (Franz Kafka)'))).toBe(true);
+  const deep = ['Fanged Noumena', 'Das Kapital', 'A Thousand Plateaus', 'The Myth of Sisyphus', 'The Trial'];
+  const at = deep.map(d => titles.findIndex(t => t.startsWith(d))).sort((a, b) => a - b);   // where each one stands
+  for (let k = 1; k < at.length; k++) expect(Math.abs(at[k] - at[k - 1])).toBeGreaterThan(1);   // never two side by side
+  await page.evaluate(() => { S.inv.handbook = true; S.screen = 'shelf'; render(); });
+  const last = await page.evaluate(() => 10 + BOOKS.length * (BOOK_W + 1) + BOOK_W - 2);   // the handbook's right edge
+  expect(last).toBeLessThanOrEqual(472);                                  // the shelf board ends at 472
   expect(errors).toEqual([]);
 });
 
@@ -1648,7 +1694,7 @@ test('tap the shopkeeper: a flat close-up of him at the counter, where he talks 
   await tap(page, 'act:talk');                                          // talk again, right there
   await expect(page.locator('.dlg')).toHaveCount(1);
   await ok(page);
-  await act(page, 'Step back');
+  await goBack(page);
   expect(await page.evaluate(() => atCounter())).toBe(false);
   await expect(page.locator('.hs[data-go="act:shelfzoom:0"]')).toHaveCount(1); // back in the shop
   await expect(page.locator('.acts button', { hasText: 'Step back' })).toHaveCount(0);
@@ -1705,20 +1751,37 @@ test('before you have been to the gate, the phone has no number for the scrap ya
 });
 
 // ---------- the glove box ----------
-test('the glove box in the car opens on useless things: a snapped ice scraper, a gauge reading 0, a dead torch, the wrong charger', async ({ page }) => {
+test('the glove box in the car opens on useless things: a snapped ice scraper, a tyre pressure gauge, a dead torch (no phone charger)', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'dash'; render(); });
   await tap(page, 'act:glovebox');
   expect(await page.evaluate(() => S.screen)).toBe('glovebox');
-  const said = [];
-  for (let k = 0; k < 4; k++) { await tap(page, 'act:glove:' + k); said.push(await dialogText(page)); await ok(page); }
-  expect(said[0]).toContain('snapped');
-  expect(said[1]).toContain('0 PSI');
-  expect(said[2]).toContain('batteries');
-  expect(said[3]).toContain('2009');
-  await act(page, 'Shut it');
+  expect(await page.evaluate(() => GLOVE_THINGS.map(t => t[0]))).toEqual(['Ice scraper', 'Tyre pressure gauge', 'Torch']);
+  await tap(page, 'act:glove:0');
+  expect(await dialogText(page)).toContain('snapped');
+  await ok(page);
+  await tap(page, 'act:glove:2');
+  expect(await dialogText(page)).toContain('batteries');
+  await choose(page, 'Leave it');
+  await expect(page.locator('.acts button')).toHaveCount(0);            // no Shut it button: ◀ Back
+  await goBack(page);
   expect(await page.evaluate(() => S.screen)).toBe('dash');
+  expect(errors).toEqual([]);
+});
+
+test('the tyre pressure gauge goes from the glove box to the garage shelf; open the boot and it is on the spare, its needle riding up into the red (nothing said)', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'glovebox'; render(); });
+  await tap(page, 'act:glove:1');
+  await choose(page, 'Put it on the garage shelf');
+  expect(await page.evaluate(() => [S.flags.gloveGauge, storeList().some(r => r[0] === GAUGE_NAME)])).toEqual([true, true]);
+  await expect(page.locator('.hs[data-go="act:glove:1"]')).toHaveCount(0);   // gone from the glove box
+  await page.evaluate(() => { S.screen = 'garage'; render(); show('boot'); });
+  expect(await page.evaluate(() => [S.screen, !!DIALOG, spareReading() < 1 / 3])).toEqual(['boot', false, true]);   // poor: in the red, and no message
+  await page.evaluate(() => { S.spare = 'good'; render(); });
+  expect(await page.evaluate(() => spareReading() > 1 / 3)).toBe(true);   // a good spare: clear of the red
   expect(errors).toEqual([]);
 });
 
@@ -1876,7 +1939,7 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   await tap(page, 'act:roadspare');                                    // tap the spare: heave it out
   expect(await dialogText(page)).toContain('flat since 2019');
   await ok(page);
-  await act(page, 'Close the boot');                                   // back to the roadside
+  await goBack(page);                                   // back to the roadside
   expect(await page.evaluate(() => S.screen)).toBe('roadside');
   // ring for help: the phone dies (and stays dead)
   await act(page, 'Ring for help');
@@ -2196,6 +2259,39 @@ test('big moments flash up their stills: a cup of tea, the screw snapping; then 
   expect(errors).toEqual([]);
 });
 
+test('lost it twice: tea and sleep no longer calm you down; only a pint at the pub does, and then tea works again', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.kicksSincePint = 2; S.anger = 60; });   // you've lost it twice since your last pint
+  // tea: poured down the sink
+  await goRoom(page);
+  await tap(page, 'act:tea');
+  expect(await dialogText(page)).toContain('You need a pint');
+  await ok(page);
+  expect(await page.evaluate(() => S.anger)).toBe(60);
+  // sleep: awake all night, fuming
+  await tap(page, 'act:bed');
+  expect(await dialogText(page)).toContain('fuming');
+  await ok(page);
+  expect(await page.evaluate(() => S.anger)).toBe(60);
+  // the pub: a pint does it
+  await page.evaluate(() => { S.mins = 18 * 60; S.money = 100; S.flags.pubCall = S.day; });
+  await goPlace(page, 'The Hesketh Tavern');
+  await tap(page, 'act:enter'); await idle(page);
+  await lagers(page, 1);
+  expect(await dialogText(page)).toContain('MUCH better');
+  await ok(page);
+  expect(await page.evaluate(() => [fedUp(), S.anger])).toEqual([false, 18]);   // 60, less 12 for the pint and 30 for the relief
+  // and tea works again
+  await page.evaluate(() => { S.anger = 50; });
+  await goRoom(page);
+  await tap(page, 'act:tea');
+  expect(await dialogText(page)).not.toContain('pint');
+  await ok(page);
+  expect(await page.evaluate(() => S.anger)).toBeLessThan(50);
+  expect(errors).toEqual([]);
+});
+
 test('every still on its own: each picture file loads', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -2296,17 +2392,19 @@ test('ring your brother and he comes round the next day: your hammer back, advic
 });
 
 // ---------- the multimeter out on the fuse box; the splash still mid-walk ----------
-test('get the multimeter out on the fuse box: tap a fuse and the probes go on it; 0.0 and a beep if good, OL if blown; all of them and that is the lot', async ({ page }) => {
+test('get the multimeter out on the fuse box: point at a fuse and the probes go on it; 0 and a tone if good, 1 if blown; all of them and that is the lot', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { job('meaning', 'What does P0705 mean?', null); lead('meaning', 'fuses', 'Check your fuses first', 'MrTorque', 'tbh', 'fuseZoom'); S.flags.knowF23 = S.flags.f23Checked = S.flags.meterOK = true; S.screen = 'fuseZoom'; render(); });
   await act(page, 'Get the multimeter out');
   expect(await page.evaluate(() => meterOut())).toBe(true);
-  await tap(page, 'act:testfuse:5');
-  expect(await page.evaluate(() => [S.meterFuse, meterReading(5), S.fusesChecked])).toEqual([5, '0.0', [5]]);
-  await tap(page, 'act:testfuse:17');
-  expect(await dialogText(page)).toContain('OL');
-  await ok(page);
+  await page.locator('.hs[data-go="act:testfuse:5"]').hover();          // just point at it: no tap
+  await page.waitForFunction(() => S.meterFuse === 5);
+  expect(await page.evaluate(() => [S.meterFuse, meterReading(5), S.fusesChecked])).toEqual([5, '0', [5]]);
+  await page.locator('.hs[data-go="act:testfuse:17"]').hover();
+  await page.waitForFunction(() => S.meterFuse === 17);
+  expect(await page.evaluate(() => [meterReading(17), !!DIALOG])).toEqual(['1', false]);   // a 1 on the screen; no message in the way
+  expect(await page.evaluate(() => JSON.stringify(findJob('meaning').notes))).toContain('F17');
   for (let n = 1; n <= 30; n++) if (![5, 17, 27, 28].includes(n)) await page.evaluate(k => { act('testfuse:' + k); DIALOG = null; }, n);
   expect(await page.evaluate(() => [S.flags.fusesTested, leadOpen('fuses')])).toEqual([true, false]);
   await act(page, 'Put the multimeter away');
@@ -2339,7 +2437,12 @@ test('the fine comes in the post; unpaid, a reminder (£450), then the car is cl
   await tap(page, 'act:letters');
   await expect(page.locator('.letter')).toContainText('FIXED PENALTY');
   await expect(page.locator('.letter')).toContainText('£300');
-  await act(page, 'Put them down');
+  await goBack(page);                                                    // ◀ Back puts it down
+  await expect(page.locator('.hs[data-go="act:letters"]')).toHaveCount(0);   // read: not in the mailbox any more…
+  await page.evaluate(() => { S.screen = 'room'; render(); });
+  await tap(page, 'act:rack');                                           // …it's in the rack on the desk
+  await expect(page.locator('.letter')).toContainText('FIXED PENALTY');
+  await page.evaluate(() => { S.screen = 'home'; render(); });
   expect(await page.evaluate(() => fineOwed())).toBe(300);
   // day 4: the reminder, and it's £450
   await page.evaluate(() => { S.day += 3; S.mins = 7 * 60; pass(70); render(); });
@@ -2556,7 +2659,7 @@ test('going to bed when she is already asleep: she stays in bed through the nigh
 test('the first look under anything with a light: there is always a spider', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.flags.phoneTorch = true; S.flags.screwsSpilt = true; ACTIONS.search('the shelves'); });
+  await page.evaluate(() => { S.flags.torchLit = true; S.flags.screwsSpilt = true; ACTIONS.search('the shelves'); });
   expect(await page.evaluate(() => !!UNDER_SPIDER)).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -2712,7 +2815,7 @@ test("drunk and locked out at the pub: a taxi home; the car stays at the pub; th
   expect(await page.evaluate(() => { const r = []; goTo('dash'); r.push(DIALOG && DIALOG.body); DIALOG = null; return r[0]; })).toContain('still outside');
   // the next morning: the bus into town, and there's the car
   await page.evaluate(() => { sleepUntilMorning(); S.screen = 'home'; render(); });
-  await tap(page, 'city');
+  await page.locator('.hs[data-go="city"]', { hasText: '' }).first().click();   // the bus stop (your car's not here)
   expect(await dialogText(page)).toContain('The bus into town');
   expect(await page.evaluate(() => [S.screen, S.place, S.flags.carAt, carAway()])).toEqual(['city', 'The Hesketh Tavern', undefined, false]);
   expect(errors).toEqual([]);
@@ -2848,14 +2951,27 @@ test('your own speech bubble at a counter close-up (the MOT tester) sits low dow
   expect(errors).toEqual([]);
 });
 
-test('the phone torch puts the phone away even with a message still up behind it (as in the house)', async ({ page }) => {
+test('the phone torch is broken (and the phone stays open) even with a message still up behind it (as in the house); messages delete; the numbers are rows with a green phone button', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'room'; render(); });
   await page.click('.go[data-go="phone"]'); await idle(page);
   await page.evaluate(() => { DIALOG = { title: 'The wife', body: '"Husband."', options: [{ label: 'OK', run() {} }] }; });   // something said, still up
   await page.locator('[data-act="phonetorch"]').click();
-  expect(await page.evaluate(() => [S.screen, S.flags.phoneTorch])).toEqual(['room', true]);
+  expect(await page.evaluate(() => [S.screen, !!DIALOG && DIALOG.body.includes('broken')])).toEqual(['phone', true]);   // broken; the phone stays open
+  await page.evaluate(() => { DIALOG = null; render(); });
+  // the numbers you know: one to a row, a name and a green phone button
+  await expect(page.locator('.ph .c')).toHaveCount(4);
+  await expect(page.locator('.ph .c').first()).toContainText('Gaz');
+  await expect(page.locator('.ph .c .call[data-act="ring:Wife"]')).toHaveCount(1);
+  // delete a message, and a missed call
+  await page.evaluate(() => { S.msgs = [{ from: 'Gaz', body: 'U got my reader?', when: '9:05', read: false }, { from: 'Mum', body: 'Missed call', when: '9:00', read: false }]; render(); });
+  await expect(page.locator('.ph .m')).toHaveCount(2);
+  await page.locator('.ph .m .del').first().click();
+  await expect(page.locator('.ph .m')).toHaveCount(1);
+  await expect(page.locator('.ph .m')).toContainText('Missed call');
+  await page.locator('.ph .m .del').first().click();
+  await expect(page.locator('.ph .m')).toContainText('No messages');
   expect(errors).toEqual([]);
 });
 
@@ -2953,7 +3069,7 @@ test("the wife's car lives on its own drive the other side of the house: she nee
 test('the bank is in the grand building with the columns (where the library was); its old shop is boarded up', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  expect(await page.evaluate(() => [placeIndex('Bank') >= 0, placeIndex('Library (free Wi-Fi)'), placeIndex('The Old Bank') >= 0, !!PLACE_INFO['The Old Bank'].gone])).toEqual([true, -1, true, true]);
+  expect(await page.evaluate(() => [placeIndex('Bank') >= 0, placeIndex('Library (free Wi-Fi)'), placeIndex('BustBlockers') >= 0, !!PLACE_INFO['BustBlockers'].gone])).toEqual([true, -1, true, true]);
   await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; S.place = 'Bank'; S.inside = false; show('place'); });
   expect(errors).toEqual([]);
 });
@@ -2968,5 +3084,117 @@ test('running out of money goes on the list (Mum & Dad, Paul, a bank loan); the 
   expect(await dialogText(page)).toContain('five years');
   await ok(page);
   expect(await page.evaluate(() => [S.money, findJob('money').status, S.flags.bankLoan])).toEqual([225, 'done', true]);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the back garden ----------
+test('the back door between the sofa and the computer goes out to the garden; some sunny days the wife is out there on her sun lounger, and not indoors', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  await tap(page, 'act:garden'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garden');
+  await expect(page.locator('.hs[data-go="act:wife"]')).toHaveCount(0);   // (the tests keep her indoors)
+  await expect(page.locator('.back')).toHaveCount(0);                     // no Back button: you go in by the door
+  await tap(page, 'act:backin'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('room');
+  // a sunny day, after 11: she's out on the lounger, not in the room
+  await page.evaluate(() => { window.NO_SUNBATHING = false; let d = 1; while (hash(d, 17) >= 0.5) d++; S.day = d; S.mins = 13 * 60; render(); });
+  await expect(page.locator('.hs[data-go="act:wife"]')).toHaveCount(0);
+  await tap(page, 'act:garden'); await idle(page);
+  await tap(page, 'act:wife');
+  expect(await dialogText(page)).toContain('Husband');
+  expect(await page.evaluate(() => GARDEN_LINES.includes(DIALOG.body))).toBe(true);
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
+// ---------- the café ----------
+test('the café: people at tables with cups; the menu board close up lists about thirty coffees; buying a coffee is ten questions, then its very long name', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 12 * 60; S.money = 100; visit('Café'); DIALOG = null; S.inside = true; render(); });
+  await page.locator('.hs[data-go="cafemenu"]').click({ force: true }); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('cafemenu');
+  expect(await page.locator('.cafemenu .items div').count()).toBeGreaterThanOrEqual(30);
+  await page.locator('.phoneoff').click({ position: { x: 10, y: 200 } });   // tap off it: back in the café
+  expect(await page.evaluate(() => S.screen)).toBe('place');
+  await page.evaluate(() => { S.counter = 'Café'; talk('Café'); });
+  const picks = [];
+  for (let k = 0; k < 10; k++) {                                         // ten questions, three answers each
+    await expect(page.locator('.dlg button')).toHaveCount(3);
+    const b = page.locator('.dlg button').nth(k % 3);
+    picks.push(await b.textContent());
+    await b.click();
+  }
+  const served = await dialogText(page);
+  for (const p of picks) expect(served).toContain(p);                    // every choice, in its name
+  expect(await page.evaluate(() => 100 - S.money)).toBeCloseTo(await page.evaluate(() => COFFEE_PRICE), 2);   // paid for it
+  expect(errors).toEqual([]);
+});
+
+test('reading a book: ◀ Back puts it back on the shelf; ◀ Back again leaves the shelf', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'garage'; render(); show('shelf'); });
+  await tap(page, 'act:book:0'); await idle(page);
+  expect(await page.evaluate(() => S.book)).toBe(0);
+  await goBack(page);
+  expect(await page.evaluate(() => [S.screen, S.book])).toEqual(['shelf', null]);   // back on the shelf, the book put back
+  await idle(page);
+  await goBack(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garage');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the fruit machine ----------
+test('the fruit machine in the pub: play for £1, £5 or £10; the reels spin and stop; three the same pays ten times the stake', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 18 * 60; S.money = 100; S.flags.pubCall = S.day; visit('The Hesketh Tavern'); DIALOG = null; S.inside = true; render(); });
+  await tap(page, 'act:fruit');
+  for (const st of [1, 5, 10]) await expect(page.locator('.dlg button', { hasText: new RegExp('^Play for £' + st + '$') })).toHaveCount(1);
+  await page.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.01; });   // a win
+  await page.locator('.dlg button', { hasText: /^Play for £5$/ }).click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('reels');  // spinning
+  await idle(page);
+  expect(await dialogText(page)).toContain('Three the same');
+  expect(await page.evaluate(() => [S.money, new Set(FRUIT.show).size])).toEqual([100 - 5 + 50, 1]);
+  await page.evaluate(() => { Math.random = () => 0.5; });              // a loss
+  await page.locator('.dlg button', { hasText: 'Play again' }).click();
+  await page.locator('.dlg button', { hasText: /^Play for £10$/ }).click();
+  await idle(page);
+  expect(await dialogText(page)).toContain('Nothing');
+  expect(await page.evaluate(() => S.money)).toBe(135);
+  await page.evaluate(() => { Math.random = window.realRandom; });
+  expect(errors).toEqual([]);
+});
+
+test('the puncture always comes in the end: by the fourth daytime drive home from town', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const got = await page.evaluate(() => {
+    PUNCTURE_CHANCE = 1e-9; const real = Math.random; Math.random = () => 0.99;   // (bad luck every time)
+    S.mins = 12 * 60; S.screen = 'city'; DIALOG = null;
+    const out = [];
+    for (let k = 0; k < 4; k++) out.push(punctureOnTheWayHome());
+    Math.random = real;
+    return out;
+  });
+  expect(got).toEqual([false, false, false, true]);
+  expect(errors).toEqual([]);
+});
+
+test('ringing people after midnight: they complain it is late', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 1 * 60; S.screen = 'garage'; render(); });
+  await page.click('.go[data-go="phone"]'); await idle(page);
+  await page.locator('[data-act="ring:Gaz"]').click();
+  expect(await dialogText(page)).toContain('gone midnight');
+  await ok(page);
+  await page.evaluate(() => { S.mins = 10 * 60; DIALOG = null; S.screen = 'phone'; render(); });
+  await page.locator('[data-act="ring:Gaz"]').click();
+  expect(await dialogText(page)).not.toContain('midnight');            // by day he answers as normal
   expect(errors).toEqual([]);
 });

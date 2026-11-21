@@ -1,7 +1,7 @@
 // Bland Quest Auto: the story. Branch 1: the red light on the dash.
 // Who says what, what each action does, what's for sale, and the leads each thing gives.
 // Lead targets: a screen ('garage', 'under', 'underZoom', 'dash', 'fuseZoom', 'bench', 'city'),
-// a place in town ('place:Motor Factors') or a computer app ('app:Forum').
+// a place in town ('place:Halfords Car Parts') or a computer app ('app:Forum').
 
 // =====================================================================
 // THE START
@@ -77,7 +77,7 @@ const HUNCHES = {
   meaning() { lead('meaning', 'sensor', 'Something on the gearbox?', 'a hunch', 'vague', 'underZoom'); },
   bolt2() { lead('bolt2', 'extractor2', 'A better extractor', 'a hunch', 'vague', 'place:Hardware Shop'); },
   nut3() { lead('nut3', 'torch', 'A torch: there was one in the toolbox', 'a hunch', 'vague', 'toolbox'); },
-  'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Motor Factors'); }
+  'new-sensor'() { lead('new-sensor', 'motor-factors', 'A proper parts shop', 'a hunch', 'vague', 'place:Halfords Car Parts'); }
 };
 
 // ---------- skint: Mum & Dad (every few days) or Paul (once) help out ----------
@@ -126,7 +126,7 @@ function camOnPlace(name) {
 // =====================================================================
 // Someone (or something) tells you what P0705 is: the selector sensor, on the side of the gearbox. Then the gearbox
 // close-up shows it. Who answers: the forum, Old Ron at the pub, the German manual, a hunch. Who doesn't: TechDocs,
-// Gearbox Gurus and Voltz (round and round), Dodgy Dave, Paul. Returns true if this is how you found out
+// Tameside Transmissions and Voltz (round and round), Dodgy Dave, Paul. Returns true if this is how you found out
 function sensorFound(who, how) {
   if (!S.flags.codes || leadExists('sensor')) return false;         // no codes to ask about, or you know already
   lead('meaning', 'sensor', "It's the gearbox selector sensor", who, how, 'underZoom');
@@ -139,7 +139,7 @@ function readCodes(how) {
   job('meaning', 'What does P0705 mean?', 'light');
   lead('meaning', 'forum', 'Look it up on the forum', 'you', 'hopeful', 'app:Forum');
   lead('meaning', 'techdocs', 'The official technical pages', "the reader's booklet", 'sure', 'app:TechDocs');
-  lead('meaning', 'gurus', 'Ask the gearbox people', 'the man at Main Dealer', 'very sure', 'place:Gearbox Gurus');
+  lead('meaning', 'gurus', 'Ask the gearbox people', 'the man at Main Dealer', 'very sure', 'place:Tameside Transmissions');
   say('Two codes', 'P0705 Transmission range sensor circuit malfunction\nP0706 Range / performance\n\nWhatever that means. New job in the notebook.');
 }
 
@@ -155,18 +155,20 @@ const PLACE_INFO = {
   'Quickfix Motors': { open: [8 * 60, 17 * 60 + 30], person: 'a mechanic' },
   "Sparky's Auto Electrics": { open: [9 * 60, 16 * 60 + 30], lunch: true, person: 'Sparky' },
   'Main Dealer': { open: [9 * 60, 17 * 60], person: 'the service desk' },
-  'Gearbox Gurus': { open: [9 * 60, 17 * 60], person: 'a man in overalls' },
+  'Tameside Transmissions': { open: [9 * 60, 17 * 60], person: 'a man in overalls' },
   'Voltz Auto Electric': { open: [9 * 60, 17 * 60], person: 'a man with a meter' },
   "Mate Gaz's": { open: [10 * 60, 22 * 60], person: 'Gaz' },
   'Tool Shop': { open: [8 * 60, 17 * 60], person: 'the man at the till', shop: ['extractor-cheap', 'socket-9'] },
   'Hardware Shop': { open: [9 * 60, 17 * 60 + 30], person: 'an old man in a brown coat', shop: ['extractor-good', 'fuses'] },
-  'Motor Factors': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
+  'Halfords Car Parts': { open: [8 * 60 + 30, 17 * 60 + 30], person: 'the counter man' },
   'Parts 4 Less': { open: [9 * 60, 16 * 60 + 30], person: 'a woman on the phone' },
   'Scrap Yard': { open: [9 * 60, 16 * 60], person: 'a man with a dog', byAppointment: true },   // only in a slot you've booked by phone
   'MOT Test Centre': { open: [8 * 60, 17 * 60 + 30], person: 'the tester' },
   'Trusty Autos': { gone: true },
-  'The Old Bank': { gone: true },                                       // the bank's moved to the grand building with the columns
-  "Dave's Garage": { holiday: true },
+  'Police Station': { person: 'the police' },
+  'Petrol Station': { open: [0, 24 * 60] },                           // open all day and all night (Steve)                         // "Talk to the police" (Steve)
+  'BustBlockers': { gone: true },                                        // the video shop that went bust: boarded up (the bank's in the grand building with the columns)
+  'E & D Motors': { holiday: true },
   'Clutch & Co': { closedDays: ['TUE', 'WED'] }
 };
 // Things you can buy: price, what it is, and where it goes
@@ -241,13 +243,14 @@ function takeHandbook(j) {
   finishJob('handbook', 'Found it at the bottom of a parts box');
   say('The car handbook', 'There it is, under half a sandwich: the car\'s handbook, in its plastic wallet.', [
     { label: 'Read it', run: openHandbook },
-    { label: 'Later (it goes on the garage shelf)', run() { render(); } }
+    { label: 'Later (it goes on the manuals shelf)', run() { render(); } }
   ]);
 }
 // Open it at the cover; reading it, you find there's nothing about fuses
 function openHandbook() {
   const lookingForFuses = leadOpen('fusebook');                    // the fuse box lid sent you here: straight to the fuse page
   S.hbPage = lookingForFuses ? HANDBOOK_FUSE_PAGE : 0;
+  S.hbFrom = S.screen === 'shelf' ? 'shelf' : 'garage';           // put it down: back to the manuals shelf if that's where it came from
   pass(5);
   show('handbook');
   handbookFusePageSeen();
@@ -614,19 +617,22 @@ function breathDown() {
   if (BREATH.ticket) return;
   breathReset();
   BREATH.t0 = performance.now();
-  sfx('pour');
+  blowSound(true);                                                     // you hear him blowing into it (sound.js)
 }
 // Each frame while blowing: light the row up to how long he's blown for
 function breathTick() {
   if (BREATH.t0 === null) return;
-  const held = (performance.now() - BREATH.t0) / 1000 / BREATH_TIME.secs;   // 0 to 1 (and on)
-  BREATH.lit = Math.min(breathTop(), Math.floor(held * breathTop() + 0.001));
+  const held = (performance.now() - BREATH.t0) / 1000 / (BREATH_TIME.secs * 0.5);   // the lights climb in half the time you blow for (Steve: faster)
+  const lit = Math.min(breathTop(), Math.floor(held * breathTop() + 0.001));
+  for (let k = BREATH.lit; k < lit; k++) breathBeep(k);                // each light that comes on beeps, each a bit higher (sound.js)
+  BREATH.lit = lit;
   if (BREATH.lit >= BREATH_LEDS && !BREATH.beeped) { BREATH.beeped = true; sfx('beep3'); }   // red: beep beep beep
 }
 // Let go: long enough? then the result; too short, blow again
 function breathUp() {
   if (BREATH.t0 === null) return;
   breathTick();
+  blowSound(false);                                                    // he stops blowing
   const held = (performance.now() - BREATH.t0) / 1000;
   BREATH.t0 = null;
   if (held < BREATH_TIME.secs) {                                        // stopped too soon
@@ -684,6 +690,18 @@ const WIFE_SCRAP = [
 ];
 // What she says, in person or on the phone (the same either way)
 //   late: come to bed; otherwise mostly "scrap it", and every third time something useful
+// What she says on her sun lounger, not looking up from her magazine
+const GARDEN_LINES = [
+  '"You\'re in my sun, Husband."',
+  '"It says here a man in Leeds fixed his car with a hairdryer. Have you tried a hairdryer?"',
+  '"This is my martini. Get your own. Then scrap the car."',
+  '"Shh. I\'m reading about a woman whose husband sold his car and took her to Spain."',
+  '"Is it fixed? No? Then why are you out here?"'
+];
+function gardenLine() {
+  S.gardenTalks = (S.gardenTalks || 0) + 1;                            // she goes through them in turn
+  return GARDEN_LINES[(S.gardenTalks - 1) % GARDEN_LINES.length];
+}
 function wifeLine() {
   S.wifeTalks = (S.wifeTalks || 0) + 1;
   if (isBedtime()) return S.wifeTalks % 2 ? '"Come to bed, Husband. The car will still be broken in the morning."' : '"Leave the car, Husband. Come to bed."';   // in her nightie: bed
@@ -725,7 +743,7 @@ function wifeTip() {
   if (S.fine && !S.fine.paid) return '"Pay that fine at the Post Office, Husband. Before they clamp the car."';
   if (S.money < SKINT) return '"Ring your mum. She\'ll help. She always helps."';
   if (S.flags.nutSeen && !S.inv.stick) return '"Use a stick, Husband. Snap one off the hedge. Or there\'s that golf club in your boxes."';
-  if (S.flags.n3lost && !S.flags.n3found && !S.flags.torchLit && !S.flags.phoneTorch) return '"Your phone\'s got a torch on it, Husband."';
+  if (S.flags.n3lost && !S.flags.n3found && !S.flags.torchLit) return '"There\'s a torch in your toolbox, Husband. Your phone\'s one is broken."';
   if (S.flags.b2round && !S.flags.b2 && !S.inv['extractor-cheap'] && !S.inv['extractor-good']) return '"Ken next door says you want a bolt extractor. The Tool Shop."';
   if (S.flags.sheared && !S.flags.stubOut) return '"That snapped screw: same as the bolt. The extractor."';
   if (S.flags.stubOut && !S.flags.screw3) return '"There\'s a whole jar of screws on your shelf, Husband."';
@@ -827,6 +845,11 @@ function closedReason(name) {
   if (info.gone) return 'Boarded up. OUT OF BUSINESS. The website still takes bookings.';
   if (info.holiday) return 'A sign on the door: "On holiday. Back in 3 weeks. Sorry for any inconvenience."';
   if (info.byAppointment) return yardShut();                       // the yard: only in a slot you've booked
+  if (placeStyle(name) === 'house') {                               // someone's house: not "closed", but they're in bed or not up yet
+    if (S.mins < 6 * 60) return "The lights are all off and the curtains are drawn. They've gone to bed.";   // midnight till 6
+    if (S.mins < 8 * 60) return 'The curtains are still drawn. Too early.';                                 // 6 till 8
+    return null;
+  }
   if (info.closedDays && info.closedDays.includes(weekday())) return `Closed on ${weekday()}s.`;
   const [from, to] = info.open || [9 * 60, 17 * 60 + 30];
   if (S.mins < from) return `Closed. Opens at ${hhmm(from)}.`;
@@ -848,6 +871,91 @@ function arriveAt(name) {
   }
 }
 // Talking at the counter (or on the doorstep)
+// THE CAFÉ: buy a coffee. Like the bank, he asks question after question (ten); then he calls out its whole name (Steve)
+const COFFEE_PRICE = 6.85;
+const COFFEE_QUESTIONS = [
+  ['"What size?"', ['Tall', 'Grande', 'Venti']],
+  ['"What milk?"', ['whole milk', 'nonfat', 'oat milk']],
+  ['"Any syrup?"', ['sugar-free vanilla', 'hazelnut', 'pumpkin spice']],
+  ['"And what drink is it?"', ['caramel macchiato', 'flat white', 'cappuccino']],
+  ['"How many shots?"', ['double shot', 'quad shot', 'decaf']],
+  ['"Temperature?"', ['extra hot', 'iced', 'kids\' temperature']],
+  ['"Foam?"', ['extra foam', 'no foam', 'light foam']],
+  ['"Whipped cream?"', ['add whip', 'no whip', 'double whip']],
+  ['"Sweetener?"', ['add 3 Splenda', 'add 2 sugars', 'no sweetener']],
+  ['"And on top?"', ['extra caramel drizzle', 'mocha drizzle', 'a cinnamon dusting']]
+];
+function coffeeOrder(n = 0, picks = []) {
+  const [q, answers] = COFFEE_QUESTIONS[n];
+  const intro = n === 0 ? '"Hiya! What can I get you?"\n\nYou: "Just a coffee, please."\n\n"Lovely."\n\n' : '';
+  say('Café', intro + q, answers.map(a => ({ label: a, run() {
+    SPEAKER = keeperHead();
+    const chosen = picks.concat([a]);
+    if (n + 1 < COFFEE_QUESTIONS.length) return coffeeOrder(n + 1, chosen);   // the next question
+    return coffeeServed(chosen);
+  } })));
+}
+// All ten answered: he makes it, and calls out its full name
+function coffeeServed(picks) {
+  if (!spend(COFFEE_PRICE, true)) return say('Café', '"Card\'s been declined, love."\n\n(She won\'t pay for coffee.)');   // a treat: the wife won't pay
+  pass(15); anger(-8); sfx('pour');
+  const name = picks.slice(0, -1).join(', ') + ', and ' + picks[picks.length - 1];   // every choice, in order
+  say('Café', `He makes it. It takes a while.\n\n"A ${name}!"\n\nHe's written "DAVE" on the cup. You're not Dave. It's £${COFFEE_PRICE.toFixed(2)}. It tastes of coffee.`);
+}
+// Ringing someone between midnight and six in the morning: woken up, and they let you know it
+const LATE_CALLS = {
+  Gaz: ['Ringing Gaz', `"Mate. MATE. It's gone midnight. Is the car on fire? No? Then ring me tomorrow." Click.`],
+  Mum: ['Dad', `Dad answers. "Who's died?"\n\n"Nobody? Then why are you ringing at this time? You've woken your mother." Click.`],
+  Brother: ['Ringing Paul', `"It's the middle of the night! I'm up at five for work!" He hangs up.`],
+  Wife: ['Ringing the wife', `Her phone buzzes on the bedside table. "WHAT. It's past midnight, Husband. I'm asleep. Come to bed."`],
+  Yard: ['Ringing the Scrap Yard', `It rings and rings. Then the dog starts barking somewhere in the yard. Nobody answers. It's the middle of the night.`]
+};
+// THE FRUIT MACHINE in the pub: £1, £5 or £10 a go; three the same on the win line pays ten times your stake (Steve).
+//   It mostly doesn't: about one go in twelve wins
+const FRUIT_STAKES = [1, 5, 10];
+const FRUIT_SYMBOLS = ['cherry', 'bell', 'seven', 'lemon', 'bar'];
+const FRUIT_WIN_CHANCE = 1 / 12;
+function fruitOffer() {
+  say('Fruit machine', 'JACKPOT £100, it says. It flashes and plays a little tune at you.\n\nThree the same pays ten times what you put in.', FRUIT_STAKES.map(st => ({ label: `Play for £${st}`, run() { fruitPlay(st); } })).concat([{ label: 'Leave it', run() {} }]));
+}
+// Put the money in and pull: the reels spin, stop one by one, and then you know
+function fruitPlay(stake) {
+  if (!spend(stake, true)) return say('Fruit machine', 'Your card won\'t go in. It\'s a fruit machine. It takes coins. You get some change from the bar… which your card won\'t pay for either.');   // a treat: the wife won't pay
+  const win = Math.random() < FRUIT_WIN_CHANCE;
+  const pick = () => FRUIT_SYMBOLS[Math.floor(Math.random() * FRUIT_SYMBOLS.length)];
+  let result;
+  if (win) { const s = pick(); result = [s, s, s]; }                   // three the same
+  else {                                                               // anything but three the same
+    result = [pick(), pick(), pick()];
+    if (result[0] === result[1] && result[1] === result[2]) result[2] = FRUIT_SYMBOLS[(FRUIT_SYMBOLS.indexOf(result[2]) + 1) % FRUIT_SYMBOLS.length];   // all the same by chance: nudge the last one off
+  }
+  FRUIT.spinTo = result;
+  sfx('pop');                                                          // the coin drops
+  moment('reels', 1800);
+  ANIM.then = () => fruitResult(stake, result, win);
+}
+// The reels have stopped: a win pays out ten times the stake; otherwise nothing
+function fruitResult(stake, result, win) {
+  FRUIT.show = result;
+  pass(5);
+  const says = result.map(r => (r === 'bar' ? 'BAR' : r === 'seven' ? '7' : 'a ' + r)).join(', ');
+  if (win) {
+    moneyIn(stake * 10, `£${stake * 10} off the fruit machine`);
+    anger(-10);
+    return say('Fruit machine', `${says}. Three the same!\n\nIt rattles and clanks and pays out £${stake * 10}. The regulars look over. Old Ron says it's never paid out before.`, [{ label: 'Play again', run: fruitOffer }, { label: 'Quit while you\'re ahead', run() {} }]);
+  }
+  anger(3);
+  say('Fruit machine', `${says}. Nothing.\n\nIt plays a sad little tune.`, [{ label: 'Play again', run: fruitOffer }, { label: 'Leave it', run() {} }]);
+}
+// The reels spinning: each a blur of symbols, the first stopping, then the second, then the third
+MOMENTS.reels = function (p) {
+  for (let k = 0; k < 3; k++) {
+    const stopAt = 0.45 + k * 0.22;                                    // when this reel stops
+    if (p >= stopAt) { fruitReel(k, FRUIT.spinTo[k]); continue; }
+    const tick = Math.floor(performance.now() / 70 + k * 3);          // fast, then a symbol at a time
+    fruitReel(k, FRUIT_SYMBOLS[tick % FRUIT_SYMBOLS.length]);
+  }
+};
 function talk(name) {
   pass(10);
   SPEAKER = keeperHead();                                          // what they say comes in a speech bubble from them
@@ -874,9 +982,12 @@ const TALK = {
       SPEAKER = keeperHead();
       if (!spend(price, true)) return say(name, '"Card machine says no, mate."\n\n(Skint. Mum & Dad might help you out. Or Paul.)');   // (she won't pay for beer)
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
+      const cured = pintCures();                                       // were you past tea and sleep? (extras.js)
+      if (cured) anger(-30);                                           // then this is the one that works
+      const relief = cured ? 'The first sip. Oh, that\'s better. That\'s MUCH better.\n\n' : '';
       const drinks = haveADrink();                                     // how many you've had today, this one included
       if (drinks > PUB_LIMIT) return say(name, `He pulls you a ${drink}. ${taste}\n\nYou drink it far too fast. The bar starts to tilt.`, [{ label: 'OK', run: fallOffStool }]);
-      say(name, `He pulls you a ${drink}. ${taste}\n\n${barmanWarning(drinks)}`);   // every drink: a warning, firmer each time
+      say(name, `He pulls you a ${drink}. ${taste}\n\n${relief}${barmanWarning(drinks)}`);   // every drink: a warning, firmer each time
     } });
     S.flags.pubSat = true;                                              // you sit up at the bar to order
     say(name, '"Evening. What\'ll it be?"', [
@@ -901,7 +1012,9 @@ const TALK = {
     say('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
   },
   'Police Station'() { policeTalk(); },                                  // no help (police.js)
-  'Bank'() { bankTalk(); },                                             // a blocked card: security questions (bank.js)
+  'Bank'() { bankTalk(); },
+  'Café'() { coffeeOrder(); },                                         // ten questions, then a coffee with a very long name
+                                             // a blocked card: security questions (bank.js)
   'Post Office'() {
     if (payFineAtPost()) return;                                        // a fine to pay: window 3, no queue (police.js)
     if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
@@ -944,10 +1057,10 @@ const TALK = {
       { label: 'Too dear', run() { anger(5); say('Main Dealer', '"Suit yourself."'); } }
     ]);
   },
-  'Gearbox Gurus'() {
-    closeLead('gurus', 'x', 'Gearbox Gurus: "that\'s electrics"');
-    if (S.flags.codes) lead('meaning', 'voltz', 'Ask an auto electrician', 'Gearbox Gurus', 'very sure', 'place:Voltz Auto Electric');
-    say('Gearbox Gurus', '"P0705? That\'s electrics, mate. Nothing to do with the gearbox. Try Voltz."');
+  'Tameside Transmissions'() {
+    closeLead('gurus', 'x', 'Tameside Transmissions: "that\'s electrics"');
+    if (S.flags.codes) lead('meaning', 'voltz', 'Ask an auto electrician', 'Tameside Transmissions', 'very sure', 'place:Voltz Auto Electric');
+    say('Tameside Transmissions', '"P0705? That\'s electrics, mate. Nothing to do with the gearbox. Try Voltz."');
   },
   'Voltz Auto Electric'() {
     anger(10);
@@ -991,13 +1104,13 @@ const TALK = {
     if (csdSensor()) return;                                            // after a sensor: "we can order it in" (sensors.js)
     return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
   },
-  'Motor Factors'() {
-    if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Motor Factors', '"It\'s at the other branch, like I said."');
-    if (!findJob('new-sensor')) return say('Motor Factors', '"What part do you need? No part number, no part."');
+  'Halfords Car Parts'() {
+    if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Halfords Car Parts', '"It\'s at the other branch, like I said."');
+    if (!findJob('new-sensor')) return say('Halfords Car Parts', '"What part do you need? No part number, no part."');
     S.flags.p4lReady = now() + 120;
-    closeLead('motor-factors', 'ok', 'Motor Factors: ordered, ready in 2 hours at the other branch');
-    lead('new-sensor', 'p4l', 'Collect it at Parts 4 Less', 'Motor Factors', 'sure', 'place:Parts 4 Less');
-    say('Motor Factors', '"Got one. Ready in two hours… at our other branch. Parts 4 Less. They shut at half four."');
+    closeLead('motor-factors', 'ok', 'Halfords Car Parts: ordered, ready in 2 hours at the other branch');
+    lead('new-sensor', 'p4l', 'Collect it at Parts 4 Less', 'Halfords Car Parts', 'sure', 'place:Parts 4 Less');
+    say('Halfords Car Parts', '"Got one. Ready in two hours… at our other branch. Parts 4 Less. They shut at half four."');
   },
   'Parts 4 Less'() {
     if (S.inv['part-p4l']) return say('Parts 4 Less', '"You\'ve already got it."');
@@ -1056,6 +1169,7 @@ function buy(id, place) {
 // WHEN YOU OPEN CERTAIN SCREENS
 // =====================================================================
 const SCREEN_ENTER = {
+  boot() { GAUGE_T0 = performance.now(); },                            // the boot opens: the gauge's needle rides up from 0 (car.js)
   garage() {
     if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
     if (brotherArrives()) return;                                       // your brother, come to help (brother.js)
@@ -1104,11 +1218,12 @@ const ACTIONS = {
   unplug() { unplugReader(); },                                         // the driver's seat: the code reader out of the port                                       // the driver's seat: the dice off the mirror (extras.js)                                          // the car door: give up on the lock
   handbook() { if (S.inv.handbook) return openHandbook(); show('shelf'); },   // a lead: read it (or go and look for it)
   hbpage(d) { handbookPage(+d); },                                      // the handbook: turn a page
-  hbclose() { show('garage'); },                                        // put it down, back in the garage
+  hbclose() { show(S.hbFrom || 'garage'); },                            // put it down: back to the manuals shelf, or the garage
   batlead(side) { batteryLead(side); },
   glovebox() { sfx('click'); show('glovebox'); },                       // the driver's seat: open the glove box
   glove(k) {                                                            // look at a thing in it
     if (GLOVE_THINGS[+k][0] === 'Torch') return gloveTorch();           // the torch: take it to the garage shelf
+    if (GLOVE_THINGS[+k][0] === 'Tyre pressure gauge') return gloveGauge();   // the gauge: likewise
     lookAtThing(GLOVE_THINGS, k);
   },
   gloveshut() { sfx('click'); show('dash'); },                          // shut it, back in the driver's seat                                 // under the bonnet: a battery lead off, or back on
@@ -1149,12 +1264,14 @@ const ACTIONS = {
     if (!brokeOpen(id)) return say(`The ${side} headlight`, 'Whole. For now.');
     if (have[side] > 0) return fitLamp(side);
     if (have[other] > 0) return wrongLamp(side);
-    say(`The ${side} headlight`, `Smashed. You need a new ${side} one: a parts shop, Zamanon or TheeBay online, or one off a wreck at the Scrap Yard.`);
+    say(`The ${side} headlight`, `Smashed. You need a new ${side} one: a parts shop, Zamanon or Thee Bay online, or one off a wreck at the Scrap Yard.`);
   },
   nbclose() { back(); },
+  menuclose() { back(); },
+  fruit() { fruitOffer(); },                                            // the fruit machine in the pub                                              // put the café menu down: back in the café
   wifecar() {                                                           // her car: only when yours is stuck (then: where to?)
     if (!inWifesCar()) return say('The wife', '"That\'s my car, Husband. I need it. Use your own."');
-    say('Her car', 'Her little purple car. Where to?', [
+    say("Wife's car", 'Her little purple car. Where to?', [
       { label: 'Into town', run() { goTo('city'); } },
       { label: `To your car (${ROADSIDE})`, run() { ACTIONS.toroad(); } },
       { label: 'Not yet', run() {} }
@@ -1163,17 +1280,21 @@ const ACTIONS = {
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
   phonetorch() {
-    S.flags.phoneTorch = !S.flags.phoneTorch;
-    sfx('click');
-    back();
+    sfx('click');                                                      // broken: the phone stays open (Steve)
+    say('Your phone', 'The torch is broken. It has been since you dropped the phone in the engine bay.\n\nYou need a proper torch.');
   },
+  msgdel(i) { S.msgs.splice(+i, 1); },                                   // delete a message or a missed call
   // your wife: she wants the car scrapped; every third time, something useful
   wife() {
     if (isAsleep()) return say('The wife', 'Zzzz… She\'s fast asleep. Best not.');   // in bed: she doesn't wake
     pass(5);
     SPEAKER = wifeHead();                                              // in person: a speech bubble from her
+    if (S.screen === 'garden') return say('The wife', gardenLine());   // on her lounger: she doesn't look up
     say('The wife', wifeLine());
   },
+  // through the back door into the garden, and back in
+  garden() { S.spot.garden = SPOT_HOME.garden.slice(); show('garden'); },
+  backin() { S.spot.room = [38, 12]; show('room'); },
   // the watch (bottom left, on every screen): wait an hour, wherever you are
   wait() {
     anger(5);                                                           // waiting about: it winds you up
@@ -1204,14 +1325,20 @@ const ACTIONS = {
     S.cam.oy = 172 - (cx + cy) / 2;
   },
   // ----- home -----
-  tea() { pass(10); anger(-15); moment('tea', 1400); stillAfter('tea'); sfx('pour'); say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.'); },
+  tea() {
+    pass(10); moment('tea', 1400); stillAfter('tea'); sfx('pour');
+    if (fedUp()) return say('A cup of tea', 'You make a tea. You look at it.\n\nTea? TEA? Sod the tea. You pour it down the sink.\n\nYou need a pint.');   // past tea now: the pub
+    anger(-15);                                                        // it helps
+    say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.');
+  },
   bed() {
     sfx('door');
     S.flags.bedLate = isBedtime();                                     // late: she's in her nightie and comes too (it's morning by the time you wake)
     S.flags.bedAsleep = isAsleep();                                    // she's already asleep: she stays in bed
     sleepUntilMorning();
     moment('night', 3200);                                           // dusk, black, then morning (the message waits for it)
-    say('Next morning', `It's ${weekday()} morning. You feel a bit better.`);
+    const morning = fedUp() ? 'You lay awake all night, fuming about the bloody car. You need a pint.' : 'You feel a bit better.';   // past sleep: the pub
+    say('Next morning', `It's ${weekday()} morning. ${morning}`);
   },
   parcel() {
     const p = S.doorstep.shift();
@@ -1227,9 +1354,9 @@ const ACTIONS = {
     S.under = where;
     show('lookunder');                                                  // down on the floor, looking under it
     const hunting = S.flags.n3lost && !S.flags.n3found;                // is nut 3 lost somewhere down here?
-    if (!S.flags.torchLit && !S.flags.phoneTorch) {                    // no light: black
-      if (hunting) lead('nut3', 'torch', 'A torch: there was one in the toolbox (or your phone has one)', 'you', 'fairly sure', 'toolbox');
-      return say('Under ' + where, 'Pitch black under there. You need a light. Your phone has a torch.');
+    if (!S.flags.torchLit) {                                          // no light: black (the phone's torch is broken)
+      if (hunting) lead('nut3', 'torch', 'A torch: there was one in the toolbox', 'you', 'fairly sure', 'toolbox');
+      return say('Under ' + where, 'Pitch black under there. You need a torch. The one on your phone is broken.');
     }
     if (hunting) { closeLead('search', 'ok'); anger(3); }
     BEAM = { x: BEAM_START.x, y: BEAM_START.y };                       // the torch starts pointing down by your hand
@@ -1371,7 +1498,7 @@ const ACTIONS = {
   tryplug(id) {
     if (!S.inv[id] || ANIM) return;                                      // not yours, or one already on its way up
     const slot = PLUGS.find(([pid]) => pid === id);                      // where it lies
-    const fits = id === 'reader-good';                                   // only the used one from TheeBay is the right shape
+    const fits = id === 'reader-good';                                   // only the used one from Thee Bay is the right shape
     PLUG_TRY = { id, x: slot[2], fits };
     sfx('click');
     moment('plugtry', 900);
@@ -1620,9 +1747,9 @@ const ACTIONS = {
     job('new-sensor', 'Find a sensor that fits', 'light');
     note('new-sensor', 'Part number on the old one: 55 352 10? (the last digit is worn off)', 'info');
     lead('new-sensor', 'mega-sensor', 'Zamanon: "fits all models*"', 'Zamanon', 'very sure', 'app:MegaMart');
-    lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Motor Factors');
+    lead('new-sensor', 'motor-factors', 'A proper parts shop', 'the forum', 'fairly sure', 'place:Halfords Car Parts');
     lead('new-sensor', 'breakers', 'The Scrap Yard has a Zafira', 'Gaz', 'maybe', 'place:Scrap Yard');
-    lead('new-sensor', 'ebuy-lot', 'TheeBay: a job lot of sensors', 'you', 'hopeful', 'app:eBuy');
+    lead('new-sensor', 'ebuy-lot', 'Thee Bay: a job lot of sensors', 'you', 'hopeful', 'app:eBuy');
     lead('new-sensor', 'csd', 'Car Spares Direct', 'you', 'maybe', 'place:Car Spares Direct');
     say('The old sensor', 'With that screw head gone, nothing\'s holding it. It lifts straight out of the box, leaving a hole where it was.\n\nNow you need one that fits.');
   },
@@ -1682,6 +1809,7 @@ const ACTIONS = {
   // ----- the phone -----
   ring(who) {
     pass(5);
+    if (S.mins < 6 * 60 && LATE_CALLS[who]) { anger(3); return say(LATE_CALLS[who][0], LATE_CALLS[who][1]); }   // past midnight: they're not happy (Steve)
     if (who === 'Yard') return ringYard();                              // the Scrap Yard: book a slot
     if (who === 'Brother' && askPaulForMoney()) return;                 // skint: Paul lends you twenty (once)
     if (who === 'Brother') return ringBrother();                        // your brother: he'll come round (brother.js)
@@ -1689,8 +1817,7 @@ const ACTIONS = {
     if (who === 'Wife') {                                              // she says just what she'd say to your face
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
       const line = wifeLine();
-      speakChatter('The wife', line);                                  // in her own (higher) voice, down the phone
-      return say('Ringing the wife', line);
+      return say('Ringing the wife', line);                            // in her own voice, down the phone (say() chatters it: 'Ringing the wife' is a woman's voice)
     }
     const lines = {
       Gaz: S.flags.gazTried ? '"Still looking for it, mate."' : '"Come round, I\'ll have a look for that reader."',
@@ -1705,13 +1832,16 @@ const ACTIONS = {
     if (S.flags['ordered-' + id]) return say('Already ordered', 'It\'s on its way.');
     if (!spend(item.price)) { anger(10); return say('Payment', DECLINED); }
     S.flags['ordered-' + id] = true;
-    const fromBay = ['reader-good', 'headlight-bay', 'sensor-lot'].includes(id);   // TheeBay: used, 2 days; Zamanon: next day
-    order(id, fromBay ? 2 : 1, fromBay ? 'TheeBay' : 'Zamanon');
+    const fromBay = ['reader-good', 'headlight-bay', 'sensor-lot'].includes(id);   // Thee Bay: used, 2 days; Zamanon: next day
+    order(id, fromBay ? 2 : 1, fromBay ? 'Thee Bay' : 'Zamanon');
     if (id === 'reader-cheap') closeLead('mega-reader', 'ok', 'Ordered a code reader from Zamanon (due tomorrow)');
-    if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on TheeBay (2 days)');
+    if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on Thee Bay (2 days)');
     if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the Zamanon sensor (due tomorrow)'); }
-    if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on TheeBay (2 days)');
-    if (id === 'battery-23a') closeLead('bat-online', 'ok', 'Ordered 23A batteries on Zamanon (due tomorrow)');
+    if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on Thee Bay (2 days)');
+    if (id === 'battery-23a') {
+      closeLead('bat-online', 'ok', 'Ordered 23A batteries on Zamanon (due tomorrow)');
+      for (const shop of ['bat-pound', 'bat-hardware']) if (leadOpen(shop)) closeLead(shop, 'skip');   // ordered: no need to try the shops now (Steve)
+    }
     say('Order placed', `${item.name}: £${item.price.toFixed(2)}. It'll be left by the front door.`);
   },
   readforum() {
@@ -1759,6 +1889,7 @@ function testMeter() {
 // A job in the notebook: get a battery for the multimeter (once), with three places to try
 function meterBatteryJob() {
   if (findJob('meter-battery')) return;
+  if (S.flags.meterOK) return;                                       // it's got its new battery already: nothing to get (Steve)
   job('meter-battery', 'Get a battery for the multimeter', 'meaning');
   lead('meter-battery', 'bat-pound', 'The Pound Shop sells batteries', 'you', 'hopeful', 'place:Pound Shop');
   lead('meter-battery', 'bat-hardware', 'The Hardware Shop might have one', 'you', 'maybe', 'place:Hardware Shop');
@@ -1797,16 +1928,19 @@ ACTIONS.meterout = on => {
   S.meterFuse = 0;
   sfx('click');
 };
-// The probes on one fuse: the screen reads 0.0 and beeps if it's good; OL, and no beep, if it's blown
+// Looking at a fuse without the multimeter out: you can't tell
+ACTIONS.fuselook = n => say('F' + n, S.flags.meterOK ? 'You can\'t tell by looking. Get the multimeter out and point the probes at it.' : 'You can\'t tell by looking. You need something to test it with.');
+// The probes on one fuse (you point at it): the screen reads 0 and gives a tone if it's good; 1, and no tone, if it's blown (Steve)
 ACTIONS.testfuse = n => {
   const k = +n;
   if (!meterOut() || fuseEmpty(k)) return;
-  pass(2);
+  pass(1);
   S.meterFuse = k;
   S.fusesChecked = S.fusesChecked || [];
   if (!S.fusesChecked.includes(k)) S.fusesChecked.push(k);
-  if (k === FUSE_BLOWN) { sfx('click'); return say('F17', 'OL on the screen, and no beep. F17: the cigarette lighter. Blown.\n\nIt\'s probably been blown since 2011.'); }
-  sfx('beep');
+  if (k === FUSE_BLOWN && !S.flags.f17Seen) note('meaning', 'F17 (the cigarette lighter) reads 1: blown. Probably since 2011', 'x');   // once, in the notebook (no message in the way)
+  if (k === FUSE_BLOWN) S.flags.f17Seen = true;
+  else sfx('beep');                                                    // a good one: 0, and the tone
   const all = S.fusesChecked.length >= 28;                             // every fuse (bar the two empty slots)
   if (all && !S.flags.fusesTested) {
     S.flags.fusesTested = true;
@@ -1866,7 +2000,7 @@ function plugTried(id) {
   }
   // the Zamanon one: it's for lorries
   closeLead('try-cheap', 'x', 'Zamanon reader: wrong plug (it\'s for lorries)');
-  lead('codes', 'ebuy-reader', 'Get a proper one on TheeBay', 'a Zamanon review', 'fairly sure', 'app:eBuy');
+  lead('codes', 'ebuy-reader', 'Get a proper one on Thee Bay', 'a Zamanon review', 'fairly sure', 'app:eBuy');
   say('Zamanon reader', 'A round plug the size of a jam jar lid, with nine fat pins. It goes nowhere near the port.\n\nThe small print on the box: "*fits all lorries".');
 }
 // Opening a parcel at the front door
@@ -1902,7 +2036,7 @@ function openParcel(item) {
     if (brokeOpen('headlight2')) return say('A parcel', 'A headlight. A right one. Which, since you kicked that one in, is exactly right.\n\nFit it under the bonnet.');
     if (!brokeOpen('headlight')) return say('A parcel', 'A headlight. A right one. Nothing\'s smashed just now. It goes on the shelf in the garage, just in case.');
     anger(10);
-    note('broke-headlight', 'TheeBay headlight: the wrong side (it\'s a right one; yours is the left)', 'x');
+    note('broke-headlight', 'Thee Bay headlight: the wrong side (it\'s a right one; yours is the left)', 'x');
     return say('A parcel', 'A headlight! …for the other side. Yours is the left one. This is a right one.');
   }
   if (item === 'headlight-zam') { addLamp('left'); delete S.flags['ordered-headlight-zam']; return say('A parcel', 'A headlight. The left one. It actually looks right.\n\nFit it under the bonnet.'); }
@@ -1910,6 +2044,7 @@ function openParcel(item) {
 }
 // Looking at things under the car and the bonnet
 const LOOKS = {
+  'Shed': 'Locked. The key is somewhere in the garage. Probably in the parts box.',   // the back garden
   'Rear suspension': 'Springs, rust, a spider. Not the problem. Probably.',
   'Fuel tank': 'Black plastic. A strap. Not the problem.',
   'Exhaust': 'Rusty, held on by a rubber hanger and hope. Not today\'s problem.',

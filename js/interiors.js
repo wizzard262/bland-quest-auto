@@ -17,7 +17,7 @@ function placeStyle(name) {
 // The shopkeeper's clothes for each kind of place
 const BLUE_OVERALLS = { shirt: hex('#2848a0'), shirtDark: hex('#1c3478'), jeans: hex('#2848a0'), jeansDark: hex('#1c3478'), hair: hex('#202020') };
 const KEEPER = {
-  police: { shirt: C.white, shirtDark: hex('#c8c8d0'), jeans: hex('#1c2a4a'), jeansDark: hex('#101a30'), hair: hex('#303030') },
+  police: { shirt: C.white, shirtDark: hex('#c8c8d0'), jeans: hex('#1c2a4a'), jeansDark: hex('#101a30'), hair: hex('#303030'), police: true },   // cap, hi-vis and radio (art.js)
   parts: { shirt: hex('#e08830'), shirtDark: hex('#b06820'), jeans: C.greyDark, jeansDark: C.ink, hair: hex('#c8a060') },
   garage: BLUE_OVERALLS, gearbox: BLUE_OVERALLS, tyres: BLUE_OVERALLS, workshop: BLUE_OVERALLS,
   elec: { shirt: C.warm, shirtDark: C.warmDim, jeans: C.greyDark, jeansDark: C.ink, hair: hex('#803020') },
@@ -77,7 +77,7 @@ function keeperHead() {
 }
 
 // ---------- at the counter: a flat close-up of the shopkeeper (a plain stand-in until Steve's picture) ----------
-const COUNTER_VIEW = { top: 200, keeper: 240, size: 5 };            // the counter's top edge, where he stands, how big he's drawn
+const COUNTER_VIEW = { top: 200, keeper: 240, size: 5, feet: 250 };   // the counter's top edge, where he stands, how big he's drawn, where his feet are (the counter hides him from the waist down: Steve)
 // Shops with a counter to go up to (not the pub, not a house's doorstep)
 function hasCounter(name) {
   const style = placeStyle(name);                                   // what kind of place it is
@@ -102,7 +102,7 @@ function counterScene(name) {
     rect(60, sy, 360, 3, C.wood);                                   // the shelf
     for (let bx = 66, n = 0; bx < 410; bx += 14, n++) rect(bx, sy - 14 + (n % 2) * 3, 10, 14 - (n % 2) * 3, shade(col, 0.55 + (n % 3) * 0.2));   // boxes on it
   }
-  man(COUNTER_VIEW.keeper, COUNTER_VIEW.top + 10, 'stand', COUNTER_VIEW.size, 0, look);   // him, behind the counter (it hides his legs)
+  man(COUNTER_VIEW.keeper, COUNTER_VIEW.feet, 'stand', COUNTER_VIEW.size, 0, look);   // him, behind the counter (it hides his legs)
   rect(30, COUNTER_VIEW.top, W - 60, 6, C.benchTop);                // the counter top
   rect(34, COUNTER_VIEW.top + 6, W - 68, H - COUNTER_VIEW.top - 6, C.bench);   // its front
   rect(330, COUNTER_VIEW.top - 26, 44, 26, C.steel);                // the till
@@ -128,10 +128,10 @@ function counterSpots(name) {
   }
 }
 // Where his head is in the close-up (for the speech bubble's arrow)
-const counterKeeperHead = () => [COUNTER_VIEW.keeper + 4, COUNTER_VIEW.top + 10 - 20 * COUNTER_VIEW.size];
+const counterKeeperHead = () => [COUNTER_VIEW.keeper + 4, COUNTER_VIEW.feet - 20 * COUNTER_VIEW.size];
 
 // ---------- the pub: a flat, side-on view of the bar (not isometric) ----------
-const PUB = { barTop: 166, floor: 232, keeper: 236, stools: [236, 296, 356], size: 5 };   // the bar's top, the floor, the barman, the stools (yours first); people drawn 5x, to scale with the bar
+const PUB = { barTop: 166, floor: 232, keeper: 150, keeperY: 211, stools: [236, 296, 356], size: 5 };   // the bar's top, the floor, the barman (over to the left; the top of his head level with the middle of the bottles on the middle shelf: Steve), the stools (yours first); people drawn 5x, to scale with the bar
 const PUB_FLOOR_AT = [130, 262];                                     // where he lands when he falls off his stool
 const PUB_SEAT_Y = 237;                                              // where someone sat on a stool is drawn from (their hips on the seat, 9 up)
 const PUB_WALL = hex('#4a2e20');                                     // the back wall's dark wood
@@ -141,6 +141,49 @@ function fadeBackWall(y0, y1, k) {
   for (let i = y0 * W * 4; i < y1 * W * 4; i += 4) {
     dd[i] += (wr - dd[i]) * k; dd[i + 1] += (wg - dd[i + 1]) * k; dd[i + 2] += (wb - dd[i + 2]) * k;
   }
+}
+// The fruit machine: a lit-up top box, three reels showing fruit, HOLD and NUDGE buttons, a coin slot, the payout tray,
+//   chrome trim and chasing lights down its sides (x, y: its top left; it stands on the floor)
+const FRUIT_AT = [398, 92];                                              // the fruit machine's top left, in the pub
+const FRUIT_REELS = [6, 22, 38];                                        // where each reel sits across it
+const FRUIT = { show: ['cherry', 'bell', 'seven'] };                     // what the reels show now
+// One reel (k = 0, 1, 2) showing a symbol: a cherry, a bell, a 7, a lemon or a BAR; the red win line across it
+function fruitReel(k, kind) {
+  const [x, y] = FRUIT_AT, rx = FRUIT_REELS[k];
+  rect(x + rx, y + 38, 12, 26, C.white);
+  const cx = x + rx + 6, cy = y + 51;
+  if (kind === 'cherry') { disc(cx - 2, cy + 3, 2, C.red); disc(cx + 3, cy + 2, 2, C.red); line(cx - 2, cy + 1, cx + 1, cy - 5, hex('#3a8a30')); line(cx + 3, cy, cx + 1, cy - 5, hex('#3a8a30')); }
+  if (kind === 'bell') { disc(cx, cy - 1, 4, hex('#f0c030')); rect(cx - 5, cy + 2, 11, 2, hex('#f0c030')); px(cx, cy + 5, hex('#a07010')); }
+  if (kind === 'seven') { rect(cx - 4, cy - 6, 9, 2, C.red); line(cx + 4, cy - 4, cx - 1, cy + 6, C.red); line(cx + 3, cy - 4, cx - 2, cy + 6, C.red); }
+  if (kind === 'lemon') { disc(cx, cy, 4, hex('#f0e040')); px(cx - 4, cy, hex('#c8b820')); px(cx + 4, cy, hex('#c8b820')); }
+  if (kind === 'bar') { rect(cx - 5, cy - 3, 11, 6, C.ink); text('BAR', cx - 5, cy - 2, C.white); }
+  rect(x + rx, y + 50, 12, 1, hex('#e02020'));                          // the win line across them
+}
+function fruitMachine(x, y) {
+  const w = 54, h = PUB.floor - y, cab = hex('#6a1a7a'), chrome = hex('#c8ccd4');
+  rbox(x, y, w, h, 4, cab);                                               // the cabinet
+  rect(x + 2, y + 2, w - 4, 26, hex('#f0c030'));                          // the lit top box…
+  rect(x + 4, y + 4, w - 8, 22, hex('#e02060'));
+  text('JACKPOT', x + 6, y + 8, hex('#f0f040'));                          // …with its name
+  text('£100', x + 15, y + 17, C.white);
+  rect(x + 2, y + 30, w - 4, 2, chrome);                                  // chrome trim
+  rect(x + 5, y + 36, w - 10, 30, hex('#101018'));                        // the reel window
+  if (!(ANIM && ANIM.kind === 'reels')) FRUIT.show.forEach((kind, k) => fruitReel(k, kind));   // three reels, each showing a symbol (while they spin, the moment draws them)
+  rect(x + 2, y + 70, w - 4, 2, chrome);
+  [['HOLD', 6], ['HOLD', 22], ['HOLD', 38]].forEach(([, bx]) => { rbox(x + bx, y + 76, 11, 7, 2, hex('#f0f040')); });   // the HOLD buttons
+  rbox(x + 6, y + 87, 20, 7, 2, hex('#40c040')); rbox(x + 28, y + 87, 20, 7, 2, hex('#2a80e0'));   // NUDGE and START
+  rect(x + 40, y + 98, 8, 2, hex('#101018'));                             // the coin slot
+  rbox(x + 8, y + 112, w - 16, 10, 2, chrome); rect(x + 10, y + 114, w - 20, 6, hex('#303038'));   // the payout tray
+  for (let k = 0; k < 9; k++) {                                           // chasing lights down both sides
+    const lit = (Math.floor(performance.now() / 150) + k) % 3 === 0;
+    disc(x + 1, y + 36 + k * 9, 1, lit ? hex('#f0f040') : hex('#8a6a20'));
+    disc(x + w - 2, y + 36 + k * 9, 1, lit ? hex('#f0f040') : hex('#8a6a20'));
+  }
+}
+// One line of a flat poster (front on): sized to fit its width, so it's never cut short
+function posterLine(words, x, y, w, tall) {
+  const fit = signFontSize(words, w, tall);
+  LABELS.push(`<div class="front" style="left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw;text-align:center;transform:none">${esc(words)}</div>`);
 }
 function pubScene(shut) {
   // the back wall: dark wood panels, a big mirror, shelves of drinks
@@ -160,12 +203,11 @@ function pubScene(shut) {
   LABELS.push(`<div class="front" style="left:${200 / W * 100}%;top:${22 / H * 100}%;width:${200 / W * 100}%;height:${30 / H * 100}%;font-size:${16 / W * 100}cqw;line-height:${30 / W * 100}cqw;text-align:center;transform:none">${esc(S.place)}</div>`);
   // a poster, and the fruit machine
   rect(20, 70, 64, 44, C.white); rect(22, 72, 60, 40, C.warm);
-  LABELS.push(`<div class="front" style="left:${22 / W * 100}%;top:${74 / H * 100}%;width:${60 / W * 100}%;height:${36 / H * 100}%;font-size:${7 / W * 100}cqw;line-height:${10 / W * 100}cqw;text-align:center;transform:none">QUIZ NIGHT THURSDAY<br>no car talk</div>`);
-  rect(400, 110, 50, PUB.floor - 110, hex('#7a2a8a')); rect(408, 120, 34, 22, hex('#202030'));
-  for (const rx of [411, 422, 433]) rect(rx, 124, 7, 14, C.white);                      // its reels
+  posterLine('QUIZ NIGHT', 22, 76, 60, 12); posterLine('THURSDAY', 22, 89, 60, 12); posterLine('no car talk', 22, 100, 60, 9);   // each line sized to fit (no clipping)
   fadeBackWall(18, PUB.floor, 0.6);                                                  // all of that faded back, so the people stand out
+  fruitMachine(398, 92);                                                             // the fruit machine, bright (not faded: it's off to the side)
   // the barman, behind the bar (it hides his legs)
-  if (!shut) man(PUB.keeper, PUB.barTop + 8, 'stand', PUB.size, 0, KEEPER.pub);
+  if (!shut) man(PUB.keeper, PUB.keeperY, 'stand', PUB.size, 0, KEEPER.pub);
   // the bar: its top, the front panels, a brass foot rail; the pumps on top; your pint
   rect(80, PUB.barTop, 320, 6, hex('#b88a58'));
   rect(84, PUB.barTop + 6, 312, PUB.floor - PUB.barTop - 6, hex('#7a5634'));
@@ -208,12 +250,13 @@ function phoneInHand() {
 // What you can tap in the pub
 function pubSpots(shut) {
   const s = PUB.size;
-  if (!shut) spot('Talk to the barman', [PUB.keeper - 16, PUB.barTop + 8 - 20 * s, 44, 20 * s - 8], 'act:talk');
+  if (!shut) spot('Talk to the barman', [PUB.keeper - 16, PUB.keeperY - 20 * s, 44, PUB.barTop - (PUB.keeperY - 20 * s)], 'act:talk');   // his head, over the bar
   PUNTERS.forEach((p, k) => spot('Talk to ' + p.name, [PUB.stools[k + 1] - 14, PUB_SEAT_Y - 20 * s, 34, 18 * s], 'act:punter:' + k));
+  spot('Fruit machine: have a go', [FRUIT_AT[0], FRUIT_AT[1], 54, PUB.floor - FRUIT_AT[1]], 'act:fruit');   // £1, £5 or £10 a go; win ten times your stake
   spot('Door: leave', [10, 118, 54, PUB.floor - 118], 'act:leave');
 }
 // Where the pub people's heads are (for their speech bubbles)
-const pubKeeperHead = () => [PUB.keeper + PUB.size, PUB.barTop + 8 - 20 * PUB.size];
+const pubKeeperHead = () => [PUB.keeper + PUB.size, PUB.keeperY - 20 * PUB.size];
 const pubPunterHead = k => [PUB.stools[k + 1] + PUB.size, PUB_SEAT_Y - 20 * PUB.size];
 // The two regulars at the bar
 const PUNTERS = [
@@ -264,6 +307,8 @@ function houseWalls(name) {
   return [[C.brick, true], [C.cream, false], [hex('#d8c8a8'), false]][k];
 }
 // A friend's front door, with them at it
+// Someone's house, from their doorstep: its windows, for the curtains and the lights at night
+const DOORSTEP_WINDOWS = [['L', 40, 20, 44, 10, 30], ['L', 40, 112, 136, 10, 30], ['L', 40, 20, 44, 36, 50], ['L', 40, 70, 86, 38, 50], ['L', 40, 112, 136, 36, 50], ['R', 160, -30, -6, 12, 30]];
 function houseDoorstep(name, col, shut, look) {
   ground(-300, -300, 500, 500, C.grass);
   ground(-300, 120, 500, 140, C.drive);
@@ -277,6 +322,7 @@ function houseDoorstep(name, col, shut, look) {
   winLeft(40, 20, 44, 10, 30); winLeft(40, 112, 136, 10, 30);         // downstairs
   winLeft(40, 20, 44, 36, 50); winLeft(40, 70, 86, 38, 50); winLeft(40, 112, 136, 36, 50);   // upstairs
   winRight(160, -30, -6, 12, 30);                                     // the side window
+  houseCurtains(DOORSTEP_WINDOWS);                                     // midnight till 8: curtains drawn (art.js)
   for (const x of [8, 140]) { ibox(x, 44, x + 14, 54, 0, 6, C.tree2); for (let k = 0; k < 6; k++) px(...P(x + 2 + k * 2, 49, 7), [C.red, C.warm, C.white][k % 3]); }
   ground(66, 40, 90, 120, C.concrete);
   if (name === MUM_DAD) mumDadDrive();                               // their drive: your car, bonnet up
@@ -348,7 +394,7 @@ function backPosters(style) {
 // Words on the side wall (x = 0), reading left to right: start at world y (the left end), top at height z
 function wallText(words, y, z, len, tall) {
   const [sx, sy] = P(0, y, z);
-  const fit = Math.min(tall * 0.8, len / (Math.max(words.length, 3) * 0.56));
+  const fit = signFontSize(words, len, tall);                           // measured, so it's never cut short (Steve)
   LABELS.push(`<div class="front side" style="left:${sx / W * 100}%;top:${sy / H * 100}%;width:${len / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw">${esc(words)}</div>`);
 }
 // Shelves along the back wall, filled by `item(x, z, k)` for each slot
@@ -410,12 +456,32 @@ const STOCK = {
   bank() { onLeft(0, 30, 70, 30, 56, C.white); onLeft(0, 32, 68, 32, 54, hex('#2a3a6a')); },
   yard() { for (let k = 0; k < 8; k++) ibox(12 + k * 22, 2, 30 + k * 22, 14, 0, 6 + (k % 3) * 6, [C.rust, C.tool, CARDBOARD][k % 3]); }
 };
+// The café's tables (x, y of each one's corner) and who's sat at them
+const CAFE_TABLES = [[30, 110], [150, 110]];
+const CAFE_CUSTOMERS = [
+  { shirt: hex('#c86a9a'), shirtDark: hex('#9a4a74'), jeans: C.ink, jeansDark: C.ink, hair: hex('#e0c060') },
+  { shirt: hex('#4a7a5a'), shirtDark: hex('#2a5a3a'), jeans: hex('#4a4a50'), jeansDark: hex('#3a3a40'), hair: C.steel }
+];
+// One café table: a chair with someone sat on it (behind the table), then the table (leg first, so the top sits on it), then their cup
+function cafeTable([x, y], look) {
+  const cx = x + 10, cy = y - 4;                                   // where the chair stands, behind the table
+  ibox(cx - 3, cy - 3, cx + 3, cy + 3, 0, 8, C.tool, C.wood);      // the chair
+  ibox(cx - 3, cy - 4, cx + 3, cy - 3, 8, 18, C.wood);              // its back
+  const seat = P(cx, cy, 9);
+  man(seat[0], seat[1] + 18, 'sit', 2, 0, look);                    // them, sat on it
+  ibox(x + 9, y + 9, x + 11, y + 11, 0, 14, C.tool);               // the table's leg…
+  ibox(x + 6, y + 6, x + 14, y + 14, 0, 1, C.tool);                // …its foot…
+  ibox(x, y, x + 20, y + 20, 14, 16, C.white);                     // …and the top, on top
+  const cup = P(x + 10, y + 5, 16);                                // their cup, in front of them
+  rect(cup[0] - 2, cup[1] - 4, 4, 4, C.white); rect(cup[0] - 2, cup[1] - 4, 4, 1, hex('#6a4028')); px(cup[0] + 2, cup[1] - 3, C.white);   // the cup, coffee, handle
+  rect(cup[0] - 3, cup[1], 6, 1, C.steel2);                        // the saucer
+}
 // Things on the shop floor, in front of the counter
 const FLOOR = {
   parts() { for (let k = 0; k < 6; k++) ibox(176, 84 + k * 8, 186, 90 + k * 8, 0, 14 + (k % 2) * 4, [C.warm, C.red, C.car][k % 3]); },
   garage() { for (let n = 0; n < 4; n++) { const p = P(178, 120, 3 + n * 6); ellipse(p[0], p[1], 12, 6, C.tyre); ellipse(p[0], p[1], 5, 2, C.greyDark); } ibox(20, 120, 34, 134, 0, 12, C.red); ibox(40, 120, 54, 134, 0, 12, C.red); },
   aisles() { ibox(170, 100, 190, 130, 0, 26, C.white, C.steel); for (let k = 0; k < 6; k++) ibox(172, 102 + k * 4, 188, 105 + k * 4, 26, 30, [C.red, C.warm, C.car][k % 3]); },
-  cafe() { for (const [x, y] of [[30, 110], [150, 110]]) { ibox(x, y, x + 20, y + 20, 14, 16, C.white); ibox(x + 9, y + 9, x + 11, y + 11, 0, 14, C.tool); } },
+  cafe() { CAFE_TABLES.forEach((t, k) => cafeTable(t, CAFE_CUSTOMERS[k])); },   // tables, each with someone sat at it over a cup (Steve)
   parcels() { for (const x of [30, 70, 110, 150]) ibox(x, 90, x + 2, 92, 0, 18, C.steel); line(...P(31, 91, 16), ...P(151, 91, 16), C.red); },
   tyres() { for (let n = 0; n < 5; n++) { const p = P(30, 120, 3 + n * 6); ellipse(p[0], p[1], 12, 6, C.tyre); } },
   yard() { const p = P(170, 120); rect(p[0] - 8, p[1] - 6, 16, 6, hex('#8a6a4a')); rect(p[0] + 6, p[1] - 9, 4, 4, hex('#8a6a4a')); }   // the dog
@@ -484,7 +550,7 @@ SCREENS.yard = {
     tip('Scrap Yard', 'Six of them might be yours. Look at each.', 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Back to the map', act: 'go:city' }]; }
+  actions() { return []; }   // ◀ Back to the map
 };
 
 // =====================================================================
@@ -525,8 +591,29 @@ function petrolFront(name, shut) {
   ibox(14, 46, 112, 104, 70, 76, C.red, C.white);                                        // the canopy roof
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }
+// The petrol station at night, from the forecourt: the kiosk window and door lit, the canopy's lights pooling on the pumps
+function petrolLights(d) {
+  [ISO.ox, ISO.oy] = OUTSIDE_VIEW;
+  onLeft(40, 12, 134, 10, 38, LIT);                                      // the shop window, bright
+  for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 9, 14 + (k % 3) * 4, [C.red, C.warm, C.car, C.white][k % 4]);   // the snacks in it, lit
+  onLeft(40, 150, 174, 0, 44, LIT);                                      // the door's glass
+  onLeft(40, 0, 200, 46, 58, C.red); onLeft(40, 2, 198, 47, 57, shade(C.red, 1.15));   // its red strip, lit
+  ibox(14, 46, 112, 104, 70, 76, C.red, shade(C.white, 0.42));          // the canopy: its red edge lit (its top in the dark)
+  for (const [gx, gy] of [[40, 70], [80, 70], [40, 90], [80, 90]]) { const g = P(gx, gy, 0); lampGlow(g[0], g[1], 26, d); }   // pools of light under it
+}
+// The petrol station on the town map at night: a glow over its forecourt and kiosk
+function petrolLightsOnMap(d) {
+  const i = placeIndex('Petrol Station');
+  if (i < 0) return;
+  ISO.ox = S.cam.ox; ISO.oy = S.cam.oy;
+  const x0 = (i % 7) * BLOCK + STREET, y0 = Math.floor(i / 7) * BLOCK + STREET;
+  const g = P(x0 + 25, y0 + 41, 0); lampGlow(g[0], g[1], 22, d);         // under the canopy
+  onLeft(y0 + 30, x0 + 44, x0 + 56, 1, 8, LIT);                         // the kiosk window
+  keepHud(36);
+}
 const BUILDING_BACK = -60;
 // Outside the bank: stone, three steps up to a row of columns, a pediment over them, big doors (as on the town map)
+const BANK_DOOR = [84, 116];                                                         // the bank's big doors: from x, to x (in the middle)
 function bankFront(name, shut) {
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
   streetFront();
@@ -534,21 +621,91 @@ function bankFront(name, shut) {
   ibox(-130, BUILDING_BACK, -2, 40, 0, 60, C.cream, C.steel); winLeft(40, -110, -70, 12, 40); winLeft(40, -50, -20, 12, 40);   // the shop to its left
   ibox(0, BUILDING_BACK, 200, 26, 0, 70, stone, hex('#c0b8a0'));                     // the main hall, set back behind its columns
   for (let k = 0; k < 3; k++) ibox(2, 26 + k * 5, 198, 31 + k * 5, 0, 6 - k * 2, shade(stone, 0.92 - k * 0.04));   // the steps up to it
-  for (let x = 10; x <= 186; x += 22) ibox(x, 28, x + 6, 34, 6, 62, C.white);        // the columns
+  const [d0, d1] = BANK_DOOR;                                                         // the doors, in the middle (as on the town map: Steve)
+  for (let x = 10; x <= 186; x += 22) { if (x + 6 > d0 && x < d1) continue; ibox(x, 28, x + 6, 34, 6, 62, C.white); }   // the columns (none in front of the doors)
   ibox(2, 26, 198, 36, 62, 70, stone);                                               // the beam along the top
   poly([P(2, 36, 70), P(198, 36, 70), P(100, 36, 92)], shade(stone, 0.95));           // the pediment
   frontSign(name.toUpperCase(), 20, 36, 160, 69, 7);
-  onLeft(26, 146, 178, 6, 46, shut ? C.ink : hex('#5a3a22'));                         // the big doors
-  onLeft(26, 161, 163, 6, 46, C.ink);
+  onLeft(26, d0, d1, 6, 46, shut ? C.ink : hex('#5a3a22'));                           // the big doors
+  onLeft(26, (d0 + d1) / 2 - 1, (d0 + d1) / 2 + 1, 6, 46, C.ink);                     // the gap between them
   ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);   // the one to its right (in front)
   drivenCar(40, 72, 1);                                                              // your car at the kerb
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }                                                // how far back the buildings on the street go (their fronts are at y = 40)
+// A big picture sign standing on the roofline above a shop's name, on its front (y = 40): what the shop is (Steve)
+//   the Post Office an envelope, the Phone Shop a mobile, the Tyre Place a tyre, the PC Shop a laptop
+const ROOF_SIGNS = { 'Post Office': postOfficeEnvelope, 'Phone Shop': phoneShopSign, 'Tyre Place': tyrePlaceSign, 'PC Shop': pcShopSign, 'Police Station': policeBadgeSign };
+function roofSign(name) {
+  const draw = ROOF_SIGNS[name];
+  if (!draw) return;                                                      // most shops have only their name
+  for (const x of [88, 110]) onLeft(40, x, x + 2, 84, 88, C.steel);       // two brackets holding it up
+  draw();
+}
+// The Post Office: an envelope
+function postOfficeEnvelope() {
+  const x0 = 82, x1 = 118, z0 = 86, z1 = 106, mid = (x0 + x1) / 2;
+  onLeft(40, x0 - 1, x1 + 1, z0 - 1, z1 + 1, C.red);                     // a red edge
+  onLeft(40, x0, x1, z0, z1, C.white);                                    // the envelope
+  line(...P(x0, 40, z1), ...P(mid, 40, z0 + 7), C.red);                    // the flap: a V from the top corners…
+  line(...P(mid, 40, z0 + 7), ...P(x1, 40, z1), C.red);                    // …to the middle
+  line(...P(x0, 40, z0), ...P(mid - 4, 40, z0 + 9), shade(C.white, 0.8)); // the folds at the bottom corners
+  line(...P(x1, 40, z0), ...P(mid + 4, 40, z0 + 9), shade(C.white, 0.8));
+}
+// The Phone Shop: a mobile phone standing up, its screen lit, a home button
+function phoneShopSign() {
+  onLeft(40, 92, 108, 86, 116, hex('#1c1c20'));                           // the phone
+  onLeft(40, 94, 106, 91, 112, hex('#5ab0f0'));                           // its screen
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) onLeft(40, 95 + k * 4, 97 + k * 4, 103 - r * 4, 105 - r * 4, C.white);   // app icons
+  onLeft(40, 99, 101, 87, 89, C.steel);                                   // the home button
+}
+// The Tyre Place: a tyre standing on its edge, tread round it, a silver wheel in the middle
+function tyrePlaceSign() {
+  const cx = 100, cz = 100, r = 14;
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) {                   // the tyre, as a ring of chunky tread blocks
+    const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+    onLeft(40, x - 3, x + 3, z - 3, z + 3, C.tyre);
+  }
+  onLeft(40, cx - 9, cx + 9, cz - 9, cz + 9, C.tyre);                     // its sidewall
+  onLeft(40, cx - 6, cx + 6, cz - 6, cz + 6, C.rim);                      // the wheel
+  onLeft(40, cx - 2, cx + 2, cz - 2, cz + 2, C.steel2);                   // its hub
+}
+// A police badge on a wall facing you (y = yf): a silver shield, navy inside, a gold star in the middle (Steve)
+//   cx: its middle across; z0: the bottom of its point; s: its size (1 = the close-up's)
+function policeBadge(yf, cx, z0, s) {
+  const shield = (inset, col) => poly([[-14, 26], [14, 26], [14, 12], [0, 0], [-14, 12]].map(([u, v]) => {
+    const k = (14 - inset) / 14;                                          // shrink towards its middle
+    return P(cx + u * k * s, yf, z0 + (13 + (v - 13) * k) * s);
+  }), col);
+  shield(0, hex('#c8ccd4'));                                              // the silver rim
+  shield(3, hex('#1a2a5a'));                                              // the navy inside
+  const pts = [];                                                         // the gold star: five points
+  for (let k = 0; k < 10; k++) {
+    const a = -Math.PI / 2 + k * Math.PI / 5, r = (k % 2 ? 3 : 7) * s;
+    pts.push(P(cx + Math.cos(a) * r, yf, z0 + 14 * s - Math.sin(a) * r));
+  }
+  poly(pts, hex('#f0c030'));
+}
+// Battenburg checks: two rows of blue and white squares along a wall facing you (y = yf), from x0 to x1, from z up
+function policeChecks(yf, x0, x1, z, sq) {
+  for (let row = 0; row < 2; row++) for (let x = x0, k = 0; x < x1; x += sq, k++) {
+    onLeft(yf, x, Math.min(x1, x + sq), z + row * sq, z + (row + 1) * sq, (k + row) % 2 ? C.white : hex('#1a4ab0'));
+  }
+}
+// The Police Station's sign: the badge, big, above its name
+function policeBadgeSign() { policeBadge(40, 100, 84, 1); }
+// The PC Shop: a laptop, open, its screen lit
+function pcShopSign() {
+  onLeft(40, 84, 116, 94, 116, hex('#2a2a30'));                           // the lid
+  onLeft(40, 86, 114, 96, 114, hex('#3a80c8'));                           // its screen
+  onLeft(40, 88, 100, 108, 112, C.white); onLeft(40, 88, 108, 102, 104, shade(C.white, 0.8));   // a window on it
+  onLeft(40, 80, 120, 88, 94, hex('#9a9aa2'));                            // the keyboard half, seen from the front
+  onLeft(40, 80, 120, 88, 89, hex('#6a6a72'));                            // its front edge
+}
 function shopExterior(name, shut) {
   if (name === 'Petrol Station') return petrolFront(name, shut);
   if (name === 'Bank') return bankFront(name, shut);
   const info = PLACE_INFO[name] || {}, style = placeStyle(name), pub = style === 'pub';
-  const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = pub ? C.cream : hex(CAT[cat][1]);   // the pub: cream, with black timbers
+  const i = placeIndex(name), cat = i >= 0 ? PLACES[i][1] : 'other', col = pub ? C.cream : name === POLICE ? hex('#2a3a6a') : name === 'BustBlockers' ? BUST_BLUE : hex(CAT[cat][1]);   // the pub: cream, with black timbers
   ISO.ox = OUTSIDE_VIEW[0]; ISO.oy = OUTSIDE_VIEW[1];
   streetFront();                                                         // grass, the road, the kerb and the pavement
   // the shops either side
@@ -557,13 +714,17 @@ function shopExterior(name, shut) {
   ibox(0, BUILDING_BACK, 200, 40, 0, 84, col, C.steel);
   // the one to its right is nearer to you, so it's drawn after (it hides the shop's side wall)
   ibox(202, BUILDING_BACK, 320, 40, 0, 70, shade(C.brick, 0.95), C.steel); bricks(202, BUILDING_BACK, 320, 40, 70, C.brickLine); winLeft(40, 220, 260, 14, 44);
-  onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, shade(col, 1.15));
-  frontSign(name, 6, 40, 188, 77, 16);
-  if (pub) {                                                                                                         // the pub: timbers, a hanging sign, no awning
+  onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, name === POLICE ? C.white : shade(col, 1.15));
+  if (name === 'BustBlockers') { onLeft(40, 2, 198, 61, 77, BUST_BLUE); bustTicket(40, 20, 180, 61, 77); }   // the bust video shop: its yellow ticket sign on blue   // (the police: a white board, so the name reads on the dark blue)
+  if (name === 'BustBlockers') frontSign('BUSTBLOCKERS', 34, 40, 142, 76, 14, '#1a3a9a');   // its name in blue on the ticket
+  else frontSign(name, 6, 40, 188, 77, 16);
+  roofSign(name);                                                                                                    // a picture sign above its name: the envelope, the phone, the tyre, the laptop (Steve)
+  if (pub) {                                                                                                       // the pub: timbers, a hanging sign, no awning
     for (let x = 0; x <= 196; x += 22) onLeft(40, x, x + 4, 0, 60, hex('#2a1a12'));
     onLeft(40, 0, 200, 46, 49, hex('#2a1a12'));
     ibox(196, 40, 200, 58, 74, 76, hex('#2a1a12')); onLeft(58, 190, 204, 50, 72, hex('#7a2a20')); onLeft(58, 192, 202, 52, 70, hex('#a04a30'));
-  } else for (let x = 0; x < 140; x += 10) onLeft(40, x, x + 5, 50, 58, (x / 10) % 2 ? C.white : shade(col, 0.8));        // the striped awning
+  } else if (name === POLICE) policeChecks(40, 0, 200, 48, 6);                                                         // the police: blue and white checks along the front, no awning
+  else for (let x = 0; x < 140; x += 10) onLeft(40, x, x + 5, 50, 58, (x / 10) % 2 ? C.white : shade(col, 0.8));        // the striped awning
   onLeft(40, 10, 136, 8, 46, C.white); onLeft(40, 12, 134, 10, 44, C.glass);                                         // the shop window
   for (let k = 0; k < 10; k++) onLeft(40, 16 + k * 12, 24 + k * 12, 11, 16 + (k % 3) * 5, [CARDBOARD, C.red, C.car, C.warm, C.white][(k + i) % 5]);   // stock in the window
   onLeft(40, 72, 74, 10, 44, C.white);

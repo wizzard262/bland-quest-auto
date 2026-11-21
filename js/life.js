@@ -42,6 +42,34 @@ let STUB_SNAP = false;                                                 // the ex
 const ease = p => p * p * (3 - 2 * p);                               // smooth start and stop
 const PASSED = [];                                                   // where each passing car was last frame (for its whoosh)
 const lerp = (a, b, p) => a + (b - a) * p;
+// The courier's panel van, side-on along the street (front towards +x): the tall load box, the cab with its windscreen,
+//   a short bonnet, a sliding side door, the courier's orange smile on the side, lights, grille, bumper and a mirror
+function courierVan(x, y) {
+  const body = C.white, roof = hex('#e4e4dc'), trim = hex('#2a2a2e');
+  ibox(x, y, x + 40, y + 24, 4, 32, body, roof);                      // the load box, tall
+  ibox(x + 40, y, x + 52, y + 24, 4, 27, body, roof);                 // the cab, a bit lower
+  ibox(x + 52, y, x + 60, y + 24, 4, 15, body, roof);                 // the bonnet
+  poly([P(x + 52, y, 27), P(x + 52, y + 24, 27), P(x + 56, y + 24, 16), P(x + 56, y, 16)], C.glass);   // the windscreen, sloping down to the bonnet
+  line(...P(x + 52, y + 24, 27), ...P(x + 56, y + 24, 16), trim);     // its pillar
+  onLeft(y + 24, x + 42, x + 51, 15, 25, C.glass);                    // the cab's side window
+  onLeft(y + 24, x + 44, x + 46, 16, 24, shade(C.glass, 1.5));        // a shine on it
+  onLeft(y + 24, x + 41, x + 42, 5, 27, trim);                        // the cab door's back edge
+  onLeft(y + 24, x + 48, x + 51, 12, 13, trim);                       // its handle
+  // the sliding side door on the load box: its edges, its runner, its handle
+  onLeft(y + 24, x + 24, x + 25, 5, 30, hex('#b8b8b0'));
+  onLeft(y + 24, x + 38, x + 39, 5, 30, hex('#b8b8b0'));
+  onLeft(y + 24, x + 4, x + 40, 29, 30, hex('#b8b8b0'));              // the runner along the top
+  onLeft(y + 24, x + 26, x + 29, 16, 17, trim);                       // the handle
+  // the courier's logo: an orange smile with an arrow on its end
+  for (let k = 0; k <= 10; k++) { const u = x + 5 + k * 1.6, z = 22 - Math.sin(k / 10 * Math.PI) * 3; const [sx, sy] = P(u, y + 24, z); rect(Math.round(sx), Math.round(sy), 2, 2, hex('#f09018')); }
+  const [ax, ay] = P(x + 21, y + 24, 22); rect(Math.round(ax) - 1, Math.round(ay) - 2, 2, 2, hex('#f09018'));
+  // the front: grille, headlights, bumper
+  onRight(x + 60, y + 8, y + 16, 7, 12, trim);                        // the grille
+  onRight(x + 60, y + 2, y + 6, 9, 12, C.warm); onRight(x + 60, y + 18, y + 22, 9, 12, C.warm);   // headlights
+  ibox(x + 60, y, x + 61, y + 24, 3, 6, trim);                        // the bumper
+  onLeft(y + 24, x, x + 2, 8, 14, C.red);                             // a tail light at the back corner
+  ibox(x + 51, y + 24, x + 53, y + 27, 19, 23, trim);                 // the wing mirror
+}
 // A car driving along x (down-right), for traffic; s = size
 function isoCarX(x, y, s, col) { isoCar(x, y, s, col, { alongX: true }); }   // the same car shape as everywhere else, turned along the street
 // A strip light that flickers now and then
@@ -148,17 +176,29 @@ SCREENS.room.animate = function (t) {
   }
   const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed
   const nightHalf = goingToBed && (performance.now() - ANIM.t0) / ANIM.dur < 0.5;   // fading out (then black, then the morning fading in)
+  if (goingToBed) sleepingHusband(t);                                 // going to bed: him, in bed beside her (not stood by it: Steve)
   if ((isAsleep() && !goingToBed) || nightHalf) {                    // late, or going to bed with you: in bed, fast asleep (it goes dark like that)
     sleepingWife(t);
     moveWifeTap([SLEEPING_HEAD[0] + 8, SLEEPING_HEAD[1]], [60, 10]);
     return;
   }
+  if (wifeSunbathing() && !goingToBed) return;                        // out in the back garden on her lounger (screens.js)
   if (goingToBed) WIFE.k = 0;                                         // the morning, fading in: she's up, dressed, wherever her day starts (it changed while it was black)
   wifeMove(t);
   const bedtime = isBedtime() && !goingToBed;                        // from 7 in the evening (and all through the night) she's in her nightie
   wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
   moveWifeTap(WIFE.pos, [-18, 14]);
 };
+// Him asleep in bed, on his side of it (nearer you): his head on the pillow, a lump under the duvet, Zs
+const HIS_PILLOW = [10, 114];
+function sleepingHusband(t) {
+  const [hx, hy] = HIS_PILLOW;
+  ibox(18, hy - 7, 54, hy + 7, 20, 23, shade(C.door, 1.05));         // him, under the duvet
+  const head = P(hx, hy, 24);
+  disc(head[0], head[1], 3, C.skin);                                  // his face, on the pillow
+  rect(head[0] - 3, head[1] - 4, 6, 2, C.hair);                       // his short hair
+  sleepZs(t + 1.3, head[0] + 4, head[1] - 6);                         // his own Zs, out of step with hers
+}
 // Her asleep in bed: her head on the pillow, a lump under the duvet, and Zs rising off her
 function sleepingWife(t) {
   const [hx, hy] = SLEEPING_HEAD;
@@ -260,8 +300,13 @@ function followDraw(t) {
   wife(FOLLOW.pos[0], FOLLOW.pos[1], 'nightie', { walk: FOLLOW.walk, facing: FOLLOW.facing, hip: !FOLLOW.walk });
   moveWifeTap(FOLLOW.pos, [-12, 10]);
 }
-SCREENS.city.night = d => SCREENS.city_night(d);
-SCREENS.place.night = function (d) { if (!S.inside) nightShade(0, 18, W, H, d); };
+SCREENS.city.night = d => { SCREENS.city_night(d); petrolLightsOnMap(d); };
+SCREENS.place.night = function (d) {
+  const house = placeStyle(S.place) === 'house';                      // on someone's doorstep: you're outside their house
+  if (!S.inside || house) { nightShade(0, 18, W, H, d); keepHud(18); }   // dark at night (Steve)
+  if (house && d > 0.2) { [ISO.ox, ISO.oy] = SHOP_VIEW; houseLights(DOORSTEP_WINDOWS); keepHud(18); }   // their lights on till midnight
+  if (S.place === 'Petrol Station' && !S.inside && d > 0.2) { petrolLights(d); keepHud(18); }   // open 24 hours: it's all lit up
+};   // outside a shop, or on someone's doorstep (a house: you're outside it): dark at night (Steve)
 SCREENS.city.animate = function (t) {
   ISO.ox = S.cam.ox; ISO.oy = S.cam.oy;
   const cols = [C.red, C.warm, hex('#40a060'), C.white, C.steel2];          // never blue: blue is your car
@@ -359,9 +404,9 @@ SCREENS.dash.animate = function (t) {
 // =====================================================================
 // THE MAN, standing where he last walked to on the home and garage screens
 // =====================================================================
-const SPOT_HOME = { room: [100, 110], home: [46, 84], garage: [110, 74], place: [105, 140], outside: [100, 52], yard: [100, 150] };
-const MAN_SIZE = { room: 2, home: 2, garage: 2, place: 2, outside: 2, yard: 2 };
-const VIEW = { room: [230, 100], home: [250, 96], garage: [230, 106], place: [230, 96], outside: [250, 70], yard: [240, 70] };
+const SPOT_HOME = { room: [100, 110], home: [46, 84], garage: [110, 74], place: [105, 140], outside: [100, 52], yard: [100, 150], garden: [38, 128] };
+const MAN_SIZE = { room: 2, home: 2, garage: 2, place: 2, outside: 2, yard: 2, garden: 2 };
+const VIEW = { room: [230, 100], home: [250, 96], garage: [230, 106], place: [230, 96], outside: [250, 70], yard: [240, 70], garden: [230, 100] };
 // A place in town has two views: outside (the shop front) and inside
 function spotKey(screen) { return screen === 'place' ? (S.inside ? 'place' : 'outside') : screen; }
 function manSpot(screen) { const k = spotKey(screen); return (S.spot && S.spot[k]) || SPOT_HOME[k]; }
@@ -378,6 +423,7 @@ function meHead() {
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
   if (ANIM && ['walk', 'collapse'].includes(ANIM.kind)) return;
+  if (ANIM && ANIM.kind === 'night' && screen === 'room') return;    // going to bed: he's in it (life.js draws him there), not stood by it
   const [x, y] = manSpot(screen), m = P(x, y);
   if (screen === 'room' && S.flags.onFloor) return man(m[0], m[1], 'lie', MAN_SIZE.room);   // asleep on the floor
   man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
@@ -393,6 +439,7 @@ function solidsFor(key) {
     const [wx, wy] = WIFE_DRIVE;                                      // and hers, on her drive
     out.push({ box: [wx, wy, wx + 24, wy + CAR_SHAPES.city.L], draw: () => isoCar(wx, wy, 1, WIFE_CAR, { shape: 'city' }) });
   }
+  if (key === 'garden') out.push({ box: LOUNGER.slice() }, { box: [SUN_TABLE[0], SUN_TABLE[1], SUN_TABLE[0] + 8, SUN_TABLE[1] + 8] }, { box: [132, 6, 172, 34] });   // the lounger, the table, the shed
   if (key === 'yard') WRECKS.forEach(([x, y, , , , shape], i) => out.push({ box: [x, y, x + 24, y + CAR_SHAPES[shape].L], draw: () => drawWreck(i) }));   // the wrecks
   if (key === 'place' && S.inside && hasCounter(S.place)) out.push({ box: COUNTER.slice() });   // the shop counter (he stays this side of it)
   return out;
@@ -653,15 +700,17 @@ const MOMENTS = {
   van(p) {                                                            // the courier's van pulls up, then drives off
     ISO.ox = 250; ISO.oy = 96;
     const x = p < 0.4 ? lerp(-420, 40, ease(p / 0.4)) : p < 0.65 ? 40 : lerp(40, 700, ease((p - 0.65) / 0.35)), y = 152;
-    ibox(x, y, x + 60, y + 24, 4, 30, C.white, hex('#dcdcd4'));
-    onRight(x + 60, y + 3, y + 21, 18, 27, C.glass);
-    onLeft(y + 24, x + 10, x + 44, 12, 20, C.red);
-    for (const wx of [12, 48]) {                                        // its wheels: arch, tyre, steel wheel, hub
-      const [a, b] = P(x + wx, y + 24, 5);
-      ellipse(a, b, 7, 6, hex('#2a2a2e'));
-      ellipse(a, b + 1, 6, 5, C.tyre);
-      ellipse(a, b + 1, 3, 3, C.steel2);
-      px(a, b + 1, C.ink);
+    courierVan(x, y);                                                   // a proper panel van (Steve)
+    for (const wx of [12, 48]) {                                        // its wheels, round on the van's side (slanted with it, not twisted): arch, tyre, steel wheel, hub
+      const wheel = (r, col) => {                                       // a circle lying on the side of the van (y + 24), centred on the axle
+        const pts = [];
+        for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; pts.push(P(x + wx + Math.cos(a) * r, y + 24.5, 6 + Math.sin(a) * r)); }
+        poly(pts, col);
+      };
+      wheel(7, hex('#2a2a2e'));                                         // the wheel arch
+      wheel(6, C.tyre);                                                 // the tyre
+      wheel(3, C.steel2);                                               // the steel wheel
+      wheel(1, C.ink);                                                  // the hub
     }
     if (p > 0.55) { [ISO.ox, ISO.oy] = [250, 96]; kerbMailbox(true); }  // he's dropped it off: there it is in the mailbox
   },

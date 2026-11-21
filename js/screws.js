@@ -137,7 +137,7 @@ SCREENS.screwtray = {
     tip('The screw tray', 'Tap a screw to try it in the third hole.', 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Back to the workbench', act: 'go:bench' }]; }
+  actions() { return []; }   // ◀ Back to the workbench
 };
 // Try screw k in the third hole
 function trayScrew(k) {

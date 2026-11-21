@@ -36,6 +36,7 @@ SCREENS.boot = {
       for (let k = 0; k < 4; k++) disc(240 + Math.cos(k * 1.571) * 20, 136 + Math.sin(k * 1.571) * 20, 3, C.steel2);   // its stud holes
       bolt(240, 136, 9, false);                                         // the big nut holding it down
       if (S.spare === 'flat') spareScrew(240 + 42, 136 + 32, 4);       // the screw in its tread
+      if (S.flags.gloveGauge) tyreGauge();                              // the gauge, on its valve (its needle moves: animate)
     }
     // the jack: a scissor jack, folded flat in its foam tray (unless Paul's borrowed it: then just the tray)
     rbox(80, 92, 84, 96, 6, hex('#1e1e22'));
@@ -57,11 +58,39 @@ SCREENS.boot = {
     zoomZones([['Spare wheel', 172, 68, 136, 136, false, spareGo], ['Jack', 78, 88, 90, 104, false, S.flags.jackLent ? 'act:nojack' : null], ['Wheel brace', 320, 80, 96, 120]]);
     hud();
   },
-  actions() {
-    if (S.road) return [{ label: 'Close the boot', act: 'go:roadside' }];   // back to the roadside
-    return [{ label: 'Close the boot', act: 'go:garage' }];
+  actions() { return []; }   // ◀ Back closes the boot (to the roadside, or the garage)
+}
+// THE TYRE PRESSURE GAUGE on the spare: pressed on its valve, a big dial. The first third is red; a black needle rides up
+//   and settles: in the middle of the red if the tyre's poor, well clear of it if it's good. Nothing is said: you just see it (Steve)
+const GAUGE = { valve: [266, 110], dial: [300, 72], r: 24 };          // the valve on the rim; the dial's middle and size
+const GAUGE_SWEEP = [Math.PI * 0.75, Math.PI * 2.25];                 // the dial's arc: from bottom left, clockwise, to bottom right
+let GAUGE_T0 = 0;                                                     // when the boot opened (the needle rides up from then)
+const gaugeAngle = f => GAUGE_SWEEP[0] + (GAUGE_SWEEP[1] - GAUGE_SWEEP[0]) * f;   // f: 0 (nothing) to 1 (full)
+const spareReading = () => (S.spare === 'good' ? 0.62 : 1 / 6);      // poor: the middle of the red third; good: well up
+function tyreGauge() {
+  const [vx, vy] = GAUGE.valve, [cx, cy] = GAUGE.dial, r = GAUGE.r;
+  rect(vx - 2, vy - 2, 4, 5, C.ink);                                  // the valve, sticking out of the rim
+  pipe(vx, vy - 2, cx - 10, cy + 14, 6, C.steel2);                    // the gauge's stick, pressed on it
+  disc(cx, cy, r + 3, C.steel); disc(cx, cy, r, C.white);             // the bezel and the face
+  for (let a = gaugeAngle(0); a <= gaugeAngle(1 / 3); a += 0.02) {   // the red third
+    for (let k = 3; k < r - 1; k++) px(cx + Math.cos(a) * k, cy + Math.sin(a) * k, C.red);   // a red wedge, from the middle out
   }
-};
+  for (let k = 0; k <= 10; k++) {                                     // the ticks round the edge
+    const a = gaugeAngle(k / 10), inner = k % 5 === 0 ? r - 7 : r - 4;
+    line(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner, cx + Math.cos(a) * (r - 1), cy + Math.sin(a) * (r - 1), C.ink);
+  }
+}
+// The needle: rides up from 0 over a second and a half after the boot opens, and settles on the reading
+SCREENS.boot.animate = function () {
+  if (!S.flags.gloveGauge || S.spare === 'away' || (S.road && S.road.spare)) return;   // no gauge, or no spare in the well
+  const [cx, cy] = GAUGE.dial, r = GAUGE.r;
+  const p = Math.min(1, (performance.now() - GAUGE_T0) / 1500);
+  const ease = 1 - Math.pow(1 - p, 3);                                 // fast at first, settling
+  const wobble = p < 1 ? Math.sin(p * 18) * 0.03 * (1 - p) : 0;       // a little shiver as it settles
+  const a = gaugeAngle(spareReading() * ease + wobble);
+  pipe(cx, cy, cx + Math.cos(a) * (r - 5), cy + Math.sin(a) * (r - 5), 2, C.ink);   // the black needle
+  disc(cx, cy, 3, C.ink);                                              // its hub
+};;
 
 // =====================================================================
 // UNDER THE BONNET, and the fuse box close up
@@ -87,7 +116,7 @@ function batteryLeads() {
   }
 }
 // A headlight seen from above, under the bonnet: whole (yellow), or smashed (dull, cracked, a bit missing). Tap it
-const BONNET_LAMP = { left: [376, 222], right: [32, 222] };          // where each sits (the car's left is on your right)
+const BONNET_LAMP = { left: [32, 222], right: [376, 222] };          // where each sits: the left one on your left, the same as when you kicked it (Steve)
 function bonnetLamp(side) {
   const [x, y] = BONNET_LAMP[side], smashed = kickedLamps()[side];
   rbox(x, y, 72, 20, 5, C.ink);                                        // its housing
@@ -109,7 +138,7 @@ SCREENS.bonnet = {
     rbox(18, 50, 444, 214, 10, C.car); grime(48, 56, 384, 190, hex('#26241f'), 0.25, 33);
     rect(48, 56, 384, 6, hex('#1a1a1a'));
     rect(110, 226, 260, 16, hex('#3a3c40')); for (let x = 112; x < 368; x += 3) rect(x, 228, 1, 12, hex('#55585c'));   // the radiator, between the headlights
-    for (const side of ['left', 'right']) bonnetLamp(side);           // both headlights, from above (the car's left is on your right: you're stood at the front)
+    for (const side of ['left', 'right']) bonnetLamp(side);           // both headlights, from above (left on the left, as you kicked them)
     rbox(18, 244, 444, 20, 6, C.car); rect(200, 250, 80, 6, C.ink); disc(240, 253, 4, C.steel);
     rbox(62, 70, 98, 80, 8, C.ink); grime(66, 74, 90, 72, hex('#2a2a2a'), 0.2, 34);
     for (const [x, y] of [[62, 90], [62, 130], [158, 90], [158, 130]]) rect(x - 2, y, 5, 8, C.steel2);
@@ -133,11 +162,7 @@ SCREENS.bonnet = {
     }
     hud();
   },
-  actions() {
-    const a = [{ label: 'Zoom in: fuse box', act: 'go:fuseZoom' }];
-    a.push({ label: 'Close the bonnet', act: 'go:garage' });
-    return a;
-  }
+  actions() { return []; }   // tap the fuse box to zoom in; ◀ Back to close the bonnet (Steve)
 };
 
 // Testing the fuses with the multimeter: where each fuse is, and the marks it leaves
@@ -157,8 +182,8 @@ function fuseMarks(upTo) {
 // THE MULTIMETER, out on the fuse box (where the lid's paper was): yellow, its screen, its dial, two leads to the probes
 const METER = { x: 328, y: 52, w: 116, h: 190 };
 const meterOut = () => !!S.flags.meterOK && !!S.flags.meterOut;
-// What its screen says with the probes on fuse n: a good fuse reads 0.0 (and beeps); the blown one reads OL; resting, dashes
-const meterReading = n => (!n || fuseEmpty(n) ? '- - -' : n === FUSE_BLOWN ? 'OL' : '0.0');
+// What its screen says with the probes on fuse n: a good fuse reads 0 (and beeps); the blown one reads 1; resting, dashes (Steve)
+const meterReading = n => (!n || fuseEmpty(n) ? '- - -' : n === FUSE_BLOWN ? '1' : '0');
 // The meter, with its probes on fuse n (0: resting on the box's edge); leads: draw the leads and probes too
 function drawMeter(n, leads = true) {
   const { x, y, w, h } = METER;
@@ -177,9 +202,9 @@ function drawMeter(n, leads = true) {
   [[x + 34, C.red], [x + w - 34, C.ink]].forEach(([sx, col], k) => {
     const [tx, ty] = tips[k];
     const sag = [(sx + tx) / 2, Math.max(y + h, ty) + 18];          // the lead hangs down between them
-    pipe(sx, y + h - 22, sag[0], sag[1], 3, col);
-    pipe(sag[0], sag[1], tx + 6, ty + 14, 3, col);
-    pipe(tx + 6, ty + 14, tx, ty, 4, col);                           // the probe itself
+    pipe(sx, y + h - 22, sag[0], sag[1], 6, col);   // thick leads (Steve)
+    pipe(sag[0], sag[1], tx + 6, ty + 14, 6, col);
+    pipe(tx + 6, ty + 14, tx, ty, 6, col);                           // the probe itself
     disc(tx, ty, 2, C.steel);                                        // its point
   });
 }
@@ -190,6 +215,14 @@ function fuseTestDraw(p) {
   drawMeter(n);
 }
 
+// Each fuse lights up as you point at it; with the multimeter out, pointing at it tests it (engine.js)
+function fuseSpots(testing) {
+  for (let n = 1; n <= 30; n++) {
+    if (fuseEmpty(n)) continue;                                       // the two empty slots
+    const [x, y] = fuseAt(n);
+    spot('F' + n, [x - 2, y - 2, 30, 30], testing ? 'act:testfuse:' + n : 'act:fuselook:' + n);
+  }
+}
 SCREENS.fuseZoom = {
   size: [480, 270],
   paint() {
@@ -211,10 +244,11 @@ SCREENS.fuseZoom = {
     if (meterOut() || testing) {                                     // the multimeter's out, on the box where the lid's paper was
       rect(326, 46, 120, 196, hex('#24241f'));
       if (!testing) drawMeter(S.meterFuse || 0);                     // (while testing, the moment draws it)
-      if (!testing) for (let n = 1; n <= 30; n++) if (!fuseEmpty(n)) { const [x, y] = fuseAt(n); spot('F' + n + ': test it', [x - 2, y - 2, 30, 30], 'act:testfuse:' + n); }
+      if (!testing) fuseSpots(true);                                 // point at a fuse: the probes go on it and it's tested
       hud();
       return;
     }
+    fuseSpots(false);                                                 // point at a fuse: it lights up
     rect(326, 46, 120, 196, hex('#d8d4c4'));
     for (let n = 0; n < 2000; n++) px(326 + hash(n, 5) * 120, 46 + hash(5, n) * 196, hex('#b8b4a4'));
     const fuses = [['F21', 'Radio'], ['F22', '▒▒▒ ▒▒'], ['F23', 'Instr. (see note 7)'], ['F24', '—'], ['F25', 'Spare?'], ['F26', 'ABS / ESP / ???'], ['F27', 'Spare'], ['F28', 'Spare'], ['F29', 'Not used*'], ['F30', '*see F29']];
@@ -224,7 +258,6 @@ SCREENS.fuseZoom = {
   actions() {
     const a = [{ label: 'Check every fuse', act: 'fuses' }];
     if (S.flags.meterOK) a.push(meterOut() ? { label: 'Put the multimeter away', act: 'meterout:0' } : { label: 'Get the multimeter out', act: 'meterout:1' });
-    a.push({ label: 'Zoom out', act: 'go:bonnet' });
     return a;
   }
 };
@@ -406,7 +439,7 @@ SCREENS.dash = {
     if (S.flags.readerIn) {
       rbox(2, 160, 54, 96, 8, hex('#d0a020')); rect(7, 168, 44, 40, hex('#0a2a20'));
       for (const [x, y] of [[8, 216], [30, 216], [8, 234], [30, 234]]) rbox(x, y, 18, 12, 3, hex('#3a3a3a'));
-      pipe(56, 226, 76, 236, 4, C.ink);                                                     // its lead, into the port
+      pipe(56, 226, 76, 236, 8, C.ink);                                                     // its thick lead, into the port
       spot('Code reader: unplug it', [2, 160, 54, 96], 'act:unplug');
       LABELS.push(`<div class="scr" style="left:${8 / W * 100}%;top:${169 / H * 100}%;width:${42 / W * 100}%;height:${38 / H * 100}%">${S.key >= 2 && carPowered() ? '2 codes found<br><b>P0705</b> Trans. range sensor circ. malf.<br><b>P0706</b> Range/perf.' : 'NO POWER'}</div>`);
     }
@@ -448,9 +481,16 @@ const GLOVE_BOX = [4, 116, 50, 40];                                 // its lid, 
 const GLOVE_THINGS = [
   ['Ice scraper', 'An ice scraper, snapped clean in half. Both halves are here. Neither half scrapes.', [84, 112, 92, 60]],
   ['Tyre pressure gauge', 'A tyre pressure gauge. You press it on a tyre: 0 PSI. You press it on your thumb: 0 PSI.', [190, 104, 84, 50]],
-  ['Torch', 'A torch. Click. Nothing. Click click. The batteries inside have gone furry.', [286, 116, 92, 40]],
-  ['Phone charger', 'A phone charger. It fits a phone you had in 2009.', [196, 160, 120, 40]]
+  ['Torch', 'A torch. Click. Nothing. Click click. The batteries inside have gone furry.', [286, 116, 92, 40]]
 ];
+const GAUGE_NAME = 'Tyre pressure gauge';
+// The tyre pressure gauge in the glove box: it can go on the garage shelf (then it's on the spare whenever you open the boot)
+function gloveGauge() {
+  say('Tyre pressure gauge', 'A tyre pressure gauge. A dial on a stick.', [
+    { label: 'Put it on the garage shelf', run() { S.flags.gloveGauge = true; sfx('click'); render(); } },
+    { label: 'Leave it', run() {} }
+  ]);
+}
 // The torch in the glove box: dead, but it can go on the garage shelf
 const GLOVE_TORCH = 'Torch (from the glove box)';
 function gloveTorch() {
@@ -480,10 +520,12 @@ SCREENS.glovebox = {
     poly([[140, 146], [170, 120], [176, 130], [148, 158]], hex('#3070c0'));
     rect(128, 132, 4, 6, hex('#e8e0c0'));                           // the broken edges
     rect(142, 142, 4, 6, hex('#e8e0c0'));
-    // the tyre pressure gauge: a silver stick with a little dial reading 0
-    pipe(200, 140, 262, 116, 6, C.steel2);
-    disc(264, 115, 10, C.white); ring(264, 115, 10, C.steel);
-    line(264, 115, 264, 108, C.red);                                // the needle, on 0
+    // the tyre pressure gauge: a silver stick with a little dial (until it goes on the garage shelf)
+    if (!S.flags.gloveGauge) {
+      pipe(200, 140, 262, 116, 6, C.steel2);
+      disc(264, 115, 10, C.white); ring(264, 115, 10, C.steel);
+      line(264, 115, 258, 119, C.ink);                              // the needle, resting on 0
+    }
     // the torch with dead batteries (until you take it to the garage shelf)
     if (!S.flags.gloveTorch) {
       pipe(296, 136, 356, 136, 12, hex('#1c1c1c'));
@@ -491,15 +533,15 @@ SCREENS.glovebox = {
       rect(368, 131, 3, 10, hex('#5a5a40'));                        // the glass, no light
       rect(318, 130, 6, 3, C.red);                                  // the switch
     }
-    // the phone charger: a white plug and its cable, in a tangle
-    rbox(206, 170, 22, 18, 3, C.white);
-    for (let k = 0; k < 5; k++) ring(250 + k * 12, 182, 7, hex('#d8d8d8'));
-    rect(306, 180, 8, 4, C.steel2);                                 // the old, wrong-shaped plug on the end
-    GLOVE_THINGS.forEach(([name, , area], k) => { if (name === 'Torch' && S.flags.gloveTorch) return; spot(name, area, 'act:glove:' + k); });   // (the torch, once taken)
+    GLOVE_THINGS.forEach(([name, , area], k) => {
+      if (name === 'Torch' && S.flags.gloveTorch) return;            // the torch, once it's on the garage shelf
+      if (name === 'Tyre pressure gauge' && S.flags.gloveGauge) return;   // the gauge, likewise
+      spot(name, area, 'act:glove:' + k);
+    });
     tip('The glove box', 'Tap a thing to look at it.', 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Shut it', act: 'gloveshut' }]; }
+  actions() { return []; }   // ◀ Back shuts it
 };
 
 // =====================================================================
@@ -515,7 +557,7 @@ const PLUG_TRAY = hex('#141518');                                   // the dark 
 const PLUGS = [
   ['reader-old', "Gaz's reader (old type)", 110],
   ['reader-cheap', 'Zamanon reader', 240],
-  ['reader-good', 'The used reader from TheeBay', 370]
+  ['reader-good', 'The used reader from Thee Bay', 370]
 ];
 // The readers you own just now
 const ownedPlugs = () => PLUGS.filter(([id]) => S.inv[id]);
@@ -538,7 +580,7 @@ function portSocket() {
 // leadX: where its lead runs out of the picture (it stays by where the plug lay, even while the plug is up at the port)
 function plugDraw(id, cx, top, leadX = cx) {
   if (id === 'reader-old') {                                        // Gaz's: a little round plug, from 1994
-    pipe(cx, top + 40, leadX, H, 4, C.ink);                            // its lead
+    pipe(cx, top + 40, leadX, H, 8, C.ink);                            // its thick lead
     rect(cx - 9, top + 28, 18, 14, hex('#4a4a4a'));                 // the grip
     disc(cx, top + 16, 16, hex('#4a4a4a'));                         // the round plug
     disc(cx, top + 16, 11, hex('#1c1c1c'));                         // its face
@@ -550,7 +592,7 @@ function plugDraw(id, cx, top, leadX = cx) {
     return;
   }
   if (id === 'reader-cheap') {                                      // Zamanon's: a lorry plug the size of a jam jar lid
-    pipe(cx, top + 66, leadX, H, 7, C.ink);                            // its fat lead
+    pipe(cx, top + 66, leadX, H, 11, C.ink);                           // its fat lead
     rect(cx - 15, top + 52, 30, 16, hex('#2e5a34'));                // the grip
     disc(cx, top + 28, 30, hex('#2e5a34'));                         // the round plug
     ring(cx, top + 28, 30, hex('#1e3a22'));                         // its twist-lock collar
@@ -562,7 +604,7 @@ function plugDraw(id, cx, top, leadX = cx) {
     return;
   }
   // the right one: a flat D, the same shape as the port, 16 pins
-  pipe(cx, top + 52, leadX, H, 5, C.ink);                              // its lead
+  pipe(cx, top + 52, leadX, H, 9, C.ink);                              // its thick lead
   rbox(cx - 30, top + 32, 60, 22, 4, hex('#1c1c1c'));               // the grip
   poly([[cx - 48, top], [cx + 48, top], [cx + 40, top + 34], [cx - 40, top + 34]], hex('#1c1c1c'));   // the plug
   poly([[cx - 44, top + 3], [cx + 44, top + 3], [cx + 37, top + 31], [cx - 37, top + 31]], hex('#2a2a2a'));   // its face
@@ -585,7 +627,7 @@ SCREENS.port = {
     tip('The diagnostic port', 'A flat socket with 16 pins. Tap a plug to try it in the port.', 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Back to the seat', act: 'portback' }]; }
+  actions() { return []; }   // ◀ Back to the seat
 };
 
 // The moment: the plug goes up to the port. The right one slides in; a wrong one won't go, jiggles, and drops back

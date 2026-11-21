@@ -5,7 +5,8 @@
 //   Scrap Yard or a car shop (the Tyre Place), and lends you her car. You fit the wheel at the roadside.
 //   S.road is set while your car is stuck on Mill Lane: { spare: tried it, walked: home on foot }
 
-let PUNCTURE_CHANCE = window.NO_PUNCTURES ? 0 : 1 / 6;             // the chance on each drive home (the tests turn it off, or up to 1)
+let PUNCTURE_CHANCE = window.NO_PUNCTURES ? 0 : 1 / 3;             // the chance on each drive home (the tests turn it off, or up to 1)
+const PUNCTURE_BY = 4;                                               // …and it's sure to happen by the 4th daytime drive home from town (Steve)
 const ROADSIDE = 'Mill Lane';                                       // where it happens
 const WIFE_CAR = hex('#9a5ac8');                                    // her little purple car (lent to you while yours is stuck)
 const WIFE_DRIVE = [-58, 70];                                         // where it lives: its own drive, the other side of the house
@@ -31,7 +32,9 @@ function punctureOnTheWayHome() {
   const opening = findJob('pickup');
   if (!opening || opening.status !== 'done') return false;          // not in the opening (driving home from the MOT)
   if (isDrunk()) return false;                                      // the police get you first
-  if (Math.random() >= PUNCTURE_CHANCE) return false;
+  S.flags.drivesHome = (S.flags.drivesHome || 0) + 1;              // daytime drives home from town so far
+  const due = PUNCTURE_CHANCE > 0 && S.flags.drivesHome >= PUNCTURE_BY;   // it's had long enough: now (unless the tests have turned punctures off)
+  if (!due && Math.random() >= PUNCTURE_CHANCE) return false;
   puncture();
   return true;
 }

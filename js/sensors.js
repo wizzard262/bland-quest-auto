@@ -1,7 +1,7 @@
 // Bland Quest Auto: every gearbox sensor you can try in the box's hole on the workbench, and the soldering game.
 // Lots of them are wrong, each in its own way: square, octagonal, hexagonal, too fat (they touch the hole and won't go in),
 // too thin (rattles), too long (sticks up), too short (sinks), or the two lug teeth in the wrong place.
-// One from the TheeBay job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.
+// One from the Thee Bay job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.
 // Loaded after story.js and extras.js (it adds to ACTIONS and TALK).
 
 // =====================================================================
@@ -172,7 +172,7 @@ function benchSensorButtons() {
 
 // =====================================================================
 // WHERE THE WRONG ONES COME FROM
-//   TheeBay: a job lot of 300 sensors (five look about right, one of them with its wires cut)
+//   Thee Bay: a job lot of 300 sensors (five look about right, one of them with its wires cut)
 //   the Scrap Yard: the 1999 Zafira still has its sensor (lugs wrong)
 //   Car Spares Direct: "we can order it in" (too short)
 //   the parts box: an old sensor, not yours (too fat)
@@ -292,7 +292,6 @@ SCREENS.solder = {
     const st = solderState(), a = [];
     const allJoined = st.pairs.every(j => j !== null);
     if (allJoined && st.joints < 3) a.push({ label: 'Solder the joints', act: 'soldernow' });
-    a.push({ label: 'Back to the bench', act: 'go:bench' });
     return a;
   }
 };

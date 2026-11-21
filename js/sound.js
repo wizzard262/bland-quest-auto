@@ -118,6 +118,33 @@ function sfx(name, delay = 0) {
   try { SOUNDS[name](AC.currentTime + 0.01 + delay); } catch (e) { /* a sound failing never stops the game */ }
 }
 
+// ---------- the breath test: the blowing, and a beep for each light, climbing from low to high ----------
+let BLOW = null;                                                       // the blowing sound while it plays: { src, gain }
+function blowSound(on) {
+  if (BLOW) {                                                          // stop what's playing (it fades out)
+    try { BLOW.gain.gain.setTargetAtTime(0.0001, AC.currentTime, 0.05); BLOW.src.stop(AC.currentTime + 0.3); } catch (e) { /* ignore */ }
+    BLOW = null;
+  }
+  if (!on || MUTED || !audioStart()) return;
+  try {
+    const src = AC.createBufferSource(), f = AC.createBiquadFilter(), gain = AC.createGain(), lfo = AC.createOscillator(), wob = AC.createGain();
+    src.buffer = NOISE; src.loop = true;                               // breath: rushing noise…
+    f.type = 'bandpass'; f.frequency.value = 650; f.Q.value = 0.7;     // …round a breathy pitch
+    gain.gain.setValueAtTime(0.0001, AC.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.22, AC.currentTime + 0.12);
+    lfo.frequency.value = 5; wob.gain.value = 0.05;                    // a little flutter, like lips on the tube
+    lfo.connect(wob); wob.connect(gain.gain);
+    src.connect(f); f.connect(gain); gain.connect(MASTER);
+    src.start(); lfo.start();
+    BLOW = { src, gain };
+  } catch (e) { /* never stop the game for a sound */ }
+}
+// Light k (0 to 9) coming on: a short beep, higher for each one
+function breathBeep(k) {
+  if (MUTED || !audioStart()) return;
+  try { tone(AC.currentTime + 0.01, 320 * Math.pow(1.13, k), 0.07, 0.12, 'square'); } catch (e) { /* ignore */ }
+}
+
 // ---------- muffled chatter when someone talks: syllables of "mwah-mwuh-mwa", no real words ----------
 // n = how many syllables (longer speeches chatter longer), pitch = the voice (low for some, higher for others)
 function chatter(n, pitch = 140) {

@@ -273,6 +273,16 @@ function bricks(x0, y0, x1, y1, h, col) {
 }
 // A window with a white frame on a wall facing down-left or down-right
 function winLeft(yf, a, b, c, d) { onLeft(yf, a - 1, b + 1, c - 1, d + 1, C.white); onLeft(yf, a, b, c, d, C.winGlass); onLeft(yf, (a + b) / 2, (a + b) / 2 + 1, c, d, C.white); }
+// Houses at night (Steve): lights on in the evening, off at midnight; curtains drawn from midnight till 8 in the morning
+const curtainsDrawn = () => S.mins < 8 * 60;                           // midnight till 8am
+const houseLightsOn = () => !curtainsDrawn() && S.mins >= 16 * 60;     // from teatime till midnight (they show once it's dark)
+const CURTAIN = hex('#8a5a6a');
+// A house window with its curtains drawn, on a wall facing left (y = yf) or right (x = xf): two curtains meeting in the middle
+function curtainsLeft(yf, a, b, c, d) { onLeft(yf, a, b, c, d, CURTAIN); onLeft(yf, (a + b) / 2, (a + b) / 2 + 1, c, d, shade(CURTAIN, 0.7)); }
+function curtainsRight(xf, a, b, c, d) { onRight(xf, a, b, c, d, CURTAIN); onRight(xf, (a + b) / 2, (a + b) / 2 + 1, c, d, shade(CURTAIN, 0.7)); }
+// A set of house windows: [side 'L' or 'R', the wall, from, to, bottom, top]. Curtains in the paint; lit at night (after the dark is laid on)
+function houseCurtains(wins) { if (curtainsDrawn()) for (const [s, f, a, b, c, d] of wins) (s === 'L' ? curtainsLeft : curtainsRight)(f, a + 1, b - 1, c + 1, d - 1); }
+function houseLights(wins) { if (houseLightsOn()) for (const [s, f, a, b, c, d] of wins) (s === 'L' ? onLeft : onRight)(f, a + 1, b - 1, c + 1, d - 1, LIT); }
 function winRight(xf, a, b, c, d) { onRight(xf, a - 1, b + 1, c - 1, d + 1, C.white); onRight(xf, a, b, c, d, C.winGlass); onRight(xf, (a + b) / 2, (a + b) / 2 + 1, c, d, C.white); }
 // A filled ellipse (a circle lying flat looks like this in isometric)
 function ellipse(cx, cy, rx, ry, c) {
@@ -561,6 +571,23 @@ function man(x, y, pose, s = 1, phase = 0, look) {
   L(0, -9, -1, -1, K.jeansDark); L(1, -9, 2, -1, K.jeans);
   L(0, -14, -1, -9, K.shirtDark); D(-1, -8, K.skin);
   L(1, -14, 2, -9, K.shirt); D(2, -8, K.skin);
+  if (K.police) policeKit(x, y, s);                      // a policeman: his cap, hi-vis vest and radio (Steve: obviously police)
+}
+// A policeman's kit over the standing man (x, y his feet, s his size): a peaked cap with the blue and white check band,
+//   a hi-vis yellow vest with a silver stripe, a radio on his chest, a badge on the cap
+function policeKit(x, y, s) {
+  const R = (dx, dy, w, h, c) => rect(x + dx * s, y + dy * s, w * s, h * s, c);
+  R(-0.5, -21.5, 3, 1.5, hex('#141a2a'));                // the cap's crown
+  const sq = Math.max(1, Math.round(s / 2));             // the check band: little squares
+  for (let k = 0, px0 = x - 0.5 * s; px0 < x + 2.5 * s; px0 += sq, k++) {
+    rect(Math.round(px0), Math.round(y - 20 * s), sq, sq, k % 2 ? C.white : hex('#1a4ab0'));
+    rect(Math.round(px0), Math.round(y - 20 * s) + sq, sq, sq, k % 2 ? hex('#1a4ab0') : C.white);
+  }
+  R(-0.5, -19.2, 3, 0.4, hex('#0a0a10'));                // the shiny black peak
+  R(0.8, -21.3, 0.5, 0.6, hex('#f0c030'));               // the cap badge
+  R(0, -15, 2, 4, hex('#d8f030'));                       // the hi-vis vest
+  R(0, -12.6, 2, 0.4, hex('#c8ccd4'));                   // its silver stripe
+  R(1.3, -15, 0.5, 1, hex('#202020'));                   // the radio clipped on
 }
 
 // ---------- his wife: a choice of glamorous looks, drawn in fine (1-pixel) detail, about as tall as him ----------
@@ -678,7 +705,7 @@ function wifeTop(K, x, y, facing, hip, sitting, ph, head) {
   }
   // hair
   const h = K.hair, hd = shade(K.hair, 0.8), bx = hside ? x - hdir * 2 : x;  // hside on, her hair sits towards the hback of her head
-  if (hback) for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5]]) rowAt(x, y + dy, w, h);   // the hback of her head
+  if (hback) for (const [dy, w] of [[-34, 4], [-35, 5], [-36, 5], [-37, 5], [-38, 5], [-39, 4]]) rowAt(x, y + dy, w, h);   // the back of her head, right up to her hairline (no skin-coloured stripe like a headband: Steve)
   if (K.style === 'curls') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); for (const sx of [x - 4, x + 3]) { rect(sx, y - 39, 2, 6, h); rect(sx, y - 35, 1, 1, hd); } }
   if (K.style === 'long') { rowAt(x, y - 40, 6, h); rowAt(x, y - 41, 4, h); if (hside) rect(bx - 1, y - 39, 3, 14, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 13, h); if (hback) rowAt(x, y - 30, 6, h), rowAt(x, y - 28, 6, h); }
   if (K.style === 'bob') { rowAt(x, y - 40, 7, h); rowAt(x, y - 41, 5, h); if (hside) rect(bx - 1, y - 39, 3, 6, h); else for (const sx of [x - 4, x + 3]) rect(sx, y - 39, 2, 6, h); }
@@ -707,6 +734,11 @@ function wifeHead() {
     [ISO.ox, ISO.oy] = VIEW.home;
     const q = P(...FOLLOW.pos);
     return [q[0] + 2, q[1] - 42];
+  }
+  if (S.screen === 'garden') {                                         // out on her sun lounger
+    [ISO.ox, ISO.oy] = VIEW.garden;
+    const g = P(...GARDEN_HEAD);
+    return [g[0], g[1] - 6];
   }
   const inGarage = S.screen === 'garage';                              // she comes to the garage at night
   [ISO.ox, ISO.oy] = inGarage ? VIEW.garage : VIEW.room;

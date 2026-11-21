@@ -63,6 +63,15 @@ function fineIssued() {
 
 // ---------- reading the post ----------
 const unreadLetters = () => (S.letters || []).filter(l => !l.read).length;
+const readLetters = () => (S.letters || []).filter(l => l.read).length;
+// Which letters you're looking through: new ones from the mailbox, or ones you've read from the rack on the desk (Steve).
+//   The list is fixed when you pick them up, so reading one doesn't move it out from under you
+function pickUpLetters(fromRack) {
+  S.letterList = (S.letters || []).map((l, i) => i).filter(i => !!S.letters[i].read === fromRack);
+  S.letterPage = 0;
+  sfx('click');
+  show('letters');
+}
 SCREENS.letters = {
   size: [480, 270],
   paint() {
@@ -71,7 +80,7 @@ SCREENS.letters = {
     hud();
   },
   overlay() {
-    const all = S.letters || [];
+    const all = (S.letterList || []).map(i => S.letters[i]).filter(Boolean);   // the ones you picked up
     const k = Math.max(0, Math.min(all.length - 1, S.letterPage || 0));
     const l = all[k];
     if (!l) return '';
@@ -80,7 +89,7 @@ SCREENS.letters = {
     const nav = `<div class="pgnav">${bookFlip('letterpage', -1, k > 0)}<span>Letter ${k + 1} of ${all.length}</span>${bookFlip('letterpage', 1, k < all.length - 1)}</div>`;
     return `<div class="ov letter"><div class="lfrom">${esc(from)}</div><h3>${esc(title)}</h3><p>${esc(body).replace(/\n/g, '<br>')}</p>${nav}</div>`;
   },
-  actions() { return [{ label: 'Put them down', act: 'go:home' }]; }
+  actions() { return []; }   // ◀ Back puts them down (read ones go in the rack on the desk)
 };
 
 // ---------- the clamp, on the drive ----------
@@ -280,7 +289,8 @@ function clampedReason(target) {
 }
 
 Object.assign(ACTIONS, {
-  letters() { S.letterPage = 0; sfx('click'); show('letters'); },
+  letters() { pickUpLetters(false); },                                   // the mailbox: the new post
+  rack() { pickUpLetters(true); },                                       // the letter rack on the desk: the ones you've read
   letterpage(d) { S.letterPage = (S.letterPage || 0) + +d; sfx('click'); },
   clampnote() {
     say('A note under the wiper', `PENALTY UNPAID. THIS VEHICLE HAS BEEN IMMOBILISED.\n\nPay £${fineOwed()} at the Post Office, window 3.`);

@@ -75,7 +75,7 @@ function sleepUntilMorning() {
   soberUp();                                                       // slept it off (story.js)
   S.day += 1;
   S.mins = 8 * 60;
-  S.anger = Math.max(0, S.anger - 20);
+  if (!fedUp()) S.anger = Math.max(0, S.anger - 20);                // a night's sleep calms you (not when only a pint will do: extras.js)
   postArrives();                                                   // the morning post (police.js)
   deliverParcels();
   runEvents();
@@ -303,15 +303,17 @@ function say(title, body, options) {
   SPEAKER_FOR = null;
   SPEAKER = null;
   DIALOG = { title, body, at, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
-  if (at) speakChatter(title, body);                                   // muffled chatter in their voice
+  const spoken = at || body.trim().startsWith('"');                    // someone talking: in person (a bubble) or on the phone (their words in quotes)
+  if (spoken) speakChatter(title, body);                               // muffled chatter in their voice
   render();
 }
-// Voices that aren't picked from the name: the wife's is higher than everyone else's
-const VOICES = { 'The wife': 300 };
-// How high someone's voice is (everyone else: somewhere from 95 to 215, fixed by their name)
+// Two voices: a man's (everyone, by default) and a woman's (Steve)
+const MALE_VOICE = 120, FEMALE_VOICE = 290;
+// Who talks in the woman's voice: by the name over what they say
+const FEMALE_SPEAKERS = ['The wife', 'Ringing the wife', 'Mum', 'Ringing Mum & Dad', 'Post Office', 'Parts 4 Less'];   // (the Post Office and Parts 4 Less: a woman behind the counter)
 function voicePitch(who) {
-  if (VOICES[who]) return VOICES[who];
-  return 95 + hash(who.length, who.charCodeAt(0)) * 120;
+  const female = FEMALE_SPEAKERS.includes(who);                       // one of the women?
+  return female ? FEMALE_VOICE : MALE_VOICE;                           // otherwise the man's voice
 }
 // The garbled speech sound for someone saying `body` (longer speeches chatter longer)
 function speakChatter(who, body) {
@@ -321,6 +323,7 @@ function speakChatter(who, body) {
 // Something you say: a speech bubble from your own head; tap anywhere to carry on, then `then` runs (their answer)
 function sayMe(line, then) {
   DIALOG = { title: 'You', body: line, at: meHead(), options: [{ label: 'OK', run: then || (() => {}) }] };
+  speakChatter('You', line);                                           // you talk in the man's voice too
   render();
 }
 // A dialog with nothing to choose (just OK) carries on with a tap anywhere: no OK button needed
@@ -412,24 +415,27 @@ function render() {
   if (scr.overlay) stage.insertAdjacentHTML('beforeend', scr.overlay());
   if (STILL) stage.insertAdjacentHTML('beforeend', stillHtml());   // a big still, flashed up over everything
   if (scr.after) scr.after();                                     // anything that needs the page laid out first (the notebook's pages)
-  const atPlace = ['place', 'room', 'garage', 'pc', 'dash', 'rage', 'phone', 'breath', 'roadside', 'notebook'].includes(S.screen);   // (the notebook: tap off it)   // (no Back from the roadside: it led into town, stuck)   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
-  if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');
+  const atPlace = ['place', 'room', 'garden', 'garage', 'dash', 'rage', 'phone', 'breath', 'roadside', 'notebook'].includes(S.screen);   // (the notebook: tap off it)   // (no Back from the roadside: it led into town, stuck)   // shops, house, garage, computer, car: you leave by a door (or Get up); no Back button
+  const ownBack = scr.backAct ? scr.backAct() : null;            // a screen's own way back, on the same ◀ Back button (the counter: back into the shop)
+  if (ownBack) stage.insertAdjacentHTML('beforeend', `<button class="back" data-act="${ownBack}">◀ Back</button>`);
+  else if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');   // one ◀ Back everywhere (Steve: no "Step back")
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
   actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');
   // a dialog, if one is open
   if (!DIALOG && !ANIM && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
   if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
-    const opts = justCarryOn(DIALOG)
-      ? '<span class="more">tap to carry on ▸</span>'                // nothing to choose: tap anywhere
-      : DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');
-    const body = `<b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p><div>${opts}</div>`;
+    const carryOn = justCarryOn(DIALOG);                             // nothing to choose: tap anywhere, no words saying so (Steve)
+    const buttons = DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');   // the choices, as buttons
+    const opts = carryOn ? '' : `<div>${buttons}</div>`;            // no button row when there's nothing to choose
+    const carry = carryOn ? ' carry' : '';                           // marks it as tap-anywhere (the pointer cursor)
+    const body = `<b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p>${opts}`;
     if (DIALOG.at) {                                                 // a speech bubble above the speaker, its arrow pointing at them
       const [x, y] = DIALOG.at, cx = x / W * 100, left = Math.max(22, Math.min(78, cx));
       const tail = 50 + (cx - left) / 40 * 100;
-      stage.insertAdjacentHTML('beforeend', `<div class="dlg bubble" style="left:${left}%;top:${y / H * 100}%;--tail:${tail}%">${body}</div>`);
+      stage.insertAdjacentHTML('beforeend', `<div class="dlg bubble${carry}" style="left:${left}%;top:${y / H * 100}%;--tail:${tail}%">${body}</div>`);
     } else {
-      stage.insertAdjacentHTML('beforeend', `<div class="dlg note">${body}</div>`);   // anything else: a box along the bottom
+      stage.insertAdjacentHTML('beforeend', `<div class="dlg note${carry}">${body}</div>`);   // anything else: a box along the bottom
     }
   }
   save();
@@ -580,6 +586,15 @@ stage.addEventListener('pointermove', e => {
   if (S.screen !== 'sweep' || DIALOG || ANIM) return;
   const [x, y] = picturePoint(e);
   sweepMove(x, y);
+});
+// The fuse box with the multimeter out: point at a fuse and the probes go on it (no tap needed: Steve)
+stage.addEventListener('pointermove', e => {
+  if (S.screen !== 'fuseZoom' || DIALOG || ANIM || !meterOut()) return;
+  const spotEl = e.target.closest('.hs[data-go^="act:testfuse:"]');  // the fuse under the pointer
+  if (!spotEl) return;
+  const n = +spotEl.dataset.go.split(':')[2];
+  if (n === S.meterFuse) return;                                      // already on it
+  act('testfuse:' + n);
 });
 // Under the tool chest: the pointer moves the stick
 stage.addEventListener('pointermove', e => {
