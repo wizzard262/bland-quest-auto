@@ -25,11 +25,11 @@ How one simple job turns into many. Every task opens more tasks. Some branches e
     - The phone rings (Mum, Gaz, a shop calling back, a scam)
     - A parcel arrives, or a neighbour wanders over
     - You remember something ("didn't Gaz have one of these?")
-    - **Sit in the car and think**: costs an hour, calms you down, gives a vague hunch ("an electrics place, maybe?")
+    - **Wait an hour (tap the watch)**: gives a vague hunch ("an electrics place, maybe?")
 - **Time, money and anger** pace it all
   - Time: each trip, call and wait uses game hours; shops open and shut; parcels take days
   - Money: parts, tools, fees; run low and some branches close
-  - Anger: every snag raises it; too high and you kick something, which breaks it (a new job); tea and thinking bring it down. The angrier you are, the vaguer your hunches
+  - Anger: every snag raises it; too high and you kick something, which breaks it (a new job); tea brings it down. The angrier you are, the vaguer your hunches
 - **A day in the game**
   - Morning: open the notebook, pick a lead
   - Go there (drive, call, look it up, get under the car)

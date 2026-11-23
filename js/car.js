@@ -468,7 +468,6 @@ SCREENS.dash = {
     if (!S.flags.readerIn && ownedPlugs().length) a.push({ label: 'Try a reader in the port', act: 'port' });   // got a reader: try its plug
     if (S.flags.readerIn) a.push({ label: 'Unplug the code reader', act: 'unplug' });   // out of the port, back on the shelf
     if (S.flags.codes) a.push({ label: 'Clear the codes', act: 'clear' });
-    a.push({ label: 'Sit and think (1 hour)', act: 'think' });
     return a;
   }
 };

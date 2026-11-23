@@ -375,14 +375,19 @@ test('shops shut: Sparky\'s is closed at lunchtime', async ({ page }) => {
   expect(await dialogText(page)).toContain('Back in 10 minutes');
 });
 
-test('sitting and thinking gives a hunch when a job has no leads', async ({ page }) => {
+test('waiting an hour (the watch) gives a hunch when a job has no leads; no Sit and think button in the car', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { closeLead('ask-mech', 'x', 'test'); render(); });
   await garage(page, "Driver's seat");
-  await act(page, 'Sit and think');
+  await expect(page.locator('.acts button', { hasText: 'Sit and think' })).toHaveCount(0);
+  await tap(page, 'act:wait');
+  expect(await dialogText(page)).toContain('a hunch');
   await ok(page);
   expect(await page.evaluate(() => leadOpen('dealer'))).toBe(true);
+  await tap(page, 'act:wait');                                          // not stuck now: just an hour
+  expect(await dialogText(page)).not.toContain('a hunch');
+  expect(errors).toEqual([]);
 });
 
 test('branch 1 can be played from the red light to the end', async ({ page }) => {

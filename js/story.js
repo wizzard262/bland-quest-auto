@@ -70,7 +70,7 @@ const EVENTS = [
 ];
 
 // =====================================================================
-// HUNCHES: what sitting and thinking gives you when a job has no leads
+// HUNCHES: what waiting an hour (the watch) gives you when a job has no leads
 // =====================================================================
 const HUNCHES = {
   codes() { lead('codes', 'dealer', 'The main dealer can read the codes', 'a hunch', 'vague', 'place:Main Dealer'); },
@@ -1295,7 +1295,7 @@ const ACTIONS = {
   // through the back door into the garden, and back in
   garden() { S.spot.garden = SPOT_HOME.garden.slice(); show('garden'); },
   backin() { S.spot.room = [38, 12]; show('room'); },
-  // the watch (bottom left, on every screen): wait an hour, wherever you are
+  // the watch (bottom left, on every screen): wait an hour, wherever you are; if you're stuck, a hunch comes to you
   wait() {
     anger(5);                                                           // waiting about: it winds you up
     pass(60);
@@ -1303,7 +1303,9 @@ const ACTIONS = {
       return say('The queue', `It's ${hhmm(S.mins)}. The queue hasn't moved. The man at the front is posting forty parcels to Peru, one at a time.\n\nTip: be standing outside before it opens at 9:00. Good luck with the traffic.`);
     }
     const where = S.screen === 'place' && !S.inside ? ' on the pavement' : '';
-    say('You wait', `An hour goes by${where}. It's ${hhmm(S.mins)}.`);
+    const stuck = giveHunch();                                         // stuck on a job with no leads: a hunch
+    const hunch = stuck ? '\n\nThen a hunch: it\'s in the notebook.' : '';
+    say('You wait', `An hour goes by${where}. It's ${hhmm(S.mins)}.${hunch}`);
   },
   // outside the post office at night: sleep in the car, and wake at 5:45 first in the queue
   carsleep() {
@@ -1589,7 +1591,6 @@ const ACTIONS = {
     moment('clear', 1500); sfx('beep');
     say('Clear the codes', 'The red light goes out. Then you start the car, and it comes back on.');
   },
-  think() { think(); },
   // ----- under the car: the gearbox -----
   bolt1() { pass(10); S.flags.b1 = true; moment('bolt1Out', 1200); sfx('ratchet'); sfx('clink', 0.9); note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.'); },
   // tap bolt 2: the first time, the spanner; once it's rounded off, try whatever you've got

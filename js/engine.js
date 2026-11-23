@@ -197,12 +197,10 @@ function runEvents() {
 }
 
 // =====================================================================
-// GETTING STUCK: sit and think for a hunch
+// GETTING STUCK: waiting an hour (the watch) gives you a hunch
 // =====================================================================
-// Find an open job with no open leads and no open jobs beneath it, and give its hunch
-function think() {
-  pass(60);
-  anger(-10);
+// Find an open job with no open leads and no open jobs beneath it, and give its hunch (once each). Returns true if there was one
+function giveHunch() {
   const open = S.jobs.filter(j => j.status === 'open');
   const stuck = open.filter(j => !j.leads.some(l => l.status === 'open') && !open.some(k => k.parent === j.id));
   stuck.sort((a, b) => b.at - a.at);
@@ -211,10 +209,9 @@ function think() {
     if (!h || S.hunches[j.id]) continue;
     S.hunches[j.id] = true;
     h();
-    return say('You sit and think', 'An hour goes by. Then a hunch: it\'s in the notebook.');
+    return true;
   }
-  if (!stuck.length) return say('You sit and think', 'An hour goes by. You calm down a bit.\n\nYou\'ve got things to try: look in the notebook.');
-  say('You sit and think', 'An hour goes by. You calm down a bit, but nothing comes to you.\n\nMaybe ring someone, or wait for something to turn up.');
+  return false;
 }
 
 // =====================================================================
