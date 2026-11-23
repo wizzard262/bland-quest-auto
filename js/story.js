@@ -1088,7 +1088,7 @@ const TALK = {
   'Tool Shop'() { shopCounter('Tool Shop', '"What are you after?"'); },
   'Pound Shop'() {
     if (askForBattery('Pound Shop')) return;                         // after a battery for the meter: no luck
-    say('Pound Shop', '"Everything\'s a pound. Except the things that aren\'t."');
+    say('Pound Shop', '"Yes, the Pound Shop. Everything is priced in pounds."');
   },
   'Hardware Shop'() {
     if (askForBattery('Hardware Shop')) return;                      // after a battery for the meter: no luck

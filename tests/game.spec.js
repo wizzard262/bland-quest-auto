@@ -2153,6 +2153,15 @@ test('the "universal" sensor off a parts shop shelf: bought, taken from the gara
   expect(errors).toEqual([]);
 });
 
+test('the Pound Shop man: everything is priced in pounds', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; });
+  await goPlace(page, 'Pound Shop'); await talk(page);
+  expect(await dialogText(page)).toContain('Yes, the Pound Shop. Everything is priced in pounds.');
+  expect(errors).toEqual([]);
+});
+
 test('Tameside Transmissions and Voltz Auto Electric are next door to each other, and each sends you next door to the other', async ({ page }) => {
   const errors = [];
   await start(page, errors);
