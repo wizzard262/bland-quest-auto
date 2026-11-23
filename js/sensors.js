@@ -32,10 +32,24 @@ const SENSORS = {
   'csd-sensor': { name: 'Car Spares Direct sensor', no: 'GM-55352-107-2F-TRS/0705-A', shape: 'short', fit: 'short', col: hex('#6a3a5a'),
     says: 'It drops in and keeps going. It\'s down there somewhere. Far too short: the screws can\'t reach it. You tip the box up to get it back.' },
   'box-sensor': { name: 'old sensor from the parts box', no: 'GM-55532-107-ZF-TRS/0705-A', shape: 'fat', fit: 'no', col: hex('#5a5048'),
-    says: 'Round, at least. Round and far too fat. It sits on the rim like a lid.' }
+    says: 'Round, at least. Round and far too fat. It sits on the rim like a lid.' },
+  'uni-sensor': { name: '"universal" sensor', no: 'UNV-00000-000-ZF-TRS/0705-A*', shape: 'universal', fit: 'no', col: hex('#4a5a3a'),
+    says: 'It comes with nine adaptor rings. Every ring fits inside the next one. None of them fits the hole.\n\nThe small print: "*Universal is the name of the company."' }
 };
 // The order they're offered on the bench
-const SENSOR_ORDER = ['old-sensor', 'part-p4l', 'part-mega', 'lot-square', 'lot-octagon', 'lot-thin', 'lot-long', 'lot-cut', 'yard-sensor', 'csd-sensor', 'box-sensor'];
+const SENSOR_ORDER = ['old-sensor', 'part-p4l', 'part-mega', 'lot-square', 'lot-octagon', 'lot-thin', 'lot-long', 'lot-cut', 'yard-sensor', 'csd-sensor', 'box-sensor', 'uni-sensor'];
+// Have you got this one? (The universal one is counted with the things off shop shelves: you can buy several)
+function hasSensor(id) {
+  if (id === 'uni-sensor') return boughtOne(UNIVERSAL);
+  return !!S.inv[id];
+}
+// It's no good: you haven't got it any more
+function loseSensor(id) {
+  if (id !== 'uni-sensor') { S.inv[id] = false; return; }
+  const owned = S.bought[UNIVERSAL];
+  owned.n -= 1;                                                       // one fewer on the garage shelf
+  if (owned.n <= 0) delete S.bought[UNIVERSAL];                       // that was the last one
+}
 // How each one fits now (the cut one fits properly once the old plug's soldered on)
 function sensorFit(id) {
   if (id === 'lot-cut' && S.flags.soldered) return 'right';
@@ -58,6 +72,7 @@ function sensorSize(shape) {
   if (shape === 'fat') return { w: 21, h: 38 };
   if (shape === 'long') return { w: 14, h: 56 };
   if (shape === 'short') return { w: 14, h: 22 };
+  if (shape === 'universal') return { w: 18, h: 38 };
   return { w: 14, h: 38 };
 }
 // The flat end of a sensor, seen from above at an angle: round, square (a diamond), octagonal or hexagonal
@@ -90,6 +105,10 @@ function drawSensor(id, rotated, bot, dx) {
   sensorFace(faceShape, x, topY, Math.max(3, w - 4), shade(col, 1.6));
   sensorFace(faceShape, x, topY, Math.max(2, w - 6), col);
   rect(x - 4, topY - 2, 3, 2, shade(col, 1.5));
+  if (s.shape === 'universal') {                                       // the universal one: its adaptor rings, one on top of another
+    const ringCols = [hex('#c8a040'), C.steel, hex('#a04a30')];
+    ringCols.forEach((ringCol, k) => rect(x - w - 2 + k, topY + 14 + k * 8, (w + 2 - k) * 2 + 1, 5, ringCol));
+  }
   // the two lug teeth: either side (lined up when it's been rotated), or, on the 1999 one, in the wrong place
   if (s.shape === 'lugs') {
     rect(x - 9, topY + 6, 6, 3, C.tool);
@@ -131,7 +150,7 @@ function tryWrongSensor(b) {
   if (fit === 'cut') return cutSensorTried();
   anger(10);
   ANIM.then = () => {                                                  // no good: out of your hand and into the parts box
-    S.inv[b.part] = false;
+    loseSensor(b.part);
     S.bench = null;
     junkIt(b.part);
   };
@@ -167,7 +186,7 @@ function sensorLabel(id) {
 }
 // The buttons on the bench: try each sensor you've got
 function benchSensorButtons() {
-  return SENSOR_ORDER.filter(id => S.inv[id]).map(id => ({ label: 'Try the ' + sensorName(id), act: 'pick:' + id }));
+  return SENSOR_ORDER.filter(hasSensor).map(id => ({ label: 'Try the ' + sensorName(id), act: 'pick:' + id }));
 }
 
 // =====================================================================
@@ -176,6 +195,7 @@ function benchSensorButtons() {
 //   the Scrap Yard: the 1999 Zafira still has its sensor (lugs wrong)
 //   Car Spares Direct: "we can order it in" (too short)
 //   the parts box: an old sensor, not yours (too fat)
+//   any parts shop's shelf: the "universal" sensor (nine adaptor rings, none of them right)
 // =====================================================================
 const JOB_LOT = ['lot-square', 'lot-octagon', 'lot-thin', 'lot-long', 'lot-cut'];
 // The job lot's parcel
@@ -222,6 +242,21 @@ function csdSensor() {
   lead('new-sensor', 'try-csd-sensor', 'Try the Car Spares Direct sensor on the bench', 'you', 'hopeful', 'bench');
   say(shop, '"Here you go. Says Zafira on the box." It says Zafira on the box.');
   return true;
+}
+// The "universal" sensor, paid for: if you're after one that fits, it's a lead
+function boughtUniversal() {
+  if (!findJob('new-sensor') || S.flags.fits) return;
+  lead('new-sensor', 'try-uni-sensor', 'Try the "universal" sensor on the bench', 'the box it came in', 'very sure', 'bench');
+}
+// The "universal" sensor on the garage shelves: off to the bench with it, if the box is there with its hole empty
+function shelfUniversal() {
+  const words = 'The box says "Fits all models*".';
+  const holeEmpty = boxOnBench() && S.flags.sensorOut && !S.flags.fits;
+  if (!holeEmpty) return say(UNIVERSAL, words + '\n\nOn your garage shelf.');
+  say(UNIVERSAL, words, [
+    { label: 'Take it to the workbench', run() { show('bench'); } },
+    { label: 'Leave it on the shelf', run() {} }
+  ]);
 }
 // The old sensor in the parts box (not yours): take it
 function takeBoxSensor(j) {

@@ -520,13 +520,14 @@ function rummageEnd() {
 // SHOP SHELVES: along the left wall in sections; look at one section close up,
 // put things in a basket (and back again), then pay at the till
 // =====================================================================
+const UNIVERSAL = '"Universal" sensor';                       // off a parts shop's shelf: try it on the bench (sensors.js)
 // What each kind of shop sells: [name, price, how it's drawn]
 const SHOP_STOCK = {
   tools: [['Spanner set', 14.99, 'spanners'], ['Screwdrivers', 7.99, 'drivers'], ['Pliers', 5.49, 'pliers'], ['Hacksaw', 8.99, 'saw'],
     ['Tape measure', 3.99, 'tape'], ['Drill', 39.99, 'box'], ['Socket set', 24.99, 'box'], ['Torch', 4.99, 'can'],
     ['WD-40', 3.49, 'can'], ['Gaffer tape', 2.99, 'tape'], ['Cable ties', 1.99, 'box'], ['Work gloves', 3.49, 'box']],
   parts: [['Brake pads', 24.99, 'box'], ['Oil filter', 6.99, 'can'], ['Wiper blades', 12.99, 'box'], ['Bulbs', 4.99, 'box'],
-    ['Spark plugs', 9.99, 'box'], ['Headlight (Zafira, right)', 64.99, 'box'], ['Fuses', 2.99, 'box'], ['"Universal" sensor', 19.99, 'box'],
+    ['Spark plugs', 9.99, 'box'], ['Headlight (Zafira, right)', 64.99, 'box'], ['Fuses', 2.99, 'box'], [UNIVERSAL, 19.99, 'box'],
     ['Engine oil', 29.99, 'can'], ['Screen wash', 2.49, 'can'], ['Jump leads', 14.99, 'box'], ['Headlight (Zafira, left)', 64.99, 'box']],
   aisles: [['Air freshener', 1.49, 'can'], ['Fluffy dice', 3.99, 'box'], ['Screen wash', 2.49, 'can'], ['Torch', 4.99, 'can'],
     ['Batteries', 3.99, 'box'], ['Gaffer tape', 2.99, 'tape'], ['Crisps', 1.25, 'box'], ['Energy drink', 1.79, 'can'],
@@ -1078,6 +1079,7 @@ Object.assign(ACTIONS, {
     S.basket = S.basket.filter(b => b.place !== S.place);
     const names = items.map(b => b.name).join(', ');
     const hammer = items.some(b => b.name === 'Claw hammer') ? boughtHammer() : '';
+    if (items.some(b => b.name === UNIVERSAL)) boughtUniversal();     // the universal sensor: a lead to try it (sensors.js)
     say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}`);
   },
   // the garage shelves: what each thing is
@@ -1088,6 +1090,7 @@ Object.assign(ACTIONS, {
     if (name === 'Torch') return useBoughtTorch();                   // a torch off a shop shelf
     if (name === 'Batteries') return useBoughtBatteries();           // AAs off a shop shelf
     if (name.startsWith('Headlight (Zafira')) return shelfHeadlight(name);   // a spare headlight: fit it, if one's smashed
+    if (name === UNIVERSAL) return shelfUniversal();                 // the universal sensor: try it on the bench (sensors.js)
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     if (name === SCREW_JAR) return shelfJar();                      // the screw jar (screws.js)
     if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch

@@ -393,9 +393,9 @@ function kerbMailbox(full) {
 // =====================================================================
 const PLACES = [
   // [name, category]  (one per lot, 7 across x 6 down)
-  ['Halfords Car Parts', 'parts'], ['Quickfix Motors', 'mech'], ['Bank', 'other'], ['Tameside Transmissions', 'trans'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
+  ['Halfords Car Parts', 'parts'], ['Quickfix Motors', 'mech'], ['Bank', 'other'], ['PC Shop', 'other'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
   ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ['E & D Motors', 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
-  ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['PC Shop', 'other'], ['Voltz Auto Electric', 'elec'], ['BustBlockers', 'other'],
+  ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['Tameside Transmissions', 'trans'], ['Voltz Auto Electric', 'elec'], ['BustBlockers', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Scrap Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Paul's", 'people'], ['Clutch & Co', 'trans'], ['Police Station', 'other'], ['Café', 'other'],
   ['Home', 'home'], ["Neighbour Ken's", 'people'], ['Wired Up Auto Electric', 'elec'], ['Trusty Autos', 'mech'], ['Pattern Parts', 'parts'], ['Hardware Shop', 'tools'], ['Pound Shop', 'other']

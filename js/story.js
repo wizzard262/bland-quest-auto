@@ -1059,13 +1059,13 @@ const TALK = {
   },
   'Tameside Transmissions'() {
     closeLead('gurus', 'x', 'Tameside Transmissions: "that\'s electrics"');
-    if (S.flags.codes) lead('meaning', 'voltz', 'Ask an auto electrician', 'Tameside Transmissions', 'very sure', 'place:Voltz Auto Electric');
-    say('Tameside Transmissions', '"P0705? That\'s electrics, mate. Nothing to do with the gearbox. Try Voltz."');
+    if (S.flags.codes) lead('meaning', 'voltz', 'Next door: Voltz Auto Electric', 'Tameside Transmissions', 'very sure', 'place:Voltz Auto Electric');
+    say('Tameside Transmissions', '"P0705? That\'s electrics, mate. Nothing to do with the gearbox. Go next door to Voltz Auto Electric."');
   },
   'Voltz Auto Electric'() {
     anger(10);
     closeLead('voltz', 'x', 'Voltz: "that\'s the gearbox" (round and round)');
-    say('Voltz Auto Electric', '"P0705? That\'s the gearbox, mate. You want the gearbox people."');
+    say('Voltz Auto Electric', '"P0705? That\'s the gearbox, mate. Go next door to Tameside Transmissions."');
   },
   "Mum & Dad's"() {                                                   // Mum on the doorstep
     if (askMumForMoney('Mum')) return;                                  // skint: she slips you some

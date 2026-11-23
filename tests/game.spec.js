@@ -2118,6 +2118,58 @@ test('wrong sensors on the bench: each touches the hole and fails its own way, w
   expect(errors).toEqual([]);
 });
 
+test('the "universal" sensor off a parts shop shelf: bought, taken from the garage shelf to the bench, tried, no good; one of two is left', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await benchReady(page);
+  await expect(page.locator('.acts button[data-act="pick:uni-sensor"]')).toHaveCount(0);   // not till you've bought one
+  await page.evaluate(() => { S.mins = 10 * 60; S.money = 200; S.bought = { [UNIVERSAL]: { kind: 'box', n: 1 } }; });   // one from before, too
+  await goPlace(page, 'Halfords Car Parts');
+  await tap(page, 'act:enter');
+  await tap(page, 'act:shelfzoom:0');
+  await tap(page, 'act:shelfitem:0:7');                                // the universal sensor
+  await goBack(page);
+  await tap(page, 'act:checkout');
+  expect(await dialogText(page)).toContain('"Universal" sensor');
+  await ok(page);
+  expect(await page.evaluate(() => [S.bought[UNIVERSAL].n, leadOpen('try-uni-sensor')])).toEqual([2, true]);
+  // the garage shelf: to the bench
+  await page.evaluate(() => { S.screen = 'stores'; render(); });
+  const k = await page.evaluate(() => storeList().findIndex(r => r[0] === UNIVERSAL));
+  await tap(page, 'act:storelook:' + k);
+  await choose(page, 'Take it to the workbench');
+  expect(await page.evaluate(() => S.screen)).toBe('bench');
+  // tried: nine rings, none of them right
+  await page.locator('.acts button[data-act="pick:uni-sensor"]').click();
+  const no = await page.evaluate(() => SENSORS['uni-sensor'].no);
+  await expect(page.locator('.partno')).toContainText(no);
+  expect(await dialogText(page)).toContain('name of the company');
+  await ok(page);
+  expect(await page.evaluate(() => [S.bought[UNIVERSAL].n, S.junked.includes('uni-sensor'), leadOpen('try-uni-sensor'), !!S.flags.fits])).toEqual([1, true, false, false]);
+  // the other one: the same, and then there are none
+  await page.locator('.acts button[data-act="pick:uni-sensor"]').click(); await ok(page);
+  expect(await page.evaluate(() => boughtOne(UNIVERSAL))).toBe(false);
+  await expect(page.locator('.acts button[data-act="pick:uni-sensor"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('Tameside Transmissions and Voltz Auto Electric are next door to each other, and each sends you next door to the other', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => placeIndex('Voltz Auto Electric') - placeIndex('Tameside Transmissions'))).toBe(1);
+  expect(await page.evaluate(() => placeIndex('Voltz Auto Electric') % 7)).toBeGreaterThan(0);   // on the same row of the map
+  expect(await page.evaluate(() => [PLACES.length, new Set(PLACES.map(p => p[0])).size])).toEqual([42, 42]);   // nobody lost or doubled
+  await page.evaluate(() => { S.mins = 10 * 60; readCodes('test'); });
+  await ok(page);
+  await goPlace(page, 'Tameside Transmissions'); await talk(page);
+  expect(await dialogText(page)).toContain('next door to Voltz Auto Electric');
+  await ok(page);
+  expect(await page.evaluate(() => leadOpen('voltz'))).toBe(true);
+  await goPlace(page, 'Voltz Auto Electric'); await talk(page);
+  expect(await dialogText(page)).toContain('next door to Tameside Transmissions');
+  expect(errors).toEqual([]);
+});
+
 test('where the wrong sensors come from: the eBuy job lot, the 1999 Zafira at the Scrap Yard, Car Spares Direct (in two days), the parts box', async ({ page }) => {
   const errors = [];
   await start(page, errors);

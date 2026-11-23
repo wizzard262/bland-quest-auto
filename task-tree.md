@@ -130,8 +130,8 @@ The game picks from these at random, so the same task goes differently each time
                   - Recovery codes are in an email, which needs the sign-in ↺ back to the sign-in code
       - The update installs, then needs a restart, then another update ⏳ ↺
     - **The codes say "automatic transmission error"**
-      - **Gearbox people**. 📍 City › Gearbox Gurus: "That's electrics, go to an auto electrician"
-        - 📍 City › Voltz Auto Electric: "That's the gearbox, go to the gearbox people" ↺ 😡
+      - **Gearbox people**. 📍 City › Tameside Transmissions: "That's electrics, go next door to Voltz Auto Electric"
+        - 📍 City › Voltz Auto Electric: "That's the gearbox, go next door to Tameside Transmissions" ↺ 😡
         - 📍 City › Auto-Box Clinic: "We only do Japanese" ✖
       - **Look it up yourself** → **Research**
 
@@ -192,6 +192,7 @@ The game picks from these at random, so the same task goes differently each time
 - **Parts shop**. 📍 City › Motor Factors: "ready in 2 hours… at the other branch"
   - Drive there. 📍 City › Parts 4 Less ⏳: they shut at 4:30, you arrive at 4:31 ✖ ⏳ tomorrow
   - 📍 City › Car Spares Direct: "We can order it in" ⏳ 10 days → **wrong size** ✖
+  - The "universal" sensor (built). 📍 City › any parts shop's shelf 💷: nine adaptor rings, none fits ✖ 😡
   - 📍 City › Pattern Parts: "Ours is better than the real one": it's a different shape ✖
 - **Online**. 📍 Computer › MegaMart
   - "Fits all models*" (*not all models)
