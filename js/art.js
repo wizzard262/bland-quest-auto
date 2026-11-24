@@ -348,6 +348,7 @@ const CAR_SHAPES = {
 // opts.shape: one of CAR_SHAPES (ours if not given); opts.alongX: turned to drive along x (parking at the kerb, traffic)
 // opts.broken: a wreck (rust, dark empty windows, a smashed headlight); opts.noWheels: down on its axles;
 // opts.noBonnet: the bonnet's gone (you see the engine bay); opts.flat: flat tyres; opts.flatFront: just the front one flat; opts.dz: lifts it (to stack wrecks)
+// opts.lights: its headlights are on at night; opts.off: parked up at home, so they're not
 // opts.reverse: facing the other way, so you see its back (traffic coming the other way)
 function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const K = CAR_SHAPES[opts.shape] || CAR_SHAPES.zafira;
@@ -366,7 +367,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
   const ours = !broken && !opts.shape && col === C.car;                                  // your car (the only blue one)
-  const hasLights = ours || (!broken && col === WIFE_CAR);                                // has its lights on at night: yours, and the wife's…
+  const hasLights = ours || !!opts.lights || (!broken && col === WIFE_CAR);               // has its lights on at night: yours, the wife's, a taxi…
   const lit = hasLights && opts.off ? 'off' : hasLights;                                  // …but not parked up at home (opts.off)
   const kicked = opts.lampState || (ours ? kickedLamps() : { left: false, right: false });   // which of its headlights you've kicked in (the kick scene says for itself)
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
@@ -463,7 +464,7 @@ function kickedLamps() {
   return { left: known && brokeOpen('headlight'), right: known && brokeOpen('headlight2') };
 }
 // One headlight: whole (yellow), or cracked (dim, with a white crack across it); seed: so each flickers on its own
-//   ours: it's your car's or the wife's (only those two have their lights on at night)
+//   ours: its lights come on at night (yours, the wife's, a taxi's)
 function headlamp(pts, cracked, seed, crack, ours) {
   if (!pts.length) return;                                            // facing away: no front to see
   if (ours) OUR_LAMPS.push({ pts, seed, cracked, crack, off: ours === 'off' });            // lit each frame when the lights are on

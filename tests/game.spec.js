@@ -623,6 +623,36 @@ test('the bolts and the nut under the car are all 10s: no 10 mm socket, no 10 mm
   expect(errors).toEqual([]);
 });
 
+test('a socket set off Zamanon: arrives tomorrow, and there is no 10 in it; the bolts still need the one from a tool shop', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'MegaMart'; render(); });
+  await expect(page.locator('[data-act="buy:sockets-zam"]')).toHaveCount(0);    // not till you need one
+  await page.evaluate(() => { job('sensor-off', 'Get the old sensor off', 'light'); needTen('Bolt 1'); });
+  await ok(page);
+  expect(await page.evaluate(() => leadOpen('ten-online'))).toBe(true);
+  await page.evaluate(() => { S.screen = 'pc'; S.app = 'MegaMart'; render(); });
+  await page.locator('[data-act="buy:sockets-zam"]').click();
+  expect(await dialogText(page)).toContain('arrives tomorrow');
+  await ok(page);
+  expect(await page.evaluate(() => [leadOpen('ten-online'), S.parcels.some(p => p.item === 'sockets-zam')])).toEqual([false, true]);
+  await page.evaluate(() => { S.parcels = []; S.anger = 10; S.screen = 'home'; render(); openParcel('sockets-zam'); });
+  expect(await dialogText(page)).toContain('10-shaped gap');
+  await ok(page);
+  expect(await page.evaluate(() => [S.anger, haveTen(), findJob('ten').status, leadOpen('ten-shop'), storeList().some(r => r[0] === ZAM_SOCKETS)])).toEqual([20, false, 'open', true, true]);
+  expect(errors).toEqual([]);
+});
+
+test('the taxi and the bus have their lights on at night, and none by day', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const lit = (mins, draw) => page.evaluate(([m, d]) => { S.mins = m; S.screen = 'home'; render(); [ISO.ox, ISO.oy] = VIEW.home; const n = OUR_LAMPS.length; new Function(d)(); const on = OUR_LAMPS.slice(n).filter(l => !l.off).length; const shining = lightsOn(); OUR_LAMPS.length = n; return shining ? on : 0; }, [mins, draw]);
+  expect(await lit(22 * 60, 'drawTaxi(60, 151)')).toBe(2);
+  expect(await lit(22 * 60, 'isoBus(-58, 151)')).toBe(2);
+  expect(await lit(12 * 60, 'drawTaxi(60, 151)')).toBe(0);
+  expect(errors).toEqual([]);
+});
+
 test('a big moment plays before its message: the nut drops and rolls away', async ({ page }) => {
   const errors = [];
   await start(page, errors);

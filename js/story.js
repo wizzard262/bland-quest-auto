@@ -214,6 +214,7 @@ const PLACE_INFO = {
   'Clutch & Co': { closedDays: ['TUE', 'WED'] }
 };
 // Things you can buy: price, what it is, and where it goes
+const ZAM_SOCKETS = 'Socket set, "108 pieces*"';                         // off Zamanon: there's no 10 in it
 const ITEMS = {
   'mot-sheet': { name: 'MOT failure sheet', price: 0, none: true },
   'extractor-cheap': { name: 'Bolt extractor (cheap)', price: 8.99 },
@@ -226,7 +227,8 @@ const ITEMS = {
   'part-p4l': { name: 'Gearbox selector sensor', price: 31.5 },
   'headlight-bay': { name: 'Zafira headlight (used)', price: 18 },
   'headlight-zam': { name: 'Headlight unit, "fits Zafira*"', price: 39.99 },
-  'battery-23a': { name: '23A 12V battery (pack of 5)', price: 3.49 }
+  'battery-23a': { name: '23A 12V battery (pack of 5)', price: 3.49 },
+  'sockets-zam': { name: ZAM_SOCKETS, price: 17.99 }
 };
 
 // Spare headlights you own (on the garage shelf): how many left ones and right ones
@@ -830,6 +832,7 @@ function needTen(title) {
     job('ten', 'Get a 10 mm: a full socket set', 'sensor-off');
     lead('ten', 'ten-drawer', 'Look for the 10 mm socket (toolbox, drawer 1)', 'you', 'hopeful', 'toolbox');
     lead('ten', 'ten-spanner', 'Look for a 10 mm spanner (toolbox, drawer 2)', 'you', 'hopeful', 'toolbox');
+    lead('ten', 'ten-online', 'Order a socket set on Zamanon', 'you', 'hopeful', 'app:MegaMart');
     lead('ten', 'ten-shop', 'Buy a full socket set', 'you', 'sure', 'place:Tool Shop');
   }
   say(title, 'It\'s a 10. They\'re all 10s.\n\nYou\'ve got every socket but the 10, and every spanner but the 10. You need a full socket set.');
@@ -2046,6 +2049,7 @@ const ACTIONS = {
     if (id === 'reader-good') closeLead('ebuy-reader', 'ok', 'Ordered a used code reader on Thee Bay (2 days)');
     if (id === 'part-mega') { closeLead('mega-sensor', 'ok', 'Ordered the Zamanon sensor (due tomorrow)'); }
     if (id === 'sensor-lot') closeLead('ebuy-lot', 'ok', 'Ordered a job lot of 300 sensors on Thee Bay (2 days)');
+    if (id === 'sockets-zam') closeLead('ten-online', 'ok', 'Ordered a socket set from Zamanon (due tomorrow)');
     if (id === 'battery-23a') {
       closeLead('bat-online', 'ok', 'Ordered 23A batteries on Zamanon (due tomorrow)');
       for (const shop of ['bat-pound', 'bat-hardware']) if (leadOpen(shop)) closeLead(shop, 'skip');   // ordered: no need to try the shops now (Steve)
@@ -2234,6 +2238,13 @@ function openParcel(item) {
     S.inv['reader-good'] = true;
     lead('codes', 'plug-in', 'Plug the reader in (key to II)', 'you', 'sure', 'dash');
     return say('A parcel', 'A used code reader. The plug looks right!\n\nThe port is under the dash.');
+  }
+  if (item === 'sockets-zam') {                                        // the Zamanon socket set: no 10 in it
+    S.inv['sockets-zam'] = true;                                       // onto the garage shelf all the same
+    anger(10);
+    const ten = findJob('ten');
+    if (ten && ten.status === 'open') note('ten', 'The Zamanon socket set: every size but the 10', 'x');
+    return say('A parcel', 'A socket set! 108 pieces*. You count them. 107.\n\n8, 9, 11, 12, 13… There\'s a 10-shaped gap.\n\nThe small print: "*contents may vary."');
   }
   if (item === 'sensor-lot') return openJobLot();                     // 300 sensors (sensors.js)
   if (item === 'part-mega') {

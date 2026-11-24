@@ -233,7 +233,7 @@ MOMENTS.taxipub = function (p) {
     const m = P(lerp(sx, 128, q), lerp(sy, TAXI_LANE - 4, q));
     man(m[0], m[1], q > 0 && q < 1 ? 'walk' : 'stand', 2, p * 60);
   }
-  isoCar(tx, TAXI_LANE, 1, hex('#f8d038'), { alongX: true, shape: 'saloon' });   // the taxi
+  drawTaxi(tx, TAXI_LANE);                                             // the taxi (rides.js)
   if (p > 0.8) fadeToBlack((p - 0.8) / 0.2);                            // and it all goes dark
 };
 MOMENTS.fadein = function (p) { fadeToBlack(1 - p); };                 // home: out of the dark

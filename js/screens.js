@@ -816,6 +816,7 @@ function appHTML(app) {
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
     ${true ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
+    ${findJob('ten') ? product('sockets-zam', '<span class="stars">★★★★☆</span> · *contents may vary · arrives tomorrow') : ''}
     ${S.flags.meterFlat || findJob('meter-battery') ? product('battery-23a', '<span class="stars">★★★★☆</span> · "for garage door remotes, car alarms, multimeters" · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i> <i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>

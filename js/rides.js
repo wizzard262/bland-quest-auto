@@ -14,6 +14,10 @@ const RIDES = {
 const DRIVE_END = [96, 96];                                            // where he ends up: on the drive
 let RIDE = null;                                                       // the one happening now: { kind, home: is it bringing him home? }
 
+// The taxi: a yellow saloon, its lights on at night
+function drawTaxi(x, y, s = 1) {
+  isoCar(x, y, s, TAXI_COLOUR, { alongX: true, shape: 'saloon', lights: true });
+}
 // A single-decker bus, pointing along x
 function isoBus(x, y) {
   const len = 96, wide = 20, red = hex('#c83030');
@@ -24,11 +28,14 @@ function isoBus(x, y) {
   onRight(x + len, y + 2, y + wide - 2, 16, 30, C.glass);               // the windscreen
   onRight(x + len, y + 4, y + wide - 4, 31, 36, C.ink);                 // where it's going: town
   onRight(x + len, y + 6, y + wide - 6, 32, 35, C.warm);
-  onRight(x + len, y + 1, y + 4, 8, 11, C.white); onRight(x + len, y + wide - 4, y + wide - 1, 8, 11, C.white);   // its headlights
+  for (const ly of [y + 1, y + wide - 4]) {                             // its headlights, on at night
+    onRight(x + len, ly, ly + 3, 8, 11, C.white);
+    OUR_LAMPS.push({ pts: [P(x + len, ly, 8), P(x + len, ly + 3, 8), P(x + len, ly + 3, 11), P(x + len, ly, 11)], seed: 1, cracked: false });
+  }
 }
 function rideVehicle(kind, x) {
   if (kind === 'bus') return isoBus(x, RIDE_LANE);
-  isoCar(x, RIDE_LANE, 1, TAXI_COLOUR, { alongX: true, shape: 'saloon' });
+  drawTaxi(x, RIDE_LANE);
 }
 // The way between where he is and its door: out through the gap in the hedge, along the pavement
 function rideWalk(spotAt, kind) {

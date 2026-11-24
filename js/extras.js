@@ -1103,6 +1103,7 @@ Object.assign(ACTIONS, {
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     if (name === SCREW_JAR) return shelfJar();                      // the screw jar (screws.js)
     if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch
+    if (name === ZAM_SOCKETS) return say(name, '107 pieces. Every size but the 10.');   // off Zamanon
     if (name === SOCKET_SET) return say(name, 'Every size, even the 10. For now.');   // for the bolts under the car
     if (name === METER_NAME) return testMeter();                     // the multimeter: it works now
     if (name === GAUGE_NAME) return say(name, 'A dial on a stick. It lives on the shelf now.');   // the tyre pressure gauge
