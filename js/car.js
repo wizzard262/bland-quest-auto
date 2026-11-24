@@ -718,5 +718,6 @@ SCREENS.ecu = {
     tip('Behind the panel', "The ECU: the car's computer. Tap a thing to look at it.", 1, 8);
     hud();
   },
-  actions() { return [{ label: 'Put the panel back', act: 'ecushut' }]; }
+  backAct() { return 'ecushut'; },                                  // ◀ Back: the panel goes back on (no button for it: Steve)
+  actions() { return []; }
 };

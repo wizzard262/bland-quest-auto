@@ -58,7 +58,7 @@ function rageCutscene(side) {
     flashStill('kick', () => {                                            // the still of the kick flashes up (flipped for the right headlight)… then he swears
       const head = [RAGE_MAN.standX + 5, RAGE_CAR[1] - 95];               // his head, where he stands after the kick
       const at = RAGE.mirror ? [W - head[0], head[1]] : head;             // his head (on the other side when the scene's mirrored)
-      DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at, options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
+      DIALOG = { title: 'You', body: '"$%$£$%^%^!"', at, spoken: true, options: [{ label: 'OK', run() { S.screen = RAGE.from; } }] };
     }, RAGE.mirror);
   };
   render();
@@ -658,6 +658,12 @@ function drawProduct(name, kind, x, y, s, n = 0) {
     R(14, 4, 4, 2, C.steel);                                               // the catch
     return;
   }
+  if (nm === METER_NAME.toLowerCase()) {                                   // the multimeter: yellow, its screen, its dial, the two leads
+    B(8, 4, 16, 26, 2, C.warm); R(10, 7, 12, 6, hex('#0a2a20')); R(16, 9, 4, 2, C.mint);
+    O(16, 20, 4.5, C.ink); R(15.5, 16, 1, 4, C.white);
+    L(11, 29, 4, 24, 1, C.red); L(21, 29, 28, 24, 1, DARK);
+    return;
+  }
   if (has('torch')) {                                                      // a torch: black body, a yellow head, its glass
     L(5, 18, 21, 18, 6, DARK); B(20, 12, 9, 12, 2, hex('#d0a020')); R(28, 14, 1.5, 8, hex('#e8f0f0'));
     R(11, 15, 3, 2, C.red);                                                // the switch
@@ -885,8 +891,9 @@ function storeList() {
     list.push([it.name, ITEM_KIND[id] || 'box', 1]);
   }
   if (S.inv.hammer && !(S.bought && S.bought['Claw hammer'])) list.push(['Claw hammer', 'hammer', 1]);   // bought before there was a basket
-  list.push([SCREW_JAR, 'jar', 1]);                                                 // the screw jar: always there (screws.js)
+  if (!screwsOnFloor()) list.push([SCREW_JAR, 'jar', 1]);                           // the screw jar (not while its screws are all over the floor: screws.js)
   if (S.flags.gloveTorch) list.push([GLOVE_TORCH, 'torch', 1]);                     // out of the glove box (car.js)
+  if (S.flags.meterOK && !S.flags.meterOut) list.push([METER_NAME, 'box', 1]);      // the multimeter, with its new battery in (not while it's out on the fuse box)
   if (S.flags.gloveGauge) list.push([GAUGE_NAME, 'gauge', 1]);                      // the tyre pressure gauge, out of the glove box
   const lamps = spareLamps();                                                       // spare headlights, waiting for a side to break
   if (lamps.left) list.push(['Headlight (Zafira, left)', 'box', lamps.left]);
@@ -1002,9 +1009,10 @@ function torchWorks(how) {
 // The torch off a shop shelf: batteries not included
 function useBoughtTorch() {
   if (S.flags.torchLit) return say('Torch', 'It works. Point it under anything: the shelves, the tool chest, the workbench, the parts boxes.');
+  if (!boughtOne('Batteries')) frustrated();
   if (!boughtOne('Batteries')) return say('Torch', 'A new torch. You click it: nothing. On the back of the box: "Batteries not included."');
   torchWorks('A new torch, with AAs from the shop: it works');
-  say('Torch', 'Two of the AAs from the shop go in the new torch. Click. Light!\n\nNow you can see under things without your phone.');
+  say('Torch', 'Two of the AAs from the shop go in the new torch. Click. Light!\n\nNow you can see under things.');
 }
 // AA batteries off a shop shelf: into a torch, if you've got one
 function useBoughtBatteries() {
@@ -1012,7 +1020,7 @@ function useBoughtBatteries() {
   const torch = boughtOne('Torch') ? 'the new torch' : S.inv.torch ? 'the old torch from the toolbox' : null;   // a torch to put them in
   if (!torch) return say('Batteries', 'AA batteries. Nothing you own takes AAs. Yet.');
   torchWorks(`AA batteries from the shop in ${torch}: it works`);
-  say('Batteries', `Two AAs in ${torch}. Click. Light!\n\nNow you can see under things without your phone.`);
+  say('Batteries', `Two AAs in ${torch}. Click. Light!\n\nNow you can see under things.`);
 }
 
 // Open the notebook at its last page: the fuse diagram you copied off TechDocs
@@ -1067,7 +1075,7 @@ Object.assign(ACTIONS, {
     const items = basketHere();
     if (!items.length) return say('The till', '"Can I help you?"\n\nYour basket\'s empty. The shelves are along the left wall.');
     const total = basketTotal();
-    if (!spend(total)) return say('The till', '£' + total.toFixed(2) + '. ' + DECLINED);
+    if (!spend(total)) { anger(10); return say('The till', '£' + total.toFixed(2) + '. ' + declinedWords()); }
     pass(5);
     sfx('kerching');                                                    // the till
     S.bought = S.bought || {};
@@ -1079,8 +1087,9 @@ Object.assign(ACTIONS, {
     S.basket = S.basket.filter(b => b.place !== S.place);
     const names = items.map(b => b.name).join(', ');
     const hammer = items.some(b => b.name === 'Claw hammer') ? boughtHammer() : '';
+    const sockets = items.some(b => b.name === SOCKET_SET) ? boughtSockets() : '';   // the 10 mm, at last (story.js)
     if (items.some(b => b.name === UNIVERSAL)) boughtUniversal();     // the universal sensor: a lead to try it (sensors.js)
-    say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}`);
+    say('The till', `"That's £${total.toFixed(2)}." Beep.\n\nYou bought: ${names}. It'll be on the shelves in your garage.${hammer}${sockets}`);
   },
   // the garage shelves: what each thing is
   storelook(k) {
@@ -1094,6 +1103,8 @@ Object.assign(ACTIONS, {
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     if (name === SCREW_JAR) return shelfJar();                      // the screw jar (screws.js)
     if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch
+    if (name === SOCKET_SET) return say(name, 'Every size, even the 10. For now.');   // for the bolts under the car
+    if (name === METER_NAME) return testMeter();                     // the multimeter: it works now
     if (name === GAUGE_NAME) return say(name, 'A dial on a stick. It lives on the shelf now.');   // the tyre pressure gauge
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },

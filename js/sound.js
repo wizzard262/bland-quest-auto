@@ -9,7 +9,7 @@ try { MUTED = localStorage.getItem('thankless-task-muted') === '1'; } catch (e) 
 
 // Start the sound system (once), on the first tap
 function audioStart() {
-  if (AC) { if (AC.state === 'suspended') AC.resume().catch(() => {}); return true; }
+  if (AC) { if (AC.state !== 'running') AC.resume().catch(() => {}); return true; }   // paused, or cut off by the phone: wake it up
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
     MASTER = AC.createGain();
@@ -21,8 +21,14 @@ function audioStart() {
     NOISE = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
     const d = NOISE.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    if (AC.state !== 'running') AC.resume().catch(() => {});          // some browsers start it paused
     return true;
   } catch (e) { AC = null; return false; }
+}
+// Run `play` as soon as the sound is really going: now, or the moment it has woken up (so the first words aren't lost)
+function whenAwake(play) {
+  if (AC.state === 'running') return play();
+  AC.resume().then(play).catch(() => {});
 }
 function setMuted(m) {
   MUTED = m;
@@ -131,7 +137,7 @@ function blowSound(on) {
     src.buffer = NOISE; src.loop = true;                               // breath: rushing noise…
     f.type = 'bandpass'; f.frequency.value = 650; f.Q.value = 0.7;     // …round a breathy pitch
     gain.gain.setValueAtTime(0.0001, AC.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.22, AC.currentTime + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.1, AC.currentTime + 0.12);   // (soft, under the beeps)
     lfo.frequency.value = 5; wob.gain.value = 0.05;                    // a little flutter, like lips on the tube
     lfo.connect(wob); wob.connect(gain.gain);
     src.connect(f); f.connect(gain); gain.connect(MASTER);
@@ -142,13 +148,21 @@ function blowSound(on) {
 // Light k (0 to 9) coming on: a short beep, higher for each one
 function breathBeep(k) {
   if (MUTED || !audioStart()) return;
-  try { tone(AC.currentTime + 0.01, 320 * Math.pow(1.13, k), 0.07, 0.12, 'square'); } catch (e) { /* ignore */ }
+  const pitch = 260 * Math.pow(1.2, k);                                // from a low boop to a high beep
+  const loud = 0.16 + k * 0.016;                                       // and a bit louder each time
+  try { tone(AC.currentTime + 0.01, pitch, 0.13, loud, 'square'); } catch (e) { /* ignore */ }
 }
 
 // ---------- muffled chatter when someone talks: syllables of "mwah-mwuh-mwa", no real words ----------
 // n = how many syllables (longer speeches chatter longer), pitch = the voice (low for some, higher for others)
 function chatter(n, pitch = 140) {
   if (MUTED || !audioStart()) return;
+  whenAwake(() => mumble(n, pitch));
+}
+// The syllables themselves, one after another
+function mumble(n, pitch) {
+  const lowVoice = pitch < 200;                                          // a man's voice: quieter through the muffling…
+  const loudness = lowVoice ? 0.55 : 0.35;                               // …so it's played louder, level with a woman's
   try {
     const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;   // muffled, as if through a wall
     lp.connect(MASTER);
@@ -159,7 +173,7 @@ function chatter(n, pitch = 140) {
       o.type = 'sawtooth';
       o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (0.9 + Math.random() * 0.2), t + len);
       bp.type = 'bandpass'; bp.Q.value = 3; bp.frequency.setValueAtTime(500 + Math.random() * 700, t);   // a different vowel each time
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(loudness, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
       o.connect(bp); bp.connect(g); g.connect(lp);
       o.start(t); o.stop(t + len + 0.02);
       t += len + (Math.random() < 0.2 ? 0.12 : 0.025);                                 // little gaps between words

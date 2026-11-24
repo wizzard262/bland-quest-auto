@@ -92,6 +92,9 @@
   /* a speech bubble: white, above the speaker, with an arrow pointing down at them */
   .dlg.bubble { width: 40%; transform: translate(-50%, calc(-100% - 22px)); background: #fbfbf6; color: #101018; border-color: #101018; border-radius: 14px; }
   .dlg.bubble b { color: #24506a; }
+  /* the wife moaning from her car: a small bubble that goes on its own and never gets in the way of a tap */
+  .moan { position: absolute; max-width: 32%; transform: translate(-50%, calc(-100% - 14px)); background: #fbfbf6; color: #101018; border: 2px solid #101018; border-radius: 12px; padding: 6px 10px; font: 14px Tahoma, 'Segoe UI', sans-serif; pointer-events: none; z-index: 4; }
+  .moan::after { content: ''; position: absolute; left: var(--tail, 50%); bottom: -14px; transform: translateX(-50%); border: 7px solid transparent; border-top: 14px solid #101018; border-bottom: 0; }
   .dlg.bubble::after { content: ''; position: absolute; left: var(--tail, 50%); bottom: -22px; transform: translateX(-50%); border: 11px solid transparent; border-top: 22px solid #101018; border-bottom: 0; }
   .dlg.bubble::before { content: ''; position: absolute; left: var(--tail, 50%); bottom: -16px; transform: translateX(-50%); border: 8px solid transparent; border-top: 17px solid #fbfbf6; border-bottom: 0; z-index: 1; }
   .dlg b { color: var(--mint); font-size: 1.1em; }
@@ -342,8 +345,10 @@
 <script src="js/extras.js"></script>
 <script src="js/sensors.js"></script>
 <script src="js/road.js"></script>
+<script src="js/lift.js"></script>
 <script src="js/brother.js"></script>
 <script src="js/police.js"></script>
+<script src="js/rides.js"></script>
 <script src="js/bank.js"></script>
 <script src="js/screws.js"></script>
 <script src="js/charger.js"></script>
@@ -354,7 +359,7 @@ const help = document.getElementById('help');
 const openHelp = () => help.classList.add('open');
 const closeHelp = () => help.classList.remove('open');
 document.getElementById('howto').addEventListener('click', openHelp);
-document.getElementById('help-close').addEventListener('click', closeHelp);
+document.getElementById('help-close').addEventListener('click', () => { sfx('click'); closeHelp(); });
 document.getElementById('help-new').addEventListener('click', () => { closeHelp(); newGame(); });
 help.addEventListener('click', e => { if (e.target === help) closeHelp(); });
 addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
@@ -366,6 +371,7 @@ const closeTitle = () => {
   if (!title.classList.contains('open')) return;
   title.classList.remove('open');
   audioStart();                                                   // (a tap lets the browser play sound)
+  sfx('door');                                                    // in you go: a sound straight away, so sleepy speakers are awake before the tester talks
   firstHelp();
 };
 title.addEventListener('click', closeTitle);

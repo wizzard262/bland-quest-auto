@@ -10,6 +10,8 @@ const PUNCTURE_BY = 4;                                               // …and i
 const ROADSIDE = 'Mill Lane';                                       // where it happens
 const TYRE_SHOP = 'Worn Out and Tired';                             // the tyre shop (Steve's name for it)
 const WIFE_CAR = hex('#9a5ac8');                                    // her little purple car (lent to you while yours is stuck)
+// Is her car on its drive? Not when you need the bus to fetch yours: she's gone out in it (Steve). (Just fetched home drunk: it's there)
+const wifesCarHome = () => !S.flags.carAt || !!S.flags.drunkHome || !!S.flags.wifeWalksIn;
 const WIFE_DRIVE = [-58, 70];                                         // where it lives: its own drive, the other side of the house
 const ROAD_VIEW = [250, 70];                                        // the roadside: the same street view as a shop front
 // The screens that need your car to be at home (in the garage)
@@ -20,7 +22,13 @@ const carStranded = () => !!S.road;
 // Is your car away from home? (on a flat on Mill Lane, or left outside the pub)
 const carAway = () => carStranded() || !!S.flags.carAt;
 // Driving her car about (you've walked home and she's lent you hers)
-const inWifesCar = () => !!S.road && !!S.road.walked;
+const strandedLift = () => !!S.road && !!S.road.walked && !S.road.tellHer;   // yours is on Mill Lane, and she knows
+const inWifesCar = () => {
+  if (S.flags.taxi) return false;
+  return strandedLift() || carClamped() || !!lift().out;              // …or clamped; or you're still out in hers (lift.js)
+};
+// Home on foot, soaked, and the wife doesn't know yet (you haven't been to find her)
+const soakedAtHome = () => !!S.road && !!S.road.tellHer;
 
 // =====================================================================
 // THE PUNCTURE: on the way home from town, now and then
@@ -70,6 +78,7 @@ SCREENS.roadside = {
   paint() {
     ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
     streetFront();                                                  // the verge, the road, the kerb, the pavement
+    const bare = walkHomeNow() ? IMG32.slice() : null;              // the street with nothing on it yet (for the pavement's glow)
     // a long brick wall behind the pavement, and a field gate in it
     ibox(-200, 30, 400, 40, 0, 20, C.brick, C.brickLine);
     bricks(-200, 30, 400, 40, 20, C.brickLine);
@@ -79,26 +88,34 @@ SCREENS.roadside = {
     onLeft(47, -10, 34, 26, 36, C.white);
     boardText('MILL LANE', 47, -10, 34, 26, 36, C.ink);              // sloping with the sign
     // your car (or, once you've walked home, still here; you come back in hers)
-    isoCar(ROAD_CAR[0], ROAD_CAR[1], 1, C.car, { alongX: true, flatFront: true });
-    if (inWifesCar()) isoCar(-60, 72, 1, WIFE_CAR, { alongX: true, shape: 'city' });   // hers, parked behind
-    if (S.road && S.road.spare && S.spare !== 'away') roadsideSpare();                    // the flat spare on the verge
-    const m = P(96, 56);
+    herOnTheRoadside();                                             // her and her car, if she's brought you (lift.js)
+    const flat = !!S.road && !S.road.fitted;                        // till the new wheel's on
+    isoCar(ROAD_CAR[0], ROAD_CAR[1], 1, C.car, { alongX: true, flatFront: flat });
+    if (S.road && !S.road.fitted && S.road.spare && S.spare !== 'away') roadsideSpare();                    // the flat spare on the verge
+    const m = P(...ROAD_MAN);
     man(m[0], m[1], 'stand', 2);                                    // you, on the pavement
-    // what you can tap
+    PAVEMENT_GLOW = bare ? pavementPixels(bare) : [];
+    // what you can tap (the pavement first, so the car's own things are on top of it)
+    if (walkHomeNow()) for (const [x0, x1, labelX] of WALK_HOME_WAYS) {
+      const label = P(labelX, 53);                                   // its name, over the part you can see
+      spot('Walk home', walkHomeArea(x0, x1), 'act:walkhome', null, `left:${label[0] / W * 100}%;top:${label[1] / H * 100}%`);
+    }
     if (S.road) {
       spot('Boot: open it', isoArea(ROAD_CAR[0] - 4, 72, ROAD_CAR[0] + 8, 96, 4, 20), 'act:roadboot', [ROAD_CAR[0] - 6, 66]);
       spot('The flat tyre', isoArea(ROAD_CAR[0] + 30, 92, ROAD_CAR[0] + 42, 98, 0, 10), 'act:roadtyre', [ROAD_CAR[0] + 36, 100]);
     }
+    if (!S.road) spot('Your car: drive home', isoArea(ROAD_CAR[0], ROAD_CAR[1], ROAD_CAR[0] + 46, ROAD_CAR[1] + 24, 0, 20), 'act:roadhome');   // fixed: get in
     nightShade(0, 0, W, H, 0.07 * rainLevel('roadside'));          // greyer as the rain sets in
     tip(ROADSIDE, roadsideTip(), 1, 8);
+    const street = IMG32.slice();
     hud();
+    PAVEMENT_GLOW = PAVEMENT_GLOW.filter(i => IMG32[i] === street[i]);   // not over the strip along the top, or the watch and the phone
   },
   actions() {
     const a = [];
-    if (!S.road) return [{ label: 'Drive home', act: 'roadhome' }];
+    if (!S.road || S.road.fitted) return [];                         // fixed: tap your car to drive it home (no button)
     if (!S.road.walked) {
       if (!S.road.spare) a.push({ label: 'Open the boot', act: 'roadboot', pulse: !!S.flags.phoneDead });
-      else if (S.flags.phoneDead) a.push({ label: 'Walk home', act: 'walkhome', pulse: true });   // nothing else for it
     } else {
       a.push({ label: 'Into town (in her car)', act: 'roadtown' });
       a.push({ label: 'Drive home (in her car)', act: 'roadhome' });
@@ -106,9 +123,46 @@ SCREENS.roadside = {
     return a;
   }
 };
-// How hard it's raining (0 none … 4 a downpour): it starts with the puncture and gets worse with every setback
+// Tried the boot and the phone: nothing else for it but to walk home. The pavement glows both ways; tap it (no button: Steve)
+const ROAD_MAN = [96, 56];                                          // where you stand on the pavement
+const walkHomeNow = () => !!S.road && !S.road.walked && !!S.road.spare && !!S.flags.phoneDead;
+// The two ways along the pavement, from two slabs either side of you: [from x, to x, where its name goes]
+const WALK_HOME_WAYS = [[-400, 68, -10], [128, 600, 172]];
+// Where you tap to go that way: that end of the pavement, less the bit hidden behind the car
+function walkHomeArea(x0, x1) {
+  if (x0 > ROAD_MAN[0]) return isoArea(x0, 40, x1, 66, 0, 0);       // past the car: all of it
+  const carBack = 20, hidden = 50;                                  // from about here, only the back of the pavement shows over the car
+  return tapShape([P(x0, 40), P(x1, 40), P(x1, hidden), P(carBack, hidden), P(carBack, 66), P(x0, 66)]);
+}
+let PAVEMENT_GLOW = [];                                             // the pixels of it that glow
+// Which pixels are pavement, with nothing standing on it (bare: the picture before anything was drawn on the street)
+function pavementPixels(bare) {
+  const drawn = IMG32.slice();                                      // the picture as it is
+  const marker = hex('#ff00fe');                                    // a colour nothing else has
+  for (const [x0, x1] of WALK_HOME_WAYS) ground(x0, 40, x1, 66, marker);
+  const marked = pack32(...marker);
+  const found = [];
+  for (let i = 0; i < drawn.length; i++) {
+    const onPavement = IMG32[i] === marked;
+    const uncovered = drawn[i] === bare[i];
+    if (onPavement && uncovered) found.push(i);
+  }
+  IMG32.set(drawn);                                                 // put the picture back
+  return found;
+}
+// Each frame: the pavement swells and fades, like anything else that pulses
+function pavementGlow(t) {
+  if (!walkHomeNow()) return;
+  const strength = 0.08 + 0.42 * pulseSwell(t);
+  const d = img.data;
+  for (const i of PAVEMENT_GLOW) {
+    for (let c = 0; c < 3; c++) d[i * 4 + c] += (C.mint[c] - d[i * 4 + c]) * strength;
+  }
+}
+// How hard it's raining (0 none … 4 a downpour, 5 even worse): it starts with the puncture and gets worse with every setback
 function rainLevel(screen) {
   if (screen === 'walkhome') return 4;                              // the walk home: chucking it down
+  if (screen === 'home' && soakedAtHome()) return 5;               // outside your own house: heavier still (Steve)
   if (!S.road || S.road.walked) return 0;                           // no puncture (or home and dry)
   if (screen !== 'roadside' && screen !== 'boot') return 0;
   if (S.flags.phoneDead) return 3;                                  // the phone's died: heavy
@@ -117,7 +171,7 @@ function rainLevel(screen) {
 }
 // The rain over the picture: more drops the harder it's raining
 function rainDrops(t, level) {
-  const n = [0, 30, 70, 110, 160][level];
+  const n = [0, 30, 70, 110, 160, 320][level];
   for (let k = 0; k < n; k++) {
     const x = (hash(k, 1) * W + t * 40) % W;
     const y = 18 + (hash(1, k) * (H - 18) + t * 300 + k * 7) % (H - 18);
@@ -126,12 +180,12 @@ function rainDrops(t, level) {
 }
 // What the note at the top says, step by step
 function roadsideTip() {
-  if (!S.road) return 'Your car, with four good tyres. For now.';
+  if (!S.road || S.road.fitted) return 'Your car, with four good tyres. For now. Tap it to drive home.';
   if (S.inv.wheel) return 'You\'ve got a wheel. Tap the flat tyre to change it.';
   if (S.road.walked) return 'Your car, still on a flat. Get a wheel from the Scrap Yard or a car shop.';
   if (!S.road.spare) return 'A flat front tyre. There\'s a spare in the boot: open it.';
   if (!S.flags.phoneDead) return 'The spare\'s flat too. Your phone\'s flashing: ring for help.';
-  return 'No spare, no phone. It\'s a long walk home.';
+  return 'No spare, no phone. It\'s a long walk home, along the pavement.';
 }
 // The spare lying flat on the verge, beside the car
 function roadsideSpare() {
@@ -147,7 +201,8 @@ function spareScrew(x, y, s) {
 }
 // The car's hazard lights: all four corners flash orange (twice a second)
 SCREENS.roadside.animate = function (t) {
-  if (!S.road) return;
+  if (!S.road || S.road.fitted) return;
+  pavementGlow(t);                                                  // nothing left to try: the way home
   rainDrops(t, rainLevel('roadside'));                              // the rain, getting heavier
   ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
   hazardLights(t, ROAD_CAR[0], ROAD_CAR[1], 1, true);
@@ -254,7 +309,7 @@ MOMENTS.walkhome = function (part) {
   }
   const m = P(wx, WALK.y);
   man(m[0], m[1], pose, WALK.size, phase, look);
-  if (wet) for (let k = 0; k < 4; k++) rect(m[0] + 1 + k * 2, m[1] - 4 + ((p * 400 + k * 13) % 8), 1, 2, hex('#b8c4d0'));   // dripping
+  if (wet) soakedDrips(m, p * 400);                                  // dripping
   // the car: along the road from the left, through the puddle, off to the right
   const carX = lerp(-395, 571, (p - 0.35) / 0.3);                    // its front wheel (37 along it) reaches the puddle at 0.5, as the water goes up
   if (p > 0.35 && p < 0.65) isoCar(carX, 70, 1, hex('#c8c8c0'), { alongX: true, shape: 'saloon' });
@@ -307,20 +362,20 @@ MOMENTS.pullover = function (p) {
 // GETTING YOUR CAR BACK: a wheel from the Scrap Yard or Worn Out and Tired, fitted at the roadside
 // =====================================================================
 // Do you still need a wheel? (home, and not got one yet)
-const wheelWanted = () => inWifesCar() && !S.inv.wheel;
+const wheelWanted = () => strandedLift() && !S.inv.wheel;
 // Buy a wheel at a place: the Scrap Yard's cheap and on a wreck; Worn Out and Tired's part-worn
 function buyWheel(place) {
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
-  if (!spend(price)) { anger(10); return say(place, DECLINED); }
+  if (!spend(price)) { anger(10); return say(place, declinedWords()); }
   S.inv.wheel = place;
   sfx('kerching');                                                     // the till
   closeLead(yard ? 'wheel-yard' : 'wheel-shop', 'ok', `A wheel from the ${place}: £${price}`);
   closeLead(yard ? 'wheel-shop' : 'wheel-yard', 'skip');
   lead('tyre', 'fitwheel', `Fit the wheel on ${ROADSIDE}`, 'you', 'sure', 'act:toroad');
-  if (yard) return say(place, '"A Zafira wheel? Off that one there. The tyre\'s legal. Just. Tenner."\n\nYou roll it to her car.');
-  S.wheelOut = true;                                                    // in your arms, out to her car
+  S.wheelOut = true;                                                    // he hands it over; in your arms, out to her car (at either place: Steve)
   handTyre(false);
+  if (yard) return say(place, '"A Zafira wheel? Off that one there. The tyre\'s legal. Just. Tenner."\n\nHe passes it over the counter. It can go in her car.');
   say(place, '"A part-worn on a steel wheel. Thirty-five quid. Fitted? We only fit here, mate. Bring the car in."\n\nThe car is on a flat on Mill Lane.');
 }
 
@@ -361,11 +416,11 @@ Object.assign(ACTIONS, {
     sfx('buzz');
     pass(5);
     const them = (line, then) => say(RECOVERY, line, [{ label: 'OK', run: then }]);
-    them('"Thank you for calling Fleengrag Car Recovery. You are number one in the queue. Where are you, please?"', () => {
-      sayMe(`"${ROADSIDE}. I've got a puncture."`, () => {
+    them('"Thank you for calling Fleengrag Car Recovery. You are number one in the queue. What\'s the problem?"', () => {   // (she never asks where you are: Steve)
+      sayMe('"I\'ve got a puncture."', () => {
         them('"A puncture. Have you tried the spare?"', () => {
           sayMe(S.road && S.road.spare ? '"The spare\'s flat too."' : '"Not yet."', () => {
-            them('"Not to worry. I\'ve got a truck just round the corner from you. I only need your policy num—"', phoneDies);
+            them('"Not to worry. I\'ve got a truck free right now. I only need your policy num—"', phoneDies);
           });
         });
       });
@@ -388,9 +443,12 @@ Object.assign(ACTIONS, {
   // back to the car (her car, with the wheel)
   toroad() {
     if (!S.road) return;
+    if (inWifesCar() && !withWife() && isAsleep()) return say("The wife's car", 'She\'s fast asleep. No lift till the morning.');
     pass(15);
     sfx('car');
+    if (inWifesCar()) lift().out = true;                               // she's driving (lift.js)
     show('roadside');
+    sheGetsOut();                                                      // with a wheel to fit, she gets out to watch
   },
   roadtown() { pass(15); sfx('car'); show('city'); },                  // her car: from yours into town
   roadhome() { pass(15); sfx('car'); show('home'); },
@@ -402,12 +460,12 @@ Object.assign(ACTIONS, {
     anger(5);
     sfx('ratchet');
     delete S.inv.wheel;
-    S.road = null;
+    S.road.fitted = true;
     finishJob('tyre', `Wheel from ${from === TYRE_SHOP ? from : 'the ' + from} fitted on ${ROADSIDE}. The spare is still flat`);
     spareJob();                                                         // next: the spare, with its screw
-    show('home');
+    if (S.screen !== 'roadside') show('roadside');
     const jack = S.flags.jackLent ? 'No jack: Paul\'s still got it. A man across the road lends you his, and watches the whole time.\n\n' : '';   // Paul borrowed it
-    say('The new wheel', jack + 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\nYou drive your car home. She walks down for hers. She is not happy.\n\n(The spare is still flat, with a screw in it. It needs replacing.)');
+    say('The new wheel', jack + 'Jack up. The short brace, a lot of swearing, and the nuts come off. Flat one off, new one on.\n\n(The spare is still flat, with a screw in it. It needs replacing.)', [{ label: 'OK', run: sheDrivesOff }]);   // then she's off, and you drive yours home (lift.js)
   }
 });
 
@@ -497,14 +555,15 @@ function spareAt(place) {
     say(place, '"A screw in your spare? Can\'t plug that, it\'s in the shoulder. New tyre on your wheel: thirty-five quid."\n\n"So where is it? In your boot? Go and get it, mate. You\'ve got to bring it in."');
     return true;
   }
-  if (!spend(price)) { anger(10); say(place, DECLINED); return true; }
+  if (!spend(price)) { anger(10); say(place, declinedWords()); return true; }
   sfx('kerching');                                                     // the till
-  if (yard) {                                                           // off a wreck: straight in the boot
-    S.spareOut = false;
+  if (yard) {                                                           // off a wreck: he hands it over, and you carry it out
     closeLead('spare-yard', 'ok');
     closeLead('spare-shop', 'skip');
     spareMended('A spare off a wreck at the Scrap Yard: £10');
-    say(place, '"A spare? Off that one. It\'s got a bit of tread left. Tenner."\n\nYou swap it for the one with the screw in. He keeps that one. He seems pleased.');
+    S.spareOut = true;                                                   // in your arms, till you're back in the car
+    handTyre(false);
+    say(place, '"A spare? Off that one. It\'s got a bit of tread left. Tenner."\n\nHe passes it over the counter. The one with the screw in is his now. He seems pleased.');
     return true;
   }
   handTyre(true);                                                       // over the counter it goes
@@ -538,31 +597,64 @@ function phoneDies() {
   lead('phone', 'charge', 'Charge it at your computer desk', 'the phone', 'sure', 'room');
   render();
 }
-// Home at last, soaked: the wife's in the garden, where the sun's been out all day, and she doesn't believe it rained (Steve)
+// Home at last, soaked, in even heavier rain: along the pavement, up the path, and you stop outside the front door (Steve)
+//   The wife's in the garden, where the sun's been out all day; she finds out when you go and find her (tellWife)
+const WALKUP_MS = 6500;
+const WALKUP_PATH = [[-120, 146], [49, 146], [49, 100], SPOT_HOME.home];   // along the pavement, in at the gap in the hedge, up the path
 function homeSoaked() {
   pass(80);
   anger(15);
   S.road.walked = true;
+  S.road.tellHer = true;
   note('tyre', 'Walked home in the rain. Splashed by a car', 'x');
-  lead('tyre', 'wheel-yard', 'A wheel from the Scrap Yard', 'the wife', 'sure', 'place:Scrap Yard');
-  lead('tyre', 'wheel-shop', 'A wheel from Worn Out and Tired', 'the wife', 'fairly sure', 'place:Worn Out and Tired');
-  const inTheSun = !isBedtime();                                    // (waited till after 7 at night to walk home: she's indoors in her nightie)
-  if (inTheSun) {
-    S.flags.sunDay = { day: S.day, till: Math.min(S.mins + 60, 19 * 60) };   // out there for an hour after you get back
-    S.spot.garden = SPOT_HOME.garden.slice();
-  }
-  show(inTheSun ? 'garden' : 'room');
+  lead('tyre', 'tell-wife', 'Tell the wife about the car', 'you', 'reluctant', 'room');
+  if (!isBedtime()) S.flags.sunDay = { day: S.day, till: 19 * 60 };   // (after 7 at night she's indoors in her nightie)
+  S.place = null;
+  S.spot.home = SPOT_HOME.home.slice();                             // where he stops: where he always stands
+  moment('walkup', WALKUP_MS);
+  show('home');
+}
+// Trudging up to the house, dripping
+MOMENTS.walkup = function (p) {
+  [ISO.ox, ISO.oy] = VIEW.home;
+  const [x, y] = alongPath(WALKUP_PATH, p), m = P(x, y);
+  man(m[0], m[1], 'trudge', MAN_SIZE.home, p * 36, SOAKED);
+  soakedDrips(m, p * 260);
+  inFront('home', x, y);
+};
+// Water running off him (n: how far it's run)
+function soakedDrips(m, n) {
+  for (let k = 0; k < 4; k++) rect(m[0] + 1 + k * 2, m[1] - 4 + ((n + k * 13) % 8), 1, 2, hex('#b8c4d0'));
+}
+// You've come to where she is, soaked: she has something to say about it
+function tellWifeNow() {
+  if (!soakedAtHome() || DIALOG || isAsleep()) return;
+  const inGarden = S.screen === 'garden' && wifeSunbathing();
+  const indoors = S.screen === 'room' && !wifeSunbathing();
+  if (inGarden || indoors) tellWife();
+}
+function tellWife() {
+  const inTheSun = S.screen === 'garden';
+  if (inTheSun) S.flags.sunDay = { day: S.day, till: Math.min(S.mins + 60, 19 * 60) };   // out there for another hour
   const wet = inTheSun ? 'You\'re dripping on my lounger.' : 'You\'re dripping on the carpet.';
   const sunny = inTheSun ? 'I\'ve been out here in the sun all day.' : 'I was out in the garden in the sun all day.';
   wifeSays(`"Husband! You're SOAKED. ${wet}"`, () => {
     sayMe('"It rained. All the way home. And a car went through a puddle."', () => {
+      wifeWindsYouUp();
       wifeSays(`"Rained? It has NOT rained, Husband. ${sunny} Where's the car?"`, () => {
         sayMe('"A puncture. And the spare\'s flat. And my phone died."', () => {
-          wifeSays('"Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. Take my car. And put that phone on charge."\n\n"Rain. Honestly."');
+          wifeSays('"Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. Take my car. And put that phone on charge."\n\n"Rain. Honestly."', lendsHerCar);
         });
       });
     });
   });
+}
+// …and lends you her car
+function lendsHerCar() {
+  S.road.tellHer = false;
+  closeLead('tell-wife', 'ok');
+  lead('tyre', 'wheel-yard', 'A wheel from the Scrap Yard', 'the wife', 'sure', 'place:Scrap Yard');
+  lead('tyre', 'wheel-shop', 'A wheel from Worn Out and Tired', 'the wife', 'fairly sure', 'place:Worn Out and Tired');
 }
 // The wife says something in person: a bubble from her; tap to carry on, then `then` runs
 function wifeSays(line, then) {
@@ -588,5 +680,8 @@ function strandedReason(target) {
   if (target === 'phone' || target === 'notebook' || target === 'roadside' || target.startsWith('act:')) return null;
   if (!S.road.walked) return `You're stuck on ${ROADSIDE} with a flat tyre.`;
   if (CAR_SCREENS.includes(target)) return `Your car is on ${ROADSIDE}, on a flat tyre.`;
+  const intoTown = target === 'city' || target.startsWith('place:');
+  if (intoTown && inWifesCar() && !withWife() && isAsleep()) return 'It\'s her car, and she\'s fast asleep. No lift till the morning.';
+  if (soakedAtHome() && intoTown) return `Your car is on ${ROADSIDE}, on a flat tyre. You'll have to tell the wife.`;
   return null;
 }

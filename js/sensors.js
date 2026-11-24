@@ -125,7 +125,7 @@ function drawSensor(id, rotated, bot, dx) {
   // its plug and wires; two of them have only bare wires (until the old plug's soldered on)
   const inAlready = S.flags.fits && S.flags.fittedPart === id;        // fitted in a save from before it needed soldering
   if (s.bare && !hasOldPlug(id) && !inAlready) return cutWires(x + 10, topY + 4);
-  sensorPlug(x + 10, topY + 4);
+  sensorPlug(x + w - 4, topY + 4);                                    // (out of its side, however wide it is)
   if (hasOldPlug(id)) for (let k = 0; k < 3; k++) disc(x + 26 + k * 2, topY + 4 + k * 3, 2, C.steel);   // the soldered joints
 }
 // Three short wires, snipped off: copper showing at the ends
@@ -194,7 +194,7 @@ function benchTryDraw(p) {
 // A sensor's part number on a little label by the part on the bench
 function sensorLabel(id) {
   const [x, y] = P(100, 95, 40 + LIFT.over);                         // the bottom of the part, held over the hole
-  LABELS.push(`<div class="partno" style="left:${(x + 50) / W * 100}%;top:${(y - 30) / H * 100}%">Part no. ${esc(SENSORS[id].no)}</div>`);
+  LABELS.push(`<div class="partno" style="left:${(x + 80) / W * 100}%;top:${(y - 20) / H * 100}%">Part no. ${esc(SENSORS[id].no)}</div>`);
 }
 // The buttons on the bench: try each sensor you've got
 function benchSensorButtons() {
@@ -238,7 +238,7 @@ function csdSensor() {
   if (!S.flags.csdReady) {
     say(shop, '"A gearbox sensor? We can order it in. Day after tomorrow. Twenty-two quid."', [
       { label: 'Order it (£22)', run() {
-        if (!spend(22)) return say(shop, DECLINED);
+        if (!spend(22)) { anger(10); return say(shop, declinedWords()); }
         S.flags.csdReady = S.day + 2;
         closeLead('csd', 'ok');
         lead('new-sensor', 'csd-collect', 'Collect the sensor from Car Spares Direct (the day after tomorrow)', shop, 'sure', 'place:' + shop);

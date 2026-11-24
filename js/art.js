@@ -179,8 +179,9 @@ function pulsingPhone(t) {
 //   a thing drawn in the picture: call pulseGlow each frame, then draw the thing on top (it returns the colour the glow is now)
 //   a button on the page: give it the class "pulse" (an action: { label, act, pulse: true }; a dialog choice: { label, run, pulse: true })
 const PULSE_SECS = 1.5;                                             // one swell and fade (the page's is .pulse in index.html: keep the same)
+const pulseSwell = t => (1 - Math.cos(t / PULSE_SECS * Math.PI * 2)) / 2;   // how far through the swell: 0 to 1 and back
 function pulseGlow(t, x, y, w, h, s = 1) {
-  const swell = (1 - Math.cos(t / PULSE_SECS * Math.PI * 2)) / 2;   // 0 to 1 and back
+  const swell = pulseSwell(t);
   const glow = Math.round(swell * 4) * s;                           // how far the glow reaches now
   const col = shade(C.mint, 0.45 + swell * 0.55);
   if (glow) rect(x - glow, y - glow, w + glow * 2, h + glow * 2, col);
@@ -365,6 +366,8 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const L = K.L;
   const glass = broken ? C.ink : C.glass;
   const ours = !broken && !opts.shape && col === C.car;                                  // your car (the only blue one)
+  const hasLights = ours || (!broken && col === WIFE_CAR);                                // has its lights on at night: yours, and the wife's…
+  const lit = hasLights && opts.off ? 'off' : hasLights;                                  // …but not parked up at home (opts.off)
   const kicked = opts.lampState || (ours ? kickedLamps() : { left: false, right: false });   // which of its headlights you've kicked in (the kick scene says for itself)
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
@@ -406,7 +409,7 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
     if (broken) rustOn(Q, L, x);
     return;
   }
-  carDetails(K, Q, side, nose, col, broken, pillar, i1, kicked, ours);
+  carDetails(K, Q, side, nose, col, broken, pillar, i1, kicked, lit);
   if (s >= 1 && !broken && !opts.shape) { const d = Q(15, 31, 19); rect(d[0], d[1], 2, 2, C.red); }               // the red light on our dash
   carWheels(K, Q, side, col, broken, opts);
   if (opts.police) policeLivery(K, side, F, opts.flash);                                // a police car: the check down the side, the light bar
@@ -460,10 +463,10 @@ function kickedLamps() {
   return { left: known && brokeOpen('headlight'), right: known && brokeOpen('headlight2') };
 }
 // One headlight: whole (yellow), or cracked (dim, with a white crack across it); seed: so each flickers on its own
-//   ours: it's your car's (only yours has its lights on at night)
+//   ours: it's your car's or the wife's (only those two have their lights on at night)
 function headlamp(pts, cracked, seed, crack, ours) {
   if (!pts.length) return;                                            // facing away: no front to see
-  if (ours) OUR_LAMPS.push({ pts, seed, cracked, crack });            // lit each frame when the lights are on
+  if (ours) OUR_LAMPS.push({ pts, seed, cracked, crack, off: ours === 'off' });            // lit each frame when the lights are on
   if (!cracked) { poly(pts, C.warm); return; }
   poly(pts, shade(C.warm, 0.45));                                     // the dull, broken lens
   if (crack) { line(...crack[0], ...crack[1], C.white); line(...crack[1], ...crack[2], C.white); }   // the crack, zig-zag
@@ -480,6 +483,7 @@ function lampLit(l, t) {
 function flickerLamps(t) {
   if (!lightsOn()) return;
   for (const l of OUR_LAMPS) {
+    if (l.off) continue;                                              // parked up at home: its lights are off (Steve)
     if (!lampLit(l, t)) continue;                                     // a cracked one, off just now
     poly(l.pts, LAMP_ON);
     if (l.cracked && l.crack) { line(...l.crack[0], ...l.crack[1], C.white); line(...l.crack[1], ...l.crack[2], C.white); }   // the crack still shows
@@ -764,6 +768,16 @@ function wifeHead() {
     const q = P(...PICKUP_AT);
     return [q[0] + 2, q[1] - 42];
   }
+  if (S.screen === 'home' && HER_RIDE.at) {                                // by her car, about to give you a lift (lift.js)
+    [ISO.ox, ISO.oy] = VIEW.home;
+    const q = P(...HER_RIDE.at);
+    return [q[0] + 2, q[1] - 42];
+  }
+  if (S.screen === 'roadside') {                                       // watching you change the wheel
+    [ISO.ox, ISO.oy] = ROAD_VIEW;
+    const q = P(...WATCH_AT);
+    return [q[0] + 2, q[1] - 42];
+  }
   if (S.screen === 'home' && FOLLOW.pos) {                             // she's followed him outside
     [ISO.ox, ISO.oy] = VIEW.home;
     const q = P(...FOLLOW.pos);
@@ -824,7 +838,10 @@ function keepHud(rows) { img.data.set(BG.subarray(0, rows * W * 4), 0); }
 // The screen box round an isometric box (for a hover area over an object)
 // Also gives the box's outline (its six-sided silhouette), so only the object itself lights up and can be tapped
 function isoArea(x0, y0, x1, y1, z0, z1) {
-  const outline = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0), P(x0, y1, z1)];
+  return tapShape([P(x0, y0, z1), P(x1, y0, z1), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0), P(x0, y1, z1)]);
+}
+// A tap area with any outline (points in picture pixels)
+function tapShape(outline) {
   const xs = outline.map(p => p[0]), ys = outline.map(p => p[1]);
   const l = Math.min(...xs), t = Math.min(...ys), w = Math.max(...xs) - l, h = Math.max(...ys) - t;
   return [l, t, w, h, outline.map(([x, y]) => [(x - l) / Math.max(w, 1) * 100, (y - t) / Math.max(h, 1) * 100])];

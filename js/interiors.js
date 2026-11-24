@@ -546,7 +546,7 @@ SCREENS.yard = {
     const d = P(190, 0); rect(d[0] - 10, d[1] - 7, 18, 7, hex('#8a6a4a')); rect(d[0] + 6, d[1] - 11, 5, 5, hex('#8a6a4a'));   // the dog
     for (const [x, y] of YARD_POO) dogPoo(...P(x, y));                // and, as at every scrap yard, what the dog leaves
     spot('Something on the ground', isoArea(YARD_POO[0][0] - 4, YARD_POO[0][1] - 4, YARD_POO[0][0] + 4, YARD_POO[0][1] + 4, 0, 4), 'act:look:Dog poo');
-    if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); inFront('yard', x, y); }   // (behind a wreck: it hides him)
+    if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('yard'), m = P(x, y); man(m[0], m[1], 'stand', 2); if (carryingTyre()) carriedTyre(m); inFront('yard', x, y); }   // (behind a wreck: it hides him)
     WRECKS.forEach(([x, y, , stacked, , shape], i) => {
       const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
       spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + k.L, 0, k.rz + (stacked ? 12 : 0)), 'act:wreck:' + i, [x + 30, y + 30]);
@@ -754,9 +754,12 @@ function shopExterior(name, shut) {
   if (pub && S.flags.sick === S.day) sickPuddle(1);                                                                   // where he was sick (it's there all day)
 
   // your car (blue), parked at the kerb
-  drivenCar(40, 72, 1);
-  if (pub && S.flags.pickup === S.day) wife(PICKUP_AT[0], PICKUP_AT[1], S.wifeLook || 'navy', { hip: true });       // she's come to fetch him: by the car, in her dress
-  if (!(ANIM && ['walk', 'sick', 'taxipub'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); if (carryingTyre()) carriedTyre(m); }   // (in the taxi moment, it draws him)
+  const fetching = ANIM && ['pubfetch', 'publeave'].includes(ANIM.kind);   // (she's come for you: the moment draws the cars and her: lift.js)
+  if (!(fetching && inWifesCar())) drivenCar(40, 72, 1);
+  const sheIsHere = pub && S.flags.pickup === S.day && !fetching;
+  if (sheIsHere && !inWifesCar()) { const [hx, hy] = fetchCarAt(); isoCar(hx, hy, 1, WIFE_CAR, { alongX: true, shape: 'city' }); drivenCar(40, 72, 1); }   // her car, behind yours
+  if (sheIsHere) wife(PICKUP_AT[0], PICKUP_AT[1], S.wifeLook || 'navy', { hip: true });       // she's come to fetch him: by the car, in her dress
+  if (!(ANIM && ['walk', 'sick', 'taxipub', 'publeave'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); if (carryingTyre()) carriedTyre(m); }   // (in the taxi moment, it draws him)
 }
 // ---------- outside the pub, after too many ----------
 const PICKUP_AT = [92, 58];                                          // where she stands to fetch him: on the pavement, by the front of your car
@@ -773,13 +776,13 @@ function sickPuddle(grow) {
 // =====================================================================
 // THE POST OFFICE QUEUES
 //   Outside, before it opens: from 6am a queue grows along the pavement, from the door leftwards
-//   (6am nobody, 7am 3, 8am 6); people join behind you until 9. From 9 to 10 it all goes in.
-//   Here before 6: you're first, served at 9. Here from 6 to 9: you're served at 10 (an hour's wait outside).
-//   Inside, after 9: ten people, and it never moves.
-//   Getting there: drive over between midnight and 9 and you hit the roadworks (shut all night, a jam
-//   from 6), so you park at 9:10, too late. The way to beat it: be there the night before and sleep in the car.
+//   (6am nobody, 7am 3, 8am 6); people join behind you until 9, when it opens and they all go in.
+//   In the queue outside before 9: in you go when it opens, and there's no queue (Steve). Turn up after 9: the queue's all
+//   inside, ten people, it never moves, and you can't skip it (not even to pay a fine).
+//   Getting there: set off between 6 and 9 and you hit the roadworks, so you park at 9:10, too late. To beat them: the alarm at
+//   5, or be there the night before and sleep in the car.
 // =====================================================================
-const PO_OPENS = 9 * 60, PO_SERVED_LATE = 10 * 60;                  // the door opens; when the rest of the morning queue is through
+const PO_OPENS = 9 * 60;                                             // the door opens
 const PO_QUEUE_STARTS = 6 * 60;                                     // the first ones turn up
 const PO_OUTSIDE_SLOTS = 10;                                        // room along the pavement (you and nine more)
 // How many are queuing outside who turned up by time t (3 an hour from 6am; not after 9)
@@ -791,25 +794,23 @@ function poQueueBy(t) {
 function poInQueue() { return !!S.po && S.po.day === S.day && S.po.arrived < PO_OPENS; }
 // How many were in front of you when you got here
 function poAhead() { return poInQueue() ? poQueueBy(S.po.arrived) : 0; }
-// When you get served: at 9 if you were first, at 10 if anyone was in front of you
-function poServedAt() { return poAhead() === 0 ? PO_OPENS : PO_SERVED_LATE; }
+// When you get served, if you were in the queue outside: as soon as it opens
+function poServedAt() { return PO_OPENS; }
 
 // ----- the roadworks on the way, and sleeping in the car outside -----
 const PO_JAM_PARKED = PO_OPENS + 10;                                // stuck in the roadworks, you park at 9:10
-const PO_ROAD_OPENS = 6 * 60;                                       // the road's shut all night for the works, until 6
+const PO_ROAD_OPENS = 6 * 60;                                       // the roadworks start at 6
 const PO_WAKE = 5 * 60 + 45;                                        // asleep in the car, you wake at 5:45
-// Driving to the post office: between midnight and 9 the roadworks hold you up until 9:10.
+// Driving to the post office: between 6 and 9 the roadworks hold you up until 9:10.
 // Returns null (no hold-up), or { mins: how long the trip takes, words: what happened }
 function poJam() {
   if (S.place === 'Post Office') return null;                       // already here
   const t = S.mins;
   if (t >= PO_OPENS) return null;                                   // after 9 the roads are clear (no point, by then)
+  if (t < PO_ROAD_OPENS) return null;                               // before 6 there's nobody about: up with the alarm, you beat it (Steve)
   const mins = Math.max(20, PO_JAM_PARKED - t);                     // however early you set off, you park at 9:10
   const parked = `It's ${hhmm(t + mins)} by the time you park. The queue has already gone in.`;
-  const hint = '\n\nAt this rate you\'d have to get here the night before.';
-  if (t < PO_ROAD_OPENS) {                                          // the night: the road's shut, then the jam
-    return { mins, words: `ROAD CLOSED: NIGHT WORKS UNTIL 6:00.\n\nYou sit at the barrier with the engine off. At six it opens, straight onto the back of a queue of traffic. Temporary lights on Station Road, stuck on red.\n\n${parked}${hint}` };
-  }
+  const hint = '\n\nAt this rate you\'d have to set off before six.';
   return { mins, words: `Roadworks on Station Road. Temporary lights, stuck on red. Nobody moves.\n\n${parked}${hint}` };
 }
 // Can you sleep in the car outside the post office now? (it's shut for the night, and it's not yet 5:45)
@@ -828,15 +829,13 @@ function poStayedOvernight() {
 }
 // Where slot k of the outside queue is: along the pavement by the wall, from the door leftwards
 const poSlot = k => [160 - k * 12, 45];
-// Draw the queue outside: the ones in front of you, then the ones who came after you (they all go in between 9 and 10)
+// Draw the queue outside, before it opens: the ones in front of you, then the ones who came after you
 function postQueueOutside() {
-  if (S.mins >= PO_SERVED_LATE) return;                             // all in by 10
+  if (S.mins >= PO_OPENS) return;                                   // open: they're all inside
   const inQueue = poInQueue(), ahead = poAhead();
   const everyone = poQueueBy(S.mins);                                // everyone who's turned up (not you)
-  const gone = S.mins < PO_OPENS ? 0 : Math.ceil(poQueueBy(PO_OPENS) * (S.mins - PO_OPENS) / 60);   // from 9 they go in, from the front
   const slots = [];
   for (let k = 0; k < everyone; k++) {
-    if (k < gone) continue;                                          // gone in already
     const slot = inQueue && k >= ahead ? k + 1 : k;                  // the ones who came after you stand behind you
     slots.push(slot);
   }
@@ -856,8 +855,8 @@ const QUEUE_LOOKS = [
 const QUEUE_SPOTS = [[104, 80], [92, 86], [80, 92], [68, 98], [56, 104], [56, 116], [68, 122], [80, 128], [92, 134], [104, 140]];
 function postFirst() { return S.flags.poFirst === S.day; }
 function postQueue() {
-  // first in the queue: they all came in after you, behind you; otherwise they're all in front of you
-  const spots = postFirst() ? QUEUE_SPOTS.slice(1).concat([[116, 146]]) : QUEUE_SPOTS;
+  if (postFirst()) return;                                          // in the queue before it opened: no queue now
+  const spots = QUEUE_SPOTS;                                        // otherwise they're all in front of you
   spots.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1])).forEach(([x, y], k) => {
     const m = P(x, y);
     man(m[0], m[1], 'stand', 2, 0, QUEUE_LOOKS[(k * 3) % QUEUE_LOOKS.length]);

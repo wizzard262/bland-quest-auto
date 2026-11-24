@@ -11,16 +11,18 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; window.NO_SUNBATHING = true; });   // no random punctures, blocked cards, phone calls or the wife out sunbathing (a test turns them on)
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; window.NO_SUNBATHING = true; window.NO_MOANS = true; });   // no random punctures, blocked cards, phone calls or the wife out sunbathing (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
   await page.click('#title-play');                         // the title screen: in
   await page.click('#help-close');
+  await page.evaluate(() => { S.money = 250; });           // enough to be going on with (running out has its own test)
   if (skipOpening) return;
   await talk(page);
   await page.locator('.dlg').click();                    // his verdict: tap to carry on
-  await choose(page, 'Drive home');
+  await choose(page, 'Back to the car');
+  await page.evaluate(() => { if (S.screen !== 'city') throw new Error('not on the town map'); show('home'); });   // the town map; then home
 }
 // Wait for any animated moment to finish playing
 const idle = page => page.waitForFunction(() => !ANIM);
@@ -88,6 +90,8 @@ async function goPlace(page, name) {
   else if (screen !== 'city') {
     await page.evaluate(() => { if (S.screen !== 'home') { S.screen = 'home'; render(); } });
     await tap(page, 'city'); await idle(page);                           // tap the car (yours, or hers while yours is stuck)
+    const herCar = await page.evaluate(() => !!HER_RIDE.at);             // hers: she says her piece, and you both get in
+    if (herCar) { await page.locator('.dlg').click(); await idle(page); }
   }
   const i = await page.evaluate(n => placeIndex(n), name);
   await page.click(`[data-act="cam:${i % 7},${Math.floor(i / 7)}"]`);   // look at that part of town on the little map
@@ -97,6 +101,7 @@ async function goPlace(page, name) {
 async function talk(page) {
   await idle(page);
   if (!(await page.evaluate(() => S.inside))) { await page.locator('.hs[data-go="act:enter"]').click(); await idle(page); }   // go in first
+  if (await page.evaluate(() => S.place === 'Post Office' && !!DIALOG)) await ok(page);   // the queue's all inside: get here earlier
   await page.locator('.hs[data-go="act:talk"]').click();
   await idle(page);
 }
@@ -119,6 +124,38 @@ async function hookNut(page) {
   await at(nut[0], nut[1] - 20);              // across, behind it
   await at(nut[0], 262);                      // and pull it all the way out
   await idle(page);
+}
+// Broken down, with nothing left to try: tap the glowing pavement (way: 0 = to the left, 1 = to the right)
+async function walkHome(page, way) {
+  await idle(page);
+  const [x, y] = await page.evaluate(k => { [ISO.ox, ISO.oy] = ROAD_VIEW; const p = P(WALK_HOME_WAYS[k][2], 53); return [p[0] / W, p[1] / H]; }, way);
+  const box = await page.locator('#stage').boundingBox();
+  await page.mouse.click(box.x + x * box.width, box.y + y * box.height);
+}
+// Home from the walk: up to the house, soaked, in even heavier rain, and he stops where he always stands
+async function upToTheHouse(page) {
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'walkup', null, { timeout: 30000 });
+  expect(await page.evaluate(() => [S.screen, rainLevel('home') > rainLevel('walkhome')])).toEqual(['home', true]);
+  await idle(page);
+  expect(await page.evaluate(() => [S.screen, soakedAtHome(), !!DIALOG, manSpot('home').join()])).toEqual(['home', true, false, await page.evaluate(() => SPOT_HOME.home.join())]);
+}
+// …then in at the front door, and out to the garden, where she is
+async function findHer(page) {
+  await tap(page, 'room'); await idle(page);
+  expect(await page.evaluate(() => [S.screen, !!DIALOG])).toEqual(['room', false]);
+  await tap(page, 'act:garden'); await idle(page);
+}
+// Tap the wife's car at home: she walks out, says her piece, and you both get in; into town
+async function ridesWithHer(page, first) {
+  await tap(page, 'city');
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'liftout');
+  expect(await dialogText(page)).toContain('hair appointment');
+  if (first) expect(await dialogText(page)).toContain('hurry');
+  expect(await page.evaluate(() => [S.screen, !!DIALOG.at])).toEqual(['home', true]);   // a bubble from her
+  await page.locator('.dlg').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('liftin');
+  await idle(page);
+  expect(await page.evaluate(() => [S.screen, withWife(), !!DIALOG])).toEqual(['city', true, false]);
 }
 // Walk home, then into the garage, then somewhere in it
 async function garage(page, where) {
@@ -170,7 +207,8 @@ test('the game starts at the MOT Test Centre: lovely car, but the red light is a
     await page.locator('.dlg').click();
     expect(await dialogText(page)).toContain('No idea, mate');
   }
-  await page.locator('.dlg button', { hasText: 'Drive home' }).click();
+  await page.locator('.dlg button', { hasText: 'Back to the car' }).click();
+  await page.evaluate(() => show('home'));
   expect(await page.evaluate(() => S.screen)).toBe('home');
   expect(errors).toEqual([]);
 });
@@ -392,6 +430,7 @@ test('waiting an hour (the watch) gives a hunch when a job has no leads; no Sit 
 test('branch 1 can be played from the red light to the end', async ({ page }) => {
   const errors = [];
   await start(page, errors);
+  await page.evaluate(() => { S.money = 1000; anger = () => {}; });        // (running out of money and losing it have their own tests)
 
   // ask the mechanics, then pay the main dealer to read the codes
   await goPlace(page, 'Spanner & Son'); await talk(page); await ok(page);
@@ -409,8 +448,16 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Under the car');
   await tap(page, 'underZoom');                                            // tap the gearbox to look closer
   expect(await flag(page, 'sensorJob')).toBe(true);
-  await tap(page, 'act:bolt1'); await ok(page);                            // tap the bolts
-  await tap(page, 'act:boltmenu'); await ok(page);                         // bolt 2: the spanner slips, it's rounded off
+  await tap(page, 'act:bolt1');                                            // tap the bolts: they're 10s, and you've no 10
+  expect(await dialogText(page)).toContain('every socket but the 10');
+  await ok(page);
+  await goPlace(page, 'Tool Shop'); await idle(page);                      // a full socket set, off the Tool Shop's shelf
+  await page.evaluate(() => { S.inside = true; S.basket = [{ place: S.place, slot: '0-6', name: 'Socket set', price: 24.99, kind: 'box' }]; act('checkout'); });
+  expect(await dialogText(page)).toContain('even the 10');
+  await ok(page);
+  await garage(page, 'Under the car'); await tap(page, 'underZoom');
+  await tap(page, 'act:bolt1'); await ok(page);
+  await tap(page, 'act:boltmenu'); await ok(page);                         // bolt 2: the socket slips, it's rounded off
   await tap(page, 'act:nut3'); await ok(page);
 
   // the cheap extractor snaps; the proper one works
@@ -439,7 +486,10 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page); await ok(page);
   await garageTap(page, 'Search under the workbench'); await ok(page);                   // too dark
   await goBack(page);
-  await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:5'); await act(page, 'Take the torch'); await ok(page);
+  await garageTap(page, 'Toolbox'); await tap(page, 'act:drawer:5'); await idle(page);
+  expect(await page.locator('.acts button', { hasText: 'torch' }).count()).toBe(0);      // no button: tap the torch itself (Steve)
+  await tap(page, 'act:takeTorch'); await ok(page);
+  expect(await page.locator('.hs[data-go="act:takeTorch"]').count()).toBe(0);             // taken: not in the drawer any more
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
   await goRoom(page); await act(page, 'Look for batteries'); await ok(page);
   await garage(page);
@@ -487,6 +537,7 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Workbench');
   await act(page, 'Tap it with the hammer'); await ok(page);
   await act(page, 'Pull'); await ok(page);
+  await page.evaluate(() => { S.anger = 0; });                             // (calm: losing it has its own test)
   await act(page, 'Try the Parts 4 Less sensor');                          // lined up this time: it fits… but no plug
   expect(await dialogText(page)).toContain('Plug sold separately');
   await ok(page);
@@ -507,9 +558,24 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
 
   // fit it and start the car: the red light goes off… and the ABS light comes on
   await garage(page, 'Under the car'); await tap(page, 'underZoom');
-  await tap(page, 'act:fit'); await ok(page);                              // tap the empty mount: the box goes back on
+  await tap(page, 'act:fit');                                              // tap the empty mount: the box goes back up…
+  expect(await dialogText(page)).toContain('All three');
+  await ok(page);
+  for (const which of ['b1', 'n3', 'b2']) {                                // …then both bolts and the nut to do up again
+    expect(await page.evaluate(() => !!S.flags.fitted)).toBe(false);
+    await tap(page, 'act:redo:' + which);
+    expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('boltBack');
+    await ok(page);
+  }
+  expect(await flag(page, 'fitted')).toBe(true);
+  expect(await page.locator('.hs[data-go^="act:redo"]').count()).toBe(0);
   await garage(page, "Driver's seat");
   await startCar(page);
+  expect(await page.evaluate(() => [ANIM.kind, ANIM.noSkip])).toEqual(['start', true]);
+  await page.mouse.click(600, 400); await page.mouse.click(600, 400);       // taps don't skip it…
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'absOn');         // …you see the orange light…
+  await page.mouse.click(600, 400);
+  expect(await page.evaluate(() => [ANIM && ANIM.kind, document.querySelectorAll('.dlg').length])).toEqual(['absOn', 0]);
   expect(await dialogText(page)).toContain('ABS');
   await ok(page);
   expect(await page.evaluate(() => findJob('light').status)).toBe('done');
@@ -528,10 +594,39 @@ test('the home screen keeps moving (traffic on the road)', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('a big moment plays before its message: the nut drops and rolls away', async ({ page }) => {
+test('the bolts and the nut under the car are all 10s: no 10 mm socket, no 10 mm spanner, so you need a full socket set', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
+  for (const go of ['act:bolt1', 'act:boltmenu', 'act:nut3']) {
+    await tap(page, go);
+    expect(await dialogText(page)).toContain('full socket set');
+    await ok(page);
+  }
+  expect(await page.evaluate(() => [!!S.flags.b1, !!S.flags.b2round, !!S.flags.n3lost, findJob('ten').status, leadOpen('ten-shop')])).toEqual([false, false, false, 'open', true]);
+  // the toolbox hasn't got one, either kind
+  await page.evaluate(() => { S.screen = 'toolbox'; S.drawer = 1; render(); });
+  await act(page, 'Look for the 10 mm'); await ok(page);
+  await page.evaluate(() => { S.drawer = 2; render(); });
+  await act(page, 'Find the right spanner');
+  expect(await dialogText(page)).toContain('never a 10');
+  await ok(page);
+  expect(await page.evaluate(() => [leadOpen('ten-drawer'), leadOpen('ten-spanner'), wifeTip().includes('socket set')])).toEqual([false, false, true]);
+  // a set off a tool shop's shelf: job done, and it sits on the garage shelf
+  await page.evaluate(() => { S.place = 'Tool Shop'; S.screen = 'place'; S.inside = true; S.basket = [{ place: 'Tool Shop', slot: '0-6', name: sectionStock('Tool Shop', 0)[6][0], price: 24.99, kind: 'box' }]; act('checkout'); });
+  expect(await dialogText(page)).toContain('even the 10');
+  await ok(page);
+  expect(await page.evaluate(() => [findJob('ten').status, haveTen(), storeList().some(r => r[0] === 'Socket set')])).toEqual(['done', true, true]);
+  await page.evaluate(() => { S.screen = 'underZoom'; S.place = null; render(); });
+  await tap(page, 'act:bolt1'); await ok(page);
+  expect(await flag(page, 'b1')).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('a big moment plays before its message: the nut drops and rolls away', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.bought = { 'Socket set': { kind: 'box', n: 1 } }; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
   await tap(page, 'act:nut3');
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('nutDrop');
   expect(await page.locator('.dlg').count()).toBe(0);                  // the message waits…
@@ -550,6 +645,20 @@ test('losing it at 100 anger: he kicks a headlight in (a job to replace it); onl
   for (let i = 0; i < 4; i++) { await page.evaluate(() => { anger(100); render(); }); await ok(page); }   // the other one, then nothing new
   expect(await page.evaluate(() => S.jobs.filter(j => j.id.startsWith('broke-')).map(j => j.id).sort())).toEqual(['broke-headlight', 'broke-headlight2']);
   expect(await page.evaluate(() => S.jobs.some(j => j.id.startsWith('kicked-')))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('losing it waits its turn: in the middle of something, that finishes first, then he loses it, and you are never stuck', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, sheared: 3, screws: [1, 2, 4, 3], needHammer: true, tapped: true }); S.inv['part-p4l'] = true; S.inv.hammer = true; S.bench = { part: 'part-p4l', state: 'stuck', rotated: false }; S.screen = 'bench'; S.anger = 97; render(); });
+  await act(page, 'Pull');                                              // this tips you over…
+  expect(await page.evaluate(() => [ANIM && ANIM.kind, S.screen])).toEqual(['benchPull', 'bench']);   // …but it finishes first
+  expect(await dialogText(page)).toContain('With a lot of wiggling');
+  await page.locator('.dlg').click();
+  await page.waitForFunction(() => S.screen === 'rage');                // then he loses it
+  await ok(page); await ok(page);
+  expect(await page.evaluate(() => [S.screen, S.anger])).toEqual(['bench', 40]);   // and you're back where you were
   expect(errors).toEqual([]);
 });
 
@@ -790,6 +899,22 @@ async function lagers(page, n) {
     if (k < n - 1) await ok(page);
   }
 }
+test('drinks are counted from when you were last sober: two, sober up, two more is two, not four; a new day starts again too', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const counts = await page.evaluate(() => {
+    const out = [];
+    S.mins = 12 * 60;
+    out.push(haveADrink()); S.mins += 30; out.push(haveADrink());
+    S.mins += 4 * 60;                                                    // it's all worn off
+    out.push(boozeNow()); out.push(haveADrink()); S.mins += 30; out.push(haveADrink());
+    S.day += 1; out.push(haveADrink());                                  // the next day
+    return out;
+  });
+  expect(counts).toEqual([1, 2, 0, 1, 2, 1]);
+  expect(errors).toEqual([]);
+});
+
 test('more than three drinks: off your stool, thrown out, sick, the wife fetches you by your car, home you stagger and sleep on the floor', async ({ page }) => {
   const errors = [];
   await start(page, errors);
@@ -816,16 +941,20 @@ test('more than three drinks: off your stool, thrown out, sick, the wife fetches
   expect(await dialogText(page)).toContain('sick in the gutter');
   expect(await page.evaluate(() => [S.inside, S.flags.sick === S.day, isDrunk()])).toEqual([false, true, true]);
   await page.locator('.dlg').click();
-  // she's there by your car, in her dress (no car of her own): NOT AGAIN, GET IN!
+  // her car turns up, she gets out, in her dress: NOT AGAIN, GET IN!
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'pubfetch');
   expect(await dialogText(page)).toContain('NOT AGAIN, GET IN!');
   expect(await page.evaluate(() => [S.flags.pickup === S.day, DIALOG.at !== null])).toEqual([true, true]);
   await page.locator('.dlg').click();
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'publeave');      // you both leave in hers
   // home: she walks in; all he can do is follow her in
   expect(await dialogText(page)).toContain('car keys');
-  expect(await page.evaluate(() => [S.screen, !!S.flags.wifeWalksIn])).toEqual(['home', true]);
+  expect(await page.evaluate(() => [S.screen, !!S.flags.wifeWalksIn, S.flags.carAt, findJob('fetch-car').status])).toEqual(['home', true, 'The Hesketh Tavern', 'open']);   // yours is left there
   await ok(page);
-  await expect(page.locator('.hs[data-go="city"]')).toHaveCount(0);
-  await expect(page.locator('.hs[data-go="garage"]')).toHaveCount(0);
+  for (const go of ['garage', 'act:wifecar', 'act:stick', 'room']) await expect(page.locator(`.hs[data-go="${go}"]`)).toHaveCount(1);   // everything on the drive can be gone to…
+  await page.evaluate(() => goTo('city'));                               // …but not the bus, like that
+  expect(await dialogText(page)).toContain('never make it up the step');
+  await ok(page);
   await tap(page, 'room');
   // in the house: halfway across the room, and down on the carpet asleep
   expect(await dialogText(page)).toContain('fold up on the carpet');
@@ -834,10 +963,13 @@ test('more than three drinks: off your stool, thrown out, sick, the wife fetches
   expect(await dialogText(page)).toContain('face down on the carpet');
   await ok(page);
   expect(await page.evaluate(() => [isDrunk(), !!S.flags.onFloor, S.mins])).toEqual([false, false, 8 * 60]);
-  // sober: the car's back, and the barman remembers last time
+  // sober: the bus into town, to fetch the car; and the barman remembers last time
   await page.evaluate(() => { S.mins = 18 * 60; S.flags.pubCall = S.day; S.screen = 'home'; render(); });
   await tap(page, 'city');
   await idle(page);
+  expect(await dialogText(page)).toContain('The bus');
+  await ok(page);
+  expect(await page.evaluate(() => [!!S.flags.carAt, findJob('fetch-car').status])).toEqual([false, 'done']);
   expect(await page.evaluate(() => S.screen)).toBe('city');
   await goPlace(page, 'The Hesketh Tavern');
   await tap(page, 'act:enter'); await idle(page);
@@ -1046,7 +1178,10 @@ test('the sensor comes off in its box; on the workbench a screw shears, then par
   await ok(page);
   expect(await page.evaluate(() => S.flags.sheared)).toBe(1);
   expect(await page.locator('.acts button', { hasText: 'Try the old sensor' }).count()).toBe(0);
-  await tap(page, 'act:boxout'); await ok(page);
+  await page.evaluate(() => { window.ON_BENCH = []; const real = sensorUnit; sensorUnit = (b, at, z) => { if (!z && at && Math.round(at[0]) === Math.round(P(190, 30, 0)[0])) ON_BENCH.push(ANIM ? ANIM.kind : 'still'); return real(b, at, z); }; });
+  await tap(page, 'act:boxout'); await idle(page);
+  expect(await page.evaluate(() => [ON_BENCH.includes('benchLift'), ON_BENCH.includes('still')])).toEqual([false, true]);   // on the bench only once it's out of the box
+  await ok(page);
   expect(await page.evaluate(() => [S.flags.sensorOut, !!S.inv['old-sensor'], findJob('sensor-out').status, !!findJob('new-sensor')])).toEqual([true, true, 'done', true]);
   await act(page, 'Try the old sensor'); await ok(page);                // now parts can be tried in the box's hole
   expect(await page.evaluate(() => S.bench.state)).toBe('in');
@@ -1088,10 +1223,10 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   const lampsOn = screen => page.evaluate(sc => { S.screen = sc; S.place = null; render(); return OUR_LAMPS.filter(l => l.cracked).length; }, screen);
   // night, with one kicked in: the cracked one flickers; the other is full on all the time
   const nightLit = () => page.evaluate(() => {
-    S.mins = 22 * 60; S.screen = 'home'; render();
+    S.mins = 22 * 60; S.place = 'Tool Shop'; S.inside = false; S.screen = 'place'; render();   // out in it (on the drive its lights are off)
     const out = [];
     for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => lampLit(l, t)).join(','));
-    S.mins = 11 * 60; render();
+    S.mins = 11 * 60; S.place = null; S.screen = 'home'; render();
     return out;
   });
   await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the first kick: the left one
@@ -1108,7 +1243,7 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   expect(await page.evaluate(() => [kickedLamps(), S.jobs.filter(j => j.id.startsWith('broke-headlight')).length])).toEqual([{ left: true, right: true }, 2]);
   // at night the lights are on: each cracked lamp flickers, and not in step with the other
   const states = await page.evaluate(() => {
-    S.mins = 22 * 60; S.screen = 'home'; render();
+    S.mins = 22 * 60; S.place = 'Tool Shop'; S.inside = false; S.screen = 'place'; render();   // out in it (on the drive its lights are off)
     const out = [];
     for (let t = 0; t < 6; t += 0.05) out.push(OUR_LAMPS.map(l => lampLit(l, t)).join(','));
     return out;
@@ -1351,16 +1486,14 @@ test('the post office: ten in the queue and it never moves; the roadworks make y
   const anger = await page.evaluate(() => S.anger);
   await goPlace(page, 'Post Office');
   expect(await dialogText(page)).toContain('Roadworks');
-  expect(await dialogText(page)).toContain('the night before');
+  expect(await dialogText(page)).toContain('before six');
   await ok(page);
   expect(await page.evaluate(() => [S.mins, poInQueue()])).toEqual([9 * 60 + 10, false]);
   expect(await page.evaluate(() => S.anger)).toBeGreaterThan(anger);
-  // set off at 3am: the road's shut all night, then the jam: 9:10 again
-  await page.evaluate(() => { S.day += 1; S.mins = 3 * 60; S.screen = 'home'; S.place = null; render(); });
-  await goPlace(page, 'Post Office');
-  expect(await dialogText(page)).toContain('ROAD CLOSED');
-  await ok(page);
-  expect(await page.evaluate(() => S.mins)).toBe(9 * 60 + 10);
+  // set off at 5, with nobody about: no roadworks, and you're first
+  await page.evaluate(() => { S.day += 1; S.mins = 5 * 60; S.screen = 'home'; S.place = null; render(); });
+  await goPlace(page, 'Post Office'); await idle(page);
+  expect(await page.evaluate(() => [!!DIALOG, S.mins, poInQueue(), poAhead()])).toEqual([false, 5 * 60 + 20, true, 0]);
   // so: drive over the evening before (no roadworks then), sleep in the car, wake first in the queue
   await page.evaluate(() => { S.mins = 20 * 60; S.screen = 'home'; S.place = null; render(); });
   await goPlace(page, 'Post Office'); await idle(page);
@@ -1387,7 +1520,7 @@ test('waiting outside the shut post office all night (the watch) also makes you 
   expect(errors).toEqual([]);
 });
 
-test('the post office queue outside: it grows from 6am; before 6 you are first (in at 9), from 6 to 9 you are in at 10; after 9 the queue is inside and never moves', async ({ page }) => {
+test('the post office queue outside: it grows from 6am; in it before 9, you go in when it opens and there is no queue; after 9 the queue is all inside and never moves', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   expect(await page.evaluate(() => [poQueueBy(6 * 60), poQueueBy(7 * 60), poQueueBy(8 * 60), poQueueBy(9 * 60 + 30)])).toEqual([0, 3, 6, 8]);
@@ -1399,16 +1532,16 @@ test('the post office queue outside: it grows from 6am; before 6 you are first (
   await page.evaluate(() => { S.mins = 9 * 60; render(); });
   await goIn();
   expect(await page.evaluate(() => [S.inside, postFirst()])).toEqual([true, true]);
-  // 7:30: four in front; at 9 it's not your turn yet; at 10 you're in and served
+  // 7:30: four in front, outside; at 9 it opens: they're all in, you go in, and there's no queue
   await page.evaluate(() => { S.day += 1; });
   await arrive(7 * 60 + 30);
   expect(await page.evaluate(() => poAhead())).toBe(4);
-  await page.evaluate(() => { S.mins = 9 * 60 + 20; render(); });
-  expect(await goIn()).toContain('Not your turn');
-  expect(await page.evaluate(() => S.inside)).toBe(false);
-  await page.evaluate(() => { S.mins = 10 * 60; render(); });
+  const drawn = mins => page.evaluate(m => { S.mins = m; const real = man; let n = 0; man = (...a) => { n++; real(...a); }; S.inside ? postQueue() : postQueueOutside(); man = real; return n; }, mins);   // people in the queue
+  expect(await drawn(8 * 60)).toBeGreaterThan(4);
+  expect(await drawn(9 * 60)).toBe(0);                                  // open: nobody outside
   await goIn();
   expect(await page.evaluate(() => [S.inside, postFirst()])).toEqual([true, true]);
+  expect(await drawn(9 * 60)).toBe(0);                                  // and no queue inside
   // after 9: straight in, the queue's inside, and you never get served
   await page.evaluate(() => { S.day += 1; });
   await arrive(11 * 60);
@@ -1420,7 +1553,7 @@ test('the post office queue outside: it grows from 6am; before 6 you are first (
 test('the nut bounces out and hides under the tool chest; you need a torch to see it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.bought = { 'Socket set': { kind: 'box', n: 1 } }; job('sensor-off', 'Get the old sensor off', 'light'); S.screen = 'underZoom'; render(); });
   await tap(page, 'act:nut3');
   expect(await dialogText(page)).toContain('bounces out');
   await ok(page);
@@ -1865,7 +1998,8 @@ test('the panel under the dashboard unscrews to show the ECU, covered in sticker
   expect(said[2]).toContain('approved dealer');
   expect(said[3]).toContain('red light');
   expect(said[4]).toContain('2008');
-  await act(page, 'Put the panel back');
+  expect(await page.locator('.acts button', { hasText: 'panel' }).count()).toBe(0);   // no button for it: ◀ Back (Steve)
+  await goBack(page);
   expect(await page.evaluate(() => S.screen)).toBe('dash');
   await tap(page, 'act:ecu');                                          // the second time: straight in, no screws
   expect(await page.locator('.dlg').count()).toBe(0);
@@ -1906,12 +2040,24 @@ test('check every fuse: F23 looks fine but you need the multimeter; its 23A batt
   await page.evaluate(() => { S.screen = 'pc'; S.app = 'MegaMart'; render(); });
   await page.locator('[data-act="buy:battery-23a"]').click();
   expect(await dialogText(page)).toContain('Order placed');
+  expect(await dialogText(page)).toContain('arrives tomorrow');         // it says when…
+  expect(await page.evaluate(() => [S.msgs[0].from, S.msgs[0].body.includes(arrivesWhen(1)), arrivesWhen(1).includes(DAYS[(S.day + 1) % 7]), arrivesWhen(2).includes('in 2 days')])).toEqual(['Zamanon', true, true, true]);   // …and a text says so too
   await ok(page);
   expect(await page.evaluate(() => [leadOpen('bat-online'), S.parcels.some(p => p.item === 'battery-23a')])).toEqual([false, true]);
   await page.evaluate(() => { S.parcels = []; openParcel('battery-23a'); });
   expect(await dialogText(page)).toContain('It beeps');
   await ok(page);
   expect(await page.evaluate(() => [findJob('meter-battery').status, S.flags.meterOK])).toEqual(['done', true]);
+  // it works: out of the drawer, and onto the garage shelf
+  await page.evaluate(() => { S.screen = 'toolbox'; S.drawer = 5; render(); });
+  await expect(page.locator('.hs[data-go="act:meter"]')).toHaveCount(0);
+  await page.evaluate(() => { S.screen = 'stores'; render(); });
+  const meterAt = await page.evaluate(() => storeList().findIndex(r => r[0] === METER_NAME));
+  expect(meterAt).toBeGreaterThanOrEqual(0);
+  await tap(page, 'act:storelook:' + meterAt);
+  expect(await dialogText(page)).toContain('It works');
+  await ok(page);
+  expect(await page.evaluate(() => { S.flags.meterOut = true; const there = storeList().some(r => r[0] === METER_NAME); S.flags.meterOut = false; return there; })).toBe(false);   // not while it's out on the fuse box
   // now every fuse: a beep each, all fine except F17
   await page.evaluate(() => { S.screen = 'fuseZoom'; render(); });
   await act(page, 'Check every fuse');
@@ -1957,6 +2103,7 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   await ok(page);
   await goBack(page);                                   // back to the roadside
   expect(await page.evaluate(() => S.screen)).toBe('roadside');
+  await expect(page.locator('.hs[data-go="act:walkhome"]')).toHaveCount(0);   // not till you've tried the phone too
   // ring for help: the phone dies (and stays dead)
   expect(await page.evaluate(() => brokenDown())).toBe(true);           // the phone in your pocket pulses
   await page.click('.go[data-go="phone"]');                             // one big button, and nothing else
@@ -1964,15 +2111,24 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   await expect(page.locator('.ph .c')).toHaveCount(0);
   await page.click('.ph .recover');
   expect(await dialogText(page)).toContain('Thank you for calling');
+  expect(await page.evaluate(() => [DIALOG.body.includes('Where are you'), voicePitch(DIALOG.title)])).toEqual([false, 290]);   // she doesn't ask where you are; a woman's voice
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).not.toContain('Mill Lane');            // and you don't say
   await ok(page);                                                       // …and it dies mid-sentence
   await expect(page.locator('.ph')).toContainText('charge it at your computer desk');
   expect(await page.evaluate(() => [S.screen, S.flags.phoneDead, brokenDown()])).toEqual(['phone', true, false]);
   expect(await page.evaluate(() => [findJob('phone').status, leadOpen('charge')])).toEqual(['open', true]);   // on the to-do list
   await page.evaluate(() => { back(); });
-  await expect(page.locator('.acts button.pulse')).toHaveText('Walk home');   // the only thing left: it pulses
+  await expect(page.locator('.acts button')).toHaveCount(0);            // no Walk home button: the pavement glows, both ways from two slabs off, and you tap it (Steve)
+  await expect(page.locator('.hs[data-go="act:walkhome"]')).toHaveCount(2);
+  expect(await page.evaluate(() => PAVEMENT_GLOW.length)).toBeGreaterThan(500);
+  expect(await page.evaluate(() => WALK_HOME_WAYS[0][1] <= ROAD_MAN[0] - 24 && WALK_HOME_WAYS[1][0] >= ROAD_MAN[0] + 24)).toBe(true);
   // walk home: rain, a car, a puddle, soaked; home, and the wife has a plan
-  await act(page, 'Walk home');
+  await walkHome(page, 1);
   expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['walkhome', 'walkhome']);
+  await upToTheHouse(page);
+  expect(await page.evaluate(() => [inWifesCar(), strandedReason('city') !== null, leadOpen('tell-wife')])).toEqual([false, true, true]);   // no car till you've told her
+  await findHer(page);
   expect(await dialogText(page)).toContain('SOAKED');
   // she's in the garden, in the sun, and doesn't believe it rained
   expect(await page.evaluate(() => [S.screen, wifeSunbathing(), !!DIALOG.at])).toEqual(['garden', true, true]);
@@ -1982,6 +2138,7 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await dialogText(page)).toContain('NOT rained');               // her
   await ok(page);
   expect(await page.evaluate(() => [S.screen, S.road.walked, !!S.flags.phoneDead])).toEqual(['garden', true, true]);
+  expect(await page.evaluate(() => [soakedAtHome(), inWifesCar(), rainLevel('home'), leadOpen('tell-wife'), leadOpen('wheel-yard')])).toEqual([false, true, 0, false, true]);
   await tap(page, 'act:backin'); await idle(page);                       // and not in the house
   await expect(page.locator('.hs[data-go="act:wife"]')).toHaveCount(0);
   expect(await page.evaluate(() => { act('wife'); return [!!DIALOG, wifeHead()]; })).toEqual([false, null]);   // no bubble in there
@@ -2026,14 +2183,23 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await page.evaluate(() => [S.inv.wheel, S.money])).toEqual(['Worn Out and Tired', money - 35]);
   // back to Mill Lane in her car, and fit it
   await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
-  await tap(page, 'city'); await idle(page);                             // her car: straight into town, no questions
-  expect(await page.evaluate(() => [S.screen, !!DIALOG])).toEqual(['city', false]);
+  await ridesWithHer(page, false);                                      // she walks out and drives you (again: the first time was to the shop)
   await tap(page, 'act:toroad'); await idle(page);                       // your blue car, flashing on the map
-  expect(await page.evaluate(() => S.screen)).toBe('roadside');
+  expect(await page.evaluate(() => [S.screen, S.road.watching])).toEqual(['roadside', true]);   // a wheel to fit: she gets out to watch
+  await tap(page, 'act:wifewatch');
+  expect(await dialogText(page)).toContain('wobble');
+  await ok(page);
   await tap(page, 'act:roadtyre');                                           // tap the flat tyre: the wheel goes on
   expect(await dialogText(page)).toContain('spare is still flat');
-  await ok(page);
-  expect(await page.evaluate(() => [S.screen, S.road, findJob('tyre').status, S.flags.punctured])).toEqual(['home', null, 'done', true]);
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain("Don't go to the pub");       // her last word…
+  await page.locator('.dlg').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('liftoff');  // …and off she drives
+  await idle(page);
+  expect(await page.evaluate(() => [S.screen, S.road, findJob('tyre').status, S.flags.punctured])).toEqual(['roadside', null, 'done', true]);
+  await expect(page.locator('.acts button')).toHaveCount(0);
+  await tap(page, 'act:roadhome'); await idle(page);                     // get in your own car, and drive it home
+  expect(await page.evaluate(() => S.screen)).toBe('home');
   await page.evaluate(() => { S.screen = 'garage'; render(); });
   await expect(page.locator('.hs[data-go="dash"]')).toHaveCount(1);     // your car's back
   expect(errors).toEqual([]);
@@ -2166,6 +2332,27 @@ test('the flat spare: a spare off a wreck at the Scrap Yard, in your slot', asyn
   expect(await dialogText(page)).toContain('Tenner');
   await ok(page);
   expect(await page.evaluate(() => [S.spare, findJob('spare').status])).toEqual(['good', 'done']);
+  expect(await page.evaluate(() => [carryingTyre(), S.counter])).toEqual([true, null]);   // he handed it over: you carry it out
+  await page.evaluate(() => { act('leave'); });
+  await tap(page, 'city'); await idle(page);
+  expect(await page.evaluate(() => carryingTyre())).toBe(false);        // …and into the car
+  expect(errors).toEqual([]);
+});
+
+test('a wheel from the Scrap Yard: he hands it over the counter, and you carry it out to her car, like at Worn Out and Tired', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { job('tyre', 'Sort out the flat tyre', null); S.road = { spare: true, walked: true }; S.flags.punctured = true; S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; });
+  const money = await page.evaluate(() => S.money);
+  await goPlace(page, 'Scrap Yard');
+  await page.evaluate(() => { window.HANDED = 0; const real = handTyre; handTyre = give => { HANDED++; real(give); }; });
+  await talk(page);
+  expect(await dialogText(page)).toContain('Tenner');
+  expect(await page.evaluate(() => [HANDED, S.inv.wheel, S.money, carryingTyre()])).toEqual([1, 'Scrap Yard', money - 10, true]);   // in your arms
+  await ok(page);
+  await page.evaluate(() => { act('leave'); });
+  await tap(page, 'city'); await idle(page);
+  expect(await page.evaluate(() => carryingTyre())).toBe(false);        // and into her car
   expect(errors).toEqual([]);
 });
 
@@ -2292,6 +2479,21 @@ test('Tameside Transmissions and Voltz Auto Electric are next door to each other
   expect(await page.evaluate(() => leadOpen('voltz'))).toBe(true);
   await goPlace(page, 'Voltz Auto Electric'); await talk(page);
   expect(await dialogText(page)).toContain('next door to Tameside Transmissions');
+  expect(errors).toEqual([]);
+});
+
+test('every sensor has a plug on the end of its wires, except the two with bare wires', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const plugged = await page.evaluate(() => {
+    const out = {};
+    const real = sensorPlug;
+    let plugs = 0;
+    sensorPlug = (x, y) => { plugs++; real(x, y); };
+    for (const id of SENSOR_ORDER) { plugs = 0; drawSensor(id, true, [200, 200], 0); out[id] = plugs; }
+    return out;
+  });
+  for (const [id, plugs] of Object.entries(plugged)) expect(plugs, id).toBe(['part-p4l', 'lot-cut'].includes(id) ? 0 : 1);
   expect(errors).toEqual([]);
 });
 
@@ -2612,18 +2814,80 @@ test('the walk home: the SPLOOSH still flashes up as the water hits him, then th
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.road = { spare: true, walked: false }; S.flags.phoneDead = true; job('tyre', 'Sort out the flat tyre', null); S.screen = 'roadside'; render(); });
-  await act(page, 'Walk home');
+  await walkHome(page, 0);
   await page.waitForFunction(() => ANIM && ANIM.kind === 'still');      // part way along: the still
   expect(await page.evaluate(() => [S.screen, WALK_PART[1] === WALK_SPLASH])).toEqual(['walkhome', true]);
   await page.waitForFunction(() => ANIM && ANIM.kind === 'walkhome');   // then the rest of the walk
   expect(await page.evaluate(() => WALK_PART[0] === WALK_SPLASH && WALK_PART[1] === 1)).toBe(true);
+  await upToTheHouse(page);
+  await findHer(page);
   expect(await dialogText(page)).toContain('SOAKED');                   // then home: she's in the garden
   expect(await page.evaluate(() => S.screen)).toBe('garden');
   expect(errors).toEqual([]);
 });
 
+test('the clamp: the wife drives you about in hers, moaning from the car; every third moan is what to do; taps never get past the little films', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; S.fine = { day: S.day, paid: false, clamped: true }; S.screen = 'home'; render(); });
+  await tap(page, 'city');                                              // her car
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'liftout');
+  await page.mouse.click(600, 300);                                     // tapping doesn't skip it
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('liftout');
+  await dialogText(page);
+  await page.locator('.dlg').click(); await idle(page);
+  expect(await page.evaluate(() => [S.screen, withWife()])).toEqual(['city', true]);
+  const moans = await page.evaluate(() => [1, 2, 3, 4, 5, 6].map(() => { const a = S.anger = 10; const text = nextMoan(); return [text, S.anger - a]; }));
+  for (const k of [2, 5]) { expect(moans[k][0]).toContain('Post Office'); expect(moans[k][1]).toBe(0); }   // what to do: no anger
+  for (const k of [0, 1, 3, 4]) expect(moans[k][1]).toBe(5);            // a moan: winds you up
+  // a bubble from her car, on the map and outside a shop; not in your way; gone by itself
+  await page.evaluate(() => { window.NO_MOANS = false; MOAN = { text: null, at: performance.now() - 60000 }; });
+  await expect(page.locator('.moan')).toHaveCount(1, { timeout: 5000 });
+  expect(await page.locator('.moan').evaluate(el => getComputedStyle(el).pointerEvents)).toBe('none');
+  await expect(page.locator('.moan')).toHaveCount(0, { timeout: 9000 });
+  await page.evaluate(() => { window.NO_MOANS = true; visit('Tool Shop'); window.NO_MOANS = false; MOAN = { text: null, at: performance.now() - 60000 }; });
+  await expect(page.locator('.moan')).toHaveCount(1, { timeout: 5000 });
+  expect(await page.evaluate(() => { S.road = { spare: true, walked: true }; S.inv.wheel = null; const a = whatToDo(); S.inv.wheel = 'Scrap Yard'; return [a.includes('wheel'), whatToDo().includes('Mill Lane')]; })).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+test("when you need the bus the wife's car has gone from the drive", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const herCar = () => page.evaluate(() => { S.screen = 'home'; const real = isoCar; let n = 0; isoCar = (x, y, s, col, o) => { if (col === WIFE_CAR) n++; real(x, y, s, col, o); }; render(); isoCar = real; return n > 0; });
+  expect(await herCar()).toBe(true);
+  await page.evaluate(() => { carLeftAt('The Hesketh Tavern'); });
+  expect(await herCar()).toBe(false);
+  await expect(page.locator('.hs[data-go="act:wifecar"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("the alarm: with a fine to pay and the Post Office queue seen, bed offers 5 am; the wife's car has its lights on at night, and leaves no trail of them", async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 22 * 60; S.fine = { day: S.day, paid: false, clamped: false }; });
+  expect(await page.evaluate(() => alarmOffered())).toBe(false);         // not tried the Post Office yet
+  await page.evaluate(() => { S.flags.poTried = true; S.screen = 'room'; render(); });
+  const day = await page.evaluate(() => S.day);
+  await page.evaluate(() => act('bed'));
+  await page.locator('.dlg button', { hasText: 'Set the alarm for 5 am' }).click();
+  expect(await dialogText(page)).toContain('The alarm');
+  await ok(page);
+  expect(await page.evaluate(() => [S.day, S.mins, alarmWentOff()])).toEqual([day + 1, 5 * 60, true]);
+  // clamped: she'll still take you, at five, and say so
+  await page.evaluate(() => { S.fine.clamped = true; S.screen = 'home'; render(); });
+  await tap(page, 'city');
+  expect(await dialogText(page)).toContain('FIVE');
+  // at home, parked up: both cars' lights are off; out in hers, they're on
+  expect(await page.evaluate(() => { DIALOG = null; HER_RIDE.at = null; S.mins = 21 * 60; render(); return [lightsOn(), OUR_LAMPS.length, OUR_LAMPS.every(l => l.off)]; })).toEqual([true, 4, true]);
+  expect(await page.evaluate(() => { S.place = 'Tool Shop'; S.inside = false; S.screen = 'place'; lift().out = true; render(); const out = [OUR_LAMPS.length, OUR_LAMPS.some(l => l.off)]; S.place = null; S.screen = 'home'; render(); return out; })).toEqual([2, false]);
+  // driving along: no trail of lit headlights left behind
+  expect(await page.evaluate(() => { const n = OUR_LAMPS.length; moment('homeride', 60000); RIDE = { kind: 'taxi', home: false }; const real = MOMENTS.homeride; MOMENTS.homeride = p => isoCar(p * 100, 150, 1, WIFE_CAR, { alongX: true, shape: 'city' }); for (let k = 0; k < 20; k++) drawFrame(performance.now()); MOMENTS.homeride = real; finishMoment(); return OUR_LAMPS.length <= n; })).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 // ---------- the fine: letters, the clamp, a taxi, paying at the Post Office ----------
-test('the fine comes in the post; unpaid, a reminder (£450), then the car is clamped with a note; a taxi to the Post Office; pay; home, and a man takes the clamp off', async ({ page }) => {
+test('the fine comes in the post; unpaid, a reminder (£450), then in two days the car is clamped with a note; the wife drives you to the Post Office; pay; home, and a man takes the clamp off', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { fineIssued(); S.screen = 'home'; render(); });
@@ -2640,37 +2904,44 @@ test('the fine comes in the post; unpaid, a reminder (£450), then the car is cl
   await expect(page.locator('.letter')).toContainText('FIXED PENALTY');
   await page.evaluate(() => { S.screen = 'home'; render(); });
   expect(await page.evaluate(() => fineOwed())).toBe(300);
-  // day 4: the reminder, and it's £450
-  await page.evaluate(() => { S.day += 3; S.mins = 7 * 60; pass(70); render(); });
+  // the next day: the reminder, and it's £450
+  await page.evaluate(() => { S.day += 1; S.mins = 7 * 60; pass(70); render(); });
+  expect(await page.evaluate(() => carClamped())).toBe(false);
   expect(await page.evaluate(() => [fineOwed(), S.letters.map(l => l.id).includes('finelate')])).toEqual([450, true]);
-  // a week: clamped; the car won't go; the note on the windscreen
-  await page.evaluate(() => { S.day += 3; S.mins = 7 * 60; pass(70); S.screen = 'home'; render(); });
+  // two days from the letter: clamped; the note on the windscreen
+  await page.evaluate(() => { S.day += 1; S.mins = 7 * 60; pass(70); S.screen = 'home'; render(); });
   expect(await page.evaluate(() => [carClamped(), fineOwed()])).toEqual([true, 550]);
   await tap(page, 'act:clampnote');
   expect(await dialogText(page)).toContain('IMMOBILISED');
   await ok(page);
-  await page.evaluate(() => { goTo('city'); });
-  expect(await dialogText(page)).toContain("It's clamped");
+  await expect(page.locator('.hs[data-go="city"]')).toHaveCount(1);     // only her car goes into town
+  // the wife drives you into town; at the Post Office after it's opened, no skipping the queue
+  const money = await page.evaluate(() => { S.money = 1000; S.mins = 11 * 60; render(); return S.money; });
+  await page.evaluate(() => { S.screen = 'garage'; render(); S.screen = 'home'; render(); });
+  await ridesWithHer(page, true);
+  await goPlace(page, 'Post Office'); await tap(page, 'act:enter');
+  expect(await dialogText(page)).toContain('get here earlier');
   await ok(page);
-  // a taxi into town (£15), and the Post Office: window 3, no queue
-  const money = await page.evaluate(() => { S.money = 1000; return S.money; });
-  await page.click('.go[data-go="phone"]'); await idle(page);
-  await page.locator('[data-act="taxi"]').click();
-  expect(await dialogText(page)).toContain('taxi');
+  expect(await page.evaluate(() => [findJob('fine').notes.some(n => JSON.stringify(n).includes('before it opens')), S.flags.poTried])).toEqual([true, true]);   // in the notebook
+  await talk(page);
+  expect(await dialogText(page)).toContain('Same queue');
   await ok(page);
-  expect(await page.evaluate(() => [S.screen, S.flags.taxi, S.money])).toEqual(['city', true, money - 15]);
-  await page.evaluate(() => { S.mins = 11 * 60; });
-  await goPlace(page, 'Post Office'); await talk(page);
+  expect(await page.evaluate(() => [S.fine.paid, withWife()])).toEqual([false, true]);
+  // there all night in her car: in the queue before it opens, so no queue, and it's paid
+  await page.evaluate(() => { S.day += 1; S.mins = 8 * 60; S.inside = false; S.po = { day: S.day, arrived: 0 }; S.mins = 9 * 60; render(); });
+  await talk(page);
   expect(await dialogText(page)).toContain('Window 3');
   await choose(page, 'Pay £550');
   expect(await page.evaluate(() => [S.fine.paid, findJob('fine').status, S.fine.unclamp])).toEqual([true, 'done', true]);
-  // home in the taxi (£15): a man's taking the clamp off
-  await page.evaluate(() => { goTo('home'); });
+  expect(await page.evaluate(() => [carClamped(), inWifesCar()])).toEqual([false, true]);   // paid, but you're still out in hers
+  await ok(page);
+  // home in her car: a man's taking the clamp off
+  await page.evaluate(() => { S.inside = false; S.screen = 'city'; render(); goTo('home'); });
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('unclamp');
   expect(await page.evaluate(() => typeof towTruck === 'function' && TOW_AT[1] > 140)).toBe(true);   // his tow truck, out in the road
   expect(await dialogText(page)).toContain('taking the clamp off');
   await ok(page);
-  expect(await page.evaluate(() => [carClamped(), S.flags.taxi, S.fine.unclamp, S.money])).toEqual([false, false, false, money - 15 - 550 - 15]);
+  expect(await page.evaluate(() => [carClamped(), inWifesCar(), S.fine.unclamp, S.money])).toEqual([false, false, false, money - 550]);
   expect(errors).toEqual([]);
 });
 
@@ -2911,7 +3182,7 @@ test('the code reader unplugs from the port; the glove box torch goes on the gar
 });
 
 // ---------- dead ends, fixed ----------
-test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ron knows, Dodgy Dave does not); clamped with a blocked card, the wife pays the taxi; whatever you cannot afford, she pays (and texts); no clamp while the car is stuck on Mill Lane; no jack once Paul has it', async ({ page }) => {
+test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ron knows, Dodgy Dave does not); a taxi you cannot afford, the wife pays; whatever has to be paid, she pays (and texts); no clamp while the car is stuck on Mill Lane; no jack once Paul has it', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   // the codes, but you don't know what P0705 is: the gearbox is just bolts; Old Ron at the pub knows, and then it's the sensor
@@ -2927,11 +3198,9 @@ test('dead ends: the gearbox shows its bolts once you know what P0705 is (Old Ro
   await page.evaluate(() => { S.inside = false; show('underZoom'); });
   expect(await page.evaluate(() => S.flags.sensorJob)).toBe(true);
   await expect(page.locator('.hs[data-go="act:bolt1"]')).toHaveCount(1);
-  // clamped, card blocked: the taxi still comes (the wife pays)
-  await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: true }; S.flags.cardBlocked = true; ringTaxi(); });
-  expect(await dialogText(page)).toContain('the wife pays');
-  expect(await page.evaluate(() => [S.flags.taxi, S.flags.wifePaid])).toEqual([true, 1]);
-  await ok(page);
+  // a taxi you can't afford: the wife pays
+  await page.evaluate(() => { S.fine = { day: S.day - 8, paid: false, clamped: true }; S.money = 5; });
+  expect(await page.evaluate(() => [spend(TAXI_FARE, false, true), S.flags.wifePaid])).toEqual([true, 1]);
   // at the Post Office with not enough money: she pays the fine, and texts you about it
   await page.evaluate(() => { S.flags.cardBlocked = false; S.money = 5; S.place = 'Post Office'; payFineAtPost(); });
   await page.locator('.dlg button').first().click();
@@ -3004,6 +3273,8 @@ test("drunk and locked out at the pub: a taxi home; the car stays at the pub; th
   await tap(page, 'city');                                                    // your car, with a drink in you: a taxi, or drive anyway
   await page.locator('.dlg button', { hasText: 'Ring for a taxi home' }).click();
   expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('taxipub');        // it pulls up, you get in, it drives off, black…
+  expect(await page.evaluate(() => { const xs = []; const real = isoCar; isoCar = (x, y, s, col, o) => { if (y === TAXI_LANE) xs.push(x); }; for (let p = 0.6; p <= 1; p += 0.02) MOMENTS.taxipub(p); isoCar = real; return xs.every((x, i) => !i || x >= xs[i - 1]); })).toBe(true);   // always forwards
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'homeride' && RIDE.kind === 'taxi' && RIDE.home, null, { timeout: 20000 });   // you see it drop you at home
   expect(await dialogText(page)).toContain('fetch it');                       // …then home
   expect(await page.evaluate(() => [S.screen, S.flags.carAt, carAway()])).toEqual(['home', 'The Hesketh Tavern', true]);
   await ok(page);
@@ -3012,6 +3283,7 @@ test("drunk and locked out at the pub: a taxi home; the car stays at the pub; th
   // the next morning: the bus into town, and there's the car
   await page.evaluate(() => { sleepUntilMorning(); S.screen = 'home'; render(); });
   await page.locator('.hs[data-go="city"]', { hasText: '' }).first().click();   // the bus stop (your car's not here)
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'homeride' && RIDE.kind === 'bus' && !RIDE.home, null, { timeout: 20000 });   // it comes, you get on, off it goes
   expect(await dialogText(page)).toContain('The bus into town');
   expect(await page.evaluate(() => [S.screen, S.place, S.flags.carAt, carAway()])).toEqual(['city', 'The Hesketh Tavern', undefined, false]);
   expect(errors).toEqual([]);
@@ -3057,6 +3329,11 @@ test('the splash: as the car hits the puddle he is level with it, and stops dead
 test('the screw jar: once the stub is out you need a third screw; the jar on the garage shelf spills everywhere; sweep it up with the dustpan; try screws from the tray till one fits', async ({ page }) => {
   const errors = [];
   await start(page, errors);
+  // the dustpan and brush are always in the corner of the garage
+  await page.evaluate(() => { show('garage'); });
+  await tap(page, 'act:dustpan');
+  expect(await dialogText(page)).toContain('Nobody has ever swept');
+  await ok(page);
   // before you need one: just a jar of screws
   await page.evaluate(() => { show('stores'); ACTIONS.storelook(storeList().findIndex(i => i[0] === SCREW_JAR)); });
   expect(await dialogText(page)).toContain('None of them match');
@@ -3065,21 +3342,33 @@ test('the screw jar: once the stub is out you need a third screw; the jar on the
   await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, sheared: 3, stubOut: true, fits: true, n3found: true }); screwJob(); ACTIONS.fit(); });
   expect(await dialogText(page)).toContain('screw jar');
   await ok(page);
+  // where they land: on the clear floor, never on (or behind) the car
+  expect(await page.evaluate(() => { const bad = []; for (let k = 0; k < 160; k++) { const [x, y] = spillSpot(k); if (!floorClear(x, y)) bad.push(k); } return bad; })).toEqual([]);
+  expect(await page.evaluate(() => [floorClear(55, 75), floorClear(50, 40), floorClear(120, 90)])).toEqual([false, false, true]);
   // take the jar down: it spills; sweep up
   await page.evaluate(() => { show('stores'); ACTIONS.storelook(storeList().findIndex(i => i[0] === SCREW_JAR)); });
   await page.locator('.dlg button', { hasText: 'Take the jar down' }).click();
   expect(await dialogText(page)).toContain('bottom falls out');
   await ok(page);
+  // they stay on the garage floor (away and back too) till you get the dustpan and brush from the corner
+  expect(await page.evaluate(() => [S.screen, screwsOnFloor(), leadOpen('dustpan'), storeList().some(r => r[0] === SCREW_JAR)])).toEqual(['garage', true, true, false]);
+  await page.evaluate(() => { show('room'); show('garage'); });
+  expect(await page.evaluate(() => { [ISO.ox, ISO.oy] = VIEW.garage; const pt = P(...spillSpot(3)); return [...img.data.slice((Math.round(pt[1]) * W + Math.round(pt[0])) * 4, (Math.round(pt[1]) * W + Math.round(pt[0])) * 4 + 3)].join() === C.steel.join(); })).toBe(true);
+  await tap(page, 'act:dustpan'); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('sweep');
+  await act(page, 'Leave them for now'); await idle(page);              // leave them: still there
+  expect(await page.evaluate(() => [S.screen, screwsOnFloor()])).toEqual(['garage', true]);
+  await tap(page, 'act:dustpan'); await idle(page);
   await page.evaluate(() => { for (let y = 40; y <= 260; y += 10) for (let x = 24; x <= 456; x += 20) sweepMove(x, y); });   // over the whole floor
   expect(await dialogText(page)).toContain('Swept up');
   await ok(page);
-  expect(await page.evaluate(() => [S.flags.jarSwept, S.screen])).toEqual([true, 'screwtray']);
+  expect(await page.evaluate(() => [S.flags.jarSwept, S.screen, screwsOnFloor(), leadOpen('dustpan')])).toEqual([true, 'screwtray', false, false]);
   // the tray: a wrong one, then the right one
   await tap(page, 'act:trayscrew:2');
   expect(await dialogText(page)).toContain('too long');
   await ok(page);
   await tap(page, 'act:trayscrew:7');
+  expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['bench', 'screwTest']);   // you see it go in the hole
   expect(await dialogText(page)).toContain('All four screws');
   expect(await page.evaluate(() => [S.flags.screw3, findJob('screw3').status, S.screen])).toEqual([true, 'done', 'bench']);
   expect(errors).toEqual([]);
@@ -3235,11 +3524,11 @@ test('the playtest batch: tap the multimeter; a golf club in the parts box; tap 
   await page.locator('.phoneoff[data-act="nbclose"]').click({ position: { x: 5, y: 5 } });
   expect(await page.evaluate(() => S.screen)).toBe('home');
   // skint: Mum sends £50 (not again for a few days); Paul twenty, once
-  await page.evaluate(() => { S.money = 5; ACTIONS.ring('Mum'); });
+  await page.evaluate(() => { S.money = 5; askMumForMoney('Mum'); });
   expect(await dialogText(page)).toContain("Don't tell your father");
   await ok(page);
   expect(await page.evaluate(() => S.money)).toBe(55);
-  await page.evaluate(() => { S.money = 5; ACTIONS.ring('Brother'); });
+  await page.evaluate(() => { S.money = 5; askPaulForMoney('Paul'); });
   expect(await dialogText(page)).toContain("Don't tell Mum");
   await ok(page);
   expect(await page.evaluate(() => [S.money, askPaulForMoney()])).toEqual([25, false]);
@@ -3254,16 +3543,22 @@ test("the wife's car lives on its own drive the other side of the house: she nee
   await page.evaluate(() => { S.screen = 'home'; render(); });
   await tap(page, 'act:wifecar');
   expect(await dialogText(page)).toContain('I need it');
+  expect(await page.evaluate(() => [DIALOG.at.join() === houseVoice().join(), DIALOG.voiced, voicePitch(DIALOG.title)])).toEqual([true, true, 290]);   // a bubble from the house, in her voice
   await ok(page);
   await page.evaluate(() => { S.road = { spare: true, walked: true }; render(); });   // yours on a flat, walked home
   await page.evaluate(() => { S.battery = { plus: true, minus: false }; });    // (even with the battery off in yours)
-  await tap(page, 'city'); await idle(page);                                 // hers, highlighted like yours: straight into town
-  expect(await page.evaluate(() => [S.screen, !!DIALOG])).toEqual(['city', false]);
+  await page.evaluate(() => { S.mins = 23 * 60 + 30; goTo('city'); });       // late: she's asleep, so no lift
+  expect(await dialogText(page)).toContain('asleep');
+  await ok(page);
+  await page.evaluate(() => { S.mins = 10 * 60; render(); });
+  await ridesWithHer(page, true);                                            // hers, highlighted like yours: she drives
+  expect(await page.evaluate(() => { act('ring:Wife'); return DIALOG.body; })).toContain("in the car");   // she's not at home, she's outside
+  await ok(page);
   // yours is on the map, its hazards flashing; tap it to go to it, and back into town again
   const flash = await page.evaluate(() => [0.1, 0.6].map(t => { ISO.ox = S.cam.ox; ISO.oy = S.cam.oy; brokenCarFlash(t); const [mx, my] = minimapCorner(); return IMG32[(my + MAP_LANE.mini[1] + 1) * W + mx + MAP_LANE.mini[0] + 1]; }));
   expect(flash[0]).not.toBe(flash[1]);                                       // orange, then not
   await tap(page, 'act:toroad'); await idle(page);
-  expect(await page.evaluate(() => S.screen)).toBe('roadside');
+  expect(await page.evaluate(() => [S.screen, !!S.road.watching])).toEqual(['roadside', false]);   // no wheel to fit: she stays in the car
   await act(page, 'Into town'); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('city');
   await page.evaluate(() => { S.road = null; render(); });                   // fixed: it's gone from Mill Lane
@@ -3276,6 +3571,47 @@ test('the bank is in the grand building with the columns (where the library was)
   await start(page, errors);
   expect(await page.evaluate(() => [placeIndex('Bank') >= 0, placeIndex('Library (free Wi-Fi)'), placeIndex('BustBlockers') >= 0, !!PLACE_INFO['BustBlockers'].gone])).toEqual([true, -1, true, true]);
   await page.evaluate(() => { S.day = 7; S.mins = 11 * 60; S.place = 'Bank'; S.inside = false; show('place'); });
+  expect(errors).toEqual([]);
+});
+
+test('anger: the wife being no help raises it, a tip does not; so does anything that gets you nowhere', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const rise = async run => page.evaluate(code => { S.anger = 10; DIALOG = null; new Function(code)(); return S.anger - 10; }, run);   // how much it goes up
+  await page.evaluate(() => { S.mins = 11 * 60; });
+  expect(await rise('S.wifeTalks = 0; wifeLine()')).toBe(5);                 // scrap it
+  expect(await rise('S.flags.mumMoneyDay = 1; S.wifeTalks = 5; wifeLine()')).toBe(5);   // just a remark
+  expect(await rise('S.flags.cardBlocked = true; S.wifeTalks = 4; wifeLine(); S.flags.cardBlocked = false')).toBe(0);   // a real tip
+  expect(await rise('gardenLine()')).toBe(5);
+  expect(await rise('S.screen = "home"; act("wifecar")')).toBe(5);           // use your own
+  expect(await rise('talk("Trusty Autos")')).toBe(4);                        // a garage that's no help
+  expect(await rise('ACTIONS.search("the shelves")')).toBe(4);               // pitch black
+  expect(await rise('ACTIONS.ring("Nobody")')).toBe(4);                      // no answer
+  expect(errors).toEqual([]);
+});
+
+test('money runs out: not enough for something and the till says to see Mum & Dad or Paul; they only give it in person; once they have, the wife pays', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  expect(await page.evaluate(() => [START_MONEY, freshState().money])).toEqual([140, 140]);
+  await page.evaluate(() => { S.money = 32; });
+  expect(await page.evaluate(() => [spend(35), S.money, declinedWords().includes('Mum & Dad or Paul'), findJob('money').status, leadOpen('mum-money'), leadOpen('paul-money')])).toEqual([false, 32, true, 'open', true, true]);
+  await page.evaluate(() => { ACTIONS.ring('Mum'); });                        // by phone: come round
+  expect(await dialogText(page)).toContain('Come round');
+  await ok(page);
+  await page.evaluate(() => { ACTIONS.ring('Brother'); });
+  expect(await dialogText(page)).toContain('Come round');
+  await ok(page);
+  expect(await page.evaluate(() => S.money)).toBe(32);
+  await page.evaluate(() => { talk("Mum & Dad's"); });                        // in person: £50
+  expect(await dialogText(page)).toContain('£50');
+  await ok(page);
+  expect(await page.evaluate(() => [S.money, findJob('money').status, spend(35), S.money])).toEqual([82, 'done', true, 47]);
+  expect(await page.evaluate(() => [spend(60), declinedWords().includes('Paul'), declinedWords().includes('Mum')])).toEqual([false, true, false]);   // Mum's just helped: Paul
+  await page.evaluate(() => { talk("Paul's"); }); await ok(page);
+  expect(await page.evaluate(() => S.money)).toBe(67);
+  expect(await page.evaluate(() => [spend(100), S.money, S.flags.wifePaid])).toEqual([true, 67, 1]);   // they've both helped: the wife pays
+  expect(await page.evaluate(() => { S.flags.paulLent = false; return [spend(100), spend(100, false, true)]; })).toEqual([false, true]);   // a fine or a taxi: she pays straight away
   expect(errors).toEqual([]);
 });
 
@@ -3325,6 +3661,8 @@ test('the wife never vanishes mid-conversation, and her bubble is never in the h
   expect(await page.evaluate(() => [wifeSunbathing(), wifeHead()])).toEqual([true, null]);
   // out late on the walk home: she's indoors in her nightie, and still doesn't believe it rained
   await page.evaluate(() => { window.NO_SUNBATHING = true; job('tyre', 'Sort out the flat tyre', null); S.road = { spare: true, walked: false }; S.mins = 19 * 60; homeSoaked(); });
+  await idle(page);
+  await page.evaluate(() => show('room'));
   expect(await page.evaluate(() => [S.screen, wifeSunbathing(), !!DIALOG.at])).toEqual(['room', false, true]);
   expect(errors).toEqual([]);
 });
@@ -3507,5 +3845,61 @@ test('ringing people after midnight: they complain it is late', async ({ page })
   await page.evaluate(() => { S.mins = 10 * 60; DIALOG = null; S.screen = 'phone'; render(); });
   await page.locator('[data-act="ring:Gaz"]').click();
   expect(await dialogText(page)).not.toContain('midnight');            // by day he answers as normal
+  expect(errors).toEqual([]);
+});
+
+test('everyone who talks makes the speech noise: the tester, the first time too; on the phone; part of the way through a message', async ({ page }) => {
+  const errors = [];
+  await start(page, errors, true);                                       // in the MOT Test Centre
+  // listen for the speech noise, and measure what really comes out
+  await page.evaluate(() => {
+    window.HEARD = [];
+    window.LOUDEST = 0;
+    const realMumble = mumble;
+    mumble = (n, pitch) => { HEARD.push(pitch); realMumble(n, pitch); };
+    const ears = AC.createAnalyser();
+    MASTER.connect(ears);
+    const wave = new Float32Array(ears.fftSize);
+    setInterval(() => { ears.getFloatTimeDomainData(wave); for (const v of wave) LOUDEST = Math.max(LOUDEST, Math.abs(v)); }, 20);
+  });
+  const heard = async () => page.evaluate(() => HEARD.splice(0));         // what's been heard since last time
+  await page.evaluate(() => AC.suspend());                                // the sound has gone to sleep: the tap wakes it
+  await talk(page);
+  await expect.poll(() => page.evaluate(() => HEARD.length)).toBe(1);     // his very first words
+  expect(await page.evaluate(() => AC.state)).toBe('running');
+  await page.evaluate(() => { LOUDEST = 0; });
+  await expect.poll(() => page.evaluate(() => LOUDEST)).toBeGreaterThan(0.03);   // …and they can be heard
+  await heard();
+  await page.locator('.dlg').click();                                     // "Anything else, mate?"
+  expect(await heard()).toEqual([120]);
+  await page.locator('.dlg button', { hasText: 'Can you fix it?' }).click();   // you ask…
+  expect(await heard()).toEqual([120]);
+  await page.locator('.dlg').click();                                     // …and he answers
+  expect(await heard()).toEqual([120]);
+  await choose(page, 'Back to the car');
+  await page.evaluate(() => { if (S.screen !== 'city') throw new Error('not on the town map'); show('home'); });   // the town map; then home
+  await heard();
+  // each of these: [title, words, the voice it's said in (null: nobody's talking)]
+  const lines = [
+    ['Mum & Dad', '"Hello love, it is Mum."', 290],
+    ['Ringing Mum', '"Come over any time, love."', 290],
+    ['Ringing the Scrap Yard', 'An answerphone: "Scrap Yard."', 120],
+    ['The taxi', 'A taxi. "Zafira? Never again."', 120],
+    ['Blue lights', 'A policeman taps on your window. "Evening, sir."', 120],
+    ['Ringing Gaz', 'No answer.', null],
+    ['The posters', '"OIL" (faded).', null],
+    ['Home', 'The taxi drops you home.', null]
+  ];
+  for (const [title, words, voice] of lines) {
+    await page.evaluate(([t, w]) => { DIALOG = null; say(t, w); }, [title, words]);
+    expect(await heard(), title).toEqual(voice ? [voice] : []);
+  }
+  // a message waiting for a moment to finish: the words come with the message, not before
+  await page.evaluate(() => { DIALOG = null; moment('fadein', 60000); say('Dad', '"Skint?"'); });
+  expect(await heard()).toEqual([]);
+  await page.evaluate(() => finishMoment());
+  expect(await heard()).toEqual([120]);
+  await page.evaluate(() => { DIALOG = null; S.screen = 'garage'; rageCutscene('left'); });   // losing it: he swears out loud
+  await expect.poll(() => page.evaluate(() => HEARD.length), { timeout: 15000 }).toBe(1);
   expect(errors).toEqual([]);
 });

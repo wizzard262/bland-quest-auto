@@ -7,15 +7,17 @@
 //   S.post: letters on their way [{ id, day }] (each comes at 8 in the morning); S.letters: in the mailbox [{ id, read }]
 
 const POLICE = 'Police Station';
+// The letter comes the next day; the reminder the day after that; two days from the letter, unpaid, the clamp (Steve)
+const FINE_LATE_AFTER = 2, CLAMP_AFTER = 3;                             // days after the breath test
 const FINE = 300, FINE_LATE = 450, CLAMP_FEE = 100;                    // the fine, the fine once it's late, taking the clamp off
 const TAXI_FARE = 15;                                                  // each way
 
 // ---------- what each letter says ----------
 const LETTERS = {
   fine: () => ({ from: 'Police: Fixed Penalty Office', title: 'FIXED PENALTY NOTICE',
-    body: `Driving over the limit, ${dateOfDay(S.fine.day)}.\n\nFixed penalty: £${FINE}.\n\nPay within 7 days, in person, at the Post Office (window 3).\n\nThe police cannot take payments.` }),
+    body: `Driving over the limit, ${dateOfDay(S.fine.day)}.\n\nFixed penalty: £${FINE}.\n\nPay within 2 days, in person, at the Post Office (window 3).\n\nThe police cannot take payments.` }),
   finelate: () => ({ from: 'Police: Fixed Penalty Office', title: 'FINAL REMINDER',
-    body: `Your fixed penalty has not been paid. It is now £${FINE_LATE}.\n\nPay within 3 days at the Post Office, or your vehicle will be immobilised.` }),
+    body: `Your fixed penalty has not been paid. It is now £${FINE_LATE}.\n\nPay today at the Post Office, or your vehicle will be immobilised.` }),
   junk: () => ({ from: 'We Buy Any Car (Probably)', title: 'WE WANT YOUR CAR!',
     body: 'Get a GREAT price for your Zafira today!*\n\n*£40. Collection extra. Red light, deduct £40.' }),
   mot: () => ({ from: 'Vehicle Testing', title: 'Your MOT has run out',
@@ -24,7 +26,7 @@ const LETTERS = {
 // How much you owe now (the fine, more once it's late, and the clamp on top)
 function fineOwed() {
   if (!S.fine || S.fine.paid) return 0;
-  const late = S.day >= S.fine.day + 4;
+  const late = S.day >= S.fine.day + FINE_LATE_AFTER;
   return (late ? FINE_LATE : FINE) + (S.fine.clamped ? CLAMP_FEE : 0);
 }
 const carClamped = () => !!(S.fine && S.fine.clamped && !S.fine.paid);
@@ -47,16 +49,16 @@ function postArrives() {
   }
   if (!S.flags.junkPosted && S.day >= 2) { S.flags.junkPosted = true; post('junk', S.day); post('mot', S.day + 1); }   // the usual post
   const carHome = typeof carAway !== 'function' || !carAway();      // (not while it's on Mill Lane or outside the pub: then it waits till it's back)
-  if (S.fine && !S.fine.paid && !S.fine.clamped && carHome && S.day >= S.fine.day + 7) {   // a week, unpaid: clamped
+  if (S.fine && !S.fine.paid && !S.fine.clamped && carHome && S.day >= S.fine.day + CLAMP_AFTER) {   // the two days are up: clamped
     S.fine.clamped = true;
-    if (findJob('fine')) note('fine', 'A week, unpaid: the car is clamped on the drive', 'x');
+    if (findJob('fine')) note('fine', 'Two days, unpaid: the car is clamped on the drive', 'x');
   }
 }
 // The breath test failed: the fine's in the post (the money isn't taken there and then)
 function fineIssued() {
   S.fine = { day: S.day, paid: false, clamped: false };
   post('fine', S.day + 1);
-  post('finelate', S.day + 4);
+  post('finelate', S.day + FINE_LATE_AFTER);
   job('fine', 'Pay the drink-driving fine', null);
   lead('fine', 'fine-pay', 'Pay it at the Post Office (window 3)', 'the letter', 'sure', 'place:Post Office');
 }
@@ -180,9 +182,9 @@ function payFineAtPost() {
   if (!S.fine || S.fine.paid || S.place !== 'Post Office') return false;
   const owed = fineOwed();
   const clamp = S.fine.clamped ? ` and £${CLAMP_FEE} to take the clamp off` : '';
-  say('Post Office', `"Fines? Window 3, love. Nobody's ever in this queue."\n\nThat's £${owed}: the fine${clamp}.`, [
+  say('Post Office', `"Fines? Window 3, love."\n\nThat's £${owed}: the fine${clamp}.`, [
     { label: `Pay £${owed}`, run() {
-      if (!spend(owed)) { anger(10); return say('Post Office', DECLINED + '\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
+      if (!spend(owed, false, true)) { anger(10); return say('Post Office', declinedWords() + '\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
       S.fine.paid = true;
       sfx('kerching');                                                 // window 3's till
       finishJob('fine', `Paid: £${owed}`);
@@ -195,46 +197,28 @@ function payFineAtPost() {
 }
 
 // ---------- the taxi ----------
-// Clamped: ring for a taxi. 40 minutes, then it takes you into town
-function ringTaxi() {
-  if (!carClamped()) return say('Ringing for a taxi', '"Where are you going? Your car\'s right there."');
-  const paid = spend(TAXI_FARE);                                      // your card, if it works…
-  if (!paid) wifeBailsOut(TAXI_FARE);                                  // …or, blocked, the wife pays (so you're never stuck at home)
-  pass(40);
-  S.flags.taxi = true;
-  S.place = null;
-  show('city');
-  const chat = S.flags.taxiChat ? '' : '\n\n"Zafira? My brother-in-law had one. Gearbox went. Never again."';
-  S.flags.taxiChat = true;
-  const who = paid ? '' : ' Your card\'s declined; the wife pays it, and says nothing. Loudly.';
-  say('The taxi', `Forty minutes later, a taxi. £${TAXI_FARE}.${who}` + chat);
-}
-
 // Drunk and locked out of your car at the pub: a taxi home. The car stays outside the pub till you fetch it (on the bus)
 function taxiFromPub() {
-  const paid = spend(TAXI_FARE);                                       // your card, or (blocked) the wife pays
+  const paid = spend(TAXI_FARE, false, true);                                       // your card, or (blocked) the wife pays
   if (!paid) wifeBailsOut(TAXI_FARE);
-  S.flags.carAt = S.place;                                             // the car's left where it is
+  carLeftAt(S.place);                                                  // the car's left where it is (lift.js)
   KEY.scratches = [];
   pass(10);                                                            // it turns up quick
   S.inside = false;                                                    // outside the pub, by the car
   moment('taxipub', TAXI_PUB_MS);                                      // the taxi pulls up, you get in, off it goes, and it all goes dark
   show('place');
   sfx('car'); sfx('door', TAXI_PUB_MS * 0.5 / 1000); sfx('car', TAXI_PUB_MS * 0.6 / 1000);
-  ANIM.then = () => {                                                  // …and it fades back in as you get home
+  ANIM.then = () => {                                                  // …then home
     pass(30);
     S.place = null;
-    S.spot.home = [96, 96];                                            // dropped off on the drive
-    show('home');
-    moment('fadein', 1000);
-    ANIM.then = () => {
+    rideToHome('taxi', () => {                                         // you see it drop you off (rides.js)
       const who = paid ? '' : ' Your card was declined; the wife paid it. She said nothing. Loudly.';
       say('The taxi', `Home. £${TAXI_FARE}.${who}
 
 "Been out celebrating, have we?"
 
 Your car's still outside ${S.flags.carAt}. You'll have to fetch it.`);
-    };
+    });
   };
 }
 // The taxi outside the pub: it pulls up in the far lane, he crosses to it and gets in, it drives off; then black
@@ -242,7 +226,7 @@ const TAXI_PUB_MS = 5200;
 const TAXI_LANE = 98;                                                  // the far lane (your car's parked at the kerb)
 MOMENTS.taxipub = function (p) {
   [ISO.ox, ISO.oy] = OUTSIDE_VIEW;
-  const tx = p < 0.3 ? lerp(-320, 110, ease(p / 0.3)) : p < 0.6 ? 110 : lerp(110, 560, ease((p - 0.6) / 0.25));   // in, wait, off
+  const tx = p < 0.3 ? lerp(-320, 110, ease(p / 0.3)) : p < 0.6 ? 110 : lerp(110, 560, ease(Math.min(1, (p - 0.6) / 0.25)));   // in, wait, off (and gone)
   if (p < 0.5) {                                                       // him: stood there, then over to the taxi
     const [sx, sy] = manSpot('place');
     const q = Math.max(0, (p - 0.32) / 0.18);
@@ -261,30 +245,40 @@ function fadeToBlack(k) {
 // Your car's still outside the pub: into town on the bus to fetch it (40 minutes, £2.50)
 const BUS_FARE = 2.5;
 function busToCar() {
-  spend(BUS_FARE);                                                     // (short of money, the wife pays)
+  if (S.screen === 'home') return rideFromHome('bus', busIntoTown);    // it comes, you get on, and off (rides.js)
+  busIntoTown();
+}
+function busIntoTown() {
+  spend(BUS_FARE, false, true);                                                     // (short of money, the wife pays)
   pass(40);
   const where = S.flags.carAt;
   S.place = where;                                                     // in town, where the car is
   delete S.flags.carAt;
+  finishJob('fetch-car', 'Fetched the car');
   show('city');
   say('The bus', `The bus into town: £${BUS_FARE.toFixed(2)}, forty minutes, and a man eating an egg sandwich next to you.\n\nYour car's where you left it, outside ${where}.`);
 }
 // Home in the taxi: another £15; and if you've paid, a man's taking the clamp off
 function taxiHome() {
   S.flags.taxi = false;
-  spend(TAXI_FARE);
+  spend(TAXI_FARE, false, true);
+  rideToHome('taxi', droppedHome);                                     // you see it drop you off (rides.js)
+}
+function droppedHome() { clampComesOff(`The taxi drops you home. £${TAXI_FARE}.`); }
+// Home again: if the fine's paid, a man's taking the clamp off. words: how you got home ('' says nothing if there's nothing to see)
+function clampComesOff(words) {
   if (S.fine && S.fine.unclamp) {
     moment('unclamp', 2600);
     sfx('ratchet', 0.4); sfx('clink', 1.8);
     ANIM.then = () => { S.fine.unclamp = false; };
-    return say('Home', `The taxi drops you home. £${TAXI_FARE}.\n\nA man in a hi-vis vest is taking the clamp off. "All yours, mate." He leaves the note.`);
+    return say('Home', `${words ? words + '\n\n' : ''}A man in a hi-vis vest is taking the clamp off. "All yours, mate." He leaves the note.`);
   }
-  say('Home', `The taxi drops you home. £${TAXI_FARE}.`);
+  if (words) say('Home', words);
 }
 // Going somewhere while clamped: not in your car. Returns a reason, or null to go
 function clampedReason(target) {
-  if (!carClamped() || S.flags.taxi) return null;
-  if (target === 'city' && S.screen !== 'city') return 'It\'s clamped. A yellow clamp on the front wheel, and a note under the wiper. Ring for a taxi.';
+  if (!carClamped() || S.flags.taxi || withWife()) return null;
+  if (target === 'city' && S.screen !== 'city') return 'It\'s clamped. A yellow clamp on the front wheel, and a note under the wiper. The wife\'s car isn\'t.';
   return null;
 }
 
@@ -295,5 +289,5 @@ Object.assign(ACTIONS, {
   clampnote() {
     say('A note under the wiper', `PENALTY UNPAID. THIS VEHICLE HAS BEEN IMMOBILISED.\n\nPay £${fineOwed()} at the Post Office, window 3.`);
   },
-  taxi() { ringTaxi(); }
+
 });

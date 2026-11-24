@@ -89,25 +89,22 @@ SCREENS.home = {
     winLeft(60, 190, 204, 16, 30); winLeft(60, 214, 228, 16, 30);
     houseCurtains(HOME_WINDOWS);                                                          // midnight till 8: every house has its curtains drawn
     // the car, the bin, parcels by the door, you
-    isoCar(WIFE_DRIVE[0], WIFE_DRIVE[1], 1, WIFE_CAR, { shape: 'city' });                 // her little purple car, on it
+    if (wifesCarHome()) isoCar(WIFE_DRIVE[0], WIFE_DRIVE[1], 1, WIFE_CAR, { shape: 'city', off: true });                 // her little purple car, on it
     // the lamp post on the pavement, along past her drive so it's clear of it and her car (Steve)
     ibox(-92, 140, -89, 143, 0, 80, C.greyDark); ibox(-96, 136, -82, 147, 80, 84, C.greyDark); onLeft(147, -94, -84, 79, 80, C.warm);
-    if (!carAway()) isoCar(102, 72);                                                      // your car on the drive (not on Mill Lane or outside the pub)
+    if (!carAway()) isoCar(102, 72, 1, C.car, { off: true });                                                      // your car on the drive (not on Mill Lane or outside the pub)
     drawClamp();                                                                          // clamped, for an unpaid fine (police.js)
     ibox(-18, 66, -8, 76, 0, 14, C.tree2);
     const vanComing = ANIM && ANIM.kind === 'van';                                         // the courier's on his way: the parcel isn't there till he's been
     kerbMailbox(!vanComing && (S.doorstep.length > 0 || unreadLetters() > 0));             // the mailbox at the kerb: a parcel or the post sticks out
     standingMan('home');
-    if (S.flags.drunkHome) {                                          // home from the pub: all he can manage is the front door
-      spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
-      return hud();
-    }
-    if (carClamped() && !S.flags.taxi) spot('Car: clamped (read the note)', isoArea(102, 72, 126, 118, 0, 22), 'act:clampnote', [96, 96]);
+    if (soakedAtHome()) nightShade(0, 0, W, H, 0.35);                 // a dark, gloomy sky: it's throwing it down (road.js)
+    if (carClamped()) spot('Car: clamped (read the note)', isoArea(102, 72, 126, 118, 0, 22), 'act:clampnote', [96, 96]);
     else if (!carAway()) spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
-    if (S.flags.carAt) spot('Bus stop: the bus into town', isoArea(18, 138, 30, 146, 0, 50), 'city', [20, 134]);   // your car's left in town: get the bus to it
+    if (S.flags.carAt) spot('Bus stop: the bus into town', isoArea(18, 138, 30, 146, 0, 50), 'city', [36, 146]);   // your car's left in town: get the bus to it
     const [wx, wy] = WIFE_DRIVE, herL = CAR_SHAPES.city.L;               // her car: yours if yours is stuck; otherwise she needs it
     const [herName, herGo] = inWifesCar() ? ["Wife's car: into town", 'city'] : ["Wife's car", 'act:wifecar'];   // straight into town, just like yours (Steve)
-    spot(herName, isoArea(wx, wy, wx + 24, wy + herL, 0, 20), herGo, [wx + 30, wy + herL / 2]);
+    if (wifesCarHome()) spot(herName, isoArea(wx, wy, wx + 24, wy + herL, 0, 20), herGo, [wx + 30, wy + herL / 2]);
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
     const mail = S.doorstep.length ? ['Mailbox: a parcel!', 'act:parcel']                 // a parcel first; then the post; else empty
@@ -199,7 +196,7 @@ SCREENS.room = {
     spot('Bed: go to sleep', isoArea(0, 80, 59, 130, 0, 22), 'act:bed', [70, 104]);
     spot('Kettle: make a cup of tea', isoArea(KETTLE[0] - 6, 0, KETTLE[0] + 14, 18, 26, 42), 'act:tea', [150, 32]);
     spot('Door: outside', isoArea(EXIT_DOOR[0], ROOM.d - 4, EXIT_DOOR[1], ROOM.d, 0, EXIT_DOOR[2]), 'home', [105, 130]);
-    spot(wifeSunbathing() ? "Back door: the garden (she's out there)" : 'Back door: the garden', isoArea(BACK_DOOR[0], 0, BACK_DOOR[1], 4, 0, BACK_DOOR[2]), 'act:garden', [38, 12]);
+    spot('Back door: the garden', isoArea(BACK_DOOR[0], 0, BACK_DOOR[1], 4, 0, BACK_DOOR[2]), 'act:garden', [38, 12]);
     if (wifeSunbathing()) { hud(); return; }                           // she's out in the garden: not in here
     const [fx, fy] = WIFE.pos;                                         // she walks round (drawn in life.js); the tap area follows her
     spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 18, fy + 14]);   // last: on top, even when she's in bed
@@ -859,7 +856,6 @@ const HANDSET = '<svg viewBox="0 0 24 24" width="1.1em" height="1.1em" aria-hidd
 // The numbers in your phone: [the name you see, what ringing them does]
 function phoneContacts() {
   const list = [['Gaz', 'ring:Gaz'], ['Mum &amp; Dad', 'ring:Mum'], ['Paul', 'ring:Brother'], ['The wife', 'ring:Wife']];
-  if (carClamped()) list.push(['Taxi', 'taxi']);                     // only while the car's clamped
   if (S.flags.yardNumber) list.push(['Scrap Yard', 'ring:Yard']);    // once you've got their number
   return list;
 }
@@ -1012,9 +1008,11 @@ SCREENS.garage = {
     if (S.flags.screwsSpilt && !S.flags.n3found) for (let n = 0; n < 60; n++) { const p = P(100 + hash(n, 9) * 70, 30 + hash(9, n) * 30); px(p[0], p[1], C.steel); }
     ibox(0, 104, 18, 122, 0, 12, CARDBOARD); ibox(2, 106, 16, 120, 12, 22, CARDBOARD); ibox(0, 124, 16, 138, 0, 10, CARDBOARD);
     const carHere = !carAway();                                         // your car is in the garage (not on Mill Lane, not outside the pub)
-    if (carHere) isoCar(40, 46, 1.25);
+    if (carHere) isoCar(40, 46, 1.25, C.car, { off: true });
     for (const [wx, wy] of [[83, 61], [91, 61], [83, 85], [91, 85]]) { const w = P(wx, wy, 0.6); ellipse(w[0], w[1], 2, 1, C.tyre); }   // the creeper's little wheels
     ibox(82, 60, 92, 86, 1, 3, C.red);
+    dustpanAndBrush();                                                 // always in the corner; and any screws not swept up yet (screws.js)
+    floorScrews();
     standingMan('garage');
     drawBrother();                                                     // your brother, if he's round (brother.js)
     spot('Toolbox', isoArea(60, 0, 86, 18, 0, 50), 'toolbox', [73, 26]);
@@ -1082,9 +1080,9 @@ SCREENS.under = {
     grime(326, 58, 56, 64, ALLOY, 0.2, 12); for (let x = 330; x < 380; x += 6) rect(x, 60, 1, 60, shade(ALLOY, 0.75));
     grime(386, 70, 44, 64, hex('#b4b6b0'), 0.15, 13); for (let y = 74; y < 132; y += 5) rect(388, y, 40, 1, shade(ALLOY, 0.8));
     bolt(408, 120, 4); for (const [x, y] of [[330, 62], [378, 62], [330, 118], [378, 118]]) bolt(x, y, 2);
-    if (!S.flags.boxOff || S.flags.fitted) {                          // the box (the sub-unit), with the sensor in it
+    if (!S.flags.boxOff || S.flags.boxUp || S.flags.fitted) {         // the box (the sub-unit), with the sensor in it
       rbox(338, 86, 28, 22, 4, shade(ALLOY, 0.8)); rect(340, 87, 24, 1, shade(ALLOY, 1.15));
-      disc(352, 98, 5, S.flags.fitted ? sensorColour(S.flags.fittedPart || 'part-p4l') : C.ink); px(351, 96, C.white);
+      disc(352, 98, 5, S.flags.fitted || S.flags.boxUp ? sensorColour(S.flags.fittedPart || 'part-p4l') : C.ink); px(351, 96, C.white);
     } else {                                                          // the box is off (it's on the workbench): just the empty mount, dark, and its bolt holes
       rbox(338, 86, 28, 22, 4, hex('#1c1c1e'));
       for (const [x, y] of [[341, 89], [363, 105], [341, 105]]) disc(x, y, 1, C.ink);
@@ -1114,11 +1112,12 @@ SCREENS.underZoom = {
     for (const [x, y] of [[52, 52], [140, 44], [230, 40], [320, 36], [410, 60], [436, 140], [424, 228], [300, 250], [180, 254], [80, 246], [36, 150]]) bolt(x, y, 7);
     for (let n = 0; n < 400; n++) px(230 + hash(n, 3) * 60 - 30, 160 + hash(3, n) * 80, shade(ALLOY, 0.45));
     const f = S.flags;
-    const boxOn = !f.boxOff || f.fitted;                                                   // the box the sensor sits in: on the car, or on the workbench
+    const goingUp = ANIM && ANIM.kind === 'sensorFit';                                     // on its way back up: the moment draws it
+    const boxOn = !f.boxOff || f.fitted || (f.boxUp && !goingUp);                          // the box the sensor sits in: on the car, or on the workbench
     if (boxOn) {
       rbox(176, 104, 140, 72, 18, shade(ALLOY, 0.8));                                      // the box
       rect(184, 106, 124, 1, shade(ALLOY, 1.15));                                          // its top edge catching the light
-      disc(246, 140, 30, sensorColour(f.fitted ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);
+      disc(246, 140, 30, sensorColour(f.fitted || f.boxUp ? (f.fittedPart || 'part-p4l') : 'old-sensor')); ring(246, 140, 30, C.greyDark);
       for (const [dx, dy] of [[-30, -26], [30, -26], [-30, 26], [30, 26]]) { disc(246 + dx, 140 + dy, 4, C.steel); line(246 + dx - 2, 140 + dy + 1, 246 + dx + 2, 140 + dy - 1, C.greyDark); }   // the 4 small screws holding the sensor in the box   // the same colour as on the workbench ring(246, 140, 22, shade(BLACKPART, 1.6)); disc(240, 134, 6, shade(BLACKPART, 1.5));   // the sensor in it
     } else {
       rbox(170, 98, 152, 84, 20, shade(ALLOY, 0.55));                                      // a ring of muck where the box sat
@@ -1126,10 +1125,12 @@ SCREENS.underZoom = {
       for (let k = 0; k < 6; k++) rect(196 + k * 18, 132 + (k % 2) * 8, 10, 2, hex('#2a2a2e'));   // the gearbox's insides, just visible in the dark
     }
     const hole = (x, y) => { disc(x, y, 7, C.ink); ring(x, y, 7, C.greyDark); ring(x, y, 4, shade(C.greyDark, 1.3)); };
-    if (!f.b1 || f.fitted) bolt(194, 120, 8); else hole(194, 120);
-    if (f.fitted || !f.b2) bolt(298, 164, 8, f.b2round && !f.fitted); else hole(298, 164);
-    if (f.fitted || !f.n3lost) bolt(194, 162, 7); else hole(194, 162);
-    if (boxOn) { rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm); }   // the connector, plugged in
+    for (const [which, { at: [bx, by], r }] of Object.entries(REDO)) {                     // the two bolts and the nut: in, or just their holes (story.js)
+      const rounded = which === 'b2' && f.b2round;
+      if (fixingIn(which)) bolt(bx, by, r, rounded); else hole(bx, by);
+    }
+    const pluggedIn = !f.boxOff || f.fitted;
+    if (pluggedIn) { rbox(276, 128, 52, 24, 4, hex('#30302c')); rect(282, 124, 20, 6, C.warm); rect(286, 122, 12, 2, C.warm); }   // the connector, plugged in
     else rbox(322, 130, 14, 18, 3, hex('#30302c'));                                        // unplugged: just the end of the loom
     SENSOR_WIRES.forEach((col, k) => pipe(328, 134 + k * 6, 470, 112 + k * 6, 4, col));   // the loom: red, yellow, green
     for (const x of [360, 400, 440]) pipe(x, 122 + (440 - x) * 0.05, x + 8, 120 + (440 - x) * 0.05, 22, hex('#1c1c1c'));
@@ -1143,8 +1144,11 @@ SCREENS.underZoom = {
       if (!f.n3lost) spot('Nut 3: undo it', [180, 148, 28, 28], 'act:nut3');
       spot('The sensor box: take it off', [212, 110, 62, 60], 'act:pull');
     }
-    if (f.boxOff && !f.fitted) spot('The empty mount: fit the box back on', [180, 108, 132, 64], 'act:fit');
-    const zoomTip = !f.sensorJob ? (f.codes ? 'The gearbox. Lots of bolts. Which bit matters? Find out what P0705 means: a book, someone who knows, or online.' : 'The gearbox. Lots of bolts. Which bit matters? The codes would tell you: plug a reader into the port under the steering wheel.') : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
+    if (f.boxOff && !f.fitted && !f.boxUp) spot('The empty mount: fit the box back on', [180, 108, 132, 64], 'act:fit');
+    if (f.boxUp && !f.fitted) for (const [which, { name, at: [bx, by] }] of Object.entries(REDO)) {   // it's up: each one to do up
+      if (!f.redone.includes(which)) spot(name + ': do it up', [bx - 14, by - 14, 28, 28], 'act:redo:' + which);
+    }
+    const zoomTip = !f.sensorJob ? (f.codes ? 'The gearbox. Lots of bolts. Which bit matters? Find out what P0705 means: a book, someone who knows, or online.' : 'The gearbox. Lots of bolts. Which bit matters? The codes would tell you: plug a reader into the port under the steering wheel.') : f.boxUp && !f.fitted ? 'The box is up. Do up the two bolts and the nut.' : boxOn ? 'The sensor sits in a box: 2 bolts and a nut hold the box on.' : 'The box is off. It\'s on the workbench.';
     tip('Under the car › Gearbox', zoomTip, 1, 8);
     hud();
   },
@@ -1163,7 +1167,7 @@ const BOX_SCREWS = { 1: [122, 95], 2: [100, 117], 3: [78, 95], 4: [100, 73] };  
 const SENSOR_SCREWS = 4;
 const BOX_CORNERS = [[66, 66], [134, 124], [66, 124]];             // the 3 holes in its corners for the bolts and the nut that hold it to the gearbox
 // Is the box on the workbench? Only once it's off the car, and until it goes back on
-const boxOnBench = () => !!S.flags.boxOff && !S.flags.fitted;
+const boxOnBench = () => !!S.flags.boxOff && !S.flags.boxUp && !S.flags.fitted;
 // Draw the box's screws: in (a slotted head, tap to undo), out (an empty hole) or snapped (a bright stub)
 function benchScrews(f) {
   const out = f.screws || [];                                          // the screws undone so far
@@ -1189,7 +1193,7 @@ function benchScrews(f) {
 }
 // The hint at the top of the workbench: what's on it and what state it's in
 function benchTip(f, boxHere, b) {
-  if (!boxHere) return f.fitted ? 'Nothing to work on. The box is back on the car.' : 'Nothing to work on yet. The sensor is still on the car, in its box.';
+  if (!boxHere) return f.fitted || f.boxUp ? 'Nothing to work on. The box is back on the car.' : 'Nothing to work on yet. The sensor is still on the car, in its box.';
   if (!f.sensorOut) return f.sheared ? 'Three screws out, one snapped off. Lift the old sensor out.' : 'The box, with the old sensor screwed into it: 4 screws round it.';
   if (!b) return 'The empty box. Pick a part to try in its hole.';
   return ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '');
@@ -1224,7 +1228,8 @@ SCREENS.bench = {
       ISO.ox = 240; ISO.oy = 64;
     }
     const holdingOld = b && b.part === 'old-sensor';                   // it's in your hand, over the box
-    if (S.inv['old-sensor'] && !holdingOld) {                          // the old sensor, standing on the bench (just as it looked under the car): tap it to try it in the hole
+    const beingLifted = ANIM && ANIM.kind === 'benchLift';            // on its way out of the box: not on the bench till it's out (Steve)
+    if (S.inv['old-sensor'] && !holdingOld && !beingLifted) {                          // the old sensor, standing on the bench (just as it looked under the car): tap it to try it in the hole
       ISO.ox = 240; ISO.oy = 64;
       sensorUnit({ part: 'old-sensor', rotated: true }, P(190, 30, 0), 0);
       if (boxHere) spot('The old sensor: try it', isoArea(180, 20, 200, 40, 0, 44), 'act:pick:old-sensor');
@@ -1363,9 +1368,14 @@ const DRAWER_NOTES = [
   'Dozens of spanners in a heap. The one you want is always at the bottom.',
   'Flat, cross, Torx, a Torx with a hole in it, and one that has been used as a chisel.',
   'Pliers, cable ties, tape, a sweet wrapper from 1996 and a key to nothing.',
-  'A multimeter, a crimping tool, loose fuses and a test lamp.',
+  'A multimeter, a crimping tool and loose fuses.',
   'A breaker bar, a bent wheel brace, the jack handle, and a hammer-shaped gap.'
 ];
+// What the note says about a drawer (the multimeter moves to the garage shelf once it works)
+function drawerNote(d) {
+  if (d === 5 && S.flags.meterOK) return 'A crimping tool, loose fuses, and a multimeter-shaped gap.';
+  return DRAWER_NOTES[d - 1];
+}
 // The tool chest: where it is, and where each drawer's front is
 const CHEST = { x0: 140, x1: 340, top: 26 };
 // How far to look down so an open drawer's front fits on the screen (only the bottom drawers need it)
@@ -1414,7 +1424,8 @@ SCREENS.toolbox = {
     if (d && !sliding) {
       pulledDrawer(d, 1);
       const dy = drawerSlot(d - 1) + 6, dx = CHEST.x0;                // where the open drawer's things lie
-      if (d === 5) spot('Multimeter: test it', [dx + 10, dy + 20, 44, 60], 'act:meter');
+      if (d === 5 && !S.flags.meterOK) spot('Multimeter: test it', [dx + 10, dy + 20, 44, 60], 'act:meter');
+      if (d === 5 && !S.inv.torch) spot('Torch', [dx + 60, dy + 54, 98, 26], 'act:takeTorch');   // tap the torch itself to take it (no button: Steve)
       if (d === 6) spot('Breaker bar', [dx + 2, dy + 22, 134, 24], 'act:look:Breaker bar');
     }
     // tap a drawer's front to pull it out; tap the open one's front to push it back
@@ -1423,14 +1434,13 @@ SCREENS.toolbox = {
       spot(`Drawer ${k + 1}: ${esc(DRAWERS[k])}`, [x0, slot(k), x1 - x0, 25], 'act:drawer:' + (k + 1));
     }
     if (d) spot(`Push drawer ${d} shut`, [x0 - 40, slot(d - 1) + 102, x1 - x0 + 80, 18], 'act:drawer:' + d);
-    tip('Toolbox', d ? `Drawer ${d}: ${esc(DRAWERS[d - 1])}.<br>${esc(DRAWER_NOTES[d - 1])}` : 'Six drawers. Tap one to pull it out.', 1, 8);
+    tip('Toolbox', d ? `Drawer ${d}: ${esc(DRAWERS[d - 1])}.<br>${esc(drawerNote(d))}` : 'Six drawers. Tap one to pull it out.', 1, 8);
     hud();
   },
   actions() {
     const a = [];
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
     if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
-    if (S.drawer === 5) a.push({ label: 'Take the torch', act: 'takeTorch' });
     if (S.drawer === 6 && leadOpen('hammer-box')) a.push({ label: 'Look for the hammer', act: 'hammerbox' });
     return a;
   }
@@ -1461,8 +1471,11 @@ function drawerContents(d, x0, y) {
     rect(x0 + 176, y + 68, 14, 6, C.warm);                                              // sweet wrapper
   }
   if (d === 5) {                                               // electrical
-    rbox(x0 + 10, y + 20, 44, 60, 6, C.warm); rect(x0 + 16, y + 26, 32, 18, hex('#0a2a20')); disc(x0 + 32, y + 60, 9, C.ink);
-    for (let k = 0; k < 14; k++) rect(x0 + 70 + hash(k, 3) * 80, y + 24 + hash(3, k) * 50, 6, 8, FUSECOLS[k % 5][0]);
+    if (!S.flags.meterOK) {                                      // the multimeter (with its new battery in, it's on the garage shelf)
+      rbox(x0 + 10, y + 20, 44, 60, 6, C.warm); rect(x0 + 16, y + 26, 32, 18, hex('#0a2a20')); disc(x0 + 32, y + 60, 9, C.ink);
+    }
+    for (let k = 0; k < 14; k++) rect(x0 + 70 + hash(k, 3) * 80, y + 14 + hash(3, k) * 28, 6, 8, FUSECOLS[k % 5][0]);
+    if (!S.inv.torch) drawerTorch(x0 + 64, y + 60);                                     // the old torch, till you take it
     pipe(x0 + 166, y + 20, x0 + 196, y + 80, 5, C.car); pipe(x0 + 186, y + 20, x0 + 176, y + 80, 5, C.car);   // the crimping tool
   }
   if (d === 6) {                                               // big stuff
@@ -1470,6 +1483,17 @@ function drawerContents(d, x0, y) {
     for (let k = 0; k < 20; k += 4) line(x0 + 20 + k * 4, y + 66 - k / 2, x0 + 30 + k * 4, y + 66 - k / 2, C.dim);   // the hammer-shaped gap (dotted)
     pipe(x0 + 140, y + 30, x0 + 186, y + 46, 5, C.steel); pipe(x0 + 186, y + 46, x0 + 196, y + 72, 5, C.steel);   // bent wheel brace
   }
+}
+// The old torch lying in the drawer, pointing right (x, y: the top left of its body)
+function drawerTorch(x, y) {
+  const yellow = hex('#e0b020');
+  rbox(x, y, 64, 14, 4, hex('#1c1c1c'));                                     // the black body
+  rect(x + 4, y + 2, 56, 2, hex('#4a4a4a'));                                 // its shine
+  for (let k = 0; k < 5; k++) rect(x + 8 + k * 5, y + 5, 2, 8, hex('#34343a'));   // the grip's ribs
+  rbox(x + 40, y + 3, 12, 6, 2, C.red);                                      // the switch
+  poly([[x + 62, y], [x + 76, y - 4], [x + 76, y + 18], [x + 62, y + 14]], yellow);   // the head, flaring out
+  rbox(x + 76, y - 5, 12, 24, 3, shade(yellow, 0.85));                        // its rim
+  rect(x + 86, y - 2, 4, 18, hex('#d8e8f0'));                                // the glass
 }
 // A pair of pliers lying in the drawer, jaws up: steel jaws, the pivot rivet, two handles with rubber grips (Steve: proper ones)
 //   cx, cy: the pivot; kind: 'combi' (combination), 'long' (long-nose) or 'cutters' (side cutters); grip: the grips' colour

@@ -9,6 +9,14 @@ let CARD_BLOCK_CHANCE = window.NO_CARD_BLOCKS ? 0 : 1 / 8;           // the chan
 const BANK = 'Bank';
 const DECLINED = 'Card declined. Go to the bank to fix it.';         // what a till says while your card's blocked
 
+// What a till says when it won't go through: the card's blocked, or there isn't enough in the account
+function declinedWords() {
+  if (S.flags.cardBlocked) return DECLINED;
+  const helpers = [];                                                  // who might help
+  if (mumCanHelp()) helpers.push('Mum & Dad');
+  if (!S.flags.paulLent) helpers.push('Paul');
+  return `Not enough money: you've got £${S.money.toFixed(2)}.\n\nGo and see ${helpers.join(' or ')}.`;
+}
 // Paying by card: blocked now? (and now and then, it gets blocked as you pay)
 function cardDeclined(amount) {
   if (amount <= 0) return false;                                      // nothing to pay
@@ -32,7 +40,7 @@ function payCash(amount) {
 }
 // What you can actually spend now: the account, or only the cash on you while the card's blocked
 const spendable = () => S.flags.cardBlocked ? (S.cash || 0) : S.money;
-const needMoney = () => spendable() < SKINT;
+const needMoney = () => spendable() < SKINT || (S.flags.shortOf || 0) > spendable();   // skint, or short of what you've just tried to buy
 
 // The bank's three security questions: whatever you say, it's not what they've got
 const BANK_QUESTIONS = [

@@ -26,15 +26,19 @@ function hiddenBelow(yCut, x0, x1, draw) {
 function sensorUnit(b, bot, dx) {
   drawSensor(b.part, b.rotated, bot, dx);                             // its own shape, colour, lug teeth and wires (sensors.js)
 }
-// A sensor's plug (dark, with a yellow tab) and its three coloured wires trailing off to the right
+// A sensor's three coloured wires, out of its side and drooping down to the plug on the end (dark, a yellow clip, three pins)
 function sensorPlug(x, y) {
-  rect(x, y - 4, 16, 9, hex('#30302c'));                              // the plug
-  rect(x + 3, y - 7, 9, 3, C.warm);                                   // its tab
+  const dark = hex('#30302c');
+  rect(x, y - 4, 5, 9, dark);                                         // where the wires come out of it
   SENSOR_WIRES.forEach((wire, k) => {
     const wy = y - 2 + k * 3;                                         // the three wires side by side
-    pipe(x + 16, wy, x + 34, wy + 6, 2, wire);                        // out of the plug…
-    pipe(x + 34, wy + 6, x + 46, wy + 22, 2, wire);                   // …and drooping down
+    pipe(x + 5, wy, x + 34, wy + 3, 2, wire);                         // out of its side…
+    pipe(x + 34, wy + 3, x + 42 + k * 3, y + 14, 2, wire);            // …and drooping down into the plug
   });
+  rbox(x + 37, y + 13, 18, 13, 2, dark);                              // the plug
+  rect(x + 39, y + 15, 14, 2, shade(dark, 1.6));                      // a shine along it
+  rect(x + 55, y + 16, 3, 6, C.warm);                                 // its yellow clip
+  for (let k = 0; k < 3; k++) rect(x + 41 + k * 5, y + 26, 2, 3, C.steel2);   // its pins
 }
 
 // ---------- helpers ----------
@@ -90,21 +94,29 @@ function lastScrew() {
   const out = S.flags.screws || [];
   return out[out.length - 1];
 }
-// A ring spanner on a bolt, handle at angle a
-function spanner(x, y, a, len = 90) {
-  pipe(x, y, x + Math.cos(a) * len, y + Math.sin(a) * len, 8, C.steel);
-  ring(x, y, 10, C.steel); ring(x, y, 11, C.steel2);
+// The ratchet on a bolt, its 10 mm socket over the head, handle at angle a
+function ratchet(x, y, a, len = 90) {
+  const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;        // the end of the handle
+  const gx = x + Math.cos(a) * len * 0.6, gy = y + Math.sin(a) * len * 0.6;   // where its grip starts
+  pipe(x, y, ex, ey, 6, C.steel);
+  pipe(gx, gy, ex, ey, 9, hex('#1c1c1c'));                              // the rubber grip
+  disc(x, y, 14, C.steel2); ring(x, y, 14, C.steel);                   // the ratchet's head
+  disc(x, y, 9, C.steel); ring(x, y, 9, C.greyDark); disc(x, y, 3, C.greyDark);   // the socket
 }
 
 // =====================================================================
 // LIFE ON EVERY SCREEN
 // =====================================================================
 SCREENS.home.animate = function (t) {
+  liftWaiting();                                                       // the wife, by her car, about to give you a lift (lift.js)
+  if (soakedAtHome()) rainDrops(t, rainLevel('home'));                // just home on foot: it's throwing it down (road.js)
   ISO.ox = 250; ISO.oy = 96;
   // traffic, driving on the left: going right on the house side of the road, coming back on the far side
   const cols = [C.red, C.warm, hex('#40a060'), C.white];
   for (const k of [0, 2, 1, 3]) {                                                                                     // the far lane first, then the near one
     const goingRight = k % 2 === 0;
+    const kerbTaken = ANIM && ANIM.kind === 'homeride';                                                                // the bus or the taxi's at the kerb: nothing drives through it (rides.js)
+    if (goingRight && kerbTaken) continue;
     const along = (t * (goingRight ? 50 : 58) + (k >> 1) * 600 + (goingRight ? 0 : 300)) % 1200;   // one speed per lane, 600 apart: no overtaking
     const x = goingRight ? along - 500 : 700 - along;
     isoCar(x, goingRight ? 150 : 171, 0.9, cols[k], { alongX: true, reverse: !goingRight });
@@ -242,16 +254,16 @@ function moveWifeTap(pos, walkBy) {
 }
 
 // Home from the pub: she gets out of the car and walks into the house (and waits while a message is up)
-const WALK_IN = { from: [94, 78], to: [46, 60], t0: null, last: 0 };
+const WALK_IN = { path: [[-8, 102], [46, 98], [46, 60]], t0: null, last: 0 };   // out of her car, across to the path, up to the door
+const WALK_IN_SECS = 4.5;
 function walkInDraw(t) {
   if (WALK_IN.t0 === null) { WALK_IN.t0 = t; WALK_IN.last = t; }
   if (DIALOG) WALK_IN.t0 += t - WALK_IN.last;                          // she waits till you've read it
   WALK_IN.last = t;
-  const { from, to } = WALK_IN;
-  const q = (t - WALK_IN.t0) * WIFE_SPEED / Math.hypot(to[0] - from[0], to[1] - from[1]);   // how far she's got
+  const q = Math.min(1, (t - WALK_IN.t0) / WALK_IN_SECS);
   if (q >= 1) { delete S.flags.wifeWalksIn; WALK_IN.t0 = null; return; }   // in through the front door
-  ISO.ox = VIEW.home[0]; ISO.oy = VIEW.home[1];
-  wife(lerp(from[0], to[0], q), lerp(from[1], to[1], q), S.wifeLook || 'navy', { walk: t * 9, facing: facingFor(from, to) });
+  [ISO.ox, ISO.oy] = VIEW.home;
+  wifeWalks(WALK_IN.path, q, t);                                       // (lift.js)
 }
 // Late at night she came to fetch you from the garage; walk out and she follows you outside
 const FOLLOW = { pos: null, last: 0, walk: undefined, facing: 'front' };
@@ -425,22 +437,22 @@ function meHead() {
 }
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
-  if (ANIM && ['walk', 'collapse'].includes(ANIM.kind)) return;
+  if (ANIM && ['walk', 'collapse', 'walkup', 'liftin', 'homeride'].includes(ANIM.kind)) return;
   if (ANIM && ANIM.kind === 'night' && screen === 'room') return;    // going to bed: he's in it (life.js draws him there), not stood by it
   const [x, y] = manSpot(screen), m = P(x, y);
   if (screen === 'room' && S.flags.onFloor) return man(m[0], m[1], 'lie', MAN_SIZE.room);   // asleep on the floor
-  man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)]);
+  man(m[0], m[1], 'stand', MAN_SIZE[spotKey(screen)], 0, soakedAtHome() ? SOAKED : null);   // (soaked from the walk home: road.js)
   inFront(spotKey(screen), x, y);                                     // behind the car: it hides him
 }
 // ---------- solid things on the floor: he walks round them, and goes behind them ----------
 // On each screen: { box: [x0, y0, x1, y1] (world, on the floor), draw (to draw it again, over him, when he's behind it) }
 function solidsFor(key) {
   const out = [];
-  if (key === 'garage' && !carAway()) out.push({ box: [40, 46, 70, 104], draw: () => isoCar(40, 46, 1.25) });   // your car (1.25 size: 30 wide, 57 long)
+  if (key === 'garage' && !carAway()) out.push({ box: [40, 46, 70, 104], draw: () => isoCar(40, 46, 1.25, C.car, { off: true }) });   // your car (1.25 size: 30 wide, 57 long)
   if (key === 'home') {
-    if (!carAway()) out.push({ box: [102, 72, 126, 118], draw() { isoCar(102, 72); drawClamp(); } });         // your car on the drive (and the clamp on it)
+    if (!carAway()) out.push({ box: [102, 72, 126, 118], draw() { isoCar(102, 72, 1, C.car, { off: true }); drawClamp(); } });         // your car on the drive (and the clamp on it)
     const [wx, wy] = WIFE_DRIVE;                                      // and hers, on her drive
-    out.push({ box: [wx, wy, wx + 24, wy + CAR_SHAPES.city.L], draw: () => isoCar(wx, wy, 1, WIFE_CAR, { shape: 'city' }) });
+    if (wifesCarHome()) out.push({ box: [wx, wy, wx + 24, wy + CAR_SHAPES.city.L], draw: () => isoCar(wx, wy, 1, WIFE_CAR, { shape: 'city', off: true }) });
   }
   if (key === 'garden') out.push({ box: LOUNGER.slice() }, { box: [SUN_TABLE[0], SUN_TABLE[1], SUN_TABLE[0] + 8, SUN_TABLE[1] + 8] }, { box: [132, 6, 172, 34] });   // the lounger, the table, the shed
   if (key === 'yard') WRECKS.forEach(([x, y, , , , shape], i) => out.push({ box: [x, y, x + 24, y + CAR_SHAPES[shape].L], draw: () => drawWreck(i) }));   // the wrecks
@@ -562,12 +574,15 @@ const MOMENTS = {
     let [x, y] = a.path ? alongPath(a.path, p) : [lerp(a.from[0], a.to[0], p), lerp(a.from[1], a.to[1], p)];
     if (isDrunk()) { x += Math.sin(p * 22) * 4; y += Math.cos(p * 17) * 3; }   // drunk: he weaves about
     const m = P(x, y);
-    man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90);
-    if (carryingTyre() && S.screen === 'place') carriedTyre(m);       // with a tyre in his arms (road.js)
+    man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90, soakedAtHome() ? SOAKED : null);
+    if (carryingTyre() && (S.screen === 'place' || S.screen === 'yard')) carriedTyre(m);       // with a tyre in his arms (road.js)
     inFront(a.screen, x, y);                                          // behind the car (or a wreck): it hides him
   },
+  absOn(p, t) {                                                       // the new sensor's in and the engine's running: the orange ABS light, on and staying on
+    warnLight(...DASH.abs, 'abs', C.warm, true);
+  },
   bolt1Out(p) {                                                       // the bolt winds out and comes free
-    spanner(194, 120, -2.4 + p * 4, 80);
+    ratchet(194, 120, -2.4 + p * 4, 80);
     if (p > 0.6) nutAt(lerp(194, 150, (p - 0.6) / 0.4), lerp(120, 100, (p - 0.6) / 0.4), 8, p * 12);
   },
   stubExtract(p) {                                                    // the extractor on the snapped screw's stub: tapered bit, T-handle, a slow turn
@@ -581,12 +596,12 @@ const MOMENTS = {
     if (!snapped) pipe(c[0] - 14 * turn, top, c[0] + 14 * turn, top, 3, C.steel2);   // the T-handle, turning
     if (lift) { disc(c[0], c[1] - lift, 2, C.white); }                   // the stub, coming out on its end
   },
-  boltSpin(p) {                                                       // the spanner on the rounded bolt: round and round it goes, gripping nothing
-    spanner(298, 164, -2.6 + p * Math.PI * 4, 90);
+  boltSpin(p) {                                                       // the socket on the rounded bolt: round and round it goes, gripping nothing
+    ratchet(298, 164, -2.6 + p * Math.PI * 4, 90);
   },
-  boltRound(p) {                                                      // the spanner slips round the bolt head
+  boltRound(p) {                                                      // the socket slips round the bolt head
     const slip = p > 0.55 ? (p - 0.55) * 6 : 0;
-    spanner(298, 164, -2.6 + Math.min(p, 0.55) * 1.4 + slip, 90);
+    ratchet(298, 164, -2.6 + Math.min(p, 0.55) * 1.4 + slip, 90);
     if (p > 0.55 && p < 0.8) sparks(298, 164, 14, (p - 0.55) / 0.25, 3);
   },
   nutDrop(p) {                                                        // the nut drops, then bounces out from under the car
@@ -628,10 +643,15 @@ const MOMENTS = {
     disc(x, y, 30, BLACKPART); ring(x, y, 30, C.greyDark); ring(x, y, 22, shade(BLACKPART, 1.6));
     disc(x - 6 + Math.cos(p * 8) * 3, y - 6, 6, shade(BLACKPART, 1.5));
   },
-  sensorFit(p) {                                                      // the new sensor goes in, and the nut goes on
-    const q = ease(Math.min(1, p / 0.7)), x = lerp(-40, 246, q), y = lerp(170, 140, q);
-    disc(x, y, 30, C.car); ring(x, y, 30, C.greyDark); ring(x, y, 22, C.carDark);
-    if (p > 0.7) spanner(194, 162, -2.4 + (p - 0.7) * 10, 70);
+  sensorFit(p) {                                                      // the box goes back up into its mount, the new sensor in it
+    const q = ease(Math.min(1, p / 0.8)), x = Math.round(lerp(-80, 246, q)), y = Math.round(lerp(180, 140, q));
+    rbox(x - 70, y - 36, 140, 72, 18, shade(ALLOY, 0.8));
+    disc(x, y, 30, sensorColour(S.flags.fittedPart || 'part-p4l')); ring(x, y, 30, C.greyDark);
+  },
+  boltBack(p) {                                                       // one of its bolts (or the nut) being done up again: the socket winds it in
+    const { at: [x, y], r } = REDO[REDO_NOW];
+    if (p < 0.25) return nutAt(lerp(x - 50, x, ease(p / 0.25)), lerp(y + 60, y, ease(p / 0.25)), r, p * 8);   // up to its hole…
+    ratchet(x, y, -2.4 + (p - 0.25) * 9, 80);                          // …and wound in
   },
   screws(p) {                                                         // a box of hundreds of screws goes everywhere
     ISO.ox = 230; ISO.oy = 106;
