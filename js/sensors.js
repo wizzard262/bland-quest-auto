@@ -1,7 +1,8 @@
 // Bland Quest Auto: every gearbox sensor you can try in the box's hole on the workbench, and the soldering game.
 // Lots of them are wrong, each in its own way: square, octagonal, hexagonal, too fat (they touch the hole and won't go in),
 // too thin (rattles), too long (sticks up), too short (sinks), or the two lug teeth in the wrong place.
-// One from the Thee Bay job lot is the right shape but its wires are cut: solder the old sensor's plug onto it.
+// Two are the right shape but have no plug, only bare wires: the Parts 4 Less one (plug sold separately) and one from the
+// Thee Bay job lot (its wires are cut). Solder the old sensor's plug onto either: there's only one plug, so only one gets it.
 // Loaded after story.js and extras.js (it adds to ACTIONS and TALK).
 
 // =====================================================================
@@ -15,7 +16,7 @@
 // =====================================================================
 const SENSORS = {
   'old-sensor': { name: 'old sensor', no: '55-352-10?-ZF-TRS/0705-A', shape: 'round', fit: 'old', col: BLACKPART },
-  'part-p4l': { name: 'Parts 4 Less sensor', no: 'GM-55352-107-ZF-TRS/0705-A', shape: 'round', fit: 'right', col: hex('#3c4c64') },
+  'part-p4l': { name: 'Parts 4 Less sensor', no: 'GM-55352-107-ZF-TRS/0705-A', shape: 'round', fit: 'cut', bare: true, col: hex('#3c4c64') },
   'part-mega': { name: 'Zamanon sensor', no: 'UNV-55352-1O7-ZF-TRS/0705-A', shape: 'hex', fit: 'no', col: C.car,
     says: 'It\'s hexagonal. The hole is round. It\'s not going in.' },
   'lot-square': { name: 'square sensor (job lot)', no: 'GM-55352-107-ZF-TR5/0705-A', shape: 'square', fit: 'no', col: hex('#6a6a40'),
@@ -26,7 +27,7 @@ const SENSORS = {
     says: 'It drops straight in and rattles about like a pencil in a mug. Far too thin. You fish it back out.' },
   'lot-long': { name: 'long sensor (job lot)', no: 'GM-55352-107-ZF-TRS/0705-AA', shape: 'long', fit: 'long', col: hex('#5a5a6a'),
     says: 'It goes in… and bottoms out with a third of it still sticking up. The screw holes are nowhere near.' },
-  'lot-cut': { name: 'job lot sensor with the cut wires', no: 'GM-55352-107-ZF-TRS/0705-A', shape: 'cut', fit: 'cut', col: hex('#3a4a5c') },
+  'lot-cut': { name: 'job lot sensor with the cut wires', no: 'GM-55352-107-ZF-TRS/0705-A', shape: 'cut', fit: 'cut', bare: true, col: hex('#3a4a5c') },
   'yard-sensor': { name: 'Scrap Yard sensor (1999 Zafira)', no: 'GM-90523-107-ZF-TRS/0705-A', shape: 'lugs', fit: 'lugs', col: hex('#4a4038'),
     says: 'Right size, right shape. It starts to go in… and stops. Its two lug teeth are in the wrong place. Rotate it all you like: they never line up.' },
   'csd-sensor': { name: 'Car Spares Direct sensor', no: 'GM-55352-107-2F-TRS/0705-A', shape: 'short', fit: 'short', col: hex('#6a3a5a'),
@@ -50,16 +51,19 @@ function loseSensor(id) {
   owned.n -= 1;                                                       // one fewer on the garage shelf
   if (owned.n <= 0) delete S.bought[UNIVERSAL];                       // that was the last one
 }
-// How each one fits now (the cut one fits properly once the old plug's soldered on)
+// Which sensor the old plug is being soldered onto (or has been): the first one you started (older saves: the job lot one)
+const solderFor = () => S.flags.solderFor || (S.flags.plugCut || S.flags.soldered ? 'lot-cut' : S.flags.cutSeen === true ? 'lot-cut' : S.flags.cutSeen);
+const hasOldPlug = id => !!S.flags.soldered && solderFor() === id;
+// How each one fits now (one with bare wires fits properly once the old plug's soldered on)
 function sensorFit(id) {
-  if (id === 'lot-cut' && S.flags.soldered) return 'right';
+  if (hasOldPlug(id)) return 'right';
   return (SENSORS[id] || {}).fit;
 }
 // Its colour on the bench and, once fitted, on the car
 const sensorColour = id => (SENSORS[id] || {}).col || C.greyDark;
 // Its name, as the bench's button says it ("Try the …")
 function sensorName(id) {
-  if (id === 'lot-cut' && S.flags.soldered) return 'job lot sensor with the old plug';
+  if (hasOldPlug(id)) return (id === 'lot-cut' ? 'job lot' : 'Parts 4 Less') + ' sensor with the old plug';
   return SENSORS[id].name;
 }
 
@@ -118,10 +122,11 @@ function drawSensor(id, rotated, bot, dx) {
     rect(x - w - 6, py, 6, 3, C.tool);
     rect(x + w + 1, py, 6, 3, C.tool);
   }
-  // its plug and wires; the job lot one has only cut-off wires (until the old plug's soldered on)
-  if (s.shape === 'cut' && !S.flags.soldered) return cutWires(x + 10, topY + 4);
+  // its plug and wires; two of them have only bare wires (until the old plug's soldered on)
+  const inAlready = S.flags.fits && S.flags.fittedPart === id;        // fitted in a save from before it needed soldering
+  if (s.bare && !hasOldPlug(id) && !inAlready) return cutWires(x + 10, topY + 4);
   sensorPlug(x + 10, topY + 4);
-  if (s.shape === 'cut') for (let k = 0; k < 3; k++) disc(x + 26 + k * 2, topY + 4 + k * 3, 2, C.steel);   // the soldered joints
+  if (hasOldPlug(id)) for (let k = 0; k < 3; k++) disc(x + 26 + k * 2, topY + 4 + k * 3, 2, C.steel);   // the soldered joints
 }
 // Three short wires, snipped off: copper showing at the ends
 function cutWires(x, y) {
@@ -147,7 +152,7 @@ function tryWrongSensor(b) {
   sfx('thud', 0.45);
   if (fit === 'thin') { sfx('clink', 0.6); sfx('clink', 0.8); }        // rattling about
   closeLead('try-' + b.part, 'x');
-  if (fit === 'cut') return cutSensorTried();
+  if (fit === 'cut') return cutSensorTried(b.part);
   anger(10);
   ANIM.then = () => {                                                  // no good: out of your hand and into the parts box
     loseSensor(b.part);
@@ -157,10 +162,17 @@ function tryWrongSensor(b) {
   note('new-sensor', `${sensorName(b.part)} (${s.no}): ${({ no: 'won\'t go in', thin: 'too thin', long: 'too long', short: 'too short', lugs: 'lug teeth in the wrong place' })[fit]}`, 'x');
   say('Push', `Part no. ${s.no}.\n\n${s.says}\n\nIt goes in the parts box.`);
 }
-// The job lot one with the cut wires: it fits! And then you see the wires
-function cutSensorTried() {
-  S.flags.cutSeen = true;
+// One with no plug, only bare wires: it fits! And then you see the wires
+function cutSensorTried(id) {
   anger(5);
+  if (S.flags.plugCut && solderFor() !== id) return say('Push', `Click. It fits. It has no plug either, and the old sensor's plug is going on the ${SENSORS[solderFor()].name}.`);   // only one plug to go round
+  S.flags.cutSeen = id;                                                // the one to solder
+  if (id === 'part-p4l') {
+    closeLead('try-p4l', 'x');
+    note('new-sensor', 'The Parts 4 Less sensor fits the hole… but it has no plug, only bare wires', 'x');
+    lead('new-sensor', 'solder', 'Solder the old sensor\'s plug onto it', 'you', 'hopeful', 'bench');
+    return say('Push', 'Click. It fits. It actually fits…\n\n…and then you see the wires. Three of them, bare. No plug. On the bag, in tiny print: "Plug sold separately. (Plug discontinued.)"\n\nThe old sensor has a perfectly good plug on it. You could cut that off and solder it on.');
+  }
   note('new-sensor', 'The job lot sensor fits the hole… but its wires have been cut off. No plug', 'x');
   lead('new-sensor', 'solder', 'Solder the old sensor\'s plug onto it', 'you', 'hopeful', 'bench');
   say('Push', `Part no. ${SENSORS['lot-cut'].no}. The same as the right one!\n\nClick. It fits. It actually fits…\n\n…and then you see the wires. Cut off, an inch from the sensor. No plug. Nothing to connect it to the car.\n\nThe old sensor has a perfectly good plug, though.`);
@@ -292,8 +304,8 @@ SCREENS.solder = {
     grime(0, 0, W, H, C.benchTop, 0.12, 61);                          // the workbench top
     const st = solderState();
     // the sensor on the left, its three cut wires; the old plug on the right, its three wires
-    rbox(30, 100, 60, 70, 8, sensorColour('lot-cut'));
-    ellipse(60, 100, 30, 10, shade(sensorColour('lot-cut'), 1.4));
+    rbox(30, 100, 60, 70, 8, sensorColour(solderFor()));
+    ellipse(60, 100, 30, 10, shade(sensorColour(solderFor()), 1.4));
     CUT_WIRES.forEach((col, k) => {
       pipe(88, 120 + k * 12, SOLDER_L, SOLDER_Y[k], 4, col);
       rect(SOLDER_L - 2, SOLDER_Y[k] - 2, 6, 4, hex('#d08040'));       // bare copper
@@ -376,6 +388,7 @@ Object.assign(ACTIONS, {
   soldergo() {
     if (!S.flags.cutSeen) return;
     if (!S.flags.plugCut) {
+      S.flags.solderFor = solderFor();                                // the plug's for this one now
       S.flags.plugCut = true;
       S.inv['old-sensor'] = false;                                    // the old sensor, without its plug, is no good now
       junkIt('old-sensor');
@@ -441,10 +454,11 @@ Object.assign(ACTIONS, {
     moment('solder', 1500 * (3 - SOLDER_FROM));
     sfx('pour');
     S.flags.soldered = true;
-    closeLead('solder', 'ok', 'The old plug soldered onto the job lot sensor');
+    const which = solderFor() === 'lot-cut' ? 'job lot' : 'Parts 4 Less';
+    closeLead('solder', 'ok', `The old plug soldered onto the ${which} sensor`);
     closeLead('iron', 'ok'); closeLead('solder-reel', 'ok');
     lead('new-sensor', 'try-soldered', 'Try the soldered sensor in the box', 'you', 'hopeful', 'bench');
-    say('Soldering', 'Hiss. Smoke. Blob. Hiss. Smoke. Blob. Three shiny joints, wrapped in tape.\n\nThe job lot sensor has a plug again. Try it in the box.');
+    say('Soldering', `Hiss. Smoke. Blob. Hiss. Smoke. Blob. Three shiny joints, wrapped in tape.\n\nThe ${which} sensor has a plug now. Try it in the box.`);
   }
 });
 MOMENTS.solder = solderDraw;

@@ -487,8 +487,20 @@ test('branch 1 can be played from the red light to the end', async ({ page }) =>
   await garage(page, 'Workbench');
   await act(page, 'Tap it with the hammer'); await ok(page);
   await act(page, 'Pull'); await ok(page);
-  await act(page, 'Try the Parts 4 Less sensor'); await ok(page);          // lined up this time: it fits
-  expect(await flag(page, 'fits')).toBe(true);
+  await act(page, 'Try the Parts 4 Less sensor');                          // lined up this time: it fits… but no plug
+  expect(await dialogText(page)).toContain('Plug sold separately');
+  await ok(page);
+  expect(await flag(page, 'fits')).toBeFalsy();
+  await act(page, 'Solder the old plug on'); await ok(page);               // the soldering game (its own test plays it in full)
+  expect(await page.evaluate(() => [S.screen, solderFor()])).toEqual(['solder', 'part-p4l']);
+  await page.evaluate(() => { S.flags.wireColours = true; S.inv.iron = true; S.inv.solder = true; render(); });
+  for (const [k, j] of [[0, 0], [1, 2], [2, 1]]) { await tap(page, 'act:wirepick:' + k); await tap(page, 'act:wirejoin:' + j); }
+  await act(page, 'Solder the joints');
+  expect(await dialogText(page)).toContain('Parts 4 Less sensor has a plug');
+  await ok(page);
+  await garage(page, 'Workbench');
+  await act(page, 'Try the Parts 4 Less sensor with the old plug'); await ok(page);
+  expect(await page.evaluate(() => [S.flags.fits, S.flags.fittedPart])).toEqual([true, 'part-p4l']);
   await tap(page, 'act:stubmenu'); await choose(page, 'proper extractor'); await ok(page);   // the snapped screw's stub, out with the proper extractor
   expect(await flag(page, 'stubOut')).toBe(true);
   await page.evaluate(() => { S.flags.screw3 = true; finishJob('screw3', 'from the jar'); });   // the third screw from the jar (its own test)
@@ -2368,6 +2380,25 @@ test('the job lot sensor with the cut wires fits; solder the old plug on: find t
   expect(await dialogText(page)).toContain('It fits');
   await ok(page);
   expect(await page.evaluate(() => [S.flags.fits, S.flags.fittedPart, findJob('new-sensor').status])).toEqual([true, 'lot-cut', 'done']);
+  expect(errors).toEqual([]);
+});
+
+test('only one old plug: solder it onto the Parts 4 Less sensor and the job lot one can\'t have it; an older save with the plug cut still solders the job lot one', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await benchReady(page);
+  await page.evaluate(() => { S.inv['part-p4l'] = true; S.inv['lot-cut'] = true; S.flags.linedUp = true; render(); });
+  await page.locator('.acts button[data-act="pick:part-p4l"]').click();
+  expect(await dialogText(page)).toContain('Plug sold separately');
+  await ok(page);
+  await page.evaluate(() => { act('soldergo'); }); await ok(page);        // the plug's cut off, for this one
+  await page.evaluate(() => { S.screen = 'bench'; render(); });
+  await page.locator('.acts button[data-act="pick:lot-cut"]').click();
+  expect(await dialogText(page)).toContain('going on the Parts 4 Less sensor');
+  await ok(page);
+  expect(await page.evaluate(() => { S.flags.soldered = true; return [sensorFit('part-p4l'), sensorFit('lot-cut')]; })).toEqual(['right', 'cut']);
+  // a save from before: cut and soldered, with nothing saying which
+  expect(await page.evaluate(() => { delete S.flags.solderFor; S.flags.cutSeen = true; return [sensorFit('part-p4l'), sensorFit('lot-cut')]; })).toEqual(['cut', 'right']);
   expect(errors).toEqual([]);
 });
 

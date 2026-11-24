@@ -1240,7 +1240,7 @@ SCREENS.bench = {
     }
     if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole
       a.push(...benchSensorButtons());                                 // every sensor you've got (sensors.js)
-      if (S.flags.cutSeen && !S.flags.soldered) a.push({ label: 'Solder the old plug on', act: 'soldergo' });   // the job lot one with its wires cut
+      if (S.flags.cutSeen && !S.flags.soldered) a.push({ label: 'Solder the old plug on', act: 'soldergo' });   // one with bare wires, no plug
     }
     const b = boxHere ? S.bench : null;
     if (b && (b.state === 'stuck' || (b.state === 'in' && b.part === 'old-sensor'))) a.push({ label: 'Pull', act: 'pullpart' });   // only when there's something in the hole to pull out

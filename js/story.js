@@ -1847,6 +1847,8 @@ const ACTIONS = {
     pass(5);
     const fit = sensorFit(b.part);                                     // how this one fits (sensors.js)
     if (b.part === 'part-mega') closeLead('try-mega', 'x', 'Zamanon sensor: wrong shape (hex, not round)');
+    if (b.state === 'stuck') return say('Push', 'It won\'t go any further.');
+    if (!b.rotated && b.part !== 'old-sensor') { b.state = 'stuck'; anger(10); moment('benchStuck', 1100); sfx('creak'); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }   // not lined up: it jams
     if (fit !== 'right' && fit !== 'old') return tryWrongSensor(b);    // touches the hole, and fails its own way
     if (b.part === 'old-sensor') {                                     // the old one came out of here, so it goes back in (once lined up)
       if (!b.rotated) return say('Push', 'The pins don\'t line up. Rotate it.');
@@ -1854,11 +1856,9 @@ const ACTIONS = {
       moment('benchFit', 1000); sfx('clink', 0.65);
       return say('Push', 'Click. The old one goes straight back in. Of course it does. It\'s the old one.');
     }
-    if (b.state === 'stuck') return say('Push', 'It won\'t go any further.');
-    if (!b.rotated) { b.state = 'stuck'; anger(10); moment('benchStuck', 1100); sfx('creak'); return say('Push', 'It goes in halfway… and sticks. Now it won\'t come out either.'); }
     b.state = 'in';
     S.flags.fits = true;
-    S.flags.fittedPart = b.part;                                       // the one that fits (the Parts 4 Less one, or the soldered one)
+    S.flags.fittedPart = b.part;                                       // the one that fits (the Parts 4 Less one or the job lot one, the old plug soldered on)
     moment('benchFit', 1000); sfx('clink', 0.65); sfx('ding', 0.8);
     stillAfter('click');                                               // it fits!
     finishJob('new-sensor', `The ${sensorName(b.part)} fits!`);
