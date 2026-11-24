@@ -2118,6 +2118,7 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   await page.evaluate(() => { PUNCTURE_CHANCE = 1; });                  // this time it happens
   await page.locator('.hs[data-go="city"]').first().click(); await idle(page);   // back in the car
   await page.locator('.hs[data-go="home"]').first().click();           // drive home…
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'flatdrive');  // you see the car come along, go bang and stop
   expect(await dialogText(page)).toContain('A puncture');
   await ok(page);
   expect(await page.evaluate(() => [S.screen, !!S.road, !!findJob('tyre')])).toEqual(['roadside', true, true]);
@@ -2212,7 +2213,7 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await page.evaluate(() => carryingTyre())).toBe(false);        // …and into her car
   expect(await page.evaluate(() => [S.inv.wheel, S.money])).toEqual(['Worn Out and Tired', money - 35]);
   // back to Mill Lane in her car, and fit it
-  await page.evaluate(() => { S.screen = 'home'; S.place = null; render(); });
+  await page.evaluate(() => { S.screen = 'home'; S.place = null; S.anger = 10; render(); });
   await ridesWithHer(page, false);                                      // she walks out and drives you (again: the first time was to the shop)
   await tap(page, 'act:toroad'); await idle(page);                       // your blue car, flashing on the map
   expect(await page.evaluate(() => [S.screen, S.road.watching])).toEqual(['roadside', true]);   // a wheel to fit: she gets out to watch
@@ -2313,7 +2314,7 @@ test('the flat spare has a screw in it: Worn Out and Tired puts a new tyre on it
   expect(errors).toEqual([]);
 });
 
-test('mend the spare before you ever get a flat: you drive off straight into a puncture, and now the spare is punctured too', async ({ page }) => {
+test('mend the spare before you ever get a flat: you drive off straight into a puncture; the good spare goes on, you drive off, and get another flat', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   // look at it in the boot: flat already, and on the list
@@ -2334,7 +2335,16 @@ test('mend the spare before you ever get a flat: you drive off straight into a p
   await ok(page);
   expect(await page.evaluate(() => [S.screen, !!S.road, S.spareOut])).toEqual(['roadside', true, false]);
   await page.evaluate(() => { act('roadspare'); });
-  expect(await dialogText(page)).toContain('Now the spare has been punctured too');
+  expect(await dialogText(page)).toContain('good spare on');
+  expect(await page.evaluate(() => [S.spare, S.road.spareOn])).toEqual(['flat', true]);   // the flat one's in the boot now
+  await page.locator('.dlg').click();
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('sparedrive');   // off you go…
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'flatdrive');       // …along the lane, bang, and you stop again
+  expect(await dialogText(page)).toContain('ANOTHER one');
+  await ok(page);
+  expect(await page.evaluate(() => [S.screen, S.road, FLAT_DRIVE])).toEqual(['roadside', { spare: false, walked: false, second: true }, null]);
+  await page.evaluate(() => { act('roadspare'); });
+  expect(await dialogText(page)).toContain('went flat ten minutes ago');
   await ok(page);
   // a wheel fitted: the spare's on the list again
   await page.evaluate(() => { S.road.walked = true; S.inv.wheel = TYRE_SHOP; act('fitwheel'); });
@@ -2366,6 +2376,32 @@ test('the flat spare: a spare off a wreck at the Scrap Yard, in your slot', asyn
   await page.evaluate(() => { act('leave'); });
   await tap(page, 'city'); await idle(page);
   expect(await page.evaluate(() => carryingTyre())).toBe(false);        // …and into the car
+  expect(errors).toEqual([]);
+});
+
+test('the Scrap Yard: the door to the scrap cars is always there, whatever else is going on; and back to the office', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  for (const state of ['', "S.spare = 'flat'; spareJob();", "S.flags.punctured = true; S.road = { spare: true, walked: true };"]) {
+    await page.evaluate(code => { DIALOG = null; new Function(code)(); S.mins = 10 * 60; S.yardSlot = { day: S.day, from: 10 * 60 }; S.place = YARD; S.inside = true; S.spot.place = [105, 140]; show('place'); }, state);
+    await tap(page, 'act:yardcars'); await idle(page);
+    expect(await page.evaluate(() => S.screen)).toBe('yard');
+    await tap(page, 'act:yardoffice'); await idle(page);
+    expect(await page.evaluate(() => [S.screen, S.inside, S.place])).toEqual(['place', true, 'Scrap Yard']);
+  }
+  expect(errors).toEqual([]);
+});
+
+test('ringing the recovery: her words are in a bubble from the phone, in her voice; yours in your own', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; puncture(); });
+  await ok(page);
+  await page.evaluate(() => { window.PITCHES = []; chatter = (n, pitch) => PITCHES.push(pitch); show('phone'); act('recovery'); });
+  await expect(page.locator('.dlg.bubble')).toContainText('number one in the queue');
+  await page.locator('.dlg').click();
+  await expect(page.locator('.dlg.bubble')).toContainText('got a puncture');   // you
+  expect(await page.evaluate(() => PITCHES)).toEqual([290, 120]);       // a woman's voice, then yours
   expect(errors).toEqual([]);
 });
 
@@ -2717,6 +2753,22 @@ test('lost it twice: tea and sleep no longer calm you down; only a pint at the p
   expect(await dialogText(page)).not.toContain('pint');
   await ok(page);
   expect(await page.evaluate(() => S.anger)).toBeLessThan(50);
+  expect(errors).toEqual([]);
+});
+
+test('so many cups of tea and nights, and they stop working: then only the pub will do, and a pint starts them working again', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const drop = async run => page.evaluate(code => { S.anger = 60; ANIM = null; DIALOG = null; STILL = null; new Function(code)(); const d = 60 - S.anger; ANIM = null; return d; }, run);   // how much it calms you
+  for (let k = 0; k < 5; k++) expect(await drop("act('tea')")).toBe(15);   // five teas…
+  expect(await drop('goToBed()')).toBe(20);                               // …and a night: all of them work
+  expect(await page.evaluate(() => DIALOG.body)).toContain('a bit better');
+  expect(await drop("act('tea')")).toBe(0);                               // that was the last: tea…
+  expect(await page.evaluate(() => DIALOG.body)).toContain('You need a pint');
+  expect(await drop('goToBed()')).toBe(0);                                // …and sleep don't touch it
+  expect(await page.evaluate(() => DIALOG.body)).toContain('You need a pint');
+  await page.evaluate(() => pintCures());                                 // a pint at the pub
+  expect(await drop("act('tea')")).toBe(15);
   expect(errors).toEqual([]);
 });
 
@@ -3607,7 +3659,7 @@ test('the bank is in the grand building with the columns (where the library was)
 test('anger: the wife being no help raises it, a tip does not; so does anything that gets you nowhere', async ({ page }) => {
   const errors = [];
   await start(page, errors);
-  const rise = async run => page.evaluate(code => { S.anger = 10; DIALOG = null; new Function(code)(); return S.anger - 10; }, run);   // how much it goes up
+  const rise = async run => page.evaluate(code => { S.anger = 10; DIALOG = null; ANIM = null; new Function(code)(); return S.anger - 10; }, run);   // how much it goes up
   await page.evaluate(() => { S.mins = 11 * 60; });
   expect(await rise('S.wifeTalks = 0; wifeLine()')).toBe(5);                 // scrap it
   expect(await rise('S.flags.mumMoneyDay = 1; S.wifeTalks = 5; wifeLine()')).toBe(5);   // just a remark
@@ -3615,6 +3667,15 @@ test('anger: the wife being no help raises it, a tip does not; so does anything 
   expect(await rise('gardenLine()')).toBe(5);
   expect(await rise('S.screen = "home"; act("wifecar")')).toBe(5);           // use your own
   expect(await rise('talk("Trusty Autos")')).toBe(4);                        // a garage that's no help
+  expect(await rise(`S.flags.sparky = true; S.place = "Sparky's Auto Electrics"; talk(S.place)`)).toBe(4);   // "Still broken, mate."
+  expect(await rise('talk("Pound Shop")')).toBe(4);                          // "Yes, the Pound Shop."
+  expect(await rise('S.money = 100; talk("Police Station")')).toBe(4);
+  expect(await rise('S.money = 100; talk("Bank")')).toBe(4);                 // "We're here for you."
+  expect(await rise('S.place = "Bank"; S.day = 6; S.mins = 11 * 60; S.screen = "place"; S.inside = false; act("enter")')).toBe(8);   // shut
+  expect(await rise('S.day = 2; S.mins = 11 * 60; S.place = "Post Office"; S.screen = "place"; S.inside = false; act("enter")')).toBe(8);   // the queue
+  expect(await rise('talk("Post Office")')).toBe(8);                         // and joining it
+  expect(await rise('S.flags.punctured = false; puncture(); S.road = null; S.place = null; S.screen = "home"')).toBe(20);   // a flat tyre
+  expect(await rise('S.flags.gazTried = 1; S.mins = 11 * 60; ACTIONS.ring("Gaz")')).toBe(4);   // "Still looking for it, mate."
   expect(await rise('ACTIONS.search("the shelves")')).toBe(4);               // pitch black
   expect(await rise('ACTIONS.ring("Nobody")')).toBe(4);                      // no answer
   expect(errors).toEqual([]);
@@ -3658,6 +3719,63 @@ test('running out of money goes on the list (Mum & Dad, Paul, a bank loan); the 
   expect(errors).toEqual([]);
 });
 
+// ---------- money ----------
+test('every purchase goes kerching, once; nothing bought, no kerching; the fruit machine has its own sounds', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const heard = run => page.evaluate(code => {
+    window.SOUNDED = [];
+    const real = sfx;
+    sfx = name => { SOUNDED.push(name); };
+    DIALOG = null; ANIM = null;
+    new Function(code)();
+    sfx = real;
+    return SOUNDED.filter(n => n === 'kerching').length;
+  }, run);
+  expect(await heard('S.money = 100; spend(5)')).toBe(1);                 // in a shop
+  expect(await heard("S.money = 100; act('buy:battery-23a')")).toBe(1);   // online
+  expect(await heard('S.money = 100; coffeeServed(["one", "two"])')).toBe(1);   // a coffee
+  expect(await heard('S.money = 1; spend(5, true)')).toBe(0);             // can't afford a pint
+  expect(await heard('S.money = 0; S.flags.paulLent = true; S.flags.mumMoneyDay = S.day; spend(5)')).toBe(1);   // the wife pays
+  expect(await heard('S.money = 100; fruitPlay(1)')).toBe(0);
+  // a basket at the till
+  expect(await heard("S.money = 100; S.place = 'Tool Shop'; S.screen = 'place'; S.inside = true; S.basket = [{ place: S.place, slot: '0-6', name: 'Torch', price: 4.99, kind: 'can' }]; act('checkout')")).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+// ---------- animations ----------
+test('a tap never skips an animation; only a walk, a drawer, a book, the pedal, the horn, a rev and the garage door', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  // every animation in the game: start it, tap, and see if it's still playing
+  const skipped = await page.evaluate(() => {
+    const out = [];
+    for (const kind of [...Object.keys(MOMENTS), 'fusetest', 'chargertry']) {
+      if (kind === 'walk') continue;                                    // a walk: tap past it
+      ANIM = null;
+      moment(kind, 60000);
+      const real = MOMENTS[kind];
+      MOMENTS[kind] = () => {};                                         // (not drawn here: just the tap)
+      document.getElementById('stage').click();
+      if (!ANIM) out.push(kind);
+      MOMENTS[kind] = real;
+    }
+    ANIM = null;
+    return [...new Set(out)].sort();
+  });
+  expect(skipped.filter(k => !['book', 'drawer', 'garagedoor', 'horn', 'pedal', 'rev'].includes(k))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('the version number is after the tagline, at the top and on the title screen', async ({ page }) => {
+  await page.goto(GAME);
+  const lines = await page.evaluate(() => [document.querySelector('h1 small').textContent, document.querySelector('.tline').textContent, VERSION]);
+  expect(lines[2]).toMatch(/^v\d+$/);
+  expect(lines[0]).toBe(`Everybody's sure. Nobody's right. ${lines[2]}`);
+  expect(lines[1]).toBe(lines[0]);
+});
+
 // ---------- the back garden ----------
 test('the back door between the sofa and the computer goes out to the garden; some sunny days the wife is out there on her sun lounger, and not indoors', async ({ page }) => {
   const errors = [];
@@ -3669,9 +3787,11 @@ test('the back door between the sofa and the computer goes out to the garden; so
   await expect(page.locator('.back')).toHaveCount(0);                     // no Back button: you go in by the door
   await tap(page, 'act:backin'); await idle(page);
   expect(await page.evaluate(() => S.screen)).toBe('room');
+  await expect(page.locator('.hs[data-go="act:garden"] + .lab')).toHaveText('Garden');   // just that, whether she's out there or not
   // a sunny day, after 11: she's out on the lounger, not in the room
   await page.evaluate(() => { window.NO_SUNBATHING = false; let d = 1; while (hash(d, 17) >= 0.5) d++; S.day = d; S.mins = 13 * 60; render(); });
   await expect(page.locator('.hs[data-go="act:wife"]')).toHaveCount(0);
+  await expect(page.locator('.hs[data-go="act:garden"] + .lab')).toHaveText('Garden');
   await tap(page, 'act:garden'); await idle(page);
   await tap(page, 'act:wife');
   expect(await dialogText(page)).toContain('Husband');
@@ -3898,7 +4018,7 @@ test('everyone who talks makes the speech noise: the tester, the first time too;
   await expect.poll(() => page.evaluate(() => HEARD.length)).toBe(1);     // his very first words
   expect(await page.evaluate(() => AC.state)).toBe('running');
   await page.evaluate(() => { LOUDEST = 0; });
-  await expect.poll(() => page.evaluate(() => LOUDEST)).toBeGreaterThan(0.03);   // …and they can be heard
+  await expect.poll(() => page.evaluate(() => LOUDEST)).toBeGreaterThan(0.2);   // …and they're loud (they were about 0.1)
   await heard();
   await page.locator('.dlg').click();                                     // "Anything else, mate?"
   expect(await heard()).toEqual([120]);

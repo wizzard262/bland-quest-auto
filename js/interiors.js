@@ -286,6 +286,7 @@ function shopInterior(name, shut) {
   } else {
     posters(style);                                                // posters on the side wall
     STOCK[style] ? STOCK[style](col) : STOCK.aisles(col);          // the stock along the back wall
+    if (style === 'yard') yardDoor();                              // the Scrap Yard: the door out to the cars
   }
   // the shopkeeper behind the counter (drawn first so the counter hides his legs), then the counter and the till
   if (!shut) { const m = P(KEEPER_AT[0], KEEPER_AT[1]); man(m[0], m[1], 'stand', 2, 0, look); }
@@ -387,6 +388,19 @@ function posters(style) {
   onRight(0, 118, 140, 34, 56, C.white); onRight(0, 120, 138, 36, 54, hex('#e070a8'));
   wallText(a, 110, 50, 40, 8); wallText(b, 110, 41, 40, 6);
   wallText(style === 'police' ? 'WANTED' : 'SALE', 140, 50, 22, 8);   // (the police don't have a sale on)
+}
+// The Scrap Yard's door in the left wall, standing open: the wrecks out in the yard, in daylight
+const YARD_DOOR = [16, 48, 56];                                     // from y, to y, height
+function yardDoor() {
+  const [y0, y1, h] = YARD_DOOR;
+  onRight(0, y0, y1, 0, h, C.wood);                                 // the frame
+  onRight(0, y0 + 3, y1 - 3, 0, h - 3, skyColour());                // the sky
+  onRight(0, y0 + 3, y1 - 3, 0, 16, hex('#7a6a50'));                // the mud
+  onRight(0, y0 + 6, y1 - 6, 12, 20, C.red);                        // a wreck…
+  onRight(0, y0 + 11, y1 - 11, 20, 27, shade(C.red, 0.7));
+  onRight(0, y0 + 13, y1 - 13, 21, 25, C.ink);                      // …no glass in it
+  onRight(0, y0 + 5, y1 - 9, 27, 34, C.warmDim);                    // and one on top of it
+  onRight(0, y0 + 9, y1 - 14, 34, 39, shade(C.warmDim, 0.7));
 }
 // Two posters on the back wall (shops whose side wall is all shelves)
 function backPosters(style) {
@@ -551,7 +565,7 @@ SCREENS.yard = {
       const k = CAR_SHAPES[shape];                                                           // the tap area fits the car's size
       spot(S.flags['wreck' + i] ? 'Looked at it' : 'Look at this one', isoArea(x, y, x + 24, y + k.L, 0, k.rz + (stacked ? 12 : 0)), 'act:wreck:' + i, [x + 30, y + 30]);
     });
-    spot('Back to the office', isoArea(170, -50, 214, -20, 0, 34), 'place:Scrap Yard', [190, 0]);
+    spot('Back to the office', isoArea(170, -50, 214, -20, 0, 34), 'act:yardoffice', [190, 0]);
     tip('Scrap Yard', 'Six of them might be yours. Look at each.', 1, 8);
     hud();
   },

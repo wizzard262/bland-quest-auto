@@ -222,7 +222,7 @@ function yardSensorOffer(text) {
   if (!findJob('new-sensor') || S.inv['yard-sensor'] || S.flags.fits) return false;
   say('A wreck', text + '\n\nIts sensor is still in, though.', [
     { label: 'Take its sensor (£5 to the man)', run() {
-      if (!spend(5)) return say('The yard', '"Cash only, mate." You haven\'t got it.');
+      if (!spend(5)) return noHelp('The yard', '"Cash only, mate." You haven\'t got it.');
       S.inv['yard-sensor'] = true; sfx('ratchet');
       lead('new-sensor', 'try-yard-sensor', 'Try the Scrap Yard sensor on the bench', 'you', 'maybe', 'bench');
       say('The sensor', 'Twenty minutes on your back in the mud and it\'s yours.');

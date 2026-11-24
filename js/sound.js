@@ -162,7 +162,7 @@ function chatter(n, pitch = 140) {
 // The syllables themselves, one after another
 function mumble(n, pitch) {
   const lowVoice = pitch < 200;                                          // a man's voice: quieter through the muffling…
-  const loudness = lowVoice ? 0.55 : 0.35;                               // …so it's played louder, level with a woman's
+  const loudness = lowVoice ? 2.2 : 2;                                   // …so it's played louder, level with a woman's (the filters take most of it away: these come out about half of full volume)
   try {
     const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;   // muffled, as if through a wall
     lp.connect(MASTER);
@@ -415,11 +415,13 @@ SOUNDS.splash = t => {                                               // a car th
   tone(t, [140, 60], 0.3, 0.12, 'sine');
   for (let i = 0; i < 14; i++) hiss(t + 0.35 + i * 0.06 + Math.random() * 0.04, 3000 + Math.random() * 2500, 0.05, 0.06, 'bandpass', 4);
 };
-SOUNDS.kerching = t => {                                             // an old cash register: the keys, the bell, the drawer shooting out
-  for (let i = 0; i < 3; i++) hiss(t + i * 0.05, 2600, 0.03, 0.08, 'bandpass', 6);   // ker- (the keys)
-  for (const [f, v] of [[2093, 0.12], [2637, 0.08], [3136, 0.05]]) tone(t + 0.16, f, 0.9, v);   // -CHING (the bell, ringing on)
-  hiss(t + 0.18, [900, 300], 0.25, 0.12, 'lowpass');                  // the drawer, sliding out
-  tone(t + 0.4, 140, 0.08, 0.1, 'square');                            // and its clunk
+SOUNDS.kerching = t => {                                             // an old cash register: the lever, the bell, the drawer shooting out, and the coins
+  tone(t, [260, 150], 0.05, 0.25, 'square'); hiss(t, 2400, 0.05, 0.4, 'bandpass', 3);   // ker- (the lever going down)
+  hiss(t + 0.07, 3200, 0.03, 0.3, 'bandpass', 5);                     // …and its click
+  for (const [f, v] of [[2093, 0.35], [2637, 0.22], [3951, 0.14], [5588, 0.06]]) tone(t + 0.14, f, 1.0, v);   // -CHING (the bell, struck hard, ringing on)
+  hiss(t + 0.18, [1200, 400], 0.2, 0.25, 'lowpass');                  // the drawer, shooting out
+  tone(t + 0.36, [150, 80], 0.1, 0.35, 'square');                     // it hits its stop…
+  for (let k = 0; k < 6; k++) metal(t + 0.38 + k * 0.06 + Math.random() * 0.03, 2800 + Math.random() * 1800, 0.14 - k * 0.015);   // …and the coins in it jump and jingle
 };
 // The fruit machine: a reel stopping dead (ker-chunk), no win (a flat double beep going down), and a win (coins pouring out)
 SOUNDS.kerchunk = t => {

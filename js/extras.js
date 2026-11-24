@@ -85,16 +85,25 @@ function breakLamp(side) {
   else { job(id, b.title, null); lead(id, ...b.lead); }
   queueDialog('You lose it', b.what + '\n\nYou feel better. For a second. That\'s a new job in the notebook.');
 }
-// Fed up: after losing it twice since your last pint, tea and sleep don't touch it; only the pub will do (Steve)
+// Fed up: after so many cups of tea and nights' sleep since your last pint (or losing it twice), tea and sleep stop working; only the pub will do (Steve)
 const FED_UP_KICKS = 2;
+const COMFORTS_LAST = 6;                                              // this many teas and nights, all told, calm you down
 function fedUp() {
   const kicks = S.flags.kicksSincePint || 0;                            // times you've lost it since the last pint
-  return kicks >= FED_UP_KICKS;
+  const comforts = S.flags.comfortsSincePint || 0;                      // teas and nights' sleep since the last pint
+  return kicks >= FED_UP_KICKS || comforts >= COMFORTS_LAST;
+}
+// A cup of tea or a night's sleep: does it calm you? If it does, that's one more used up
+function comforted() {
+  if (fedUp()) return false;
+  S.flags.comfortsSincePint = (S.flags.comfortsSincePint || 0) + 1;
+  return true;
 }
 // A pint at the pub: the fed-up feeling goes (true if you were fed up)
 function pintCures() {
   const was = fedUp();                                                  // were you past tea and sleep?
   delete S.flags.kicksSincePint;                                        // start counting again
+  delete S.flags.comfortsSincePint;
   return was;
 }
 // Ways to calm down (tap the anger bar)
@@ -1077,7 +1086,6 @@ Object.assign(ACTIONS, {
     const total = basketTotal();
     if (!spend(total)) { anger(10); return say('The till', '£' + total.toFixed(2) + '. ' + declinedWords()); }
     pass(5);
-    sfx('kerching');                                                    // the till
     S.bought = S.bought || {};
     for (const b of items) {
       if (b.name.startsWith('Headlight')) { addLamp(b.name.includes('right') ? 'right' : 'left'); continue; }   // a headlight: a spare, on the shelf

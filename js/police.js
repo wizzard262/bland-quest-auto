@@ -171,9 +171,9 @@ const POLICE_LINES = [
   '"Have you seen this cat? No? Nobody has."'
 ];
 function policeTalk() {
-  if (S.fine && !S.fine.paid) return say(POLICE, `"A fine? Pay it at the Post Office, sir. We don't take money. Not since… the incident."`);
+  if (S.fine && !S.fine.paid) return noHelp(POLICE, `"A fine? Pay it at the Post Office, sir. We don't take money. Not since… the incident."`);
   S.flags.policeTalks = (S.flags.policeTalks || 0) + 1;
-  say(POLICE, POLICE_LINES[(S.flags.policeTalks - 1) % POLICE_LINES.length]);
+  noHelp(POLICE, POLICE_LINES[(S.flags.policeTalks - 1) % POLICE_LINES.length]);
 }
 
 // ---------- paying, at the Post Office ----------
@@ -186,7 +186,6 @@ function payFineAtPost() {
     { label: `Pay £${owed}`, run() {
       if (!spend(owed, false, true)) { anger(10); return say('Post Office', declinedWords() + '\n\n"Your bank\'s blocked it, love. Not us."'); }   // blocked: the bank can sort that (short of money, the wife pays)
       S.fine.paid = true;
-      sfx('kerching');                                                 // window 3's till
       finishJob('fine', `Paid: £${owed}`);
       if (S.fine.clamped) { S.fine.unclamp = true; S.fine.clamped = false; }   // someone's on his way to take it off
       say('Post Office', '"That\'s paid. Don\'t do it again."' + (S.fine.unclamp ? '\n\n"Someone\'s on their way to take the clamp off."' : ''));
@@ -200,7 +199,7 @@ function payFineAtPost() {
 // Drunk and locked out of your car at the pub: a taxi home. The car stays outside the pub till you fetch it (on the bus)
 function taxiFromPub() {
   const paid = spend(TAXI_FARE, false, true);                                       // your card, or (blocked) the wife pays
-  if (!paid) wifeBailsOut(TAXI_FARE);
+  if (!paid) { wifeBailsOut(TAXI_FARE); sfx('kerching'); }
   carLeftAt(S.place);                                                  // the car's left where it is (lift.js)
   KEY.scratches = [];
   pass(10);                                                            // it turns up quick

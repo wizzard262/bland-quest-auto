@@ -428,6 +428,7 @@ function manSpot(screen) { const k = spotKey(screen); return (S.spot && S.spot[k
 // Where his head is on screen (for the arrow of his own speech bubble)
 function meHead() {
   const k = spotKey(S.screen);
+  if (S.screen === 'phone' && ON_RECOVERY) return [W * 0.22, H - 2];   // ringing the recovery: low down on the left, clear of the phone (road.js)
   if (!VIEW[k]) return null;                                         // a screen he isn't drawn on: a box along the bottom instead
   if (S.screen === 'place' && atCounter()) return [W * 0.22, H - 2];   // up at a counter (the close-up of them): you're not in it, so low down on the left, clear of them
   if (S.screen === 'place' && S.inside && placeStyle(S.place) === 'pub') { const [x, y] = pubMe(); return [x + PUB.size, y - 20 * PUB.size]; }   // the pub is drawn flat

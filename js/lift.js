@@ -40,7 +40,7 @@ function houseVoice() {
 // Tap her car: she comes out. (Late at night she's asleep: no lift)
 function herLift() {
   const alarmLift = alarmWentOff() && S.mins < 7 * 60;                 // up at 5 with the alarm: she's up too, and not pleased
-  if (isAsleep() && !alarmLift) return say("The wife's car", 'She\'s fast asleep. No lift till the morning.');
+  if (isAsleep() && !alarmLift) return noHelp("The wife's car", 'She\'s fast asleep. No lift till the morning.');
   sfx('door');
   moment('liftout', LIFT_MS.out);
   ANIM.then = () => {

@@ -196,7 +196,7 @@ SCREENS.room = {
     spot('Bed: go to sleep', isoArea(0, 80, 59, 130, 0, 22), 'act:bed', [70, 104]);
     spot('Kettle: make a cup of tea', isoArea(KETTLE[0] - 6, 0, KETTLE[0] + 14, 18, 26, 42), 'act:tea', [150, 32]);
     spot('Door: outside', isoArea(EXIT_DOOR[0], ROOM.d - 4, EXIT_DOOR[1], ROOM.d, 0, EXIT_DOOR[2]), 'home', [105, 130]);
-    spot('Back door: the garden', isoArea(BACK_DOOR[0], 0, BACK_DOOR[1], 4, 0, BACK_DOOR[2]), 'act:garden', [38, 12]);
+    spot('Garden', isoArea(BACK_DOOR[0], 0, BACK_DOOR[1], 4, 0, BACK_DOOR[2]), 'act:garden', [38, 12]);
     if (wifeSunbathing()) { hud(); return; }                           // she's out in the garden: not in here
     const [fx, fy] = WIFE.pos;                                         // she walks round (drawn in life.js); the tap area follows her
     spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 18, fy + 14]);   // last: on top, even when she's in bed
@@ -675,6 +675,7 @@ SCREENS.place = {
       } else {
         spot('Look at the stock', isoArea(10, 0, 190, 12, 14, 62), 'act:browse', [184, 82]);
         spot('Read the posters', isoArea(0, 70, 1, 140, 30, 56), 'act:posters', [18, 112]);
+        if (style === 'yard') spot('The scrap cars', isoArea(0, YARD_DOOR[0], 1, YARD_DOOR[1], 0, YARD_DOOR[2]), 'act:yardcars', [14, 32]);   // always (Steve)
       }
       basketLabel();
     }

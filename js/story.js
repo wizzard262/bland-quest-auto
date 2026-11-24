@@ -42,7 +42,7 @@ function testerQuestions() {
   const left = TESTER_QUESTIONS.filter(([q]) => !S.flags.asked[q]).slice(0, 3);     // three at a time, so the bubble stays small
   const options = left.map(([q, answer]) => ({ label: q, run() {
     S.flags.asked[q] = true;
-    anger(2);
+    frustrated();                                                       // (no idea, mate)
     sayMe(q, () => {                                                  // you ask, in your own bubble…
       SPEAKER = keeperHead();                                         // …and he answers in his
       say('MOT Test Centre', answer, testerQuestions());
@@ -462,7 +462,7 @@ function goToBed(wake) {
   S.flags.bedLate = isBedtime();                                       // late: she's in her nightie and comes too (it's morning by the time you wake)
   S.flags.bedAsleep = isAsleep();                                      // she's already asleep: she stays in bed
   S.flags.bedOut = wifeSunbathing();                                   // she's out in the garden: you go to bed on your own
-  sleepUntilMorning(wake);
+  const calmer = sleepUntilMorning(wake);
   moment('night', 3200);                                               // dusk, black, then morning (the message waits for it)
   if (wake === ALARM) {
     S.flags.alarmDay = S.day;
@@ -470,7 +470,7 @@ function goToBed(wake) {
     anger(5);
     return say('5 am', `The alarm. It's ${weekday()}, and it's still dark.\n\nThe wife says a word you didn't know she knew.`);
   }
-  const morning = fedUp() ? 'You lay awake all night, fuming about the bloody car. You need a pint.' : 'You feel a bit better.';   // past sleep: the pub
+  const morning = calmer ? 'You feel a bit better.' : 'You lay awake all night, fuming about the bloody car. You need a pint.';   // past sleep: the pub
   say('Next morning', `It's ${weekday()} morning. ${morning}`);
 }
 // Through the door: he staggers halfway across the room and folds up on the floor, asleep
@@ -981,6 +981,7 @@ function arriveAt(name) {
 }
 // Into the Post Office with the queue already in there: you have to get here earlier, and that goes in the notebook (Steve)
 function poTooLate() {
+  anger(WASTED_TRIP);                                                 // that queue
   S.flags.poTried = true;                                             // (the alarm's offered at bedtime)
   const fine = findJob('fine');
   if (fine && fine.status === 'open' && !S.flags.poNoted) {
@@ -1016,7 +1017,7 @@ function coffeeOrder(n = 0, picks = []) {
 }
 // All ten answered: he makes it, and calls out its full name
 function coffeeServed(picks) {
-  if (!spend(COFFEE_PRICE, true)) return say('Café', '"Card\'s been declined, love."\n\n(She won\'t pay for coffee.)');   // a treat: the wife won't pay
+  if (!spend(COFFEE_PRICE, true)) return noHelp('Café', '"Card\'s been declined, love."\n\n(She won\'t pay for coffee.)');   // a treat: the wife won't pay
   pass(15); anger(-8); sfx('pour');
   const name = picks.slice(0, -1).join(', ') + ', and ' + picks[picks.length - 1];   // every choice, in order
   say('Café', `He makes it. It takes a while.\n\n"A ${name}!"\n\nHe's written "DAVE" on the cup. You're not Dave. It's £${COFFEE_PRICE.toFixed(2)}. It tastes of coffee.`);
@@ -1039,7 +1040,7 @@ function fruitOffer() {
 }
 // Put the money in and pull: the reels spin, stop one by one, and then you know
 function fruitPlay(stake) {
-  if (!spend(stake, true)) return say('Fruit machine', 'Your card won\'t go in. It\'s a fruit machine. It takes coins. You get some change from the bar… which your card won\'t pay for either.');   // a treat: the wife won't pay
+  if (!takeMoney(stake, true)) return noHelp('Fruit machine', 'Your card won\'t go in. It\'s a fruit machine. It takes coins. You get some change from the bar… which your card won\'t pay for either.');   // a treat: the wife won't pay
   const win = Math.random() < FRUIT_WIN_CHANCE;
   const pick = () => FRUIT_SYMBOLS[Math.floor(Math.random() * FRUIT_SYMBOLS.length)];
   let result;
@@ -1128,7 +1129,7 @@ const TALK = {
     const name = 'The Hesketh Tavern';
     const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
       SPEAKER = keeperHead();
-      if (!spend(price, true)) return say(name, pubDeclined());   // (she won't pay for beer)
+      if (!spend(price, true)) return noHelp(name, pubDeclined());   // (she won't pay for beer)
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
       const cured = pintCures();                                       // were you past tea and sleep? (extras.js)
       if (cured) anger(-30);                                           // then this is the one that works
@@ -1143,7 +1144,7 @@ const TALK = {
       pour('Cider', 4.8, 'Cloudy. Possibly made this morning.'),
       pour('Lager', 4.9, 'Cold. Fizzy. Fine.'),
       pour('Bitter', 4.2, 'Flat, brown and perfect.'),
-      { label: 'Just some advice', run() { SPEAKER = keeperHead(); say(name, BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]); } }
+      { label: 'Just some advice', run() { SPEAKER = keeperHead(); noHelp(name, BARMAN[(S.pubTalks = (S.pubTalks || 0) + 1) % BARMAN.length]); } }
     ]);
   },
   'MOT Test Centre'() {
@@ -1157,7 +1158,7 @@ const TALK = {
       } }]);
     }
     // after that: ask him whatever you like
-    say('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
+    noHelp('MOT Test Centre', '"Rebook when it\'s fixed, mate. If it\'s ever fixed."', testerQuestions());
   },
   'Police Station'() { policeTalk(); },                                  // no help (police.js)
   'Bank'() { bankTalk(); },
@@ -1165,14 +1166,14 @@ const TALK = {
                                              // a blocked card: security questions (bank.js)
   'Post Office'() {
     if (postFirst() && payFineAtPost()) return;                         // a fine to pay, at the front: window 3 (police.js). There's no skipping the queue (Steve)
-    if (postFirst()) return say('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
-    anger(5);
+    if (postFirst()) return noHelp('Post Office', '"Next!"\n\nYou\'re first. You\'ve been waiting outside since before nine for this.\n\n"What are you posting?"\n\nYou haven\'t got anything to post yet.');
+    anger(WASTED_TRIP);
     S.flags.poTried = true;                                             // you've seen the queue: the alarm's offered at bedtime
     const fine = S.fine && !S.fine.paid ? '\n\n"Fines? Window 3, love. Same queue."' : '';
     say('Post Office', `You join the back of the queue. Ten people. Nobody moves.${fine}`);   // waiting in it: the watch
   },
   'Spanner & Son'() {
-    if (S.flags.spanner) return say('Spanner & Son', '"Still three months, mate."');
+    if (S.flags.spanner) return noHelp('Spanner & Son', '"Still three months, mate."');
     S.flags.spanner = true;
     anger(5);
     closeLead('ask-mech', 'x', 'Spanner & Son: earliest is 3 months');
@@ -1180,23 +1181,23 @@ const TALK = {
     say('Spanner & Son', '"Ooh, not good. Earliest I can look at it is three months, mate."\n\nHis son leans out of the office: "Try Quickfix."');
   },
   'Quickfix Motors'() {
-    if (S.flags.quickfix) return say('Quickfix Motors', '"Like I said: we don\'t do autos."');
+    if (S.flags.quickfix) return noHelp('Quickfix Motors', '"Like I said: we don\'t do autos."');
     S.flags.quickfix = true;
     closeLead('quickfix', 'x', "Quickfix: they don't do autos");
     closeLead('ask-mech', 'x');
     lead('codes', 'sparkys', "Get the codes read at Sparky's", 'Quickfix', 'very sure', "place:Sparky's Auto Electrics");
     lead('codes', 'dealer', 'The main dealer can read the codes', 'Quickfix', 'sure, but dear', 'place:Main Dealer');
-    say('Quickfix Motors', '"We don\'t do autos. You want the codes read first. Sparky\'s has a reader. Or the main dealer, if you\'re made of money."');
+    noHelp('Quickfix Motors', '"We don\'t do autos. You want the codes read first. Sparky\'s has a reader. Or the main dealer, if you\'re made of money."');
   },
   "Sparky's Auto Electrics"() {
-    if (S.flags.sparky) return say("Sparky's", '"Still broken, mate."');
+    if (S.flags.sparky) return noHelp("Sparky's", '"Still broken, mate."');
     S.flags.sparky = true;
     closeLead('sparkys', 'x', "Sparky's: their reader's broken");
     lead('codes', 'mega-reader', 'Buy your own code reader on Zamanon', 'Sparky', 'fairly sure', 'app:MegaMart');
-    say("Sparky's Auto Electrics", '"Reader\'s broken, mate. Waiting on a part. Get your own: Zamanon do one for a tenner."');
+    noHelp("Sparky's Auto Electrics", '"Reader\'s broken, mate. Waiting on a part. Get your own: Zamanon do one for a tenner."');
   },
   'Main Dealer'() {
-    if (S.flags.codes) return say('Main Dealer', '"Anything else? That\'ll be £120."');
+    if (S.flags.codes) return noHelp('Main Dealer', '"Anything else? That\'ll be £120."');
     say('Main Dealer', '"We can plug it in, sir. That\'s £120 for the diagnostic."', [
       { label: 'Pay £120', run() {
         if (!spend(120)) { anger(10); return say('Main Dealer', declinedWords()); }
@@ -1228,20 +1229,20 @@ const TALK = {
   "Paul's"() {                                                          // your brother, at home
     if (askPaulForMoney('Paul')) return;                                // skint, or your card's blocked: twenty quid, once
     S.flags.paulTalks = (S.flags.paulTalks || 0) + 1;
-    say('Paul', BROTHER_LINES[(S.flags.paulTalks - 1) % BROTHER_LINES.length]);
+    noHelp('Paul', BROTHER_LINES[(S.flags.paulTalks - 1) % BROTHER_LINES.length]);
   },
   "Auntie Jean's"() {                                                   // she thinks you're her late husband (Steve)
     S.flags.jeanTalks = (S.flags.jeanTalks || 0) + 1;
     const line = JEAN_LINES[(S.flags.jeanTalks - 1) % JEAN_LINES.length];
-    say('Auntie Jean', line + '\n\n(Harold was her husband. He died in a freak gearbox sensor accident in 1982.)');
+    noHelp('Auntie Jean', line + '\n\n(Harold was her husband. He died in a freak gearbox sensor accident in 1982.)');
   },
   "Mate Gaz's"() {
     if (S.inv['reader-old'] || !leadExists('gaz-reader')) return say("Gaz's", '"Alright? Did my reader work?"');
     if (!S.flags.gazTried) {
       S.flags.gazTried = S.day;
-      return say("Gaz's", '"Can\'t find it. Might\'ve lent it to the brother-in-law. Come back tomorrow."');
+      return noHelp("Gaz's", '"Can\'t find it. Might\'ve lent it to the brother-in-law. Come back tomorrow."');
     }
-    if (S.flags.gazTried === S.day) return say("Gaz's", '"Still looking, mate. Tomorrow."');
+    if (S.flags.gazTried === S.day) return noHelp("Gaz's", '"Still looking, mate. Tomorrow."');
     S.inv['reader-old'] = true;
     note('codes', "Got Gaz's code reader (old type)", 'info');
     say("Gaz's", '"Found it! It\'s the old type, mind."\n\nTry it in the car: the port is under the dash.');
@@ -1249,7 +1250,7 @@ const TALK = {
   'Tool Shop'() { shopCounter('Tool Shop', '"What are you after?"'); },
   'Pound Shop'() {
     if (askForBattery('Pound Shop')) return;                         // after a battery for the meter: no luck
-    say('Pound Shop', '"Yes, the Pound Shop. Everything is priced in pounds."');
+    noHelp('Pound Shop', '"Yes, the Pound Shop. Everything is priced in pounds."');
   },
   'Hardware Shop'() {
     if (askForBattery('Hardware Shop')) return;                      // after a battery for the meter: no luck
@@ -1257,17 +1258,17 @@ const TALK = {
       S.flags.hammerAsked = true;
       closeLead('hammer-shop', 'x', 'Hardware Shop: "no hammers"');
       lead('hammer', 'hammer-shelf', 'Look along their shelves yourself', 'you', 'hopeful', 'place:Hardware Shop');
-      return say('Hardware Shop', '"A hammer? Not got any, mate. Sold the last one Tuesday."');
+      return noHelp('Hardware Shop', '"A hammer? Not got any, mate. Sold the last one Tuesday."');
     }
     shopCounter('Hardware Shop', '"Yes?"');
   },
   'Car Spares Direct'() {
     if (csdSensor()) return;                                            // after a sensor: "we can order it in" (sensors.js)
-    return say('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
+    return noHelp('Car Spares Direct', '"Car spares? Direct? That\'s us. What do you want?"');
   },
   'Halfords Car Parts'() {
-    if (S.inv['part-p4l'] || S.flags.p4lReady) return say('Halfords Car Parts', '"It\'s at the other branch, like I said."');
-    if (!findJob('new-sensor')) return say('Halfords Car Parts', '"What part do you need? No part number, no part."');
+    if (S.inv['part-p4l'] || S.flags.p4lReady) return noHelp('Halfords Car Parts', '"It\'s at the other branch, like I said."');
+    if (!findJob('new-sensor')) return noHelp('Halfords Car Parts', '"What part do you need? No part number, no part."');
     S.flags.p4lReady = now() + 120;
     closeLead('motor-factors', 'ok', 'Halfords Car Parts: ordered, ready in 2 hours at the other branch');
     lead('new-sensor', 'p4l', 'Collect it at Parts 4 Less', 'Halfords Car Parts', 'sure', 'place:Parts 4 Less');
@@ -1275,8 +1276,8 @@ const TALK = {
   },
   'Parts 4 Less'() {
     if (S.inv['part-p4l']) return say('Parts 4 Less', '"You\'ve already got it."');
-    if (!S.flags.p4lReady) return say('Parts 4 Less', '"Nothing here for you, love."');
-    if (now() < S.flags.p4lReady) return say('Parts 4 Less', '"Not come over yet. Try later."');
+    if (!S.flags.p4lReady) return noHelp('Parts 4 Less', '"Nothing here for you, love."');
+    if (now() < S.flags.p4lReady) return noHelp('Parts 4 Less', '"Not come over yet. Try later."');
     say('Parts 4 Less', '"Here it is. £31.50."', [
       { label: 'Pay £31.50', run() {
         if (!spend(31.5)) { anger(10); return say('Parts 4 Less', declinedWords()); }
@@ -1291,17 +1292,17 @@ const TALK = {
   // Worn Out and Tired: a part-worn wheel when your car's on a flat (road.js); otherwise, tyres you don't need
   'Worn Out and Tired'() {
     if (wheelWanted()) return buyWheel(TYRE_SHOP);
-    if (S.road) return say(TYRE_SHOP, `"Not fitted it yet? We only fit here, mate. Get that wheel on it and bring the car in."\n\nThe car is on a flat on ${ROADSIDE}.`);   // you've got a wheel
+    if (S.road) return noHelp(TYRE_SHOP, `"Not fitted it yet? We only fit here, mate. Get that wheel on it and bring the car in."\n\nThe car is on a flat on ${ROADSIDE}.`);   // you've got a wheel
     if (spareAt(TYRE_SHOP)) return;                                     // the flat spare: a new tyre on it (road.js)
     const tail = S.spare === 'good' ? 'For now.' : 'How\'s your spare? Nobody ever checks the spare."\n\n"It\'s in your boot. Have a look.';
-    say(TYRE_SHOP, `"Tyres? Your tyres are fine, mate. ${tail}"`);
+    noHelp(TYRE_SHOP, `"Tyres? Your tyres are fine, mate. ${tail}"`);
   },
   'Scrap Yard'() {
     if (wheelWanted()) return buyWheel('Scrap Yard');                   // your car's on a flat: a wheel off a wreck
     if (spareAt('Scrap Yard')) return;                                  // the flat spare: one off a wreck (road.js)
-    if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"\n\nRows of dead cars. Any of them might be good for parts one day.');
-    say('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."\n\nRows of dead cars. Any of them might be good for other parts one day.', [
-      { label: 'Look round the yard', run() { S.spot.yard = [100, 150]; show('yard'); } },
+    if (!findJob('new-sensor')) return say('Scrap Yard', '"Got all sorts. What are you after?"\n\nRows of dead cars. Any of them might be good for parts one day.', [{ label: 'Look round the yard', run: ACTIONS.yardcars }, { label: 'Not today', run() {} }]);
+    noHelp('Scrap Yard', '"A Zafira automatic? Don\'t think I\'ve got one, mate. Have a look round if you like. Mind the dog."\n\nRows of dead cars. Any of them might be good for other parts one day.', [
+      { label: 'Look round the yard', run: ACTIONS.yardcars },
       { label: 'Not today', run() {} }
     ]);
   },
@@ -1321,7 +1322,6 @@ function buy(id, place) {
   if (item.none) { anger(5); return say(place, '"A 9? There\'s no such thing as a 9, mate."'); }
   if (!spend(item.price)) { anger(10); return say(place, declinedWords()); }
   S.inv[id] = true;
-  sfx('kerching');                                                     // the till
   if (id === 'extractor-cheap') closeLead('extractor', 'ok');
   if (id === 'extractor-good') closeLead('extractor2', 'ok');
   if (id === 'fuses') note('meaning', 'Bought fuses: all the wrong amps', 'x');
@@ -1498,7 +1498,7 @@ const ACTIONS = {
   // ----- home -----
   tea() {
     pass(10); moment('tea', 1400); stillAfter('tea'); sfx('pour');
-    if (fedUp()) return say('A cup of tea', 'You make a tea. You look at it.\n\nTea? TEA? Sod the tea. You pour it down the sink.\n\nYou need a pint.');   // past tea now: the pub
+    if (!comforted()) return say('A cup of tea', 'You make a tea. You look at it.\n\nTea? TEA? Sod the tea. You pour it down the sink.\n\nYou need a pint.');   // past tea now: the pub
     anger(-15);                                                        // it helps
     say('A cup of tea', (S.mins % 3) ? 'You make a tea. You calm down a bit.' : 'You make a tea. It goes cold before you drink it.');
   },
@@ -1574,11 +1574,14 @@ const ACTIONS = {
     say('A stick', 'You snap a long, thin stick off the hedge. Perfect. Probably.');
   },
   giveup() { anger(10); show('garage'); },
+  // ----- the Scrap Yard: out to the cars, and back in to the office -----
+  yardcars() { S.counter = null; S.spot.yard = [100, 150]; sfx('door'); show('yard'); },
+  yardoffice() { S.inside = true; S.spot.place = [14, 32]; sfx('door'); show('place'); },
   // ----- in a shop -----
   enter() {
     const shut = closedReason(S.place);
     if (shut) {
-      sfx('door'); anger(3);
+      sfx('door'); anger(WASTED_TRIP);                                 // shut
       const gate = (PLACE_INFO[S.place] || {}).byAppointment ? yardGate() : '';   // by appointment: the number goes in your phone
       return say(S.place, shut + gate);
     }
@@ -1612,7 +1615,7 @@ const ACTIONS = {
     const side = needHeadlight();                                     // which headlight you still need (if any)
     if (i === 2 && side) {                                            // a Zafira just like yours: its headlights are fine
       return say('A wreck', text + `\n\nIts ${side} headlight is perfect, though.`, [
-        { label: 'Take its headlight (£10 to the man)', run() { if (!spend(10)) return say('The yard', '"Cash only, mate." You haven\'t got it.'); gotHeadlight(); sfx('ratchet'); say('The headlight', 'Ten minutes with a screwdriver and it\'s yours. A bit scratched.'); } },
+        { label: 'Take its headlight (£10 to the man)', run() { if (!spend(10)) return noHelp('The yard', '"Cash only, mate." You haven\'t got it.'); gotHeadlight(); sfx('ratchet'); say('The headlight', 'Ten minutes with a screwdriver and it\'s yours. A bit scratched.'); } },
         { label: 'Leave it', run() {} }
       ]);
     }
@@ -1744,7 +1747,6 @@ const ACTIONS = {
       moment('start', 1800); sfx('start');
       if (S.flags.fitted) {                                              // the red light off, the orange one on: no tapping past it (Steve)
         sfx('fanfare', 0.9); sfx('sad', 1.4);
-        ANIM.noSkip = true;
         ANIM.then = () => {                                              // …and a good look at it, before anything's said
           moment('absOn', ABS_LOOK_MS);
           stillAfter('abs');                                             // then the still
@@ -2022,6 +2024,7 @@ const ACTIONS = {
     if (who === 'Brother') return ringBrother();                        // your brother: he'll come round (brother.js)
     if (who === 'Mum' && askMumForMoney('Ringing Mum & Dad')) return;    // skint: Mum sends some (now and then)
     if (who === 'Wife') {                                              // she says just what she'd say to your face
+      if (withWife()) wifeWindsYouUp();
       if (withWife()) return say('Ringing the wife', S.road && S.road.watching ? '"I\'m stood right here, Husband."' : '"I\'m in the car, Husband. Outside. Hurry up, my hair won\'t cut itself."');   // she's giving you a lift (lift.js)
       if (isAsleep()) frustrated();
       if (isAsleep()) return say('Ringing the wife', 'It rings and rings. She\'s asleep.');
@@ -2033,7 +2036,8 @@ const ACTIONS = {
       Mum: '"Come over any time, love. Your dad\'ll have a look at the car." In the background: "I KNOW CARS."',
       Brother: '"Can\'t talk, in the van. Ring you back." (He doesn\'t.)'
     };
-    if (!lines[who] || who === 'Brother') frustrated();                // no answer, or no use
+    const noUse = !lines[who] || who === 'Brother' || (who === 'Gaz' && S.flags.gazTried);   // no answer, or no use
+    if (noUse) frustrated();
     say('Ringing ' + who, lines[who] || 'No answer.');
   },
   // ----- the computer -----

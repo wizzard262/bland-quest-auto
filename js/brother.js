@@ -74,7 +74,7 @@ const BROTHER_HELPS = [
 ];
 
 Object.assign(ACTIONS, {
-  nojack() { say('Jack', 'An empty foam tray. Paul\'s got the jack. "Back Tuesday."'); },   // the boot, once Paul's borrowed it
+  nojack() { noHelp('Jack', 'An empty foam tray. Paul\'s got the jack. "Back Tuesday."'); },   // the boot, once Paul's borrowed it
   // talk to him: the first time he gives your hammer back; then advice, round and round
   brother() {
     if (!brotherHere()) return;
@@ -82,7 +82,7 @@ Object.assign(ACTIONS, {
     pass(10);
     SPEAKER = brotherHead();
     if (!b.talks++) return brotherHammer();
-    say('Paul', BROTHER_LINES[(b.talks - 2) % BROTHER_LINES.length]);
+    noHelp('Paul', BROTHER_LINES[(b.talks - 2) % BROTHER_LINES.length]);
   },
   // let him help: he does one of his things
   brotherhelp() {

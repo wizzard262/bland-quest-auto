@@ -2,6 +2,8 @@
 
 *Everybody's sure. Nobody's right.*
 
+The version number after that line in the game is `VERSION` in `js/engine.js`: add one with every commit.
+
 A point-and-click pixel-art game about one simple car repair that never ends.
 
 ## Play

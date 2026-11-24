@@ -78,5 +78,5 @@ function bankLoan() {
 function bankTalk() {
   if (S.flags.cardBlocked) return bankQuestions(0);
   if (S.money < SKINT && !S.flags.bankLoan) return bankLoan();        // skint: a loan
-  say(BANK, '"We\'re here for you." (Monday to Wednesday, 10 till 2.)');
+  noHelp(BANK, '"We\'re here for you." (Monday to Wednesday, 10 till 2.)');
 }

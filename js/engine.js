@@ -6,6 +6,7 @@
 // =====================================================================
 // STATE
 // =====================================================================
+const VERSION = 'v98';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
 const START_MONEY = 140;                                              // it runs out part way, so you have to go and see Mum & Dad, or Paul (Steve)
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
@@ -78,10 +79,12 @@ function sleepUntilMorning(wake = 8 * 60) {
   const laterTonight = wake < 8 * 60 && S.mins < wake;            // in bed after midnight, with the alarm set: it goes off the same night
   if (!laterTonight) S.day += 1;
   S.mins = wake;
-  if (!fedUp()) S.anger = Math.max(0, S.anger - 20);                // a night's sleep calms you (not when only a pint will do: extras.js)
+  const calmer = comforted();                                      // a night's sleep calms you (not when only a pint will do: extras.js)
+  if (calmer) S.anger = Math.max(0, S.anger - 20);
   postArrives();                                                   // the morning post (police.js)
   deliverParcels();
   runEvents();
+  return calmer;                                                    // did it help?
 }
 // Not enough money: the wife pays it (so you're never stuck), with a text; she keeps count. Returns true: it's paid
 function wifeBailsOut(amount) {
@@ -96,6 +99,12 @@ function wifeBailsOut(amount) {
 //   treat: something you only want (a pint): she won't pay for that
 //   must: it has to be paid now (a fine, a taxi, the bus): she pays straight away
 function spend(amount, treat = false, must = false) {
+  const paid = takeMoney(amount, treat, must);                     // did it go through?
+  if (paid) sfx('kerching');                                       // every purchase: kerching (Steve)
+  return paid;
+}
+// The same, with no sound (the fruit machine: it has its own)
+function takeMoney(amount, treat = false, must = false) {
   if (cardDeclined(amount)) return payCash(amount);                // the card's blocked (bank.js): cash, if you've got enough on you
   if (S.money < amount) {                                          // not enough in the account
     if (treat) return false;                                       // (not for beer)
@@ -123,6 +132,13 @@ function loseItIfDue() {
 // Something that gets you nowhere: no answer, no help, no use, no light (Steve)
 const FRUSTRATION = 4;
 function frustrated() { anger(FRUSTRATION); }
+// Somebody says something that's no help: it winds you up, and up it comes (Steve)
+function noHelp(title, body, options) {
+  frustrated();
+  say(title, body, options);
+}
+// A journey for nothing: the shop's shut, or the Post Office queue's out of the door (Steve)
+const WASTED_TRIP = 8;
 // The wife says something that's no help: that winds you up (Steve)
 const WIFE_NO_HELP = 5;
 function wifeWindsYouUp() { anger(WIFE_NO_HELP); }
@@ -406,6 +422,7 @@ function load() {
       const tyres = renamed.split('the Tyre Place').join(TYRE_SHOP).split('Tyre Place').join(TYRE_SHOP);   // …and before the Tyre Place was renamed
       S = Object.assign(freshState(), JSON.parse(tyres));
       delete S.flags.onFloor;                                          // reloaded while asleep on the floor: he's up
+      if (S.road && S.road.spareOn) S.road = { spare: false, walked: false, second: true };   // reloaded as you drove off on the spare: the second flat
       if (S.road && S.road.fitted) S.road = null;                      // reloaded as the wife was driving off (lift.js): she's gone
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
       if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
@@ -529,12 +546,11 @@ function stillHtml() {
   return `<div class="ov still${flip}"><img src="stills/${STILL.name}.svg" alt=""></div>`;
 }
 
-// The little films: a tap doesn't skip these (Steve). A walk, a drawer, a bolt: those you can tap past
-const NO_SKIP = ['pullover', 'taxipub', 'homeride', 'pubfetch', 'publeave', 'liftout', 'liftin', 'liftgetout', 'liftoff', 'walkhome', 'walkup',
-  'unclamp', 'stoolFall', 'sick', 'collapse', 'night', 'rage', 'still', 'van', 'nutEscape', 'jarspill', 'screwTest', 'absOn'];
+// Every animation plays to its end: a tap doesn't skip it (Steve). Only a walk (life.js), and these quick ones you do over and over, can be tapped past
+const TAP_PAST = ['drawer', 'book', 'pedal', 'horn', 'rev', 'garagedoor'];
 // Play a moment (an animation in MOMENTS, screens.js) for `dur` milliseconds; dialogs wait for it
 function moment(kind, dur) {
-  ANIM = { kind, t0: performance.now(), dur, noSkip: NO_SKIP.includes(kind) };
+  ANIM = { kind, t0: performance.now(), dur, noSkip: !TAP_PAST.includes(kind) };
   const mine = ANIM;
   setTimeout(() => { if (ANIM === mine) finishMoment(); }, dur + 300);   // ends even if the window is hidden (no animation frames then)
   if (kind === 'kick') { stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
@@ -705,5 +721,6 @@ showMute();
 // =====================================================================
 // START
 // =====================================================================
+for (const el of document.querySelectorAll('.ver')) el.textContent = VERSION;   // the version, after the tagline
 if (!load()) { STORY_START(); }
 render();
