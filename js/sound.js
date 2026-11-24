@@ -407,6 +407,15 @@ SOUNDS.kerching = t => {                                             // an old c
   hiss(t + 0.18, [900, 300], 0.25, 0.12, 'lowpass');                  // the drawer, sliding out
   tone(t + 0.4, 140, 0.08, 0.1, 'square');                            // and its clunk
 };
+// The fruit machine: a reel stopping dead (ker-chunk), no win (a flat double beep going down), and a win (coins pouring out)
+SOUNDS.kerchunk = t => {
+  tone(t, 240, 0.04, 0.12, 'square'); hiss(t, 1800, 0.03, 0.15, 'bandpass', 3);       // ker-
+  tone(t + 0.07, [130, 70], 0.12, 0.35); hiss(t + 0.07, 500, 0.08, 0.3, 'lowpass');   // -chunk
+};
+SOUNDS.nowin = t => { tone(t, 330, 0.16, 0.12, 'square'); tone(t + 0.2, 220, 0.4, 0.12, 'square'); };
+SOUNDS.coins = t => {
+  for (let k = 0; k < 40; k++) metal(t + 0.25 + k * 0.03 + Math.random() * 0.03, 2600 + Math.random() * 1800, 0.07);   // each coin landing
+};
 SOUNDS.drip = t => tone(t, [1800 + Math.random() * 1400, 900], 0.05, 0.03);   // a drop off a gutter
 SOUNDS.sigh = t => { hiss(t, [900, 260], 1.3, 0.07, 'bandpass', 1.5); tone(t, [190, 120], 1.1, 0.02); };   // a long, heavy sigh
 SOUNDS.bird = t => { const f = 2800 + Math.random() * 1200; for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) tone(t + i * 0.11, [f, f * 1.35], 0.08, 0.05); };

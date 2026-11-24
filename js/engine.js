@@ -48,7 +48,7 @@ function radioState() {
   if (!S.radio) S.radio = { digits: [null, null, null, null], pos: 0, unlocked: false, on: false, station: 0 };   // older saves didn't have one
   return S.radio;
 }
-function clockText() { return `${weekday()} ${hhmm(S.mins)}   DAY ${S.day}   £${Math.max(0, Math.floor(S.money))}`; }
+function clockText() { return `${weekday()} ${hhmm(S.mins)}   DAY ${S.day}   £${Math.max(0, Math.floor(S.money))}${S.cash > 0 ? `  CASH £${Math.floor(S.cash)}` : ''}`; }
 
 // Let time pass; fires any timed events and parcel deliveries on the way
 function pass(mins) {
@@ -91,7 +91,7 @@ function wifeBailsOut(amount) {
 // Spend money; false if the card's blocked (when there isn't enough, the wife pays)
 //   treat: something you only want (a pint): she won't pay for that
 function spend(amount, treat = false) {
-  if (cardDeclined(amount)) return false;                          // the card's blocked (bank.js): declined
+  if (cardDeclined(amount)) return payCash(amount);                // the card's blocked (bank.js): cash, if you've got enough on you
   if (S.money < amount) return treat ? false : wifeBailsOut(amount);   // not enough in the account: the wife pays (not for beer)
   S.money -= amount;
   if (typeof skintJob === 'function') skintJob();                  // running low: it goes on the list (story.js)
@@ -220,7 +220,6 @@ function giveHunch() {
 // Where a lead or a tap can take you: 'garage', 'place:Name', 'app:Forum'
 function goTo(target) {
   if (target.startsWith('act:')) return act(target.slice(4));
-  if (target === 'phone' && S.screen === 'roadside' && !S.flags.phoneDead) return act('roadring');   // on a flat on Mill Lane: the phone dies
   if (S.road && !S.road.walked && S.screen === 'city' && target === 'home') return show('roadside');   // stranded, and somehow in town: back to the car on Mill Lane
   const stuck = strandedReason(target);                               // your car's on a flat on Mill Lane
   if (stuck) return say('Your car', stuck);
@@ -229,12 +228,13 @@ function goTo(target) {
   const clamped = clampedReason(target);                              // clamped on the drive: not going anywhere in it (police.js)
   if (clamped) return say('Your car', clamped);
   if (target === 'home' && S.flags.taxi) { S.place = 'Home'; show('home'); return taxiHome(); }   // home in the taxi
+  if (S.screen === 'place' && (target === 'city' || target === 'home' || target.startsWith('place:')) && spareJinxed()) return;   // the spare's just been mended: bang (road.js)
   if (target === 'home' && punctureOnTheWayHome()) return;           // now and then, on the way home: a puncture
   if (target.startsWith('place:')) return visit(target.slice(6));
   if (target.startsWith('app:')) { S.app = target.slice(4); return show('pc'); }
   if (target === 'phone' && CALL) return answerCall();                // the phone's ringing: tapping it answers
   if (target === 'garage' && S.screen === 'home') return garageDoorUp();   // from outside: the roller door goes up first
-  if (target === 'city' && S.screen !== 'city' && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
+  if (target === 'city' && S.screen !== 'city' && !inWifesCar() && !carPowered()) return say('The car', 'Nothing. It will not start. Not a light, not a click. A battery lead is still off.');   // no power: going nowhere
   if (target === 'city' && S.screen !== 'city' && isDrunk()) return noKeys();   // too drunk to drive: she's hidden the keys
   if (target === 'city' && S.screen === 'place' && !S.inside && placeStyle(S.place) === 'pub' && boozeNow() > 0) return drunkAtCar();   // had a drink: a taxi, or try to drive (story.js)   // had a drink or three: get the key in the door first
   show(target);
@@ -307,7 +307,7 @@ function say(title, body, options) {
 // Two voices: a man's (everyone, by default) and a woman's (Steve)
 const MALE_VOICE = 120, FEMALE_VOICE = 290;
 // Who talks in the woman's voice: by the name over what they say
-const FEMALE_SPEAKERS = ['The wife', 'Ringing the wife', 'Mum', 'Ringing Mum & Dad', 'Post Office', 'Parts 4 Less'];   // (the Post Office and Parts 4 Less: a woman behind the counter)
+const FEMALE_SPEAKERS = ['The wife', 'Ringing the wife', 'Mum', 'Ringing Mum & Dad', 'Post Office', 'Parts 4 Less', "Auntie Jean"];   // (the Post Office and Parts 4 Less: a woman behind the counter)
 function voicePitch(who) {
   const female = FEMALE_SPEAKERS.includes(who);                       // one of the women?
   return female ? FEMALE_VOICE : MALE_VOICE;                           // otherwise the man's voice
@@ -352,7 +352,8 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       const renamed = raw.split('Breakers Yard').join('Scrap Yard');   // saved before the Breakers Yard was renamed the Scrap Yard
-      S = Object.assign(freshState(), JSON.parse(renamed));
+      const tyres = renamed.split('the Tyre Place').join(TYRE_SHOP).split('Tyre Place').join(TYRE_SHOP);   // …and before the Tyre Place was renamed
+      S = Object.assign(freshState(), JSON.parse(tyres));
       delete S.flags.onFloor;                                          // reloaded while asleep on the floor: he's up
       if (S.flags.sensorOut) S.flags.boxOff = true;                    // saved before the sensor came off in its box: the box is off too
       if (S.inv.headlight) { addLamp('left'); delete S.inv.headlight; }  // saved before spare headlights went on the shelf
@@ -418,12 +419,12 @@ function render() {
   else if (S.screen !== 'home' && !atPlace) stage.insertAdjacentHTML('beforeend', '<button class="back" data-back="1">◀ Back</button>');   // one ◀ Back everywhere (Steve: no "Step back")
   // the action buttons under the picture
   const acts = scr.actions ? scr.actions() : [];
-  actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}">${a.label}</button>`).join('');
+  actsBar.innerHTML = acts.map(a => `<button data-act="${a.act}"${a.pulse ? ' class="pulse"' : ''}>${a.label}</button>`).join('');
   // a dialog, if one is open
   if (!DIALOG && !ANIM && QUEUE.length) { const q = QUEUE.shift(); DIALOG = { title: q.title, body: q.body, options: [{ label: 'OK', run: () => {} }] }; }
   if (DIALOG && !ANIM) {                  // a dialog waits until a moment has finished playing
     const carryOn = justCarryOn(DIALOG);                             // nothing to choose: tap anywhere, no words saying so (Steve)
-    const buttons = DIALOG.options.map((o, i) => `<button data-opt="${i}">${o.label}</button>`).join('');   // the choices, as buttons
+    const buttons = DIALOG.options.map((o, i) => `<button data-opt="${i}"${o.pulse ? ' class="pulse"' : ''}>${o.label}</button>`).join('');   // the choices, as buttons
     const opts = carryOn ? '' : `<div>${buttons}</div>`;            // no button row when there's nothing to choose
     const carry = carryOn ? ' carry' : '';                           // marks it as tap-anywhere (the pointer cursor)
     const body = `<b>${DIALOG.title}</b><p>${DIALOG.body.replace(/\n/g, '<br>')}</p>${opts}`;
@@ -494,6 +495,7 @@ function drawFrame(nowMs) {
   const dark = darkness();
   if (dark > 0 && scr.night) scr.night(dark);                     // evening: outside gets dark and the lights come on
   flickerLamps(t);                                                // a kicked headlight flickers while the lights are on
+  if (!CALL && HUD_SHOWN && brokenDown()) pulsingPhone(t);          // on a flat: it pulses, to say ring for help
   if (CALL && HUD_SHOWN) ringingPhone(t);                          // the phone's ringing: it glows and rattles in the strip
   ctx.putImageData(img, 0, 0);
 }

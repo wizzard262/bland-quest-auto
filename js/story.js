@@ -95,25 +95,61 @@ function skintJob() {
   lead('money', 'bank-loan', 'A loan from the bank (Mon to Wed, 10 till 2)', 'you', 'maybe', 'place:Bank');
 }
 // Money in again: off the list, if that's enough
-function moneyIn(amount, how) {
-  S.money += amount;
-  sfx('kerching');
-  if (S.money >= SKINT && findJob('money') && findJob('money').status === 'open') finishJob('money', how);
+//   sound: the till, unless it's something else (the fruit machine's coins)
+function moneyIn(amount, how, sound = 'kerching') {
+  if (S.flags.cardBlocked) S.cash = (S.cash || 0) + amount;           // the card's blocked: cash in hand (bank.js)
+  else S.money += amount;
+  sfx(sound);
+  if (!needMoney() && findJob('money') && findJob('money').status === 'open') finishJob('money', how);
 }
+// Has it been long enough since Mum last gave you some?
+const mumCanHelp = () => S.flags.mumMoneyDay === undefined || S.day >= S.flags.mumMoneyDay + MUM_EVERY;
+// Mum, on the phone or on her doorstep ('Mum'): skint (or your card's blocked), she helps. Returns true if that's what she talked about
 function askMumForMoney(title) {
-  if (S.money >= SKINT) return false;
-  if (S.flags.mumMoneyDay !== undefined && S.day < S.flags.mumMoneyDay + MUM_EVERY) return false;   // not again so soon
+  if (!needMoney()) return false;
+  const inPerson = title === 'Mum', blocked = !!S.flags.cardBlocked;
+  if (!mumCanHelp()) {                                                 // not again so soon
+    if (!inPerson) return false;
+    say(title, `"I only just gave you £${MUM_MONEY}, love. What did you do with it? Was it the car?"\n\n"Come back in a day or two."`);
+    return true;
+  }
+  if (blocked && !inPerson) {                                          // she can't pay it into a blocked card: go round for it
+    say(title, `"Your card's blocked? Come round, love, I'll give you some cash. Don't tell your father."\n\nIn the background: "I HEARD THAT."`);
+    return true;
+  }
   S.flags.mumMoneyDay = S.day;
+  closeLead('mum-cash', 'ok'); closeLead('mum-money', 'ok');
   moneyIn(MUM_MONEY, `£${MUM_MONEY} from Mum`);
-  say(title, `"You sound skint, love. I'll put £${MUM_MONEY} in your account. Don't tell your father."\n\nIn the background: "I HEARD THAT."`);
+  const words = blocked ? `"Card declined? Here's £${MUM_MONEY} out of the biscuit tin, love. Don't tell your father."\n\nFrom the drive: "I HEARD THAT."`
+    : inPerson ? `"You look skint, love. I'll put £${MUM_MONEY} in your account. Don't tell your father."\n\nFrom the drive: "I HEARD THAT."`
+    : `"You sound skint, love. I'll put £${MUM_MONEY} in your account. Don't tell your father."\n\nIn the background: "I HEARD THAT."`;
+  say(title, words);
   return true;
 }
-function askPaulForMoney() {
-  if (S.money >= SKINT || S.flags.paulLent) return false;
+// Paul, on the phone or at his house ('Paul'): twenty quid, once
+function askPaulForMoney(title = 'Ringing Paul') {
+  if (!needMoney()) return false;
+  const inPerson = title === 'Paul', blocked = !!S.flags.cardBlocked;
+  if (S.flags.paulLent) {                                              // once is plenty
+    if (!inPerson) return false;
+    say(title, '"More? You still owe me twenty from last time."');
+    return true;
+  }
+  if (blocked && !inPerson) {
+    say(title, '"Card blocked? Come round mine, I\'ll lend you twenty in cash. Don\'t tell Mum."');
+    return true;
+  }
   S.flags.paulLent = true;
+  closeLead('paul-cash', 'ok'); closeLead('paul-money', 'ok');
   moneyIn(PAUL_MONEY, `£${PAUL_MONEY} from Paul`);
-  say('Ringing Paul', `"Skint again? Here, I'll send you twenty. Don't tell Mum."\n\n£${PAUL_MONEY}. He'll mention it every Christmas for the rest of your life.`);
+  const gives = inPerson ? (blocked ? 'Here, twenty, cash.' : 'Here, there\'s twenty gone in your account.') : 'Here, I\'ll send you twenty.';
+  say(title, `"Skint again? ${gives} Don't tell Mum."\n\n£${PAUL_MONEY}. He'll mention it every Christmas for the rest of your life.`);
   return true;
+}
+// What the barman says when you can't pay: the card's blocked, or you're skint; and where you might get some
+function pubDeclined() {
+  if (!S.flags.cardBlocked) return '"Card machine says no, mate."\n\n(Skint. Go and see Mum & Dad, or Paul: they might help you out.)';
+  return '"Card machine says no, mate. Cash?"\n\n(Your card\'s blocked, and you haven\'t got enough cash. The bank can fix it. Till then go and see Mum & Dad, or Paul, for some cash.)';
 }
 // The town map, centred on a place (its block): where your car's parked
 function camOnPlace(name) {
@@ -446,7 +482,7 @@ function pubCallLater() {
 }
 // Ring now, unless he's left (no call) or something's on screen (try again in a second)
 function tryRinging() {
-  if (!inPub()) return;
+  if (!inPub() || S.flags.phoneDead) return;                            // gone, or the phone's flat
   if (DIALOG || ANIM) return setTimeout(tryRinging, 1000);
   incomingCall();
 }
@@ -699,6 +735,7 @@ const GARDEN_LINES = [
   '"Is it fixed? No? Then why are you out here?"'
 ];
 function gardenLine() {
+  if (sunnyAfterTheWalk()) return '"Look at that sky, Husband. Rain? You fell in something."';   // she still doesn't believe it rained
   S.gardenTalks = (S.gardenTalks || 0) + 1;                            // she goes through them in turn
   return GARDEN_LINES[(S.gardenTalks - 1) % GARDEN_LINES.length];
 }
@@ -741,7 +778,7 @@ function wifeRemark() {
 function wifeTip() {
   if (S.flags.cardBlocked) return '"Go to the bank about your card, Husband. They\'re only open Monday to Wednesday, ten till two."';
   if (S.fine && !S.fine.paid) return '"Pay that fine at the Post Office, Husband. Before they clamp the car."';
-  if (S.money < SKINT) return '"Ring your mum. She\'ll help. She always helps."';
+  if (needMoney()) return '"Ring your mum. She\'ll help. She always helps."';
   if (S.flags.nutSeen && !S.inv.stick) return '"Use a stick, Husband. Snap one off the hedge. Or there\'s that golf club in your boxes."';
   if (S.flags.n3lost && !S.flags.n3found && !S.flags.torchLit) return '"There\'s a torch in your toolbox, Husband. Your phone\'s one is broken."';
   if (S.flags.b2round && !S.flags.b2 && !S.inv['extractor-cheap'] && !S.inv['extractor-good']) return '"Ken next door says you want a bolt extractor. The Tool Shop."';
@@ -931,7 +968,8 @@ function fruitPlay(stake) {
   }
   FRUIT.spinTo = result;
   sfx('pop');                                                          // the coin drops
-  moment('reels', 1800);
+  moment('reels', REELS_MS);
+  for (let k = 0; k < 3; k++) sfx('kerchunk', REELS_MS * reelStop(k) / 1000);   // ker-chunk, as each reel stops (Steve)
   ANIM.then = () => fruitResult(stake, result, win);
 }
 // The reels have stopped: a win pays out ten times the stake; otherwise nothing
@@ -940,20 +978,39 @@ function fruitResult(stake, result, win) {
   pass(5);
   const says = result.map(r => (r === 'bar' ? 'BAR' : r === 'seven' ? '7' : 'a ' + r)).join(', ');
   if (win) {
-    moneyIn(stake * 10, `£${stake * 10} off the fruit machine`);
+    moneyIn(stake * 10, `£${stake * 10} off the fruit machine`, 'coins');   // the coins clatter out…
     anger(-10);
+    moment('payout', PAYOUT_MS);                                       // …into the tray and over the floor
     return say('Fruit machine', `${says}. Three the same!\n\nIt rattles and clanks and pays out £${stake * 10}. The regulars look over. Old Ron says it's never paid out before.`, [{ label: 'Play again', run: fruitOffer }, { label: 'Quit while you\'re ahead', run() {} }]);
   }
   anger(3);
+  sfx('nowin');                                                        // the no-win beep
   say('Fruit machine', `${says}. Nothing.\n\nIt plays a sad little tune.`, [{ label: 'Play again', run: fruitOffer }, { label: 'Leave it', run() {} }]);
 }
 // The reels spinning: each a blur of symbols, the first stopping, then the second, then the third
+const REELS_MS = 1800, PAYOUT_MS = 1800;
+const reelStop = k => 0.45 + k * 0.22;                                // when reel k stops (how far through the spin)
 MOMENTS.reels = function (p) {
   for (let k = 0; k < 3; k++) {
-    const stopAt = 0.45 + k * 0.22;                                    // when this reel stops
+    const stopAt = reelStop(k);
     if (p >= stopAt) { fruitReel(k, FRUIT.spinTo[k]); continue; }
     const tick = Math.floor(performance.now() / 70 + k * 3);          // fast, then a symbol at a time
     fruitReel(k, FRUIT_SYMBOLS[tick % FRUIT_SYMBOLS.length]);
+  }
+};
+// A win: coins pour out of the payout tray, bounce on the floor and lie there
+MOMENTS.payout = function (p) {
+  const [x, y] = FRUIT_AT, trayY = y + 118, secs = p * PAYOUT_MS / 1000;
+  for (let k = 0; k < 40; k++) {
+    const age = secs - k * 0.03;                                       // each coin comes out a moment after the last
+    if (age < 0) continue;
+    const startX = x + 14 + hash(k, 5) * 26, sideways = (hash(5, k) - 0.6) * 40;
+    const floorY = PUB.floor + 2 + hash(k, 9) * 10;
+    const fell = trayY + 120 * age * age * 2;                          // falling
+    const landed = Math.sqrt((floorY - trayY) / 240);                  // when it reaches the floor (seconds)
+    const bounce = age > landed ? Math.max(0, Math.sin((age - landed) * 14)) * Math.max(0, 6 - (age - landed) * 12) : 0;   // a little bounce or two
+    const cy = Math.min(fell, floorY) - bounce, cx = startX + sideways * Math.min(age, landed + 0.3);
+    rect(cx - 1, cy - 1, 3, 2, hex('#f0c030')); px(cx, cy - 1, hex('#fff0a0'));   // a gold coin, with a glint
   }
 };
 function talk(name) {
@@ -974,13 +1031,21 @@ function talk(name) {
   const i = Math.floor(hash(name.length * 7, name.charCodeAt(0)) * lines.length);
   say(name, lines[i]);
 }
+// Auntie Jean: you're Harold, home at last
+const JEAN_LINES = [
+  '"Harold! You\'re home! I\'ve kept your tea warm."',
+  '"Did you fix that gearbox, Harold? Do be careful with that sensor."',
+  '"You haven\'t aged a day, Harold. Is that a new jumper?"',
+  '"Come in, Harold, before the neighbours see. They all think you\'re dead."',
+  '"Forty years you\'ve been in that garage, Harold. It must be mended by now."'
+];
 const TALK = {
   // the pub: the barman takes your order (or gives you advice you didn't need)
   'The Hesketh Tavern'() {
     const name = 'The Hesketh Tavern';
     const pour = (drink, price, taste) => ({ label: `${drink} (£${price.toFixed(2)})`, run() {
       SPEAKER = keeperHead();
-      if (!spend(price, true)) return say(name, '"Card machine says no, mate."\n\n(Skint. Mum & Dad might help you out. Or Paul.)');   // (she won't pay for beer)
+      if (!spend(price, true)) return say(name, pubDeclined());   // (she won't pay for beer)
       pass(30); anger(-12); sfx('pour'); S.flags.pint = true; pubLate();
       const cured = pintCures();                                       // were you past tea and sleep? (extras.js)
       if (cured) anger(-30);                                           // then this is the one that works
@@ -1074,6 +1139,16 @@ const TALK = {
     anger(-8);                                                          // Mum: it helps, a bit
     say('Mum', lines[(S.flags.mumTalks - 1) % lines.length]);
   },
+  "Paul's"() {                                                          // your brother, at home
+    if (askPaulForMoney('Paul')) return;                                // skint, or your card's blocked: twenty quid, once
+    S.flags.paulTalks = (S.flags.paulTalks || 0) + 1;
+    say('Paul', BROTHER_LINES[(S.flags.paulTalks - 1) % BROTHER_LINES.length]);
+  },
+  "Auntie Jean's"() {                                                   // she thinks you're her late husband (Steve)
+    S.flags.jeanTalks = (S.flags.jeanTalks || 0) + 1;
+    const line = JEAN_LINES[(S.flags.jeanTalks - 1) % JEAN_LINES.length];
+    say('Auntie Jean', line + '\n\n(Harold was her husband. He died in a freak gearbox sensor accident in 1982.)');
+  },
   "Mate Gaz's"() {
     if (S.inv['reader-old'] || !leadExists('gaz-reader')) return say("Gaz's", '"Alright? Did my reader work?"');
     if (!S.flags.gazTried) {
@@ -1127,11 +1202,13 @@ const TALK = {
       { label: 'Not now', run() {} }
     ]);
   },
-  // the Tyre Place: a part-worn wheel when your car's on a flat (road.js); otherwise, tyres you don't need
-  'Tyre Place'() {
-    if (wheelWanted()) return buyWheel('Tyre Place');
-    if (spareAt('Tyre Place')) return;                                  // the flat spare: a new tyre on it (road.js)
-    say('Tyre Place', '"Tyres? Your tyres are fine, mate. For now."');
+  // Worn Out and Tired: a part-worn wheel when your car's on a flat (road.js); otherwise, tyres you don't need
+  'Worn Out and Tired'() {
+    if (wheelWanted()) return buyWheel(TYRE_SHOP);
+    if (S.road) return say(TYRE_SHOP, `"Not fitted it yet? We only fit here, mate. Get that wheel on it and bring the car in."\n\nThe car is on a flat on ${ROADSIDE}.`);   // you've got a wheel
+    if (spareAt(TYRE_SHOP)) return;                                     // the flat spare: a new tyre on it (road.js)
+    const tail = S.spare === 'good' ? 'For now.' : 'How\'s your spare? Nobody ever checks the spare."\n\n"It\'s in your boot. Have a look.';
+    say(TYRE_SHOP, `"Tyres? Your tyres are fine, mate. ${tail}"`);
   },
   'Scrap Yard'() {
     if (wheelWanted()) return buyWheel('Scrap Yard');                   // your car's on a flat: a wheel off a wreck
@@ -1169,6 +1246,7 @@ function buy(id, place) {
 // WHEN YOU OPEN CERTAIN SCREENS
 // =====================================================================
 const SCREEN_ENTER = {
+  city() { S.spareOut = false; S.wheelOut = false; },                  // off in the car: whatever tyre you were carrying is in the boot
   boot() { GAUGE_T0 = performance.now(); },                            // the boot opens: the gauge's needle rides up from 0 (car.js)
   garage() {
     if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
@@ -1269,13 +1347,10 @@ const ACTIONS = {
   nbclose() { back(); },
   menuclose() { back(); },
   fruit() { fruitOffer(); },                                            // the fruit machine in the pub                                              // put the café menu down: back in the café
-  wifecar() {                                                           // her car: only when yours is stuck (then: where to?)
-    if (!inWifesCar()) return say('The wife', '"That\'s my car, Husband. I need it. Use your own."');
-    say("Wife's car", 'Her little purple car. Where to?', [
-      { label: 'Into town', run() { goTo('city'); } },
-      { label: `To your car (${ROADSIDE})`, run() { ACTIONS.toroad(); } },
-      { label: 'Not yet', run() {} }
-    ]);
+  sparefetch() { fetchSpare(); },                                        // at the tyre shop: the flat spare out of the boot (road.js)
+  wifecar() {                                                           // her car: only when yours is stuck (then it's straight into town)
+    if (inWifesCar()) return goTo('city');
+    say('The wife', '"That\'s my car, Husband. I need it. Use your own."');
   },                                                // the notebook: put it away
   nbpage(d) { S.nbPage = (S.nbPage || 0) + +d; sfx('click'); },          // leaf through the notebook
   phoneaway() { back(); },                                              // tap off the phone: put it away
@@ -1287,8 +1362,10 @@ const ACTIONS = {
   // your wife: she wants the car scrapped; every third time, something useful
   wife() {
     if (isAsleep()) return say('The wife', 'Zzzz… She\'s fast asleep. Best not.');   // in bed: she doesn't wake
+    if (S.screen === 'room' && wifeSunbathing()) return render();     // she's out in the garden: nobody in here to talk to
+    const herHead = wifeHead();                                        // where she is now (before the time passes)
     pass(5);
-    SPEAKER = wifeHead();                                              // in person: a speech bubble from her
+    SPEAKER = herHead;                                                 // in person: a speech bubble from her
     if (S.screen === 'garden') return say('The wife', gardenLine());   // on her lounger: she doesn't look up
     say('The wife', wifeLine());
   },
@@ -1337,6 +1414,7 @@ const ACTIONS = {
     sfx('door');
     S.flags.bedLate = isBedtime();                                     // late: she's in her nightie and comes too (it's morning by the time you wake)
     S.flags.bedAsleep = isAsleep();                                    // she's already asleep: she stays in bed
+    S.flags.bedOut = wifeSunbathing();                                 // she's out in the garden: you go to bed on your own
     sleepUntilMorning();
     moment('night', 3200);                                           // dusk, black, then morning (the message waits for it)
     const morning = fedUp() ? 'You lay awake all night, fuming about the bloody car. You need a pint.' : 'You feel a bit better.';   // past sleep: the pub
@@ -1684,7 +1762,7 @@ const ACTIONS = {
     }
     testAllFuses();
   },
-  look(what) { pass(5); say(what, (what === 'Spare wheel' ? spareLook() : LOOKS[what]) || 'Looks fine. Probably.'); },   // the spare: as it is now (road.js)
+  look(what) { pass(5); if (what === 'Spare wheel') findFlatSpare(); say(what, (what === 'Spare wheel' ? spareLook() : LOOKS[what]) || 'Looks fine. Probably.'); },   // the spare: as it is now (road.js)
   // ----- the workbench -----
   // a screw holding the old sensor in the box: the first two come out; the last one always shears off
   screw(n) {
@@ -2052,7 +2130,7 @@ const LOOKS = {
   'Brake lines': 'Crusty but dry. Leave them alone.',
   'Engine': 'An engine. It looks like an engine.',
   'Battery': 'It reads 12.6 volts on the dash. Fine.',
-  'Spare wheel': 'A spare wheel, bolted down in its well. The tyre feels a bit soft. Good to know it\'s there for a flat tyre. Probably.',
+  'Spare wheel': 'A spare wheel, bolted down in its well, for a flat tyre.',
   'Jack': 'The scissor jack, folded flat in its foam tray. It winds up very, very slowly.',
   'Breaker bar': 'A breaker bar: a long, heavy spanner handle for shifting stuck bolts. Too short and too fat to hook anything out from under anything.',
   'Dog poo': 'Dog poo. Lots of it, all over the yard. Every scrap yard you\'ve ever been to: a dog, and this.\n\nThe dog watches you look at it.',

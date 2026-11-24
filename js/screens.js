@@ -106,7 +106,8 @@ SCREENS.home = {
     else if (!carAway()) spot('Car: into town', isoArea(102, 72, 126, 118, 0, 22), 'city', [96, 96]);
     if (S.flags.carAt) spot('Bus stop: the bus into town', isoArea(18, 138, 30, 146, 0, 50), 'city', [20, 134]);   // your car's left in town: get the bus to it
     const [wx, wy] = WIFE_DRIVE, herL = CAR_SHAPES.city.L;               // her car: yours if yours is stuck; otherwise she needs it
-    spot(inWifesCar() ? "Wife's car: drive it" : "Wife's car", isoArea(wx, wy, wx + 24, wy + herL, 0, 20), 'act:wifecar', [wx + 30, wy + herL / 2]);
+    const [herName, herGo] = inWifesCar() ? ["Wife's car: into town", 'city'] : ["Wife's car", 'act:wifecar'];   // straight into town, just like yours (Steve)
+    spot(herName, isoArea(wx, wy, wx + 24, wy + herL, 0, 20), herGo, [wx + 30, wy + herL / 2]);
     spot('Front door: go in', isoArea(38, 58, 54, 62, 0, 28), 'room', [46, 66]);
     spot('Garage', isoArea(94, 58, 136, 62, 0, 30), 'garage', [115, 66]);
     const mail = S.doorstep.length ? ['Mailbox: a parcel!', 'act:parcel']                 // a parcel first; then the post; else empty
@@ -192,7 +193,8 @@ SCREENS.room = {
     // the way out: a see-through door in the near wall
     exitDoor(ROOM.d);
     standingMan('room');
-    spot('Computer', isoArea(66, 0, 88, 17, 0, 36), 'pc', [80, 46]);
+    const deskName = S.flags.phoneDead ? 'Computer desk: charge your phone' : 'Computer';   // the chargers are here (charger.js)
+    spot(deskName, isoArea(66, 0, 88, 17, 0, 36), 'pc', [80, 46]);
     if (readLetters()) spot('Letter rack: your letters', isoArea(88, 2, 96, 10, 24, 34), 'act:rack', [92, 46]);   // the letters you've read
     spot('Bed: go to sleep', isoArea(0, 80, 59, 130, 0, 22), 'act:bed', [70, 104]);
     spot('Kettle: make a cup of tea', isoArea(KETTLE[0] - 6, 0, KETTLE[0] + 14, 18, 26, 42), 'act:tea', [150, 32]);
@@ -220,6 +222,10 @@ const PARASOL = [102, 58];                                            // the sun
 const GARDEN_HEAD = [67, 55, 22];                                     // her head on the lounger (for her speech bubble)
 // Is she out sunbathing? Some days (about half), only between 10am and 5pm (the tests turn it off)
 function wifeSunbathing() {
+  const talking = !!DIALOG && DIALOG.title === 'The wife';            // mid-conversation she stays where she is, whatever the clock says
+  if (talking && S.screen === 'garden') return true;
+  if (talking && S.screen === 'room') return false;
+  if (sunnyAfterTheWalk()) return true;                               // you've just walked home with a flat: always out there (road.js)
   if (window.NO_SUNBATHING) return false;
   const sunnyDay = hash(S.day, 17) < 0.5;                             // the same answer all day
   const sunnyHours = S.mins >= 10 * 60 && S.mins < 17 * 60;           // 10 in the morning till 5 (Steve)
@@ -394,7 +400,7 @@ function kerbMailbox(full) {
 const PLACES = [
   // [name, category]  (one per lot, 7 across x 6 down)
   ['Halfords Car Parts', 'parts'], ['Quickfix Motors', 'mech'], ['Bank', 'other'], ['PC Shop', 'other'], ['Post Office', 'other'], ['Parts 4 Less', 'parts'], ["Auntie Jean's", 'people'],
-  ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Tyre Place', 'other'], ['E & D Motors', 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
+  ['The Hesketh Tavern', 'other'], ['Megastore', 'big'], ["Sparky's Auto Electrics", 'elec'], ['Worn Out and Tired', 'other'], ['E & D Motors', 'mech'], ['Phone Shop', 'other'], ['Tool Shop', 'tools'],
   ['Bits & Bobs Auto', 'parts'], ['Courier Depot', 'other'], ["Mum & Dad's", 'people'], ['Auto-Box Clinic', 'trans'], ['Tameside Transmissions', 'trans'], ['Voltz Auto Electric', 'elec'], ['BustBlockers', 'other'],
   ['Tool Hire', 'tools'], ['Spanner & Son', 'mech'], ['Main Dealer', 'mech'], ['Scrap Yard', 'yard'], ['DIY Warehouse', 'big'], ['Car Spares Direct', 'parts'], ["Mate Gaz's", 'people'],
   ['Petrol Station', 'other'], ['MOT Test Centre', 'other'], ['Machine Shop (lathe)', 'other'], ["Paul's", 'people'], ['Clutch & Co', 'trans'], ['Police Station', 'other'], ['Café', 'other'],
@@ -429,11 +435,13 @@ SCREENS.city = {
     // your car (the only blue one), parked in the street outside the last place you went
     const here = Math.max(0, placeIndex(S.place || 'Home'));
     const carX = (here % 7) * BLOCK + STREET + 22, carY = Math.floor(here / 7) * BLOCK + STREET + 74;
+    brokenCarOnMap();                                                   // yours, stuck on Mill Lane (road.js)
     drivenCar(carX, carY, 0.5);                                         // yours (or hers, while yours is on a flat)
     for (const lot of lots) sign(lot);
-    spot('Your car: drive home', isoArea(carX, carY, carX + 24, carY + 13, 0, 12), 'home');   // tap your car to go home
+    brokenCarSpot();                                                    // tap your stuck car to go to it
+    spot(inWifesCar() ? "Wife's car: drive home" : 'Your car: drive home', isoArea(carX, carY, carX + 24, carY + 13, 0, 12), 'home');   // tap your car to go home
     minimap();
-    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round. Tap ' + (inWifesCar() ? "the wife's purple car" : 'your blue car') + ' to go home.', 1, 80);   // hers while yours is on a flat
+    tip('Town', 'Point at a building to see what it is; tap to go there (20 minutes).<br>Drag the map to look round. Tap ' + (inWifesCar() ? "the wife's purple car" : 'your blue car') + ' to go home.' + (S.road ? '<br>Your blue car is flashing on ' + ROADSIDE + ': tap it to go to it.' : ''), 1, S.road ? 74 : 80);   // hers while yours is on a flat
     hud();
   },
   actions() { return []; }
@@ -493,7 +501,7 @@ function building(lot) {
 }
 // Which places are for cars (they all look like a works unit); the rest are shops (they all look like a shop)
 const MOTOR_CATS = ['parts', 'mech', 'elec', 'trans'];
-const MOTOR_NAMES = ['MOT Test Centre', 'Tyre Place', 'Petrol Station', 'Machine Shop (lathe)'];
+const MOTOR_NAMES = ['MOT Test Centre', 'Worn Out and Tired', 'Petrol Station', 'Machine Shop (lathe)'];
 // A motor place: a works unit with a sawtooth roof, a big roller door, a small office door and window
 function motorUnit(lot, x0, y0, x1, y1, col) {
   const a = 8, h = 20;
@@ -594,8 +602,9 @@ function sign(lot) {
   spot(esc(name), isoArea(x0 + 8, y0 + 8, x0 + 62, y0 + 62, 0, lot.top), target, null, `background:${CAT[cat][1]};color:${dark ? '#101018' : '#fff'};border-color:#101018`);
 }
 // The whole town from above: tap a square to look there; the mint dot is you
+const minimapCorner = () => [W - 104, 44];
 function minimap() {
-  const x = W - 104, y = 44;
+  const [x, y] = minimapCorner();
   rect(x - 4, y - 4, 7 * 13 + 7, 6 * 13 + 7, C.ink);
   for (let bj = 0; bj < 6; bj++) for (let bi = 0; bi < 7; bi++) {
     rect(x + bi * 13, y + bj * 13, 10, 10, hex(CAT[PLACES[bj * 7 + bi][1]][1]));
@@ -636,6 +645,7 @@ SCREENS.place = {
       const [dx0, dx1] = name === 'Bank' ? BANK_DOOR : [148, 176];   // where the door is (the bank's is in the middle)
       spot(shut ? 'The door (' + esc(shut.split('.')[0]) + ')' : 'Go in', isoArea(dx0, name === 'Bank' ? 25 : 39, dx1, name === 'Bank' ? 27 : 41, 0, 50), 'act:enter', [(dx0 + dx1) / 2, 50]);
       spot('Back in the car', isoArea(40, 72, 86, 96, 0, 20), 'city', [64, 62]);
+      if (canFetchSpare()) spot('Boot: get the flat spare out', isoArea(36, 72, 50, 96, 2, 20), 'act:sparefetch', [34, 60]);   // at the tyre shop: bring it in (road.js)
       tip(name, shut ? esc(shut) : 'Open. Tap the door to go in.', 1, 8);
       return hud();
     }
@@ -699,6 +709,7 @@ SCREENS.pc = {
     rect(450, 30, 21, 18, C.warm); text('PW?', 453, 36, C.bench);
     rect(105, 240, 180, 15, C.greyDark); for (let k = 0; k < 21; k++) rect(109 + k * 8, 243, 6, 3, C.grey), rect(109 + k * 8, 249, 6, 3, C.grey);
     rect(321, 237, 15, 18, C.white); rect(336, 241, 4, 7, C.white); rect(324, 239, 9, 1, C.bench);
+    chargerBoxOnDesk();                                                             // a box of chargers, bottom right (charger.js)
   },
   overlay() {
     const dock = APPS.map(([id, name]) => `<button data-app="${id}" class="${id === S.app ? 'on' : ''}">${APP_ICON[id]}<span>${name}</span></button>`).join('');
@@ -859,7 +870,12 @@ SCREENS.phone = {
     rect(168, 9, 144, 255, C.greyDark); rect(171, 12, 138, 249, C.ink); rect(225, 17, 30, 3, C.grey);
   },
   overlay() {
-    if (S.flags.phoneDead) return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs"><div class="m"><b>Your phone</b>The screen stays black. The battery is flat.</div></div></div>`;   // dead: nothing works
+    if (S.flags.phoneDead) return `<div class="ov phoneoff" data-act="phoneaway"></div><div class="ov ph"><div class="msgs"><div class="m"><b>Your phone</b>The screen stays black. The battery is flat.<br><br>You must charge it at your computer desk.</div></div></div>`;   // dead: nothing works
+    if (brokenDown()) {                                                // on a flat: one big button, and nothing else (road.js)
+      const words = ON_RECOVERY ? 'Calling…' : 'Tap to call';
+      const off = ON_RECOVERY ? '' : '<div class="ov phoneoff" data-act="phoneaway"></div>';   // mid-call: a tap anywhere just carries on talking
+      return `${off}<div class="ov ph"><div class="recover"${ON_RECOVERY ? '' : ' data-act="recovery"'}><span class="batt">1% 🔋</span><i>${HANDSET}</i><b>${RECOVERY}</b><span>${words}</span></div></div>`;
+    }
     // each message (and missed call): when, who, what, and a delete button
     const msgs = S.msgs.map((m, i) => `<div class="m"><span class="del" data-act="msgdel:${i}" title="Delete">✕</span><em>${esc(m.when.split('   ')[0])}</em><b>${esc(m.from)}</b>${esc(m.body)}</div>`).join('') || '<div class="m">No messages.</div>';
     // the numbers you know, one to a row: the name, and a green phone button to ring them

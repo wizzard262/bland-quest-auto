@@ -25,9 +25,9 @@ SCREENS.boot = {
     // inside: the boot floor lifted out, so you see the well underneath
     rbox(60, 42, 360, 190, 8, hex('#2a2a30'));
     grime(66, 48, 348, 178, hex('#2a2a30'), 0.25, 42);
-    // the spare wheel, lying flat in its round well, bolted down in the middle (or not there: at the Tyre Place)
+    // the spare wheel, lying flat in its round well, bolted down in the middle (or not there: at Worn Out and Tired)
     disc(240, 136, 66, hex('#18181c'));                                 // the well
-    const spareOut = S.spare === 'away' || (S.road && S.road.spare);   // at the Tyre Place, or heaved out onto the verge
+    const spareOut = S.spare === 'away' || S.spareOut || (S.road && S.road.spare);   // at Worn Out and Tired, or heaved out onto the verge
     if (!spareOut) {
       disc(240, 136, 60, C.tyre);                                       // the tyre
       for (let a = 0; a < 6.28; a += 0.2) px(240 + Math.cos(a) * 54, 136 + Math.sin(a) * 54, hex('#34343a'));   // tread

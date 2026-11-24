@@ -19,9 +19,10 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/story.js`: branch 1 (the red light): who says what, what each action does, leads, hunches, timed texts
 - `js/extras.js`: anger (calm-down menu, breaking things on the car), the manuals shelf, shop shelves close up (the hammer), the fuse diagram online
 - `js/sensors.js`: every gearbox sensor you can try in the box on the workbench (`SENSORS`: name, long part number, shape, how it fits, colour), where the wrong ones come from (the eBuy job lot, the Scrap Yard, Car Spares Direct, the parts box), and the soldering game (join the three wires in the right order, then the iron)
-- `js/road.js`: road snags: now and then on the way home, a puncture (the roadside, the flat spare, the dead phone, the walk home in the rain and the splash, a wheel from the Scrap Yard or the Tyre Place in the wife's car); and being pulled over by the police after a drink, side-on in the street at night
+- `js/road.js`: road snags: now and then on the way home, a puncture (the roadside, the flat spare, the dead phone, the walk home in the rain and the splash, a wheel from the Scrap Yard or Worn Out and Tired in the wife's car); and being pulled over by the police after a drink, side-on in the street at night
 - `js/brother.js`: your brother comes round to "help"
 - `js/police.js`: the police station, the post (letters in the mailbox), the drink-driving fine, the clamp and the taxi
+- `js/charger.js`: charging the flat phone: the box of chargers on the computer desk, five plugs to try, the battery filling up
 - `js/screws.js`: the screw jar: it spills all over the garage floor, you sweep it up with a dustpan, then try screws from a tray in the third hole
 - `js/bank.js`: now and then the card is blocked as you pay; the bank (Mon to Wed, 10 till 2) and its security questions
 - `js/engine.js`: game state, time, money, anger, the notebook, dialogs, saving
@@ -31,6 +32,12 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `stills/`: the big stills, one file each (`kick`, `pubfloor`, `sick`, `asleep`, `tea`, `breath`, `breathpass`, `splash`, `snap`, `click`, `abs`), shown on the cutscenes page and flashed up in the game after each big moment like a comic-book cut (`flashStill` / `stillAfter` in `js/engine.js`)
 - The title screen (in `index.html`): `stills/hero.svg` (him with his spanner held high) over seven panels of the game, `stills/panels/*.png`, which are the game's own screens: redraw them with `node make-title-panels.js` in the `tests` folder
 - `forest.html`, `spanner-and-son.html`: early scenes
+
+## Pulse: drawing the eye to a button
+
+- An action button or a dialog choice: add `pulse: true` to it
+- Any other button on the page: give it the class `pulse` (in `index.html`)
+- A thing drawn in the picture: call `pulseGlow` each frame, then draw the thing on top (`js/art.js`)
 
 ## Tests
 

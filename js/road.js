@@ -2,12 +2,13 @@
 // Now and then on the way home from town (once a game): BANG, a puncture on Mill Lane.
 //   The spare in the boot is flat. You ring for help: the phone dies. You walk home: it rains, the sky
 //   goes grey, and a car drives through a puddle and soaks you. At home the wife says get a wheel from the
-//   Scrap Yard or a car shop (the Tyre Place), and lends you her car. You fit the wheel at the roadside.
+//   Scrap Yard or a car shop (Worn Out and Tired), and lends you her car. You fit the wheel at the roadside.
 //   S.road is set while your car is stuck on Mill Lane: { spare: tried it, walked: home on foot }
 
 let PUNCTURE_CHANCE = window.NO_PUNCTURES ? 0 : 1 / 3;             // the chance on each drive home (the tests turn it off, or up to 1)
 const PUNCTURE_BY = 4;                                               // …and it's sure to happen by the 4th daytime drive home from town (Steve)
 const ROADSIDE = 'Mill Lane';                                       // where it happens
+const TYRE_SHOP = 'Worn Out and Tired';                             // the tyre shop (Steve's name for it)
 const WIFE_CAR = hex('#9a5ac8');                                    // her little purple car (lent to you while yours is stuck)
 const WIFE_DRIVE = [-58, 70];                                         // where it lives: its own drive, the other side of the house
 const ROAD_VIEW = [250, 70];                                        // the roadside: the same street view as a shop front
@@ -32,14 +33,23 @@ function punctureOnTheWayHome() {
   const opening = findJob('pickup');
   if (!opening || opening.status !== 'done') return false;          // not in the opening (driving home from the MOT)
   if (isDrunk()) return false;                                      // the police get you first
+  if (S.spare === 'away') return false;                             // the spare's being mended: it waits till you've got it back (spareJinxed)
   S.flags.drivesHome = (S.flags.drivesHome || 0) + 1;              // daytime drives home from town so far
   const due = PUNCTURE_CHANCE > 0 && S.flags.drivesHome >= PUNCTURE_BY;   // it's had long enough: now (unless the tests have turned punctures off)
   if (!due && Math.random() >= PUNCTURE_CHANCE) return false;
   puncture();
   return true;
 }
+// Had the spare mended before you ever needed it? You drive off, and straight into a puncture (Steve). Returns true if it's happened
+function spareJinxed() {
+  if (!S.flags.spareJinx || S.flags.punctured || S.road || S.flags.taxi) return false;
+  delete S.flags.spareJinx;
+  S.spareOut = false;                                               // the mended spare, back in the boot
+  puncture(`Bang. Then flap-flap-flap-flap-flap.\n\nA puncture. You're barely round the corner. You pull over on ${ROADSIDE}.\n\nNever mind. For once in your life, you've got a good spare.`);
+  return true;
+}
 // BANG: pulled over on Mill Lane, with a flat tyre
-function puncture() {
+function puncture(words) {
   S.flags.punctured = true;
   S.road = { spare: false, walked: false };
   pass(10);
@@ -47,7 +57,7 @@ function puncture() {
   sfx('pop');
   sfx('thud', 0.1);
   show('roadside');
-  say('BANG!', `Bang. Then flap-flap-flap-flap-flap.\n\nA puncture. You pull over on ${ROADSIDE}, halfway home.`);
+  say('BANG!', words || `Bang. Then flap-flap-flap-flap-flap.\n\nA puncture. You pull over on ${ROADSIDE}, halfway home.`);
 }
 
 // =====================================================================
@@ -65,13 +75,13 @@ SCREENS.roadside = {
     bricks(-200, 30, 400, 40, 20, C.brickLine);
     ibox(150, 30, 190, 40, 0, 18, C.wood);
     // the lane's name on a sign
-    ibox(-40, 44, -37, 47, 0, 34, C.greyDark);
-    onLeft(47, -60, -16, 26, 36, C.white);
-    { const t = P(-58, 47, 34); text('MILL LANE', t[0] + 1, t[1] + 2, C.ink); }
+    ibox(10, 44, 13, 47, 0, 34, C.greyDark);                         // clear of the note in the top left corner
+    onLeft(47, -10, 34, 26, 36, C.white);
+    boardText('MILL LANE', 47, -10, 34, 26, 36, C.ink);              // sloping with the sign
     // your car (or, once you've walked home, still here; you come back in hers)
     isoCar(ROAD_CAR[0], ROAD_CAR[1], 1, C.car, { alongX: true, flatFront: true });
     if (inWifesCar()) isoCar(-60, 72, 1, WIFE_CAR, { alongX: true, shape: 'city' });   // hers, parked behind
-    if (S.road && S.road.spare) roadsideSpare();                    // the flat spare on the verge
+    if (S.road && S.road.spare && S.spare !== 'away') roadsideSpare();                    // the flat spare on the verge
     const m = P(96, 56);
     man(m[0], m[1], 'stand', 2);                                    // you, on the pavement
     // what you can tap
@@ -87,10 +97,12 @@ SCREENS.roadside = {
     const a = [];
     if (!S.road) return [{ label: 'Drive home', act: 'roadhome' }];
     if (!S.road.walked) {
-      if (!S.road.spare) a.push({ label: 'Open the boot', act: 'roadboot' });
-      else if (!S.flags.phoneDead) a.push({ label: 'Ring for help', act: 'roadring' });
-      else a.push({ label: 'Walk home', act: 'walkhome' });
-    } else a.push({ label: "Drive home (in her car)", act: 'roadhome' });
+      if (!S.road.spare) a.push({ label: 'Open the boot', act: 'roadboot', pulse: !!S.flags.phoneDead });
+      else if (S.flags.phoneDead) a.push({ label: 'Walk home', act: 'walkhome', pulse: true });   // nothing else for it
+    } else {
+      a.push({ label: 'Into town (in her car)', act: 'roadtown' });
+      a.push({ label: 'Drive home (in her car)', act: 'roadhome' });
+    }
     return a;
   }
 };
@@ -118,7 +130,7 @@ function roadsideTip() {
   if (S.inv.wheel) return 'You\'ve got a wheel. Tap the flat tyre to change it.';
   if (S.road.walked) return 'Your car, still on a flat. Get a wheel from the Scrap Yard or a car shop.';
   if (!S.road.spare) return 'A flat front tyre. There\'s a spare in the boot: open it.';
-  if (!S.flags.phoneDead) return 'The spare\'s flat too. Ring for help?';
+  if (!S.flags.phoneDead) return 'The spare\'s flat too. Your phone\'s flashing: ring for help.';
   return 'No spare, no phone. It\'s a long walk home.';
 }
 // The spare lying flat on the verge, beside the car
@@ -137,14 +149,42 @@ function spareScrew(x, y, s) {
 SCREENS.roadside.animate = function (t) {
   if (!S.road) return;
   rainDrops(t, rainLevel('roadside'));                              // the rain, getting heavier
-  if (Math.floor(t * 2) % 2) return;                                // off half the time
   ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
-  const [x, y] = ROAD_CAR;
-  for (const [dx, dy] of [[0, 1], [0, 23], [45, 1], [45, 23]]) {
-    const q = P(x + dx, y + dy, 9);
-    rect(q[0] - 1, q[1] - 1, 3, 2, hex('#ffa020'));
-  }
+  hazardLights(t, ROAD_CAR[0], ROAD_CAR[1], 1, true);
 };
+const HAZARD = hex('#ffa020');
+const hazardsLit = t => Math.floor(t * 2) % 2 === 0;                 // on, off, on, off: twice a second
+// Your car's four hazard lights, at each corner (x, y: where it's parked; s: its size; alongX: which way it points)
+function hazardLights(t, x, y, s, alongX) {
+  if (!hazardsLit(t)) return;                                       // off half the time
+  for (const [along, across] of [[0, 1], [0, 23], [45, 1], [45, 23]]) {
+    const dx = alongX ? along : across, dy = alongX ? across : along;
+    const q = P(x + dx * s, y + dy * s, 9 * s);
+    rect(q[0] - 1, q[1] - 1, 3, 2, HAZARD);
+  }
+}
+
+// =====================================================================
+// ON THE TOWN MAP: your car, broken down on Mill Lane (a street near home), its hazards flashing. Tap it to go to it
+// =====================================================================
+const MAP_LANE = { at: [106, 440], s: 0.5, mini: [10, 4 * 13 + 4] };   // where it stands, its size, and its dot on the little map
+function brokenCarOnMap() {
+  if (!S.road) return;
+  const [x, y] = MAP_LANE.at;
+  isoCar(x, y, MAP_LANE.s, C.car, { flatFront: true });
+}
+function brokenCarSpot() {
+  if (!S.road) return;
+  const [x, y] = MAP_LANE.at;
+  spot(`Your car (flat tyre, ${ROADSIDE}): go to it`, isoArea(x, y, x + 12, y + 23, 0, 11), 'act:toroad');
+}
+// Each frame: its hazards, and a flashing dot on the little map
+function brokenCarFlash(t) {
+  if (!S.road) return;
+  hazardLights(t, MAP_LANE.at[0], MAP_LANE.at[1], MAP_LANE.s, false);
+  const [mx, my] = minimapCorner();
+  rect(mx + MAP_LANE.mini[0], my + MAP_LANE.mini[1], 3, 3, hazardsLit(t) ? HAZARD : C.car);
+}
 
 // =====================================================================
 // THE STREET, IN ISO: like outside the house. A terrace of houses, the pavement, the road (the walk home; pulled over)
@@ -264,11 +304,11 @@ MOMENTS.pullover = function (p) {
   if (bar) blueGlow(bar[0], bar[1], 60);                             // blue light washing over the street
 };
 // =====================================================================
-// GETTING YOUR CAR BACK: a wheel from the Scrap Yard or the Tyre Place, fitted at the roadside
+// GETTING YOUR CAR BACK: a wheel from the Scrap Yard or Worn Out and Tired, fitted at the roadside
 // =====================================================================
 // Do you still need a wheel? (home, and not got one yet)
 const wheelWanted = () => inWifesCar() && !S.inv.wheel;
-// Buy a wheel at a place: the Scrap Yard's cheap and on a wreck; the Tyre Place's part-worn
+// Buy a wheel at a place: the Scrap Yard's cheap and on a wreck; Worn Out and Tired's part-worn
 function buyWheel(place) {
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
@@ -279,6 +319,8 @@ function buyWheel(place) {
   closeLead(yard ? 'wheel-shop' : 'wheel-yard', 'skip');
   lead('tyre', 'fitwheel', `Fit the wheel on ${ROADSIDE}`, 'you', 'sure', 'act:toroad');
   if (yard) return say(place, '"A Zafira wheel? Off that one there. The tyre\'s legal. Just. Tenner."\n\nYou roll it to her car.');
+  S.wheelOut = true;                                                    // in your arms, out to her car
+  handTyre(false);
   say(place, '"A part-worn on a steel wheel. Thirty-five quid. Fitted? We only fit here, mate. Bring the car in."\n\nThe car is on a flat on Mill Lane.');
 }
 
@@ -290,11 +332,20 @@ Object.assign(ACTIONS, {
   roadspare() {
     if (!S.road || S.road.walked) return;
     if (S.road.spare) return say('The spare', 'Still flat.');
+    const before = S.spare;                                             // what you knew about it
     S.road.spare = true;
     S.spare = 'flat';                                                   // punctured: a screw in it
     pass(20);
     anger(15);
     sfx('ratchet');
+    if (before === 'good') {                                            // you've only just had it mended
+      note('tyre', 'The spare has been punctured as well. The one you just had mended', 'x');
+      return say('The spare wheel', 'You empty the boot onto the verge, undo your lovely mended spare and heave it out.\n\nIt\'s flat. Now the spare has been punctured too.\n\nThere\'s a screw in it. You\'d left the old screw lying in the well, point up, and bolted the spare down on top of it.');
+    }
+    if (before === 'flat') {                                            // you knew, and never got it mended
+      note('tyre', 'The spare is flat too. You knew that', 'x');
+      return say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat, with a screw in it. You knew it was flat. You were going to get it mended.');
+    }
     note('tyre', 'The spare is flat too (probably since 2019)', 'x');
     say('The spare wheel', 'You empty the boot onto the verge, undo the spare and heave it out.\n\nIt\'s flat. Completely flat. There\'s a screw in it. It has probably been flat since 2019.');
   },
@@ -303,13 +354,22 @@ Object.assign(ACTIONS, {
     if (S.inv.wheel) return ACTIONS.fitwheel();
     say('The flat tyre', 'Front left. Flat as a pancake, with a screw in it. Of course there\'s a screw in it.');
   },
-  // ring for help: the phone dies
-  roadring() {
-    if (S.flags.phoneDead) return say('Your phone', 'Still dead.');
-    S.flags.phoneDead = true;
-    anger(10);
-    note('tyre', 'Phone dead', 'x');
-    say('Your phone', 'You get your phone out to ring for help. 1%.\n\nYou tap the first name. The screen goes black.');
+  // the one big button on the phone: ring the recovery company; half way through, the phone dies
+  recovery() {
+    if (!brokenDown() || ON_RECOVERY) return;
+    ON_RECOVERY = true;                                                // on the line
+    sfx('buzz');
+    pass(5);
+    const them = (line, then) => say(RECOVERY, line, [{ label: 'OK', run: then }]);
+    them('"Thank you for calling Fleengrag Car Recovery. You are number one in the queue. Where are you, please?"', () => {
+      sayMe(`"${ROADSIDE}. I've got a puncture."`, () => {
+        them('"A puncture. Have you tried the spare?"', () => {
+          sayMe(S.road && S.road.spare ? '"The spare\'s flat too."' : '"Not yet."', () => {
+            them('"Not to worry. I\'ve got a truck just round the corner from you. I only need your policy num—"', phoneDies);
+          });
+        });
+      });
+    });
   },
   // walk home: the rain, the puddle; then home, soaked
   walkhome() {
@@ -332,6 +392,7 @@ Object.assign(ACTIONS, {
     sfx('car');
     show('roadside');
   },
+  roadtown() { pass(15); sfx('car'); show('city'); },                  // her car: from yours into town
   roadhome() { pass(15); sfx('car'); show('home'); },
   // fit the wheel: your car's back on four good tyres
   fitwheel() {
@@ -342,7 +403,7 @@ Object.assign(ACTIONS, {
     sfx('ratchet');
     delete S.inv.wheel;
     S.road = null;
-    finishJob('tyre', `Wheel from the ${from} fitted on ${ROADSIDE}. The spare is still flat`);
+    finishJob('tyre', `Wheel from ${from === TYRE_SHOP ? from : 'the ' + from} fitted on ${ROADSIDE}. The spare is still flat`);
     spareJob();                                                         // next: the spare, with its screw
     show('home');
     const jack = S.flags.jackLent ? 'No jack: Paul\'s still got it. A man across the road lends you his, and watches the whole time.\n\n' : '';   // Paul borrowed it
@@ -352,67 +413,166 @@ Object.assign(ACTIONS, {
 
 // =====================================================================
 // THE FLAT SPARE: a screw in it, so it can't be pumped up; it has to be replaced.
-//   S.spare: undefined (never looked), 'flat' (the screw), 'away' (at the Tyre Place till S.spareReady), 'good'
+//   S.spare: undefined (never looked), 'flat' (the screw), 'away' (at Worn Out and Tired till S.spareReady), 'good'
 // =====================================================================
 // A job for it, with two places to get one
 function spareJob() {
-  if (findJob('spare')) return;
+  const had = findJob('spare');
+  if (had && had.status === 'open') return;                             // already on the list
+  if (had) { had.status = 'open'; had.leads = []; }                     // mended once already, and punctured again: the same leads, afresh
   job('spare', 'Replace the flat spare (a screw in it)', null);
   lead('spare', 'spare-yard', 'A spare off a wreck at the Scrap Yard', 'you', 'fairly sure', 'place:Scrap Yard');
-  lead('spare', 'spare-shop', 'A new tyre on it at the Tyre Place', 'you', 'sure', 'place:Tyre Place');
+  lead('spare', 'spare-shop', 'A new tyre on it at Worn Out and Tired', 'you', 'sure', 'place:Worn Out and Tired');
 }
 // Do you still need one? (the spare's flat, and your car's back home)
 const spareWanted = () => S.spare === 'flat' && !S.road;
+// Looking at it in the boot, before you've ever needed it: it's flat already. You could get it mended (Steve)
+function findFlatSpare() {
+  if (S.spare || S.road) return;                                        // you know about it already (or you're on the verge)
+  S.spare = 'flat';
+  spareJob();
+}
+// The tyre in your arms: held against your chest (m: his feet on screen)
+//   S.spareOut: the spare, to be mended or just mended; S.wheelOut: a wheel you've bought for the one that went flat
+const carryingTyre = () => !!S.spareOut || !!S.wheelOut;
+function carriedTyre(m) { wheelAt(m[0] + 8, m[1] - 20, !!S.spareOut && S.spare === 'flat'); }
+function wheelAt(x, y, screw) {
+  disc(x, y, 9, C.tyre);
+  disc(x, y, 5, C.rim);
+  disc(x, y, 1, C.steel2);
+  if (screw) spareScrew(x + 6, y + 4, 1);                  // the screw in it
+}
+// Outside the tyre shop in your own car, the flat spare still in the boot: you can get it out and bring it in
+function canFetchSpare() {
+  return S.place === TYRE_SHOP && S.spare === 'flat' && !S.spareOut && !S.road && !S.flags.taxi;
+}
+function fetchSpare() {
+  if (!canFetchSpare()) return;
+  pass(5);
+  sfx('ratchet');
+  S.spareOut = true;
+  say('The spare', 'You undo it and heave it out of the boot. It\'s heavier than it looks, and filthy.');
+}
+// Over the counter: handed to him (give), or handed back to you. You're stood there, so you see it go (Steve)
+const TYRE_HAND = { you: [104, 80], ms: 1800, give: true };
+function handTyre(give) {
+  S.counter = null;                                                     // the whole shop, not the close-up of him
+  S.spot.place = TYRE_HAND.you.slice();
+  TYRE_HAND.give = give;
+  moment('tyrehand', TYRE_HAND.ms);
+  sfx('thud', TYRE_HAND.ms * 0.85 / 1000);                              // it lands in their arms
+  SPEAKER = keeperHead();                                               // what he says next comes from him
+}
+MOMENTS.tyrehand = function (p) {
+  [ISO.ox, ISO.oy] = SHOP_VIEW;
+  const you = P(...TYRE_HAND.you), him = P(...KEEPER_AT);
+  const yours = [you[0] + 8, you[1] - 20], his = [him[0] + 2, him[1] - 24];
+  const [a, b] = TYRE_HAND.give ? [yours, his] : [his, yours];
+  const q = ease(Math.max(0, Math.min(1, (p - 0.2) / 0.6)));            // held a moment, across, held a moment
+  wheelAt(Math.round(lerp(a[0], b[0], q)), Math.round(lerp(a[1], b[1], q) - Math.sin(q * Math.PI) * 14), TYRE_HAND.give);   // (the one you hand over has the screw in) lifted over the counter
+};
 // What you see when you look at it in the boot
 function spareLook() {
+  if (S.spare === 'flat' && !S.flags.punctured) return 'The spare, for if you ever get a flat tyre. It\'s flat. There\'s a screw in the tread.\n\nIt won\'t pump up with a hole in it. You could get it mended before you need it.';
   if (S.spare === 'flat') return 'The spare. Flat, with a screw in the tread. It won\'t pump up with a hole in it. It needs replacing.';
-  if (S.spare === 'away') return 'An empty well. The spare is at the Tyre Place till ' + (S.spareReady > S.day ? 'tomorrow' : 'today') + '.';
+  if (S.spare === 'away') return 'An empty well. The spare is at Worn Out and Tired till ' + (S.spareReady > S.day ? 'tomorrow' : 'today') + '.';
   if (S.spare === 'good') return 'A good spare, at last, bolted down in its well. Touch wood.';
   return LOOKS['Spare wheel'];                                         // before the puncture: it just feels a bit soft
 }
-// At the Scrap Yard or the Tyre Place, about the spare. Returns true if that's what you talked about
+// At the Scrap Yard or Worn Out and Tired, about the spare. Returns true if that's what you talked about
 function spareAt(place) {
-  if (place === 'Tyre Place' && S.spare === 'away') {                  // come to collect it
-    if (S.day < S.spareReady) { anger(5); say(place, '"Tomorrow, mate. I said tomorrow."'); return true; }
-    S.spare = 'good';
+  if (place === TYRE_SHOP && S.spare === 'away') {                      // come to collect it
+    if (S.day < S.spareReady) { anger(5); say(place, '"New tyre on your wheel, like I said. Tomorrow, mate. I said tomorrow."'); return true; }
+    spareMended('New tyre on the spare, from ' + TYRE_SHOP);
+    S.spareOut = true;                                                   // in your arms, till you're back in the car
     closeLead('spare-collect', 'ok');
-    finishJob('spare', 'New tyre on the spare, from the Tyre Place');
-    say(place, '"There you go. New tyre on it, pumped up."\n\nYou put it back in the boot.');
+    handTyre(false);
+    say(place, '"There you go. New tyre on it, pumped up."\n\nHe passes it back over the counter. It can go back in the boot.');
     return true;
   }
   if (!spareWanted()) return false;
   const yard = place === 'Scrap Yard';
   const price = yard ? 10 : 35;
+  if (!yard && !S.spareOut) {                                           // you haven't brought it in: the same every time, till you come back with it
+    say(place, '"A screw in your spare? Can\'t plug that, it\'s in the shoulder. New tyre on your wheel: thirty-five quid."\n\n"So where is it? In your boot? Go and get it, mate. You\'ve got to bring it in."');
+    return true;
+  }
   if (!spend(price)) { anger(10); say(place, DECLINED); return true; }
   sfx('kerching');                                                     // the till
   if (yard) {                                                           // off a wreck: straight in the boot
-    S.spare = 'good';
+    S.spareOut = false;
     closeLead('spare-yard', 'ok');
     closeLead('spare-shop', 'skip');
-    finishJob('spare', 'A spare off a wreck at the Scrap Yard: £10');
+    spareMended('A spare off a wreck at the Scrap Yard: £10');
     say(place, '"A spare? Off that one. It\'s got a bit of tread left. Tenner."\n\nYou swap it for the one with the screw in. He keeps that one. He seems pleased.');
     return true;
   }
-  S.spare = 'away';                                                     // the Tyre Place: a new tyre on it, tomorrow
+  handTyre(true);                                                       // over the counter it goes
+  S.spareOut = false;
+  S.spare = 'away';                                                     // a new tyre on it, tomorrow
   S.spareReady = S.day + 1;
-  closeLead('spare-shop', 'ok', 'Tyre Place: a new tyre on the spare, £35, ready tomorrow');
+  closeLead('spare-shop', 'ok', 'Worn Out and Tired: a new tyre on the spare, £35, ready tomorrow');
   closeLead('spare-yard', 'skip');
-  lead('spare', 'spare-collect', 'Collect the spare from the Tyre Place (tomorrow)', 'the Tyre Place', 'sure', 'place:Tyre Place');
-  say(place, '"A screw? Can\'t plug that, it\'s in the shoulder. New tyre on your wheel: thirty-five quid. Ready tomorrow."\n\nYou leave the spare with him.');
+  lead('spare', 'spare-collect', 'Collect the spare from Worn Out and Tired (tomorrow)', 'Worn Out and Tired', 'sure', 'place:Worn Out and Tired');
+  say(place, '"That\'s the one. New tyre on your wheel: thirty-five quid. Ready tomorrow."\n\nYou hand the spare over the counter.');
   return true;
 }
-// Home at last, soaked: the phone goes on charge, and the wife has a plan
+// The spare's good again. Never had a puncture yet? Then the moment you drive off… (spareJinxed)
+function spareMended(how) {
+  S.spare = 'good';
+  finishJob('spare', how);
+  if (!S.flags.punctured) S.flags.spareJinx = true;
+}
+// On a flat, stuck by your car, with a little life left in the phone: all it's good for is ringing for help
+const RECOVERY = 'Fleengrag Car Recovery';
+let ON_RECOVERY = false;                                             // talking to them now (not saved: reload, and you can ring again)
+const brokenDown = () => !!S.road && !S.road.walked && !S.flags.phoneDead;
+// Mid-sentence, the screen goes black
+function phoneDies() {
+  S.flags.phoneDead = true;
+  ON_RECOVERY = false;
+  anger(10);
+  sfx('nowin');
+  note('tyre', `Rang ${RECOVERY}. The phone died`, 'x');
+  job('phone', 'Flat battery: charge your phone', null);                // on the list
+  lead('phone', 'charge', 'Charge it at your computer desk', 'the phone', 'sure', 'room');
+  render();
+}
+// Home at last, soaked: the wife's in the garden, where the sun's been out all day, and she doesn't believe it rained (Steve)
 function homeSoaked() {
   pass(80);
   anger(15);
   S.road.walked = true;
-  S.flags.phoneDead = false;                                        // on charge, at home
   note('tyre', 'Walked home in the rain. Splashed by a car', 'x');
   lead('tyre', 'wheel-yard', 'A wheel from the Scrap Yard', 'the wife', 'sure', 'place:Scrap Yard');
-  lead('tyre', 'wheel-shop', 'A wheel from the Tyre Place', 'the wife', 'fairly sure', 'place:Tyre Place');
-  show('room');
+  lead('tyre', 'wheel-shop', 'A wheel from Worn Out and Tired', 'the wife', 'fairly sure', 'place:Worn Out and Tired');
+  const inTheSun = !isBedtime();                                    // (waited till after 7 at night to walk home: she's indoors in her nightie)
+  if (inTheSun) {
+    S.flags.sunDay = { day: S.day, till: Math.min(S.mins + 60, 19 * 60) };   // out there for an hour after you get back
+    S.spot.garden = SPOT_HOME.garden.slice();
+  }
+  show(inTheSun ? 'garden' : 'room');
+  const wet = inTheSun ? 'You\'re dripping on my lounger.' : 'You\'re dripping on the carpet.';
+  const sunny = inTheSun ? 'I\'ve been out here in the sun all day.' : 'I was out in the garden in the sun all day.';
+  wifeSays(`"Husband! You're SOAKED. ${wet}"`, () => {
+    sayMe('"It rained. All the way home. And a car went through a puddle."', () => {
+      wifeSays(`"Rained? It has NOT rained, Husband. ${sunny} Where's the car?"`, () => {
+        sayMe('"A puncture. And the spare\'s flat. And my phone died."', () => {
+          wifeSays('"Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. Take my car. And put that phone on charge."\n\n"Rain. Honestly."');
+        });
+      });
+    });
+  });
+}
+// The wife says something in person: a bubble from her; tap to carry on, then `then` runs
+function wifeSays(line, then) {
   SPEAKER = wifeHead();
-  say('The wife', '"Husband! You\'re SOAKED. Where\'s the car?"\n\n"A puncture. And the spare\'s flat. And your phone died. Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. Take my car. And put that phone on charge."');
+  say('The wife', line, [{ label: 'OK', run: then || (() => {}) }]);
+}
+// Just back from the walk home: she's out in the garden, whatever the day (only that afternoon)
+function sunnyAfterTheWalk() {
+  const sun = S.flags.sunDay;
+  return !!sun && sun.day === S.day && S.mins < sun.till;
 }
 
 // Where your car is drawn: yours, or (while yours is stuck on Mill Lane) her little purple one

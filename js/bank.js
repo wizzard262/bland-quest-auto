@@ -20,8 +20,19 @@ function cardDeclined(amount) {
   textMsg('Your Bank', 'We have noticed unusual activity on your card. For your security it has been blocked. Please visit a branch.');
   job('card', 'Get your card unblocked at the bank', null);
   lead('card', 'bank', 'Go to the bank (open Mon to Wed, 10 till 2)', 'a text from the bank', 'sure', 'place:' + BANK);
+  lead('card', 'mum-cash', 'Some cash from Mum & Dad till then', 'you', 'fairly sure', "place:Mum & Dad's");
+  lead('card', 'paul-cash', "Some cash from Paul (go round)", 'you', 'maybe', "place:Paul's");
   return true;
 }
+// ---------- cash: what Mum or Paul give you while your card's blocked (S.cash; the money in the account is no use then) ----------
+function payCash(amount) {
+  if ((S.cash || 0) < amount) return false;                           // not enough on you
+  S.cash -= amount;
+  return true;
+}
+// What you can actually spend now: the account, or only the cash on you while the card's blocked
+const spendable = () => S.flags.cardBlocked ? (S.cash || 0) : S.money;
+const needMoney = () => spendable() < SKINT;
 
 // The bank's three security questions: whatever you say, it's not what they've got
 const BANK_QUESTIONS = [
@@ -38,6 +49,8 @@ function bankQuestions(n = 0) {
     SPEAKER = keeperHead();
     if (n + 1 < BANK_QUESTIONS.length) return bankQuestions(n + 1);
     S.flags.cardBlocked = false;                                        // they give up and unblock it
+    S.money += S.cash || 0;                                             // and you pay in what's left of the cash
+    S.cash = 0;
     finishJob('card', 'Unblocked at the bank, after three security questions (none right)');
     say(BANK, '"…That\'s not what we\'ve got either."\n\nA long pause. Some typing.\n\n"I\'ve unblocked it. Please don\'t buy any more car parts."');
   } })));

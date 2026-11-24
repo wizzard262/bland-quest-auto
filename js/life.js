@@ -177,13 +177,15 @@ SCREENS.room.animate = function (t) {
   const goingToBed = ANIM && ANIM.kind === 'night';                  // the night passing after you go to bed
   const nightHalf = goingToBed && (performance.now() - ANIM.t0) / ANIM.dur < 0.5;   // fading out (then black, then the morning fading in)
   if (goingToBed) sleepingHusband(t);                                 // going to bed: him, in bed beside her (not stood by it: Steve)
-  if ((isAsleep() && !goingToBed) || nightHalf) {                    // late, or going to bed with you: in bed, fast asleep (it goes dark like that)
+  const inBedWithYou = nightHalf && S.flags.bedLate;                 // you went to bed late (she's in her nightie): she comes too
+  if ((isAsleep() && !goingToBed) || inBedWithYou) {                 // late, or going to bed with you: in bed, fast asleep (it goes dark like that)
     sleepingWife(t);
     moveWifeTap([SLEEPING_HEAD[0] + 8, SLEEPING_HEAD[1]], [60, 10]);
     return;
   }
   if (wifeSunbathing() && !goingToBed) return;                        // out in the back garden on her lounger (screens.js)
-  if (goingToBed) WIFE.k = 0;                                         // the morning, fading in: she's up, dressed, wherever her day starts (it changed while it was black)
+  if (nightHalf && S.flags.bedOut) return;                           // you went to bed by day while she was out there: not in here as it goes dark
+  if (goingToBed && !nightHalf) WIFE.k = 0;                                         // the morning, fading in: she's up, dressed, wherever her day starts (it changed while it was black)
   wifeMove(t);
   const bedtime = isBedtime() && !goingToBed;                        // from 7 in the evening (and all through the night) she's in her nightie
   wife(WIFE.pos[0], WIFE.pos[1], bedtime ? 'nightie' : (S.wifeLook || 'navy'), { walk: WIFE.walk, facing: WIFE.facing, sit: WIFE.sit, hip: WIFE.hip });
@@ -315,6 +317,7 @@ SCREENS.city.animate = function (t) {
     if (k % 2) isoCarX(along - 20, (k % 7) * BLOCK + 6, 0.42, cols[k % 5]);
     else isoCar((k % 8) * BLOCK + 6, (along % (6 * BLOCK + STREET)) - 20, 0.42, cols[k % 5]);
   }
+  brokenCarFlash(t);                                                  // your car on a flat: its hazards (road.js)
   keepHud(36);                                                                                                        // cars never drive over the top bar
 };
 SCREENS.place.animate = function (t) {
@@ -560,6 +563,7 @@ const MOMENTS = {
     if (isDrunk()) { x += Math.sin(p * 22) * 4; y += Math.cos(p * 17) * 3; }   // drunk: he weaves about
     const m = P(x, y);
     man(m[0], m[1], 'walk', MAN_SIZE[a.screen], p * a.dur / 90);
+    if (carryingTyre() && S.screen === 'place') carriedTyre(m);       // with a tyre in his arms (road.js)
     inFront(a.screen, x, y);                                          // behind the car (or a wreck): it hides him
   },
   bolt1Out(p) {                                                       // the bolt winds out and comes free

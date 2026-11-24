@@ -110,6 +110,7 @@ const FONT = {
   '!': ['.#.', '.#.', '.#.', '...', '.#.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '&': ['.#.', '#.#', '.#.', '#.#', '.##'],
   '-': ['...', '...', '###', '...', '...'], ':': ['...', '.#.', '...', '.#.', '...'], '/': ['..#', '..#', '.#.', '#..', '#..'],
   '(': ['.#.', '#..', '#..', '#..', '.#.'], ')': ['.#.', '..#', '..#', '..#', '.#.'], '>': ['#..', '.#.', '..#', '.#.', '#..'],
+  '%': ['#.#', '..#', '.#.', '#..', '#.#'],
   '+': ['...', '.#.', '###', '.#.', '...'], '£': ['.##', '.#.', '###', '.#.', '###'], ' ': ['...', '...', '...', '...', '...']
 };
 function text(str, x, y, c, s = 1) {
@@ -122,6 +123,21 @@ function text(str, x, y, c, s = 1) {
   }
 }
 const textW = s => s.length * 4 - 1;
+// The same letters written along a wall that faces down-left (at y = yf), sloping with it, in the middle of a board
+//   x0, x1: the board's ends (world x); z0, z1: its bottom and top
+function boardText(str, yf, x0, x1, z0, z1, c) {
+  const startX = (x0 + x1 - textW(str)) / 2;                         // centred along the board…
+  const topZ = (z0 + z1 + 5) / 2;                                    // …and up it (the letters are 5 tall)
+  const [sx, sy] = P(startX, yf, topZ).map(Math.round);              // the first letter's top left corner, on screen
+  [...str.toUpperCase()].forEach((ch, n) => {
+    const g = FONT[ch] || FONT[' '];
+    for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) {
+      if (g[r][k] !== '#') continue;                                 // no dot here
+      const across = n * 4 + k;                                      // how far along the wall this dot is
+      px(sx + across, sy + r + Math.floor(across / 2), c);           // the wall drops 1 for every 2 across
+    }
+  });
+}
 // A label with a small arrow pointing down at what you can tap
 // go = the screen it opens when tapped (if any)
 function hotspot(label, x, y, go) {
@@ -151,6 +167,24 @@ function phoneIcon(x, y, s, unread, screenCol = C.glass) {
   rect(x + s, y + s, 9 * s, 15 * s, C.ui);                          // the bezel
   rect(x + 2 * s, y + 3 * s, 7 * s, 10 * s, screenCol);             // the screen
   if (unread) { disc(x + 10 * s, y + s, 3 * s, C.red); text(String(Math.min(unread, 9)), x + 9 * s, y - s, C.white, s); }
+}
+// On a flat tyre: the phone pulses (a soft glow swelling and fading, no rattling), to say ring for help
+function pulsingPhone(t) {
+  const s = W > 500 ? 2 : 1;                                        // the town map is drawn twice size
+  const [x, y] = phoneIconAt(s);
+  const col = pulseGlow(t, x, y, 11 * s, 17 * s, s);
+  phoneIcon(x, y, s, hudInfo().unread, col);                        // its screen swells with it
+}
+// PULSE: draws the eye to something to tap. Two ways to use it, both the same speed and colour:
+//   a thing drawn in the picture: call pulseGlow each frame, then draw the thing on top (it returns the colour the glow is now)
+//   a button on the page: give it the class "pulse" (an action: { label, act, pulse: true }; a dialog choice: { label, run, pulse: true })
+const PULSE_SECS = 1.5;                                             // one swell and fade (the page's is .pulse in index.html: keep the same)
+function pulseGlow(t, x, y, w, h, s = 1) {
+  const swell = (1 - Math.cos(t / PULSE_SECS * Math.PI * 2)) / 2;   // 0 to 1 and back
+  const glow = Math.round(swell * 4) * s;                           // how far the glow reaches now
+  const col = shade(C.mint, 0.45 + swell * 0.55);
+  if (glow) rect(x - glow, y - glow, w + glow * 2, h + glow * 2, col);
+  return col;
 }
 // The phone ringing: it glows, rattles about in bursts (in time with the ringtone), and says who it is
 function ringingPhone(t) {
@@ -740,6 +774,7 @@ function wifeHead() {
     const g = P(...GARDEN_HEAD);
     return [g[0], g[1] - 6];
   }
+  if (S.screen === 'room' && wifeSunbathing()) return null;            // she's out in the garden: no bubble in the house
   const inGarage = S.screen === 'garage';                              // she comes to the garage at night
   [ISO.ox, ISO.oy] = inGarage ? VIEW.garage : VIEW.room;
   const p = P(...(inGarage ? WIFE_IN_GARAGE : WIFE.pos));

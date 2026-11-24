@@ -5,7 +5,7 @@
 const STYLE_BY_CAT = { parts: 'parts', mech: 'garage', elec: 'elec', trans: 'gearbox', tools: 'tools', big: 'aisles', yard: 'yard' };
 const STYLE_BY_NAME = {
   'Post Office': 'parcels', 'Courier Depot': 'parcels', 'Café': 'cafe',
-  'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Tyre Place': 'tyres', 'MOT Test Centre': 'garage',
+  'PC Shop': 'gadgets', 'Phone Shop': 'gadgets', 'Worn Out and Tired': 'tyres', 'MOT Test Centre': 'garage',
   'Machine Shop (lathe)': 'workshop', 'Police Station': 'police', 'Bank': 'bank',
   'The Hesketh Tavern': 'pub', 'Pound Shop': 'aisles', 'Petrol Station': 'aisles'
 };
@@ -116,6 +116,7 @@ function dadTalk() {
   anger(3);
   const d = P(...DAD_AT);
   SPEAKER = [d[0] + 2, d[1] - 40];
+  if (needMoney() && mumCanHelp()) return say('Dad', '"Skint? Ask your mother. She\'s on the doorstep. It\'s all in the biscuit tin."');
   say('Dad', DAD_LINES[(S.flags.dadTalks - 1) % DAD_LINES.length]);
 }
 // What you can tap at the counter
@@ -298,8 +299,12 @@ function shopInterior(name, shut) {
   // things standing on the floor in front of the counter
   if (FLOOR[style]) FLOOR[style]();
   if (name === 'Post Office') postQueue();
-  // you
-  if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
+  // you (with a tyre in your arms, on its way in or out)
+  if (!(ANIM && ANIM.kind === 'walk')) {
+    const [x, y] = manSpot('place'), m = P(x, y);
+    man(m[0], m[1], 'stand', 2);
+    if (carryingTyre() && !(ANIM && ANIM.kind === 'tyrehand')) carriedTyre(m);   // (being handed over: the moment draws it)
+  }
 }
 // A friend's house: red brick or cream render (each house always the same)
 function houseWalls(name) {
@@ -633,8 +638,8 @@ function bankFront(name, shut) {
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }                                                // how far back the buildings on the street go (their fronts are at y = 40)
 // A big picture sign standing on the roofline above a shop's name, on its front (y = 40): what the shop is (Steve)
-//   the Post Office an envelope, the Phone Shop a mobile, the Tyre Place a tyre, the PC Shop a laptop
-const ROOF_SIGNS = { 'Post Office': postOfficeEnvelope, 'Phone Shop': phoneShopSign, 'Tyre Place': tyrePlaceSign, 'PC Shop': pcShopSign, 'Police Station': policeBadgeSign };
+//   the Post Office an envelope, the Phone Shop a mobile, Worn Out and Tired a tyre, the PC Shop a laptop
+const ROOF_SIGNS = { 'Post Office': postOfficeEnvelope, 'Phone Shop': phoneShopSign, 'Worn Out and Tired': tyrePlaceSign, 'PC Shop': pcShopSign, 'Police Station': policeBadgeSign };
 function roofSign(name) {
   const draw = ROOF_SIGNS[name];
   if (!draw) return;                                                      // most shops have only their name
@@ -658,7 +663,7 @@ function phoneShopSign() {
   for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) onLeft(40, 95 + k * 4, 97 + k * 4, 103 - r * 4, 105 - r * 4, C.white);   // app icons
   onLeft(40, 99, 101, 87, 89, C.steel);                                   // the home button
 }
-// The Tyre Place: a tyre standing on its edge, tread round it, a silver wheel in the middle
+// Worn Out and Tired: a tyre standing on its edge, tread round it, a silver wheel in the middle
 function tyrePlaceSign() {
   const cx = 100, cz = 100, r = 14;
   for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) {                   // the tyre, as a ring of chunky tread blocks
@@ -731,9 +736,10 @@ function shopExterior(name, shut) {
   onLeft(40, 148, 176, 0, 50, C.white); onLeft(40, 150, 174, 0, 48, shade(col, 0.6)); onLeft(40, 152, 172, 18, 46, C.glass);   // the door
   { const k = P(170, 40, 24); rect(k[0], k[1], 2, 2, C.steel); }
   // the sign on the door: OPEN, CLOSED, gone, or on holiday
-  const doorSign = info.gone ? 'TO LET' : info.holiday ? 'HOLIDAY' : shut && info.byAppointment ? 'APPT' : shut ? 'CLOSED' : 'OPEN';   // the yard: by appointment
-  onLeft(40, 154, 170, 28, 34, C.white);
-  { const t = P(155, 40, 33); text(doorSign.slice(0, 4), t[0] + 1, t[1] + 2, doorSign === 'OPEN' ? hex('#2a8a3a') : C.red); }
+  const doorSign = info.gone ? 'TO LET' : info.holiday ? 'AWAY' : shut && info.byAppointment ? 'APPT' : shut ? 'CLOSED' : 'OPEN';   // the yard: by appointment
+  const signHalf = (textW(doorSign) + 3) / 2;                            // half its width: the sign is as wide as its word
+  onLeft(40, 162 - signHalf, 162 + signHalf, 27, 36, C.white);
+  boardText(doorSign, 40, 162 - signHalf, 162 + signHalf, 27, 36, doorSign === 'OPEN' ? hex('#2a8a3a') : C.red);   // sloping with the door
   if (info.gone) {                                                                                                   // boarded up
     onLeft(40, 10, 136, 8, 46, C.wood); for (let z = 12; z < 46; z += 8) onLeft(40, 10, 136, z, z + 1, C.bench);
     onLeft(40, 150, 174, 0, 48, C.wood);
@@ -750,7 +756,7 @@ function shopExterior(name, shut) {
   // your car (blue), parked at the kerb
   drivenCar(40, 72, 1);
   if (pub && S.flags.pickup === S.day) wife(PICKUP_AT[0], PICKUP_AT[1], S.wifeLook || 'navy', { hip: true });       // she's come to fetch him: by the car, in her dress
-  if (!(ANIM && ['walk', 'sick', 'taxipub'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }   // (in the taxi moment, it draws him)
+  if (!(ANIM && ['walk', 'sick', 'taxipub'].includes(ANIM.kind))) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); if (carryingTyre()) carriedTyre(m); }   // (in the taxi moment, it draws him)
 }
 // ---------- outside the pub, after too many ----------
 const PICKUP_AT = [92, 58];                                          // where she stands to fetch him: on the pavement, by the front of your car
