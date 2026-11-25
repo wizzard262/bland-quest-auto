@@ -3,13 +3,14 @@
 //   rideToHome(kind, then):   it comes along, stops, you get out and walk up the drive, and off it goes; then `then`
 //   kind: 'taxi' or 'bus'
 
-const RIDE_MS = 8500;                                                  // the whole thing
-const RIDE_IN = 0.3, RIDE_OFF = 0.66;                                  // how far through: it's stopped; it sets off again
 const RIDE_LANE = 151;                                                 // the near lane, at the kerb
 const TAXI_COLOUR = hex('#f8d038');
+// ms: the whole thing; stops, leaves: how far through it's stopped, and sets off again
+// stopX: where it stops (its back end); door: how far along it the door is
+// waiting: he's at the stop by the time it comes, so he's straight on (the bus: Steve); otherwise he walks over once it's stopped
 const RIDES = {
-  taxi: { stopX: 64, door: 24 },                                       // where it stops (its back end), and how far along it the door is
-  bus: { stopX: -58, door: 84 }
+  taxi: { ms: 8500, stops: 0.3, leaves: 0.66, stopX: 64, door: 24 },
+  bus: { ms: 3800, stops: 0.42, leaves: 0.58, stopX: -58, door: 84, waiting: true }
 };
 const DRIVE_END = [96, 96];                                            // where he ends up: on the drive
 let RIDE = null;                                                       // the one happening now: { kind, home: is it bringing him home? }
@@ -47,9 +48,10 @@ function rideWalk(spotAt, kind) {
 function rideStart(kind, home, then) {
   RIDE = { kind, home };
   sfx('car');
-  sfx('door', RIDE_MS * 0.4 / 1000);
-  sfx('car', RIDE_MS * RIDE_OFF / 1000);
-  moment('homeride', RIDE_MS);
+  const { ms, stops, leaves } = RIDES[kind];
+  sfx('door', ms * (stops + 0.1) / 1000);
+  sfx('car', ms * leaves / 1000);
+  moment('homeride', ms);
   ANIM.then = then;
   show('home');
 }
@@ -60,14 +62,16 @@ function rideToHome(kind, then) {
 }
 MOMENTS.homeride = function (p) {
   [ISO.ox, ISO.oy] = VIEW.home;
-  const { kind, home } = RIDE, { stopX } = RIDES[kind];
+  const { kind, home } = RIDE, { stopX, stops, leaves, waiting } = RIDES[kind];
   let x = stopX;                                                       // stopped
-  if (p < RIDE_IN) { const q = p / RIDE_IN; x = lerp(-520, stopX, 1 - (1 - q) * (1 - q)); }   // coming, and slowing down
-  else if (p > RIDE_OFF) { const q = (p - RIDE_OFF) / (1 - RIDE_OFF); x = stopX + q * q * 800; }   // and away
-  const walked = Math.max(0, Math.min(1, (p - RIDE_IN - 0.04) / (RIDE_OFF - RIDE_IN - 0.08)));   // his walk, while it's stopped
+  if (p < stops) { const q = p / stops; x = lerp(-520, stopX, 1 - (1 - q) * (1 - q)); }   // coming, and slowing down
+  else if (p > leaves) { const q = (p - leaves) / (1 - leaves); x = stopX + q * q * 800; }   // and away
+  const walkFrom = waiting ? 0 : stops + 0.04, walkTill = waiting ? stops : leaves - 0.04;   // his walk: to the stop as it comes, or over to it while it's stopped
+  const walked = Math.max(0, Math.min(1, (p - walkFrom) / (walkTill - walkFrom)));
   const path = rideWalk(home ? DRIVE_END : manSpot('home'), kind);
   const route = home ? path.slice().reverse() : path;
-  const inIt = home ? p < RIDE_IN + 0.04 : walked >= 1;                 // you can't see him: he's in it
+  const stoppedYet = p > stops + 0.04;
+  const inIt = home ? !stoppedYet : walked >= 1 && stoppedYet;         // you can't see him: he's in it
   if (!inIt) {
     const m = P(...alongPath(route, walked));
     man(m[0], m[1], walked > 0 && walked < 1 ? 'walk' : 'stand', MAN_SIZE.home, p * 90);

@@ -1195,11 +1195,16 @@ function benchScrews(f) {
   for (let n = 1; n <= SENSOR_SCREWS; n++) {
     const [x, y] = BOX_SCREWS[n];
     const c = P(x, y, 40);                                             // on the box's top face
-    const screwedBack = f.fits && (n !== f.sheared || f.screw3);       // the new sensor's in: screwed back in (the third once you've found a screw)
+    const screwedBack = f.fits && (f.screw3 || n !== (f.sheared || SENSOR_SCREWS));   // the new sensor's in: screwed back in (the snapped one once you've found a screw)
     if (screwedBack) { disc(c[0], c[1], 4, C.steel); ring(c[0], c[1], 4, C.greyDark); line(c[0] - 3, c[1] + 1, c[0] + 3, c[1] - 1, C.greyDark); continue; }
     if (f.sheared === n && !f.stubOut) {                               // snapped off: the stub, shiny where it broke (till the extractor gets it out)
       disc(c[0], c[1], 2, C.white); ring(c[0], c[1], 3, C.greyDark);
       spot('The snapped screw', isoArea(x - 5, y - 5, x + 5, y + 5, 38, 44), 'act:stubmenu');
+      continue;
+    }
+    const snappedOne = n === (f.sheared || SENSOR_SCREWS);
+    if (snappedOne && f.stubOut && !f.screw3) {                        // its stub's out, and you've no screw for it yet: an empty hole, whatever else is in (Steve)
+      ring(c[0], c[1], 3, C.greyDark); disc(c[0], c[1], 2, C.ink);
       continue;
     }
     if (out.includes(n)) {                                             // out: just its hole

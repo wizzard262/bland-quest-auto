@@ -3393,6 +3393,7 @@ test("drunk and locked out at the pub: a taxi home; the car stays at the pub; th
   await page.evaluate(() => { sleepUntilMorning(); S.screen = 'home'; render(); });
   await page.locator('.hs[data-go="city"]', { hasText: '' }).first().click();   // the bus stop (your car's not here)
   await page.waitForFunction(() => ANIM && ANIM.kind === 'homeride' && RIDE.kind === 'bus' && !RIDE.home, null, { timeout: 20000 });   // it comes, you get on, off it goes
+  expect(await page.evaluate(() => ANIM.dur)).toBeLessThan(4000);          // quick: he's straight on
   expect(await dialogText(page)).toContain('The bus into town');
   expect(await page.evaluate(() => [S.screen, S.place, S.flags.carAt, carAway()])).toEqual(['city', 'The Hesketh Tavern', undefined, false]);
   expect(errors).toEqual([]);
@@ -3524,6 +3525,30 @@ test('the box (the sub-unit) comes off whole: under the car there is an empty mo
   expect(await at()).toBeLessThan(on / 2);                                    // an empty dark mount
   // the bench: fitted, all three screws back in (the third once found)
   await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, screws: [1, 2, 3], sheared: 3, stubOut: true, fits: true, screw3: true }); show('bench'); });
+  expect(errors).toEqual([]);
+});
+
+test('trying a replacement screw: the hole it goes in is empty (the sensor in or not, and in an old save)', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // what colour is the middle of the snapped screw's hole, as the screw's about to go in?
+  const hole = (n, flags) => page.evaluate(([k, more]) => {
+    ANIM = null; DIALOG = null; QUEUE.length = 0;
+    Object.assign(S.flags, { boxOff: true, sensorOut: true, n3found: true, jarSwept: true, screw3: false, stubOut: true, sheared: k, screwsTried: [], screws: [1, 2, 3, 4], fits: true }, more);
+    screwJob();
+    trayScrew(TRAY_RIGHT);
+    [ISO.ox, ISO.oy] = [240, 64];
+    const c = P(...BOX_SCREWS[k], 40).map(Math.round), i = (c[1] * W + c[0]) * 4;
+    return [...BG.slice(i, i + 3)].join() === C.ink.join();
+  }, [n, flags]);
+  for (const n of [1, 2, 3, 4]) {
+    expect(await hole(n, {})).toBe(true);
+    expect(await hole(n, { fits: false })).toBe(true);
+    expect(await hole(n, { screws: undefined })).toBe(true);               // an old save: which ones are out isn't known
+  }
+  // no sensor in the box yet: the screw comes out again
+  expect(await page.evaluate(() => { S.flags.fits = false; return true; })).toBe(true);
+  expect(await dialogText(page)).toContain('kept safe');
   expect(errors).toEqual([]);
 });
 

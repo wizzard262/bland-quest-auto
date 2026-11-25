@@ -205,7 +205,10 @@ function trayScrew(k) {
       S.flags.screw3 = true;
       sfx('ding');
       finishJob('screw3', `Screw ${k + 1} from the jar: a perfect match`);
-      say('Screw ' + (k + 1), 'It winds in. Snug. Not too long, not too short, the right thread.\n\nAll four screws. The sensor doesn\'t move. Now the box can go back on the car.');
+      const snug = 'It winds in. Snug. Not too long, not too short, the right thread.\n\n';
+      const withSensor = 'All four screws. The sensor doesn\'t move. Now the box can go back on the car.';
+      const noSensorYet = 'Out it comes again, and it\'s kept safe till there\'s a sensor in there to hold.';
+      say('Screw ' + (k + 1), snug + (S.flags.fits ? withSensor : noSensorYet));
     };
     return render();
   }
