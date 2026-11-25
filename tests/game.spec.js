@@ -1616,7 +1616,7 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await start(page, errors);
   await garage(page);
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
-  expect(await page.locator('.spine').count()).toBe(21);                                    // 21 books (no handbook yet: it's in the parts box)
+  expect(await page.locator('.spine').count()).toBe(22);                                    // 21 books and the game box (no handbook yet: it's in the parts box)
   const sierra = await page.evaluate(() => BOOKS.findIndex(b => b[0].startsWith('Ford Sierra')));
   await page.locator(`.hs[data-go="act:book:${sierra}"]`).click();
   await expect(page.locator('.book')).toContainText('Sierra');           // not your car's handbook: that's in the parts box
@@ -1796,7 +1796,7 @@ test('the manuals shelf: The Trial is there, the kinds of book are mixed up alon
   const at = deep.map(d => titles.findIndex(t => t.startsWith(d))).sort((a, b) => a - b);   // where each one stands
   for (let k = 1; k < at.length; k++) expect(Math.abs(at[k] - at[k - 1])).toBeGreaterThan(1);   // never two side by side
   await page.evaluate(() => { S.inv.handbook = true; S.screen = 'shelf'; render(); });
-  const last = await page.evaluate(() => 10 + BOOKS.length * (BOOK_W + 1) + BOOK_W - 2);   // the handbook's right edge
+  const last = await page.evaluate(() => shelfX(BOOKS.length) + BOOK_W - 2);   // the handbook's right edge
   expect(last).toBeLessThanOrEqual(472);                                  // the shelf board ends at 472
   expect(errors).toEqual([]);
 });
@@ -2262,6 +2262,33 @@ test('The Myth of Sisyphus is on the manuals shelf: open it and there is a pictu
   await page.locator('[data-act="bookpage:1"]').click();
   await expect(page.locator('.book .pic')).toHaveCount(0);              // the other pages are words
   await expect(page.locator('.book')).toContainText('Sisyphus');
+  expect(errors).toEqual([]);
+});
+
+// ---------- the manuals shelf: the game box ----------
+test('a thicker game box on the manuals shelf: pull it down for the title and a picture, and you moan about point and click games; tap off it and it goes back', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.screen = 'shelf'; render(); });
+  const [boxWide, bookWide] = await page.evaluate(() => [bookAt(GAME_BOX)[3], bookAt(0)[3]]);
+  expect(boxWide).toBeGreaterThan(bookWide * 2);                           // thicker than the books
+  await expect(page.locator('.spine', { hasText: 'MONKEY ISLAND' })).toHaveCount(1);
+  await tap(page, 'act:book:' + await page.evaluate(() => GAME_BOX));
+  expect(await dialogText(page)).toContain('tedious');
+  await expect(page.locator('.gamebox')).toContainText('The Secret of');
+  await expect(page.locator('.gamebox')).toContainText('MONKEY ISLAND');
+  await expect(page.locator('.gamebox')).toContainText('1990');
+  await expect(page.locator('.gamebox .pic')).toBeVisible();
+  await expect(page.locator('.book')).toHaveCount(0);                      // it doesn't open like a book
+  // what you say doesn't cover the box
+  const box = await page.locator('.gamebox').boundingBox(), words = await page.locator('.dlg').boundingBox();
+  expect(box.y + box.height).toBeLessThanOrEqual(words.y + 1);
+  await ok(page);
+  await expect(page.locator('.gamebox')).toBeVisible();                    // still looking at it…
+  await page.locator('.bookoff').click({ position: { x: 5, y: 200 } });    // …till you tap off it
+  await idle(page);
+  expect(await page.evaluate(() => S.book)).toBe(null);
+  await expect(page.locator('.spine', { hasText: 'MONKEY ISLAND' })).toHaveCount(1);   // back on the shelf
   expect(errors).toEqual([]);
 });
 
@@ -3797,6 +3824,42 @@ test('the back door between the sofa and the computer goes out to the garden; so
   expect(await dialogText(page)).toContain('Husband');
   expect(await page.evaluate(() => GARDEN_LINES.includes(DIALOG.body))).toBe(true);
   await ok(page);
+  expect(errors).toEqual([]);
+});
+
+test('the sun is up in the top right corner of the garden, pulsing 20% every 2 seconds; only in the day, and on no other screen', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await expect(page.locator('#sky')).toBeHidden();                        // not outside the house
+  await page.evaluate(() => { S.mins = 13 * 60; show('garden'); });
+  await idle(page);
+  await expect(page.locator('#sun img')).toBeVisible();
+  // the picture is there, up in the top right corner
+  const sun = await page.evaluate(() => {
+    const el = document.getElementById('sun'), pulse = el.getAnimations()[0];
+    const widthAt = ms => { pulse.currentTime = ms; return el.getBoundingClientRect().width; };
+    pulse.pause();
+    const small = widthAt(0), big = widthAt(1000), again = widthAt(2000);
+    const box = el.getBoundingClientRect(), all = stage.getBoundingClientRect();
+    return { loaded: el.firstElementChild.naturalWidth, grows: big / small, shrinks: again / small, tall: box.height / all.height,
+      x: (box.left + box.width / 2 - all.left) / all.width, y: (box.top + box.height / 2 - all.top) / all.height };
+  });
+  expect(sun.loaded).toBe(236);
+  expect(sun.grows).toBeCloseTo(1.2, 2);
+  expect(sun.shrinks).toBeCloseTo(1, 2);
+  expect(sun.tall).toBeCloseTo(0.44, 2);
+  expect(sun.x).toBeGreaterThan(0.85);
+  expect(sun.y).toBeLessThan(0.3);
+  // the picture is see-through where the sky is, and solid where the lawn is
+  const alphas = await page.evaluate(() => { [ISO.ox, ISO.oy] = VIEW.garden; const [x, y] = P(100, 80).map(Math.round); return [ctx.getImageData(380, 60, 1, 1).data[3], ctx.getImageData(x, y, 1, 1).data[3]]; });
+  expect(alphas).toEqual([0, 255]);
+  // only in the day: not at dawn, dusk or night; and gone when you go in
+  const shownAt = hour => page.evaluate(h => { S.mins = h * 60; render(); return !document.getElementById('sun').hidden; }, hour);
+  const shown = [];
+  for (const hour of [4, 6, 8, 13, 17.5, 19, 22]) shown.push(await shownAt(hour));
+  expect(shown).toEqual([false, false, true, true, true, false, false]);
+  await page.evaluate(() => { S.mins = 13 * 60; show('room'); });
+  await expect(page.locator('#sky')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

@@ -159,10 +159,16 @@ const BOOKS = [                                          // mixed up along the s
     '"The struggle itself toward the heights is enough to fill a man\'s heart. One must imagine Sisyphus happy."', 'You do not feel happy. You feel like Sisyphus.']],
   ['Vectra Workshop Manual', ['You don\'t own a Vectra. You never have.', 'It\'s very thorough. About the Vectra.', 'Stamped inside: "Property of E & D Motors. DO NOT REMOVE."']],
   ['Fiesta Mk3 (borrowed, 2004)', ['Inside the cover: "PLEASE GIVE BACK — GAZ".', 'A Fiesta isn\'t a Zafira.', 'A receipt falls out: one pasty, 2004.']],
-  ['Motor Repair for Beginners', ['Step 1: Take it to a mechanic.', 'Step 2: See step 1.', 'Index: "Gearbox, see Mechanic."']]
+  ['Motor Repair for Beginners', ['Step 1: Take it to a mechanic.', 'Step 2: See step 1.', 'Index: "Gearbox, see Mechanic."']],
+  ['The Secret of MONKEY ISLAND (CD-ROM, 1990)', ['The box.']]   // not a book: a game in a big box, thicker than the books (Steve). Pulled down, you see its front (gameBoxFront)
 ];
-const BOOK_COLOURS = [C.red, C.car, C.warm, hex('#40a060'), C.white, hex('#9a5ac8'), C.redDim, C.tree1, C.steel2, CARDBOARD, C.car, hex('#e070a8'), C.ink, C.red, hex('#202020'), hex('#a02020'), C.warm, hex('#e8e0c8'), hex('#3a6a4a'), hex('#d8c8a0')];
-const BOOK_W = 20;                                         // each book's slot on the shelf (21 books and the car handbook fit along it)
+const GAME_BOX = BOOKS.length - 1;                         // where the game box stands: last in the row
+const CREAM_BOOK = hex('#e8e0c8'), SAND_BOOK = hex('#d8c8a0');
+const BOOK_COLOURS = [C.red, C.car, C.warm, hex('#40a060'), C.white, hex('#9a5ac8'), C.redDim, C.tree1, C.steel2, CARDBOARD, C.car, hex('#e070a8'), C.ink, C.red, hex('#202020'), hex('#a02020'), C.warm, CREAM_BOOK, hex('#3a6a4a'), SAND_BOOK];
+const PALE_BOOKS = [C.white, C.warm, CARDBOARD, CREAM_BOOK, SAND_BOOK];   // the pale ones: dark lettering
+const BOOK_W = 18;                                         // each book's slot on the shelf (21 books, the game box and the car handbook fit along it)
+const GAME_BOX_W = 40;                                     // the game box's slot: more than twice as thick
+const GAME_BOX_COLOUR = hex('#241848'), GAME_BOX_YELLOW = '#f8d038';   // its night-blue card, and its lettering
 // The picture in the Myth of Sisyphus: our hero, side-on, pushing his car up a hill (pixel-sharp)
 function sisyphusPicture() {
   const r = (x, y, w, h, col) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col}"/>`;
@@ -181,25 +187,94 @@ function sisyphusPicture() {
 // The car's handbook on the shelf, once found: a slim navy booklet at the end of the row; tap it to read it
 const SHELF_HANDBOOK_TITLE = "Zafira Owner's Handbook";
 function shelfHandbook() {
-  const x = 10 + BOOKS.length * (BOOK_W + 1);                                     // the next slot along
+  const x = shelfX(BOOKS.length);                                                  // the next slot along
   const h = 120, top = 220 - h;                                                    // shorter than the manuals
   rect(x, top, BOOK_W - 2, h, HANDBOOK_BLUE); rect(x, top + 8, BOOK_W - 2, 2, C.white); rect(x + BOOK_W - 4, top, 2, h, shade(HANDBOOK_BLUE, 0.75));   // the cover, a white band, its edge
-  const across = BOOK_W - 4, along = h - 24;                                       // the lettering: under the band, down the spine
-  const size = signFontSize(SHELF_HANDBOOK_TITLE, along, across);                  // as big as fits (screens.js)
-  LABELS.push(`<div class="spine" style="left:${x / W * 100}%;top:${(top + 14) / H * 100}%;width:${across / W * 100}%;height:${along / H * 100}%;font-size:${size / W * 100}cqw;line-height:${across / W * 100}cqw;color:#fff">${esc(SHELF_HANDBOOK_TITLE)}</div>`);
+  spineLetters([SHELF_HANDBOOK_TITLE], x, top + 14, BOOK_W - 4, h - 24, '#fff');   // under the band, down the spine
   spot(HANDBOOK_NAME, [x, top, BOOK_W - 2, h], 'act:handbook');                   // tap: read it
 }
 let BOOK_MOVE = null;                                      // a book coming off the shelf or going back: { i, out } (drawn by its moment)
-// Where book i stands on the shelf: x, top, height
+// The slot a book has along the shelf, with the gap after it (the game box is thicker)
+const slotWidth = i => (i === GAME_BOX ? GAME_BOX_W : BOOK_W) + 1;
+// Where slot i starts along the shelf (one past the last book: the car handbook's)
+function shelfX(i) {
+  let x = 10;
+  for (let k = 0; k < i; k++) x += slotWidth(k);                       // past everything before it
+  return x;
+}
+// Where book i stands on the shelf: x, top, height, width
 function bookAt(i) {
-  const h = 150 + Math.round(hash(i, 3) * 40);
-  return [10 + i * (BOOK_W + 1), 220 - h, h];
+  const isGame = i === GAME_BOX;
+  const h = isGame ? 160 : 150 + Math.round(hash(i, 3) * 40);
+  const w = slotWidth(i) - 3;                                          // a gap beside it
+  return [shelfX(i), 220 - h, h, w];
+}
+// Lettering down a spine: one line, or more side by side (the first one on the right, as you'd read it with your head on one side)
+//   across = how wide the lettering's part of the spine is; along = how long
+function spineLetters(lines, x, top, across, along, colour) {
+  const longest = lines.reduce((a, b) => (b.length > a.length ? b : a));
+  const lineWide = across / lines.length;                              // each line's share of the width
+  const size = signFontSize(longest, along, lineWide);                 // as big as fits (screens.js)
+  const words = lines.map(esc).join('<br>');
+  LABELS.push(`<div class="spine" style="left:${x / W * 100}%;top:${top / H * 100}%;width:${across / W * 100}%;height:${along / H * 100}%;font-size:${size / W * 100}cqw;line-height:${lineWide / W * 100}cqw;color:${colour}">${words}</div>`);   // centred both ways
+}
+// Book i's lettering, between its bands
+function bookLetters(i) {
+  const [x, top, h, w] = bookAt(i);
+  if (i === GAME_BOX) return spineLetters(['The Secret of', 'MONKEY ISLAND'], x, top + 8, w - 3, h - 38, GAME_BOX_YELLOW);   // above the disc
+  const pale = PALE_BOOKS.includes(BOOK_COLOURS[i % BOOK_COLOURS.length]);
+  spineLetters([BOOKS[i][0]], x, top + 15, w - 2, h - 30, pale ? '#101018' : '#fff');
 }
 // Book i's spine, lifted `lift` pixels up off the shelf (0 = standing on it)
 function bookSpine(i, lift) {
+  if (i === GAME_BOX) return gameBoxSpine(lift);
   const [x, top, h] = bookAt(i), col = BOOK_COLOURS[i % BOOK_COLOURS.length], y = top - lift;
   rect(x, y, BOOK_W - 2, h, col); rect(x, y + 10, BOOK_W - 2, 2, shade(col, 0.7)); rect(x, y + h - 14, BOOK_W - 2, 2, shade(col, 0.7));
   rect(x + BOOK_W - 4, y, 2, h, shade(col, 0.75));
+}
+// The game box's side: night blue, a yellow edge top and bottom, and a silver CD at the foot
+function gameBoxSpine(lift) {
+  const [x, top, h, w] = bookAt(GAME_BOX), y = top - lift;
+  const yellow = hex(GAME_BOX_YELLOW);
+  rect(x, y, w, h, GAME_BOX_COLOUR);
+  rect(x + w - 3, y, 3, h, shade(GAME_BOX_COLOUR, 0.7));               // the box's edge, in shadow
+  rect(x, y + 4, w - 3, 1, yellow); rect(x, y + h - 5, w - 3, 1, yellow);
+  const discX = x + Math.floor(w / 2) - 1, discY = y + h - 18;         // the CD: silver, a glint, its hole
+  disc(discX, discY, 9, C.steel2); disc(discX, discY, 8, C.steel); disc(discX - 3, discY - 3, 2, C.white);
+  disc(discX, discY, 2, GAME_BOX_COLOUR);
+}
+// The front of the game box, pulled down: the title, a picture, and CD-ROM 1990 along the bottom
+function gameBoxFront() {
+  const title = '<div class="gbtitle"><small>The Secret of</small>MONKEY ISLAND</div>';
+  const foot = '<div class="gbfoot"><span>CD-ROM</span><span>1990</span></div>';
+  return `<div class="ov gamebox">${title}${islandPicture()}${foot}</div>`;
+}
+// The picture on the box (our own): a dark island shaped like a monkey's head, at sunset, a little boat sailing up to it
+function islandPicture() {
+  const r = (x, y, w, h, col) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col}"/>`;
+  const round = (x, y, size, col) => `<circle cx="${x}" cy="${y}" r="${size}" fill="${col}"/>`;
+  // the sky, in strips from night down to sunset, some stars, and the sun going down behind the island
+  const sky = r(0, 0, 96, 10, '#281850') + r(0, 10, 96, 9, '#58246c') + r(0, 19, 96, 9, '#a03868') + r(0, 28, 96, 8, '#e06848') + r(0, 36, 96, 8, '#f8a848');
+  const stars = [[6, 4], [18, 8], [29, 3], [66, 5], [80, 9], [90, 3]].map(([x, y]) => r(x, y, 1, 1, '#fff4c0')).join('');
+  const sun = round(48, 30, 21, '#f8e070');
+  // the island: the monkey's head and ears in dark rock, his face a paler cliff; caves for his eyes, nose and mouth
+  const rock = '#2c2018', cliff = '#7a5636', cave = '#0c0810';
+  const head = round(33, 29, 6, rock) + round(63, 29, 6, rock) + round(33, 29, 3, cliff) + round(63, 29, 3, cliff) + round(48, 28, 15, rock);
+  const face = round(43, 27, 5, cliff) + round(53, 27, 5, cliff) + `<ellipse cx="48" cy="37" rx="10" ry="7" fill="${cliff}"/>`;
+  const caves = r(42, 26, 3, 4, cave) + r(51, 26, 3, 4, cave) + r(46, 34, 1, 2, cave) + r(49, 34, 1, 2, cave) + r(43, 39, 10, 2, cave);
+  const eyes = r(43, 27, 1, 1, '#f8d038') + r(52, 27, 1, 1, '#f8d038');   // something's lit inside
+  // the beach, and two palm trees
+  const beach = '<ellipse cx="48" cy="45" rx="36" ry="4" fill="#d8b070"/>';
+  const palm = (x, y) => r(x, y, 2, 14, '#3a2818') + r(x - 5, y, 5, 1, '#2a6a38') + r(x - 6, y + 1, 3, 2, '#2a6a38') + r(x + 2, y, 5, 1, '#2a6a38') + r(x + 5, y + 1, 3, 2, '#2a6a38') + r(x - 2, y - 2, 6, 2, '#3e8a3a');
+  // the sea, the sun's light on it, and the boat
+  const sea = r(0, 44, 96, 20, '#18406a');
+  const glints = [[30, 52, 9], [52, 53, 12], [40, 56, 8], [60, 59, 10], [4, 52, 6], [80, 51, 7]].map(([x, y, w]) => r(x, y, w, 1, '#f8a848')).join('');
+  const boat = r(13, 57, 15, 2, '#5a3820') + r(15, 59, 11, 2, '#3a2414') + r(20, 47, 1, 10, '#1c120a') + '<polygon points="22,48 29,56 22,56" fill="#f0e8d0"/>';
+  return `<svg class="pic" viewBox="0 0 96 64" shape-rendering="crispEdges" aria-label="An island shaped like a monkey's head, at sunset">${sky}${stars}${sun}${sea}${beach}${head}${face}${caves}${eyes}${palm(20, 31)}${palm(76, 30)}${glints}${boat}</svg>`;
+}
+// What you say about it
+function gameBoxWords() {
+  say('The Secret of MONKEY ISLAND', '"Point and click puzzle games. So tedious. You trudge back and forth, try everything on everything, and when you finally solve one puzzle there\'s another one behind it."\n\n"Who\'d play that?"');
 }
 SCREENS.shelf = {
   backAct() { return S.book != null ? 'book:-1' : null; },          // reading a book: ◀ Back puts it back on the shelf first (then ◀ Back leaves the shelf: Steve)
@@ -212,22 +287,20 @@ SCREENS.shelf = {
     const moving = ANIM && ANIM.kind === 'book' && BOOK_MOVE ? BOOK_MOVE.i : null;
     BOOKS.forEach(([title], i) => {
       if (i === S.book || i === moving) return;                                   // off the shelf: a gap
-      const [x, top, h] = bookAt(i), col = BOOK_COLOURS[i % BOOK_COLOURS.length];
+      const [x, top, h, w] = bookAt(i);
       bookSpine(i, 0);
-      const dark = [C.white, C.warm, CARDBOARD, hex('#e8e0c8'), hex('#d8c8a0')].includes(col);   // pale covers: dark lettering
-      const across = BOOK_W - 4, along = h - 30;                                   // the spine between its bands: as wide as the book's face, and its length
-      const size = signFontSize(title, along, across);                              // as big as fits (screens.js)
-      LABELS.push(`<div class="spine" style="left:${x / W * 100}%;top:${(top + 15) / H * 100}%;width:${across / W * 100}%;height:${along / H * 100}%;font-size:${size / W * 100}cqw;line-height:${across / W * 100}cqw;color:${dark ? '#101018' : '#fff'}">${esc(title)}</div>`);   // centred both ways
-      spot(esc(title), [x, top, BOOK_W - 2, h], 'act:book:' + i);
+      bookLetters(i);
+      spot(esc(title), [x, top, w, h], 'act:book:' + i);
     });
     if (S.inv.handbook) shelfHandbook();                                            // found: the car's handbook stands at the end
     // reading: tap anywhere off the book to put it back
     if (S.book != null && !moving) LABELS.push('<div class="ov bookoff" data-act="book:-1"></div>');
-    tip('The manuals shelf', S.book != null ? 'Reading: ' + esc(BOOKS[S.book][0]) : 'Point at a book to read its spine. Tap to pull it down.', 1, 8);
+    tip('The manuals shelf', S.book != null ? (S.book === GAME_BOX ? '' : 'Reading: ') + esc(BOOKS[S.book][0]) : 'Point at a book to read its spine. Tap to pull it down.', 1, 8);
     hud();
   },
   overlay() {
     if (S.book == null || (ANIM && ANIM.kind === 'book')) return '';             // it opens once it's off the shelf
+    if (S.book === GAME_BOX) return gameBoxFront();                               // not a book: the front of the box
     const [title, pages] = BOOKS[S.book], k = S.bookPage || 0;
     const pg = pages[k];
     const words = typeof pg === 'string' ? pg : pg.text;                          // a page of words, or words and a picture
@@ -1057,6 +1130,7 @@ Object.assign(ACTIONS, {
     S.book = i; S.bookPage = 0; pass(5); sfx('drawer');
     BOOK_MOVE = { i, out: true };                                                 // off the shelf, then it opens
     moment('book', 550);
+    if (i === GAME_BOX) gameBoxWords();                                           // (they wait till the box is down)
   },
   // flick through the pages
   bookpage(d) {

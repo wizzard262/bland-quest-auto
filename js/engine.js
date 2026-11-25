@@ -6,7 +6,7 @@
 // =====================================================================
 // STATE
 // =====================================================================
-const VERSION = 'v98';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
+const VERSION = 'v99';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
 const START_MONEY = 140;                                              // it runs out part way, so you have to go and see Mum & Dad, or Paul (Steve)
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
@@ -474,6 +474,7 @@ function render() {
   HUD_SHOWN = false;                                                // the screen's paint says if it has the strip                                                   // the car's cracked headlights on this screen (the paint finds them)
   canvas.style.transform = S.screen === 'rage' && RAGE.mirror ? 'scaleX(-1)' : '';   // kicking the right headlight: the whole scene mirrored
   scr.paint();
+  showSky();                                                       // the garden's sky and sun, behind the picture (screens.js)
   BG = img.data.slice();
   drawFrame(performance.now());
   // real-text labels, tap areas and any overlay (computer, phone, notebook)

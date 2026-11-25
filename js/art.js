@@ -811,6 +811,8 @@ function skyColour() {
   return [Math.round(lerpN(120, 18, d)), Math.round(lerpN(176, 26, d)), Math.round(lerpN(232, 64, d))];
 }
 const lerpN = (a, b, p) => a + (b - a) * p;
+// One colour as nightShade leaves it
+const nightColour = ([r, g, b], d) => [r * (1 - d), g * (1 - d * 0.92), b * (1 - d * 0.7)].map(Math.round);
 // Darken a part of the picture for the night: red and green go first, so it turns blue
 function nightShade(x0, y0, x1, y1, d) {
   const dd = img.data;

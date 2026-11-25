@@ -241,7 +241,7 @@ SCREENS.garden = {
   size: [480, 270],
   paint() {
     ISO.ox = VIEW.garden[0]; ISO.oy = VIEW.garden[1];
-    rect(0, 0, W, H, skyColour());                                    // the sky
+    // (the sky isn't painted: the picture is see-through there, with the sky and the sun behind it: showSky)
     // the lawn, mown in stripes; the patio by the house
     for (let y = 0; y < ROOM.d; y += 10) ground(0, y, ROOM.w, y + 10, (y / 10) % 2 ? C.grass : C.grassLine);
     ground(0, 112, ROOM.w, ROOM.d, C.concrete);
@@ -278,6 +278,20 @@ SCREENS.garden = {
   actions() { return []; }
 };
 SCREENS.garden.night = d => { nightShade(0, 18, W, H, d); keepHud(18); };   // dusk in the garden
+// The garden's sky and its sun, on the page behind the picture (so the fence and the shed are in front of the sun); hidden on every other screen
+function showSky() {
+  const inGarden = S.screen === 'garden';
+  const sky = document.getElementById('sky');
+  const sun = document.getElementById('sun');
+  sky.hidden = !inGarden;
+  if (!inGarden) return;
+  const sunPicture = sun.firstElementChild;
+  if (!sunPicture.src) sunPicture.src = SUN_PNG;                      // put the picture in, the first time
+  const dark = darkness();
+  const night = nightColour(skyColour(), dark);                       // the same shade as the garden has at this hour
+  sky.style.background = `rgb(${night.join(', ')})`;
+  sun.hidden = dark > 0;                                              // only in the day (Steve): not at dusk, at night or at dawn
+}
 // The sun lounger: a white frame, a striped cushion, its back raised at the far end
 function sunLounger() {
   const [x0, y0, x1, y1] = LOUNGER, back = y0 + 14;
