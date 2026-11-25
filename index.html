@@ -43,11 +43,21 @@
   /* ---- things you can point at: they light up and show their name ---- */
   /* ---- the back garden's sky, behind the picture: the sun is up in the top right corner and pulses, 20% bigger and back every 2 seconds (Steve) ---- */
   .sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-  .sun { position: absolute; left: 88%; top: 27%; height: 44%; aspect-ratio: 236 / 244; translate: -50% -50%; animation: sunpulse 2s ease-in-out infinite; }
-  .sun[hidden] { display: none; }
-  .sun::before { content: ''; position: absolute; inset: -25%; background: radial-gradient(closest-side, rgba(255, 236, 170, .55), rgba(255, 236, 170, 0)); }   /* its soft glow */
-  .sun img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sun, .moon { position: absolute; left: 88%; top: 27%; translate: -50% -50%; }   /* the moon takes the sun's place at night */
+  .sun { --glow: 255, 236, 170; height: 44%; aspect-ratio: 236 / 244; animation: sunpulse 2s ease-in-out infinite; }
+  .moon { --glow: 200, 215, 255; height: 37%; aspect-ratio: 328 / 303; animation: moonshudder 2s linear infinite; }
+  .sun[hidden], .moon[hidden] { display: none; }
+  .sun::before, .moon::before { content: ''; position: absolute; inset: -25%; background: radial-gradient(closest-side, rgba(var(--glow), .55), rgba(var(--glow), 0)); }   /* its soft glow */
+  .sun img, .moon img { position: absolute; inset: 0; width: 100%; height: 100%; }
   @keyframes sunpulse { 50% { transform: scale(1.2); } }
+  /* the moon shudders: a burst of shaking (from the rocket in its eye), then still, every 2 seconds */
+  @keyframes moonshudder {
+    0%, 40%, 100% { transform: none; }
+    4%, 20%, 32% { transform: translate(-1.6%, .8%) rotate(-1.5deg); }
+    8%, 24%, 36% { transform: translate(1.6%, -.8%) rotate(1.5deg); }
+    12%, 28% { transform: translate(-1.2%, -1%) rotate(1deg); }
+    16% { transform: translate(1.2%, 1%) rotate(-1deg); }
+  }
 
   .hs { position: absolute; cursor: pointer; border-radius: 6px; }
   .hs:hover { background: rgba(159, 243, 208, .16); box-shadow: 0 0 0 2px var(--mint), 0 0 22px rgba(159, 243, 208, .55); }
@@ -310,7 +320,7 @@
   <button id="howto">How to play</button>
   <button id="new">New game</button>
 </header>
-<div class="stage" id="stage"><div class="sky" id="sky" hidden><div class="sun" id="sun"><img alt=""></div></div><canvas id="c" width="480" height="270"></canvas></div>
+<div class="stage" id="stage"><div class="sky" id="sky" hidden><div class="sun" id="sun"><img alt=""></div><div class="moon" id="moon" hidden><img alt=""></div></div><canvas id="c" width="480" height="270"></canvas></div>
 <div class="acts" id="acts"></div>
 
 <div class="titlescreen open" id="title" aria-label="Bland Quest Auto: title screen">
@@ -352,6 +362,7 @@
 <script src="js/sound.js"></script>
 <script src="js/art.js"></script>
 <script src="js/sun-image.js"></script>
+<script src="js/moon-image.js"></script>
 <script src="js/screens.js"></script>
 <script src="js/car.js"></script>
 <script src="js/interiors.js"></script>

@@ -3863,6 +3863,36 @@ test('the sun is up in the top right corner of the garden, pulsing 20% every 2 s
   expect(errors).toEqual([]);
 });
 
+test('at night the moon takes the place of the sun in the garden: it shudders, and does not pulse', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 22 * 60; show('garden'); });
+  await idle(page);
+  await expect(page.locator('#moon img')).toBeVisible();
+  await expect(page.locator('#sun')).toBeHidden();
+  const moon = await page.evaluate(() => {
+    const el = document.getElementById('moon'), shudder = el.getAnimations()[0];
+    shudder.pause();
+    const at = ms => { shudder.currentTime = ms; const m = new DOMMatrix(getComputedStyle(el).transform); return { x: m.e, size: Math.hypot(m.a, m.b) }; };
+    const left = at(80), right = at(160), still = at(1500);
+    const box = el.getBoundingClientRect(), all = stage.getBoundingClientRect();
+    return { loaded: el.firstElementChild.naturalWidth, left, right, still, onScreen: box.right <= all.right && box.top >= all.top,
+      x: (box.left + box.width / 2 - all.left) / all.width, y: (box.top + box.height / 2 - all.top) / all.height };
+  });
+  expect(moon.loaded).toBe(328);
+  expect(moon.left.x).toBeLessThan(0);                                    // one way…
+  expect(moon.right.x).toBeGreaterThan(0);                                // …and the other…
+  expect(moon.still.x).toBe(0);                                           // …then still
+  for (const t of [moon.left, moon.right, moon.still]) expect(t.size).toBeCloseTo(1, 3);   // always the same size
+  expect([moon.x, moon.y].map(n => n.toFixed(2))).toEqual(['0.88', '0.27']);   // where the sun was
+  expect(moon.onScreen).toBe(true);
+  // only at night
+  const shown = [];
+  for (const hour of [4, 8, 13, 17.5, 20, 22]) shown.push(await page.evaluate(h => { S.mins = h * 60; render(); return !document.getElementById('moon').hidden; }, hour));
+  expect(shown).toEqual([true, false, false, false, true, true]);
+  expect(errors).toEqual([]);
+});
+
 test('the wife never vanishes mid-conversation, and her bubble is never in the house while she is in the garden', async ({ page }) => {
   const errors = [];
   await start(page, errors);

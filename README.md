@@ -14,7 +14,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 
 - `index.html`: the game page (How to play, New game)
 - `js/art.js`: the drawing kit (pixels, isometric boxes, the car, the man, the font). Pixels go in through a 32-bit view of the image (`IMG32`), whole rows at a time for rectangles; the grass is worked out once per picture size
-- `js/sun-image.js`: the sun in the back garden's sky (Swooping Simulator's, as a picture in the code); the sky is on the page behind the see-through part of the picture (`showSky` in `js/screens.js`)
+- `js/sun-image.js`, `js/moon-image.js`: the sun by day (Swooping Simulator's) and the moon by night in the back garden's sky, as pictures in the code; the sky is on the page behind the see-through part of the picture (`showSky` in `js/screens.js`)
 - `js/screens.js`: the screens round the house and town (home, town, a place, computer, phone, notebook, garage, under the car, workbench, toolbox, looking under things, hooking the nut out, the car door, the breath test, the handbook); also the shared open-book helper (`openBook`)
 - `js/car.js`: the car itself, close up (the boot, under the bonnet and the fuse box, the driver's seat, the glove box, the diagnostic port, the ECU)
 - `js/life.js`: things that move: life on every screen (traffic, birds, drips, flies, a flickering light) and the animated moments (the nut rolling away, the extractor snapping, the van, the kick…)

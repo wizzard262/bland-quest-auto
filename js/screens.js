@@ -278,19 +278,23 @@ SCREENS.garden = {
   actions() { return []; }
 };
 SCREENS.garden.night = d => { nightShade(0, 18, W, H, d); keepHud(18); };   // dusk in the garden
-// The garden's sky and its sun, on the page behind the picture (so the fence and the shed are in front of the sun); hidden on every other screen
+// The garden's sky with its sun or moon, on the page behind the picture (so the scenery is in front of them); hidden on every other screen
 function showSky() {
   const inGarden = S.screen === 'garden';
   const sky = document.getElementById('sky');
   const sun = document.getElementById('sun');
+  const moon = document.getElementById('moon');
   sky.hidden = !inGarden;
   if (!inGarden) return;
-  const sunPicture = sun.firstElementChild;
-  if (!sunPicture.src) sunPicture.src = SUN_PNG;                      // put the picture in, the first time
+  if (!sun.firstElementChild.src) {                                   // put the pictures in, the first time
+    sun.firstElementChild.src = SUN_PNG;
+    moon.firstElementChild.src = MOON_PNG;
+  }
   const dark = darkness();
   const night = nightColour(skyColour(), dark);                       // the same shade as the garden has at this hour
   sky.style.background = `rgb(${night.join(', ')})`;
   sun.hidden = dark > 0;                                              // only in the day (Steve): not at dusk, at night or at dawn
+  moon.hidden = !lightsOn();                                          // at night: once it's dark enough for the car's lights
 }
 // The sun lounger: a white frame, a striped cushion, its back raised at the far end
 function sunLounger() {
