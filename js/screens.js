@@ -32,6 +32,7 @@ const BOOK_BLANK = `<p class="faint">${'— '.repeat(30)}</p>`;          // a pa
 // =====================================================================
 // HOME: the house, the drive, the garage
 // =====================================================================
+const HEDGE_SPOT = [-10, 118];                                        // where you stand at the hedge (clear of the hedge and the bus stop's pole)
 SCREENS.home = {
   size: [480, 270],
   paint() {
@@ -111,7 +112,7 @@ SCREENS.home = {
       : unreadLetters() ? ['Mailbox: post!', 'act:letters']
       : ['Mailbox (empty)', 'act:look:Mailbox'];                                      // read letters aren't here: they're in the rack on the desk
     spot(mail[0], isoArea(MAILBOX[0] - 2, MAILBOX[1], MAILBOX[0] + 10, MAILBOX[1] + 12, 0, 26), mail[1], [MAILBOX[0] + 4, MAILBOX[1] - 8]);
-    spot('The hedge', isoArea(-24, 130, 40, 136, 0, 8), 'act:stick', [10, 124]);   // a long stick off it (when you need one)
+    spot('The hedge', isoArea(-24, 130, 40, 136, 0, 8), 'act:stick', HEDGE_SPOT);   // a long stick off it (when you need one)
     if (wifeFollowing()) {                                             // late: she's followed him out (drawn in life.js); last, so she's on top of the garage when she stands by it
       const [fx, fy] = FOLLOW.pos || followTarget();
       spot('Talk to the wife', isoArea(fx - 4, fy - 4, fx + 4, fy + 4, 0, 40), 'act:wife', [fx - 12, fy + 10]);

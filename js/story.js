@@ -1345,7 +1345,6 @@ const SCREEN_ENTER = {
   home() {
     const cameFrom = S.history[S.history.length - 1];                 // the screen he's just left
     if (cameFrom === 'garage' && wifeInGarage()) wifeFollowsOut();    // she came to fetch him: she follows him out
-    if (cameFrom === 'city' || cameFrom === 'place') paperboyMaybe();  // home from town: now and then, the paperboy (paperboy.js)
     const fresh = S.doorstep.filter(p => !p.seen);
     if (!fresh.length) return;
     fresh.forEach(p => { p.seen = true; });

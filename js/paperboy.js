@@ -1,11 +1,11 @@
 // Bland Quest Auto: the paperboy (our own lad on a bike).
-// One day, just home from town and stood on the drive, he cycles past along the pavement and throws a paper. It hits you on
+// The first time you're stood at the hedge by day, he cycles past along the pavement and throws a paper. It hits you on
 // the head: down you go, flat on your back, a ring of stars going round above you, and birds twittering. Once a game.
-//   S.flags.paperboy: he's been; S.flags.driveHomes: daytime arrivals on the drive so far
+// (At the hedge you're out in the open: on the drive your car hid most of it.)
+//   S.flags.paperboy: he's been
 
-let PAPERBOY_CHANCE = window.NO_PAPERBOY ? 0 : 1 / 3;                  // the chance on each arrival (the tests turn it off, or up to 1)
-const PAPERBOY_BY = 3;                                                 // he's been by this many, whatever the luck
-const PAPERBOY_WAIT = 1500;                                            // ms after you get home
+let PAPERBOY_OFF = !!window.NO_PAPERBOY;                                // the tests turn him off (a test turns him on)
+const PAPERBOY_WAIT = 400;                                             // ms after you've finished with the hedge
 const PAPERBOY_Y = 147;                                                // the pavement's edge, where he rides
 const PAPERBOY_SPEED = 105;                                            // how fast he rides (world units a second)
 const PAPERBOY_BEHIND = 34;                                            // how far short of you along the street he is as he throws
@@ -15,25 +15,22 @@ const PAPERBOY_LOOK = { cap: hex('#2a8a5a'), top: hex('#f09030'), topDark: hex('
 let PAPERBOY_DUE = null;                                               // when he's coming (performance.now()), if he is
 
 // ---------- when he comes ----------
-// Are you stood on the drive?
-function onTheDrive() {
+// Are you stood at the hedge?
+function atTheHedge() {
   const [x, y] = manSpot('home');
-  return x > 86 && x < 142 && y > 58 && y < 140;
+  return Math.hypot(x - HEDGE_SPOT[0], y - HEDGE_SPOT[1]) < 4;
 }
-// Home from town (called as you arrive outside the house): is he coming this time?
-function paperboyMaybe() {
-  if (S.flags.paperboy || PAPERBOY_CHANCE === 0) return;               // been already, or turned off
-  if (darkness() > 0 || !onTheDrive()) return;                         // by day, and only on the drive
-  S.flags.driveHomes = (S.flags.driveHomes || 0) + 1;
-  const longEnough = S.flags.driveHomes >= PAPERBOY_BY;
-  if (longEnough || Math.random() < PAPERBOY_CHANCE) PAPERBOY_DUE = performance.now() + PAPERBOY_WAIT;
+// Is it a time he could come? Outside the house by day, at the hedge, nothing else going on
+function paperboyCould() {
+  if (S.flags.paperboy || PAPERBOY_OFF) return false;                  // been already, or turned off
+  if (S.screen !== 'home' || ANIM || DIALOG || CALL || GARAGE_OPENING) return false;   // busy
+  return atTheHedge() && darkness() === 0 && !soakedAtHome() && !wifeFollowing();
 }
-// Every frame outside the house: off he goes, once it's time and nothing else is happening
+// Every frame outside the house: off he goes, once you've been stood there a moment
 function paperboyTick() {
-  if (PAPERBOY_DUE === null || performance.now() < PAPERBOY_DUE) return;
-  if (S.flags.paperboy) { PAPERBOY_DUE = null; return; }
-  if (S.screen !== 'home' || ANIM || DIALOG || CALL || GARAGE_OPENING) return;   // busy: he waits
-  if (!onTheDrive() || darkness() > 0 || soakedAtHome() || wifeFollowing()) return;
+  if (!paperboyCould()) { PAPERBOY_DUE = null; return; }
+  if (PAPERBOY_DUE === null) PAPERBOY_DUE = performance.now() + PAPERBOY_WAIT;
+  if (performance.now() < PAPERBOY_DUE) return;
   PAPERBOY_DUE = null;
   paperboyRides();
 }
@@ -71,10 +68,9 @@ MOMENTS.paperboy = function (p, t) {
   const risen = partWay(now, PAPERBOY_AT.up, 0.7);
   const over = fallen - risen;                                         // 0 = upright, 1 = flat on your back
   if (over <= 0) man(feet[0], feet[1], 'stand', MAN_SIZE.home);
-  else felledMan(feet[0], feet[1], over * over * Math.PI / 2);         // slow at first, then down with a bump
-  inFront('home', mx, my);                                             // behind your car: it hides you
+  const head = over > 0 ? felledMan(feet[0], feet[1], over * over * FLAT_OUT) : null;   // slow at first, then down with a bump
   const outCold = now > PAPERBOY_AT.down && now < PAPERBOY_AT.up;
-  if (outCold) starRing(feet[0] - 34, feet[1] - 16, t);
+  if (outCold) starRing(head[0], head[1] - 10, t);
   // him, riding by
   const bx = mx - PAPERBOY_BEHIND + (now - PAPERBOY_AT.throw) * PAPERBOY_SPEED;
   const throwing = Math.abs(now - PAPERBOY_AT.throw) < 0.3;
@@ -82,7 +78,7 @@ MOMENTS.paperboy = function (p, t) {
   for (const k of NEAR_LANE) drawTraffic(k, t);                        // the cars on the near side of the road are in front of him
   paperFlies(now, mx, feet);
 };
-// The paper: end over end through the air, off your head, and down beside you
+// The paper: end over end through the air, off your head, and down by your feet
 function paperFlies(now, mx, feet) {
   const hand = P(mx - PAPERBOY_BEHIND + 5, PAPERBOY_Y, 36);
   const head = [feet[0] + 2, feet[1] - 36];
@@ -92,15 +88,17 @@ function paperFlies(now, mx, feet) {
     const arc = Math.sin(q * Math.PI) * 16;
     return rolledPaper(lerp(hand[0], head[0], q), lerp(hand[1], head[1], q) - arc, q * 14);
   }
-  const q = partWay(now, PAPERBOY_AT.hit, 0.45);                       // it bounces off, onto the grass (not onto the car)
-  rolledPaper(head[0] - q * 30, lerp(head[1], feet[1] + 12, q * q), 0.46 + (1 - q) * 6);
+  const q = partWay(now, PAPERBOY_AT.hit, 0.45);                       // it bounces off, onto the grass behind you
+  rolledPaper(head[0] + q * 14, lerp(head[1], feet[1] - 2, q * q), 0.46 + (1 - q) * 6);
   if (q > 0.4) return;
   for (let k = 0; k < 8; k++) {                                        // BONK: a burst round your head
     const a = k / 8 * Math.PI * 2, r = 5 + q * 24;
     rect(Math.round(head[0] + Math.cos(a) * r), Math.round(head[1] + Math.sin(a) * r), 2, 2, k % 2 ? C.warm : C.white);
   }
 }
-// Him going over backwards: the standing man, turned about his feet (angle 0 = upright, a quarter turn = flat, head to the left)
+// Him going over backwards: the standing man, turned about his feet (angle 0 = upright; FLAT_OUT = on his back along the lawn, head up to the left)
+// Returns where his head is
+const FLAT_OUT = Math.atan2(2, 1);                                     // the street runs 2 across for 1 down: so does he, lying along it
 function felledMan(x, y, angle) {
   const s = MAN_SIZE.home, cos = Math.cos(angle), sin = Math.sin(angle);
   const at = (dx, up) => [x + (dx * cos - up * sin) * s, y - (dx * sin + up * cos) * s - sin * 2];   // dx = across him, up = how high it is when he's stood
@@ -113,6 +111,7 @@ function felledMan(x, y, angle) {
   limbTo([1.6, 14], [2 + fling, 9 + fling], 2, C.shirt);
   disc(...at(0.8, 17).map(Math.round), 3, C.skin);                     // head, and his hair at the top of it
   disc(...at(0.8, 18.4).map(Math.round), 2, C.hair);
+  return at(0.8, 17);
 }
 // The ring of stars going round above his head: five, the ones at the back smaller and dimmer
 const STAR_COUNT = 5;

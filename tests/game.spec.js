@@ -3874,7 +3874,7 @@ test('the version number is after the tagline, at the top and on the title scree
 });
 
 // ---------- the paperboy ----------
-test('home from town by day, on the drive: the paperboy rides past and his paper knocks you flat, stars round your head and birds twittering; once a game, never at night', async ({ page }) => {
+test('at the hedge by day: the paperboy rides past and his paper knocks you flat, out in the open, stars round your head and birds twittering; once a game, never at night', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => {
@@ -3884,13 +3884,20 @@ test('home from town by day, on the drive: the paperboy rides past and his paper
     window.rings = 0;
     const draw = starRing;
     starRing = (x, y, t) => { window.rings++; draw(x, y, t); };
-    S.spot = S.spot || {};
-    S.spot.home = [96, 96];                                               // where you get out of the car
-    PAPERBOY_CHANCE = 1;
+    PAPERBOY_OFF = false;
+    S.mins = 13 * 60;
+    show('home');
   });
-  const comeHome = mins => page.evaluate(m => { S.screen = 'city'; S.place = null; S.mins = m; show('home'); return PAPERBOY_DUE !== null; }, mins);
-  expect(await comeHome(22 * 60)).toBe(false);                            // not at night
-  expect(await comeHome(13 * 60)).toBe(true);                             // by day: he's coming
+  // is he on his way (or here), a second and a half from now?
+  const comes = async () => { await page.waitForTimeout(1500); return page.evaluate(() => !!ANIM && ANIM.kind === 'paperboy'); };
+  const stand = (spot, mins) => page.evaluate(([at, m]) => { S.spot = S.spot || {}; S.spot.home = at; S.mins = m; render(); }, [spot, mins]);
+  await stand([96, 96], 13 * 60);
+  expect(await comes()).toBe(false);                                      // not on the drive (the car hides it)
+  await stand(await page.evaluate(() => HEDGE_SPOT.slice()), 22 * 60);
+  expect(await comes()).toBe(false);                                      // not at night
+  await stand([46, 84], 13 * 60);
+  await tap(page, 'act:stick');                                           // over to the hedge, by day
+  await ok(page);
   await page.waitForFunction(() => ANIM && ANIM.kind === 'paperboy');
   // in the middle of it: you're down, the stars are out, and a tap doesn't skip it
   await page.waitForFunction(() => window.rings > 3, null, { timeout: 15000 });
@@ -3899,29 +3906,11 @@ test('home from town by day, on the drive: the paperboy rides past and his paper
   expect(await dialogText(page)).toContain('front page');
   expect(await page.evaluate(() => ['bikebell', 'bonk', 'twitter'].every(n => window.heard.includes(n)))).toBe(true);
   await ok(page);
-  expect(await comeHome(14 * 60)).toBe(false);                            // once a game
+  expect(await comes()).toBe(false);                                      // once a game
   expect(errors).toEqual([]);
 });
 
-test('the paperboy comes by your third time home on the drive, whatever the luck; not if you are off the drive', async ({ page }) => {
-  const errors = [];
-  await start(page, errors);
-  const due = await page.evaluate(() => {
-    PAPERBOY_CHANCE = 1e-9;                                               // as good as never
-    S.mins = 13 * 60;
-    S.spot = S.spot || {};
-    S.spot.home = [46, 84];                                               // on the path: doesn't count
-    paperboyMaybe(); paperboyMaybe(); paperboyMaybe();
-    const out = [PAPERBOY_DUE !== null];
-    S.spot.home = [96, 96];
-    for (let k = 0; k < 3; k++) { paperboyMaybe(); out.push(PAPERBOY_DUE !== null); }
-    PAPERBOY_DUE = null;
-    return out;
-  });
-  expect(due).toEqual([false, false, false, true]);
-  expect(errors).toEqual([]);
-});
-
+// ---------- the back garden ----------
 // ---------- the back garden ----------
 test('the back door between the sofa and the computer goes out to the garden; some sunny days the wife is out there on her sun lounger, and not indoors', async ({ page }) => {
   const errors = [];
