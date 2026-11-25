@@ -107,19 +107,28 @@ function ratchet(x, y, a, len = 90) {
 // =====================================================================
 // LIFE ON EVERY SCREEN
 // =====================================================================
+// The traffic outside the house: four cars, two each way
+const TRAFFIC_COLOURS = [C.red, C.warm, hex('#40a060'), C.white];
+const NEAR_LANE = [0, 2];                                             // the ones going right, on the house side of the road
+// Draw one of them where it is at time t; returns how far along the street that is
+function drawTraffic(k, t) {
+  const goingRight = NEAR_LANE.includes(k);
+  const along = (t * (goingRight ? 50 : 58) + (k >> 1) * 600 + (goingRight ? 0 : 300)) % 1200;   // one speed per lane, 600 apart: no overtaking
+  const x = goingRight ? along - 500 : 700 - along;
+  isoCar(x, goingRight ? 150 : 171, 0.9, TRAFFIC_COLOURS[k], { alongX: true, reverse: !goingRight });
+  return x;
+}
 SCREENS.home.animate = function (t) {
+  paperboyTick();                                                      // is the paperboy coming? (paperboy.js)
   liftWaiting();                                                       // the wife, by her car, about to give you a lift (lift.js)
   if (soakedAtHome()) rainDrops(t, rainLevel('home'));                // just home on foot: it's throwing it down (road.js)
   ISO.ox = 250; ISO.oy = 96;
   // traffic, driving on the left: going right on the house side of the road, coming back on the far side
-  const cols = [C.red, C.warm, hex('#40a060'), C.white];
   for (const k of [0, 2, 1, 3]) {                                                                                     // the far lane first, then the near one
-    const goingRight = k % 2 === 0;
+    const goingRight = NEAR_LANE.includes(k);
     const kerbTaken = ANIM && ANIM.kind === 'homeride';                                                                // the bus or the taxi's at the kerb: nothing drives through it (rides.js)
     if (goingRight && kerbTaken) continue;
-    const along = (t * (goingRight ? 50 : 58) + (k >> 1) * 600 + (goingRight ? 0 : 300)) % 1200;   // one speed per lane, 600 apart: no overtaking
-    const x = goingRight ? along - 500 : 700 - along;
-    isoCar(x, goingRight ? 150 : 171, 0.9, cols[k], { alongX: true, reverse: !goingRight });
+    const x = drawTraffic(k, t);
     if (PASSED[k] !== undefined && (PASSED[k] + 60) * (x + 60) <= 0 && Math.abs(PASSED[k] - x) < 100) sfx('carpass');   // whoosh as it goes by
     PASSED[k] = x;
   }
@@ -438,7 +447,7 @@ function meHead() {
 }
 // Draw him standing (not while he's walking: the walk draws him)
 function standingMan(screen) {
-  if (ANIM && ['walk', 'collapse', 'walkup', 'liftin', 'homeride'].includes(ANIM.kind)) return;
+  if (ANIM && ['walk', 'collapse', 'walkup', 'liftin', 'homeride', 'paperboy'].includes(ANIM.kind)) return;
   if (ANIM && ANIM.kind === 'night' && screen === 'room') return;    // going to bed: he's in it (life.js draws him there), not stood by it
   const [x, y] = manSpot(screen), m = P(x, y);
   if (screen === 'room' && S.flags.onFloor) return man(m[0], m[1], 'lie', MAN_SIZE.room);   // asleep on the floor

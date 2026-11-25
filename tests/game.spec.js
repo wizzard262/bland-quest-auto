@@ -11,7 +11,7 @@ const GAME = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).href;
 // skipOpening: stay in the MOT Test Centre, where the game starts
 async function start(page, errors, skipOpening) {
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; window.NO_SUNBATHING = true; window.NO_MOANS = true; });   // no random punctures, blocked cards, phone calls or the wife out sunbathing (a test turns them on)
+  await page.addInitScript(() => { window.NO_PUNCTURES = true; window.NO_CARD_BLOCKS = true; window.NO_CALLS = true; window.NO_SUNBATHING = true; window.NO_MOANS = true; window.NO_PAPERBOY = true; });   // no random punctures, blocked cards, phone calls, the paperboy or the wife out sunbathing (a test turns them on)
   await page.goto(GAME);
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload();
@@ -3801,6 +3801,55 @@ test('the version number is after the tagline, at the top and on the title scree
   expect(lines[2]).toMatch(/^v\d+$/);
   expect(lines[0]).toBe(`Everybody's sure. Nobody's right. ${lines[2]}`);
   expect(lines[1]).toBe(lines[0]);
+});
+
+// ---------- the paperboy ----------
+test('home from town by day, on the drive: the paperboy rides past and his paper knocks you flat, stars round your head and birds twittering; once a game, never at night', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => {
+    window.heard = [];
+    const play = sfx;
+    sfx = (name, delay) => { window.heard.push(name); play(name, delay); };
+    window.rings = 0;
+    const draw = starRing;
+    starRing = (x, y, t) => { window.rings++; draw(x, y, t); };
+    S.spot = S.spot || {};
+    S.spot.home = [96, 96];                                               // where you get out of the car
+    PAPERBOY_CHANCE = 1;
+  });
+  const comeHome = mins => page.evaluate(m => { S.screen = 'city'; S.place = null; S.mins = m; show('home'); return PAPERBOY_DUE !== null; }, mins);
+  expect(await comeHome(22 * 60)).toBe(false);                            // not at night
+  expect(await comeHome(13 * 60)).toBe(true);                             // by day: he's coming
+  await page.waitForFunction(() => ANIM && ANIM.kind === 'paperboy');
+  // in the middle of it: you're down, the stars are out, and a tap doesn't skip it
+  await page.waitForFunction(() => window.rings > 3, null, { timeout: 15000 });
+  await page.locator('#stage').click({ position: { x: 200, y: 200 } });
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('paperboy');
+  expect(await dialogText(page)).toContain('front page');
+  expect(await page.evaluate(() => ['bikebell', 'bonk', 'twitter'].every(n => window.heard.includes(n)))).toBe(true);
+  await ok(page);
+  expect(await comeHome(14 * 60)).toBe(false);                            // once a game
+  expect(errors).toEqual([]);
+});
+
+test('the paperboy comes by your third time home on the drive, whatever the luck; not if you are off the drive', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const due = await page.evaluate(() => {
+    PAPERBOY_CHANCE = 1e-9;                                               // as good as never
+    S.mins = 13 * 60;
+    S.spot = S.spot || {};
+    S.spot.home = [46, 84];                                               // on the path: doesn't count
+    paperboyMaybe(); paperboyMaybe(); paperboyMaybe();
+    const out = [PAPERBOY_DUE !== null];
+    S.spot.home = [96, 96];
+    for (let k = 0; k < 3; k++) { paperboyMaybe(); out.push(PAPERBOY_DUE !== null); }
+    PAPERBOY_DUE = null;
+    return out;
+  });
+  expect(due).toEqual([false, false, false, true]);
+  expect(errors).toEqual([]);
 });
 
 // ---------- the back garden ----------

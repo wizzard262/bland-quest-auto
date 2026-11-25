@@ -27,6 +27,7 @@ Open `index.html` in a browser (no server needed). The game saves itself in the 
 - `js/brother.js`: your brother comes round to "help"
 - `js/police.js`: the police station, the post (letters in the mailbox), the drink-driving fine, the clamp and the taxi
 - `js/rides.js`: the taxi and the bus seen outside your house: picking you up, and the taxi dropping you off
+- `js/paperboy.js`: the paperboy: once a game, home from town by day, he rides past and his paper knocks you flat on the drive (stars, birds twittering)
 - `js/charger.js`: charging the flat phone: the box of chargers on the computer desk, five plugs to try, the battery filling up
 - `js/screws.js`: the screw jar: it spills all over the garage floor, you sweep it up with a dustpan, then try screws from a tray in the third hole
 - `js/bank.js`: now and then the card is blocked as you pay; the bank (Mon to Wed, 10 till 2) and its security questions
