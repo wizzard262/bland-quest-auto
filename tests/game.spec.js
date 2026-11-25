@@ -608,7 +608,7 @@ test('the bolts and the nut under the car are all 10s: no 10 mm socket, no 10 mm
   await page.evaluate(() => { S.screen = 'toolbox'; S.drawer = 1; render(); });
   await act(page, 'Look for the 10 mm'); await ok(page);
   await page.evaluate(() => { S.drawer = 2; render(); });
-  await act(page, 'Find the right spanner');
+  await act(page, 'Find the 10 mm spanner');
   expect(await dialogText(page)).toContain('never a 10');
   await ok(page);
   expect(await page.evaluate(() => [leadOpen('ten-drawer'), leadOpen('ten-spanner'), wifeTip().includes('socket set')])).toEqual([false, false, true]);
@@ -3475,7 +3475,9 @@ test('the screw jar: once the stub is out you need a third screw; the jar on the
   expect(await page.evaluate(() => [S.flags.jarSwept, S.screen, screwsOnFloor(), leadOpen('dustpan')])).toEqual([true, 'screwtray', false, false]);
   // the tray: a wrong one, then the right one
   await tap(page, 'act:trayscrew:2');
+  expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind, SCREW_TRYING])).toEqual(['bench', 'screwTest', 2]);   // a wrong one: you see it tried as well
   expect(await dialogText(page)).toContain('too long');
+  expect(await page.evaluate(() => S.screen)).toBe('screwtray');          // then back to the tray
   await ok(page);
   await tap(page, 'act:trayscrew:7');
   expect(await page.evaluate(() => [S.screen, ANIM && ANIM.kind])).toEqual(['bench', 'screwTest']);   // you see it go in the hole
@@ -3525,6 +3527,49 @@ test('the box (the sub-unit) comes off whole: under the car there is an empty mo
   expect(await at()).toBeLessThan(on / 2);                                    // an empty dark mount
   // the bench: fitted, all three screws back in (the third once found)
   await page.evaluate(() => { Object.assign(S.flags, { boxOff: true, sensorOut: true, screws: [1, 2, 3], sheared: 3, stubOut: true, fits: true, screw3: true }); show('bench'); });
+  expect(errors).toEqual([]);
+});
+
+test('every screw in the tray is drawn being tried, each in its own way, and ◀ Back still goes to where you came from', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const ways = await page.evaluate(() => {
+    Object.assign(S.flags, { boxOff: true, sensorOut: true, n3found: true, jarSwept: true, stubOut: true, sheared: 3, fits: true, screws: [1, 2, 3, 4] });
+    S.screen = 'bench'; show('screwtray');
+    const drawn = [];
+    for (let k = 0; k < TRAY.length; k++) {
+      SCREW_TRYING = k;
+      render();
+      for (let p = 0; p <= 1; p += 0.05) MOMENTS.screwTest(p, p);           // (all the way through)
+      drawn.push(TRAY[k][2][1]);
+    }
+    return drawn;
+  });
+  expect(ways.length).toBe(12);
+  expect(ways.every(w => ['bind', 'spin', 'loose', 'big', 'fits'].includes(w))).toBe(true);
+  expect(ways.filter(w => w === 'fits').length).toBe(1);
+  await page.evaluate(() => { trayScrew(0); });
+  expect(await dialogText(page)).toContain('wood screw');
+  await ok(page);
+  await goBack(page);
+  expect(await page.evaluate(() => S.screen)).toBe('bench');              // one step back, as before
+  expect(errors).toEqual([]);
+});
+
+test('the spanner drawer: proper spanners, 4 to 19 in order, and a gap for the 10', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  const sizes = await page.evaluate(() => {
+    const drawn = [], gaps = [];
+    const [spanner, gap] = [drawSpanner, spannerGap];
+    drawSpanner = (a, b, size) => { drawn.push([size, Math.hypot(b[0] - a[0], b[1] - a[1])]); spanner(a, b, size); };
+    spannerGap = (a, b, size) => { gaps.push(size); gap(a, b, size); };
+    S.screen = 'toolbox'; S.drawer = 2; render();
+    return { drawn, gaps };
+  });
+  expect(sizes.drawn.map(d => d[0])).toEqual([4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  expect(sizes.gaps).toEqual([10]);
+  for (let k = 1; k < sizes.drawn.length; k++) expect(sizes.drawn[k][1]).toBeGreaterThan(sizes.drawn[k - 1][1]);   // the bigger, the longer
   expect(errors).toEqual([]);
 });
 

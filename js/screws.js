@@ -153,20 +153,21 @@ function sweptUp() {
 }
 
 // ---------- the tray: try screws in the third hole ----------
-// [what it looks like: length, head, thread, colour] and what happens when you try it
+// [what it looks like: length, head, thread, colour], what you find when you try it, and how it goes:
+//   [how far in it winds (0 to 1), what it does then: 'bind' (jams and shakes), 'spin' (never bites), 'loose' (rattles about), 'big' (won't go in) or 'fits']
 const TRAY = [
-  [[30, 'flat', 'coarse', C.steel], 'A wood screw. It goes in three turns and starts chewing the alloy. Out it comes.'],
-  [[14, 'round', 'fine', C.steel2], 'Too short. It doesn\'t reach the thread.'],
-  [[40, 'hex', 'fine', C.steel], 'Far too long. It bottoms out with the sensor still rocking.'],
-  [[22, 'round', 'fine', hex('#c8a048')], 'Brass, and the thread\'s too fine. It spins and spins and never bites.'],
-  [[22, 'flat', 'coarse', C.steel2], 'A self-tapper. It\'d go in, once. Then never come out. You put it back.'],
-  [[24, 'hex', 'fine', C.steel], 'Imperial. Close, so close. It crosses the thread and binds.'],
-  [[18, 'round', 'fine', C.steel2], 'Nearly. One turn short. The sensor still wobbles.'],
-  [[24, 'round', 'fine', C.steel], null],                               // the one that's right
-  [[26, 'flat', 'fine', hex('#2a2a2a')], 'A black one off something else entirely. The head\'s too big to sit flat.'],
-  [[20, 'hex', 'coarse', C.steel2], 'A coach bolt, really. Not a chance.'],
-  [[24, 'round', 'fine', C.rust], 'The right size! Rusted solid. The thread\'s gone.'],
-  [[12, 'flat', 'fine', C.steel], 'A tiny one from a pair of glasses. Why is that in here?']
+  [[30, 'flat', 'coarse', C.steel], 'A wood screw. It goes in three turns and starts chewing the alloy. Out it comes.', [0.35, 'bind']],
+  [[14, 'round', 'fine', C.steel2], 'Too short. It doesn\'t reach the thread.', [1, 'loose']],
+  [[40, 'hex', 'fine', C.steel], 'Far too long. It bottoms out with the sensor still rocking.', [0.6, 'bind']],
+  [[22, 'round', 'fine', hex('#c8a048')], 'Brass, and the thread\'s too fine. It spins and spins and never bites.', [0.5, 'spin']],
+  [[22, 'flat', 'coarse', C.steel2], 'A self-tapper. It\'d go in, once. Then never come out. You put it back.', [0.2, 'bind']],
+  [[24, 'hex', 'fine', C.steel], 'Imperial. Close, so close. It crosses the thread and binds.', [0.4, 'bind']],
+  [[18, 'round', 'fine', C.steel2], 'Nearly. One turn short. The sensor still wobbles.', [0.95, 'loose']],
+  [[24, 'round', 'fine', C.steel], null, [1, 'fits']],                               // the one that's right
+  [[26, 'flat', 'fine', hex('#2a2a2a')], 'A black one off something else entirely. The head\'s too big to sit flat.', [0.85, 'bind']],
+  [[20, 'hex', 'coarse', C.steel2], 'A coach bolt, really. Not a chance.', [0, 'big']],
+  [[24, 'round', 'fine', C.rust], 'The right size! Rusted solid. The thread\'s gone.', [0.15, 'bind']],
+  [[12, 'flat', 'fine', C.steel], 'A tiny one from a pair of glasses. Why is that in here?', [1, 'loose']]
 ];
 const TRAY_RIGHT = 7;
 const trayAt = k => [60 + (k % 4) * 100, 76 + Math.floor(k / 4) * 60];   // where each lies in the tray
@@ -192,47 +193,91 @@ SCREENS.screwtray = {
   },
   actions() { return []; }   // ◀ Back to the workbench
 };
-// Try screw k in the third hole
+// Try screw k in the third hole: you see it tried, right or wrong (Steve)
 function trayScrew(k) {
   S.flags.screwsTried = S.flags.screwsTried || [];
   if (S.flags.screwsTried.includes(k)) return;
   pass(5);
+  SCREW_TRYING = k;
   if (k === TRAY_RIGHT) {                                               // the one
     show('bench');
-    sfx('clink', SCREW_TEST_MS * 0.3 / 1000); sfx('ratchet', SCREW_TEST_MS * 0.4 / 1000); sfx('ratchet', SCREW_TEST_MS * 0.65 / 1000);
+    screwSounds(SCREW_TEST_MS, 'ratchet');
     moment('screwTest', SCREW_TEST_MS);                                 // you see it go in the hole (Steve)
-    ANIM.then = () => {
-      S.flags.screw3 = true;
-      sfx('ding');
-      finishJob('screw3', `Screw ${k + 1} from the jar: a perfect match`);
-      const snug = 'It winds in. Snug. Not too long, not too short, the right thread.\n\n';
-      const withSensor = 'All four screws. The sensor doesn\'t move. Now the box can go back on the car.';
-      const noSensorYet = 'Out it comes again, and it\'s kept safe till there\'s a sensor in there to hold.';
-      say('Screw ' + (k + 1), snug + (S.flags.fits ? withSensor : noSensorYet));
-    };
+    ANIM.then = () => rightScrew(k);
     return render();
   }
   S.flags.screwsTried.push(k);
+  S.screen = 'bench';                                                   // over to the box to try it (and back: not a step for ◀ Back)
+  screwSounds(SCREW_TRY_MS, 'creak');
+  moment('screwTest', SCREW_TRY_MS);
+  ANIM.then = () => wrongScrew(k);
+  render();
+}
+// It's the one: in it stays
+function rightScrew(k) {
+  S.flags.screw3 = true;
+  sfx('ding');
+  finishJob('screw3', `Screw ${k + 1} from the jar: a perfect match`);
+  const snug = 'It winds in. Snug. Not too long, not too short, the right thread.\n\n';
+  const withSensor = 'All four screws. The sensor doesn\'t move. Now the box can go back on the car.';
+  const noSensorYet = 'Out it comes again, and it\'s kept safe till there\'s a sensor in there to hold.';
+  say('Screw ' + (k + 1), snug + (S.flags.fits ? withSensor : noSensorYet));
+}
+// It isn't: back in the tray with it
+function wrongScrew(k) {
+  S.screen = 'screwtray';
   anger(3);
-  sfx('creak');
   say('Screw ' + (k + 1), TRAY[k][1]);
 }
 
-// Trying it in the hole: it comes down to it, then the screwdriver winds it all the way in
-const SCREW_TEST_MS = 3200;
+// ---------- trying one in the hole: it comes down to it, the screwdriver winds it in as far as it'll go, and it fits or it doesn't ----------
+const SCREW_TEST_MS = 3200, SCREW_TRY_MS = 2600;                        // the right one; a wrong one
+let SCREW_TRYING = TRAY_RIGHT;                                          // which one it is
+function screwSounds(ms, end) {
+  sfx('clink', ms * 0.28 / 1000);                                       // it touches the box…
+  sfx('ratchet', ms * 0.36 / 1000);                                     // …winds in…
+  sfx(end, ms * 0.65 / 1000);                                           // …and is home, or jams
+}
+// A screw standing on its point, its head at (x, y) and turned by a; its shank is only drawn down to row `hideBelow` (the rest is in the hole)
+const shankPx = k => Math.round(TRAY[k][0][0] * 0.6);                   // how long its shank is, stood up on the bench
+function standingScrew(k, x, y, a, hideBelow) {
+  const [, head, thread, col] = TRAY[k][0];
+  const wide = thread === 'coarse' ? 4 : 3;
+  const foot = Math.min(hideBelow, y + shankPx(k));                     // the lowest bit you can see
+  if (foot - y > 1) pipe(x, y, x, foot, wide, col);
+  for (let ry = y + 5; ry < foot; ry += thread === 'coarse' ? 4 : 2) line(x - wide / 2, ry, x + wide / 2, ry - 1, shade(col, 0.6));   // its thread
+  if (head === 'hex') {
+    nutAt(x, y, 5, a, col);
+    return;
+  }
+  const r = head === 'flat' ? 5 : 4;                                    // a countersunk head's wider
+  disc(x, y, r, col); ring(x, y, r, C.greyDark);
+  line(x - Math.cos(a) * 3, y - Math.sin(a) * 1.5, x + Math.cos(a) * 3, y + Math.sin(a) * 1.5, C.greyDark);   // its slot, turning
+}
 MOMENTS.screwTest = function (p) {
   [ISO.ox, ISO.oy] = [240, 64];
-  const [x, y] = BOX_SCREWS[S.flags.sheared || 4];
-  const down = ease(Math.min(1, p / 0.35)), turn = Math.max(0, Math.min(1, (p - 0.4) / 0.5));   // lowered to the hole; wound in
-  const rise = 46 - down * 32 - turn * 14;                              // how far its head is above the box
-  const head = P(x, y, 40 + rise), hole = P(x, y, 40);
-  if (rise > 1) pipe(head[0], head[1], head[0], Math.min(hole[1], head[1] + 14), 3, C.steel);   // its thread, going down into the hole
-  disc(head[0], head[1], 4, C.steel); ring(head[0], head[1], 4, C.greyDark);
-  const a = turn * Math.PI * 10;                                        // the slot, turning
-  line(head[0] - Math.cos(a) * 3, head[1] - Math.sin(a) * 1.5, head[0] + Math.cos(a) * 3, head[1] + Math.sin(a) * 1.5, C.greyDark);
-  if (p < 0.36 || p > 0.94) return;
-  pipe(head[0], head[1] - 2, head[0] + 10, head[1] - 30, 3, C.steel2);  // the screwdriver
-  pipe(head[0] + 10, head[1] - 30, head[0] + 16, head[1] - 44, 6, C.red);
+  const k = SCREW_TRYING, [goesIn, how] = TRAY[k][2];
+  const [x, y] = BOX_SCREWS[S.flags.sheared || SENSOR_SCREWS];
+  const hole = P(x, y, 40).map(Math.round), shank = shankPx(k);
+  const part = (from, to) => Math.max(0, Math.min(1, (p - from) / (to - from)));   // how far through that bit of it
+  const down = ease(part(0, 0.3)), wound = part(0.34, 0.64), fail = part(0.64, 0.86);
+  const away = how === 'fits' ? 0 : ease(part(0.88, 1));                // a wrong one's lifted off again
+  let rise = shank + 34 * (1 - down) - shank * goesIn * wound;          // how far its head is above the box
+  let dx = 0, turn = wound * Math.PI * 10;
+  const failing = fail > 0 && fail < 1;
+  if (failing && how === 'bind') dx = Math.round(Math.sin(fail * 60) * 1.5);          // jammed: it shakes
+  if (failing && how === 'loose') dx = Math.round(Math.sin(fail * 26) * 2.5);         // it rattles from side to side
+  if (how === 'spin') { turn += fail * Math.PI * 16; if (failing) rise += Math.abs(Math.sin(fail * 20)) * 2; }   // round and round, riding up and down
+  if (how === 'big') { turn = 0; if (wound > 0) rise += Math.abs(Math.sin((wound + fail) * 9)) * 6 * (1 - fail); }   // it bounces off the hole
+  rise += away * 40;
+  const hx = hole[0] + dx, hy = Math.round(hole[1] - rise);
+  standingScrew(k, hx, hy, turn, hole[1]);
+  if (failing && how === 'bind') sparks(hole[0], hole[1], 5, fail, k + 3);   // (chewing at the alloy)
+  const driving = p > 0.32 && p < (how === 'fits' ? 0.94 : 0.86) && how !== 'big';
+  if (!driving) return;
+  const handle = TRAY[k][0][1] === 'hex' ? C.car : C.red;               // a nut spinner for a hex head, else the screwdriver
+  pipe(hx, hy - 2, hx + 10, hy - 30, 3, C.steel2);
+  pipe(hx + 10, hy - 30, hx + 16, hy - 44, 6, handle);
 };
 
 // The third screw: a job once the stub's out

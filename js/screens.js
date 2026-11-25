@@ -1390,7 +1390,7 @@ function underFind(k, x, y) {
 const DRAWERS = ['Sockets', 'Spanners', 'Screwdrivers', 'Pliers and odds', 'Electrical', 'Big stuff'];
 const DRAWER_NOTES = [
   'Every size from 8 to 19 mm… except the 10. There is a 10-shaped gap.',
-  'Dozens of spanners in a heap. The one you want is always at the bottom.',
+  'Every spanner from 4 to 19, in order. Nearly every spanner.',
   'Flat, cross, Torx, a Torx with a hole in it, and one that has been used as a chisel.',
   'Pliers, cable ties, tape, a sweet wrapper from 1996 and a key to nothing.',
   'A multimeter, a crimping tool and loose fuses.',
@@ -1465,7 +1465,7 @@ SCREENS.toolbox = {
   actions() {
     const a = [];
     if (S.drawer === 1) a.push({ label: 'Look for the 10 mm', act: 'find10' });
-    if (S.drawer === 2) a.push({ label: 'Find the right spanner', act: 'findspanner' });
+    if (S.drawer === 2) a.push({ label: 'Find the 10 mm spanner', act: 'findspanner' });
     if (S.drawer === 6 && leadOpen('hammer-box')) a.push({ label: 'Look for the hammer', act: 'hammerbox' });
     return a;
   }
@@ -1478,11 +1478,7 @@ function drawerContents(d, x0, y) {
     if (i === 2) { ring(cx, cy, r + 1, C.dim); text('10', cx - 3, cy + r + 3, C.dim); return; }
     disc(cx, cy, r + 1, C.steel); disc(cx, cy, Math.max(1, r - 2), C.greyDark); text(String(8 + i), cx - 3, cy + r + 3, C.ui);
   });
-  if (d === 2) row(16, i => {                                  // a heap of spanners at every angle
-    const cx = x0 + 14 + hash(i, 1) * 160, cy = y + 24 + hash(1, i) * 56, a = hash(i, i) * 3.14, l = 26 + hash(i, 4) * 20;
-    pipe(cx - Math.cos(a) * l / 2, cy - Math.sin(a) * l / 3, cx + Math.cos(a) * l / 2, cy + Math.sin(a) * l / 3, 4, i % 3 ? C.steel : C.steel2);
-    disc(Math.round(cx + Math.cos(a) * l / 2), Math.round(cy + Math.sin(a) * l / 3), 4, C.steel2);
-  });
+  if (d === 2) drawerSpanners(x0, y);                          // the spanners, 4 to 19, in order; no 10
   if (d === 3) row(9, i => {                                   // screwdrivers, handles in every colour
     const cx = x0 - 10 + i * 24, cy = y + 30 + (i % 2) * 8;
     rbox(cx, cy, 8, 22, 3, [C.red, C.warm, C.car, hex('#40a060'), C.ink][i % 5]); rect(cx + 3, cy + 22, 2, 26 - (i % 3) * 4, C.steel);
@@ -1508,6 +1504,59 @@ function drawerContents(d, x0, y) {
     for (let k = 0; k < 20; k += 4) line(x0 + 20 + k * 4, y + 66 - k / 2, x0 + 30 + k * 4, y + 66 - k / 2, C.dim);   // the hammer-shaped gap (dotted)
     pipe(x0 + 140, y + 30, x0 + 186, y + 46, 5, C.steel); pipe(x0 + 186, y + 46, x0 + 196, y + 72, 5, C.steel);   // bent wheel brace
   }
+}
+// The spanners in their drawer: open at both ends, 4 to 19 in a row, and a gap where the 10 goes (Steve: proper ones)
+const SPANNER_SIZES = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+const SPANNER_MISSING = 10;
+const spannerHead = size => 2.4 + size * 0.28;                  // how big its ends are (the radius)
+function drawerSpanners(x0, y) {
+  const slots = SPANNER_SIZES.map(size => spannerHead(size) * 2 + 3);   // the room each one takes: bigger ones, more
+  const total = slots.reduce((sum, w) => sum + w, 0);
+  let used = 0;
+  SPANNER_SIZES.forEach((size, i) => {
+    const across = (used + slots[i] / 2) / total;                 // how far along the drawer it lies
+    used += slots[i];
+    // the drawer's sides spread out towards you, so everything in it leans with them
+    const at = row => { const q = (row - y - 4) / 84; return [x0 - 32 * q + across * (200 + 64 * q), row]; };
+    const front = at(y + 68 - spannerHead(size) * 0.3), back = at(y + 68 - (23 + size * 1.6));   // the bigger, the longer
+    if (size === SPANNER_MISSING) spannerGap(front, back, size);
+    else drawSpanner(front, back, size);
+    const label = String(size), where = at(y + 80);
+    text(label, Math.round(where[0] - label.length * 2 + 1), y + 80, size === SPANNER_MISSING ? C.dim : C.ui);
+  });
+}
+// One spanner from a to b: a polished shank with its groove, and an open jaw on each end, turned a little to one side
+function drawSpanner(a, b, size) {
+  const r = spannerHead(size), thick = 1.6 + size * 0.13;
+  const along = Math.atan2(b[1] - a[1], b[0] - a[0]);             // which way it points
+  const steel = C.steel, dark = shade(C.steel2, 0.5);
+  const ends = [[a, along + Math.PI], [b, along]];                 // each end, and which way is outwards there
+  pipe(...a, ...b, thick + 1.5, dark);                             // a dark edge all round…
+  for (const [c] of ends) roundSpot(c, r + 0.8, dark);
+  pipe(...a, ...b, thick, steel);                                  // …then the steel
+  for (const [c] of ends) roundSpot(c, r, steel);
+  const groove = q => [lerp(a[0], b[0], q), lerp(a[1], b[1], q)];
+  line(...groove(0.3), ...groove(0.7), C.steel2);                  // the groove down the shank, where it's stamped
+  for (const [c, out] of ends) {
+    roundSpot([c[0] - r * 0.35, c[1] - r * 0.35], Math.max(0.6, r * 0.3), C.white);   // a shine on it
+    spannerJaw(c, out + 0.26, r);                                  // (15 degrees to one side)
+  }
+}
+// The slot in a spanner's end: cut from its middle right out through the edge, so you see the foam
+function spannerJaw(c, way, r) {
+  const ux = Math.cos(way), uy = Math.sin(way), half = r * 0.48;   // outwards; and half the slot's width
+  const corner = (out, side) => [c[0] + ux * out - uy * side, c[1] + uy * out + ux * side];
+  poly([corner(-r * 0.15, -half), corner(r * 1.6, -half), corner(r * 1.6, half), corner(-r * 0.15, half)], hex('#3a3c42'));
+}
+// Where the 10 goes: just its outline, dotted
+function spannerGap(a, b, size) {
+  const r = spannerHead(size);
+  for (const c of [a, b]) for (let k = 0; k < 10; k++) px(c[0] + Math.cos(k * 0.628) * r, c[1] + Math.sin(k * 0.628) * r, C.dim);
+  for (let q = 0.2; q <= 0.8; q += 0.1) for (const side of [-1.5, 1.5]) px(lerp(a[0], b[0], q) + side, lerp(a[1], b[1], q), C.dim);
+}
+// A filled circle of any size, half pixels and all
+function roundSpot([cx, cy], r, col) {
+  for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if (Math.hypot(x - cx, y - cy) <= r) px(x, y, col);
 }
 // The old torch lying in the drawer, pointing right (x, y: the top left of its body)
 function drawerTorch(x, y) {

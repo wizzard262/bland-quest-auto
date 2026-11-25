@@ -1729,7 +1729,7 @@ const ACTIONS = {
   findspanner() {
     pass(15); anger(5); sfx('screws');
     closeLead('ten-spanner', 'x', 'No 10 mm spanner either');
-    say('The right spanner', 'You dig through dozens of spanners. Three 13s, two 17s, a 7/16 from somewhere… and no 10. There\'s never a 10.');
+    say('The 10 mm spanner', '4, 5, 6, 7, 8, 9… 11. There\'s a gap. There\'s always a gap. There\'s never a 10.');
   },
   meter() { testMeter(); },
   // ----- dashboard -----
