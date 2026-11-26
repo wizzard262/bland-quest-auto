@@ -2,7 +2,7 @@
 // Now and then on the way home from town (once a game): BANG, a puncture on Mill Lane.
 //   The spare in the boot is flat. You ring for help: the phone dies. You walk home: it rains, the sky
 //   goes grey, and a car drives through a puddle and soaks you. At home the wife says get a wheel from the
-//   Scrap Yard or a car shop (Worn Out and Tired), and lends you her car. You fit the wheel at the roadside.
+//   Scrap Yard or a car shop (Worn Out and Tired), and says she'll drive you in her car. You fit the wheel at the roadside.
 //   S.road is set while your car is stuck on Mill Lane: { spare: tried it, walked: home on foot }
 
 let PUNCTURE_CHANCE = window.NO_PUNCTURES ? 0 : 1 / 3;             // the chance on each drive home (the tests turn it off, or up to 1)
@@ -22,7 +22,7 @@ const CAR_SCREENS = ['dash', 'bonnet', 'fuseZoom', 'boot', 'under', 'underZoom',
 const carStranded = () => !!S.road;
 // Is your car away from home? (on a flat on Mill Lane, or left outside the pub)
 const carAway = () => carStranded() || !!S.flags.carAt;
-// Driving her car about (you've walked home and she's lent you hers)
+// Driving her car about (you've walked home and she drives you in hers)
 const strandedLift = () => !!S.road && !!S.road.walked && !S.road.tellHer;   // yours is on Mill Lane, and she knows
 const inWifesCar = () => {
   if (S.flags.taxi) return false;
@@ -264,20 +264,24 @@ function spareScrew(x, y, s) {
   disc(x, y, 1 + s, C.steel);
   rect(x - s, y, 2 * s + 1, 1, C.ink);
 }
-// The car's hazard lights: all four corners flash orange (twice a second)
+// The car's hazard lights: three corners flash orange (twice a second)
 SCREENS.roadside.animate = function (t) {
   if (!S.road || S.road.fitted) return;
   pavementGlow(t);                                                  // nothing left to try: the way home
   rainDrops(t, rainLevel('roadside'));                              // the rain, getting heavier
+  if (FLAT_DRIVE) return;                                           // still on the move: no hazards at the kerb till it's there (Steve)
   ISO.ox = ROAD_VIEW[0]; ISO.oy = ROAD_VIEW[1];
   hazardLights(t, ROAD_CAR[0], ROAD_CAR[1], 1, true);
 };
 const HAZARD = hex('#ffa020');
 const hazardsLit = t => Math.floor(t * 2) % 2 === 0;                 // on, off, on, off: twice a second
-// Your car's four hazard lights, at each corner (x, y: where it's parked; s: its size; alongX: which way it points)
+// The three hazard lights you can see: both on the near side, and the far front one
+//   (the far back one is behind the car, so it isn't drawn: it flashed through the roof. Steve)
+const HAZARD_CORNERS = [[0, 23], [45, 1], [45, 23]];               // [along the car, across it]
+// Your car's hazard lights (x, y: where it's parked; s: its size; alongX: which way it points)
 function hazardLights(t, x, y, s, alongX) {
   if (!hazardsLit(t)) return;                                       // off half the time
-  for (const [along, across] of [[0, 1], [0, 23], [45, 1], [45, 23]]) {
+  for (const [along, across] of HAZARD_CORNERS) {
     const dx = alongX ? along : across, dy = alongX ? across : along;
     const q = P(x + dx * s, y + dy * s, 9 * s);
     rect(q[0] - 1, q[1] - 1, 3, 2, HAZARD);
@@ -720,14 +724,14 @@ function tellWife() {
       wifeWindsYouUp();
       wifeSays(`"Rained? It has NOT rained, Husband. ${sunny} Where's the car?"`, () => {
         sayMe('"A puncture. And the spare\'s flat. And my phone died."', () => {
-          wifeSays('"Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. Take my car. And put that phone on charge."\n\n"Rain. Honestly."', lendsHerCar);
+          wifeSays('"Of course it did."\n\n"Get a wheel from the Scrap Yard, or one of the car shops. I\'ll drive you in my car. And put that phone on charge."\n\n"Rain. Honestly."', drivesYouInHers);
         });
       });
     });
   });
 }
-// …and lends you her car
-function lendsHerCar() {
+// …and says she'll drive you in hers (she won't lend it you: Steve)
+function drivesYouInHers() {
   S.road.tellHer = false;
   closeLead('tell-wife', 'ok');
   lead('tyre', 'wheel-yard', 'A wheel from the Scrap Yard', 'the wife', 'sure', 'place:Scrap Yard');

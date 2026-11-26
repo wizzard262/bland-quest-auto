@@ -1103,10 +1103,10 @@ test('driving off after a drink, the police breath test you: hold to blow; one d
   // let go too soon: blow again
   await blow(page, 150);
   await page.waitForTimeout(100);
-  expect(await page.evaluate(() => [BREATH.short, !!DIALOG])).toEqual([true, false]);
-  // one drink: the lights stop half way, and it's a pass
+  expect(await page.evaluate(() => [BREATH.short, !!DIALOG, BREATH.pinged])).toEqual([true, false, false]);   // too short: no ping
+  // one drink: the lights stop half way, it pings, and it's a pass
   await blow(page, 900);
-  expect(await page.evaluate(() => BREATH.lit)).toBe(5);
+  expect(await page.evaluate(() => [BREATH.lit, BREATH.pinged])).toEqual([5, true]);
   expect(await dialogText(page)).toContain('Just under');
   await ok(page);
   expect(await page.evaluate(() => S.screen)).toBe('city');
@@ -2144,7 +2144,7 @@ test('AA batteries off the shop shelf do not fit the multimeter', async ({ page 
 });
 
 // ---------- road snags: a puncture on the way home ----------
-test('a puncture on the way home: the spare is flat, the phone dies, the walk home in the rain and a splash; the wife says get a wheel and lends you her car; fit it at the roadside', async ({ page }) => {
+test('a puncture on the way home: the spare is flat, the phone dies, the walk home in the rain and a splash; the wife says get a wheel and she drives you in her car; fit it at the roadside', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.mins = 10 * 60; });
@@ -2201,6 +2201,11 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await dialogText(page)).toContain('It rained');                // you
   await page.locator('.dlg').click();
   expect(await dialogText(page)).toContain('NOT rained');               // her
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('A puncture');               // you
+  await page.locator('.dlg').click();
+  expect(await dialogText(page)).toContain('I\'ll drive you in my car'); // her: she drives you (she won't lend it you)
+  expect(await dialogText(page)).not.toContain('Take my car');
   await ok(page);
   expect(await page.evaluate(() => [S.screen, S.road.walked, !!S.flags.phoneDead])).toEqual(['garden', true, true]);
   expect(await page.evaluate(() => [soakedAtHome(), inWifesCar(), rainLevel('home'), leadOpen('tell-wife'), leadOpen('wheel-yard')])).toEqual([false, true, 0, false, true]);
@@ -2267,6 +2272,26 @@ test('a puncture on the way home: the spare is flat, the phone dies, the walk ho
   expect(await page.evaluate(() => S.screen)).toBe('home');
   await page.evaluate(() => { S.screen = 'garage'; render(); });
   await expect(page.locator('.hs[data-go="dash"]')).toHaveCount(1);     // your car's back
+  expect(errors).toEqual([]);
+});
+
+test('the hazards: three of them (not the far back one, behind the car), and none at the kerb till the car gets there', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { S.mins = 10 * 60; puncture(); });          // bang: driving in to the kerb
+  // How many orange hazard pixels the roadside draws, at a moment they're lit (driving: still on the move or not)
+  const hazardPixels = driving => page.evaluate(d => {
+    FLAT_DRIVE = d;                                                       // on the move, or parked
+    img.data.set(BG);                                                     // the still picture
+    SCREENS.roadside.animate(0);                                          // the moving things, with the hazards lit
+    const px = img.data;
+    let n = 0;
+    for (let i = 0; i < px.length; i += 4) if (px[i] === HAZARD[0] && px[i + 1] === HAZARD[1] && px[i + 2] === HAZARD[2]) n++;
+    return n;
+  }, driving);
+  expect(await hazardPixels('in')).toBe(0);                               // driving in: nothing flashing at the empty kerb
+  expect(await hazardPixels(null)).toBe(3 * 3 * 2);                       // parked: three lights, 3 by 2 pixels each
+  await ok(page);
   expect(errors).toEqual([]);
 });
 

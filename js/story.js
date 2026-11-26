@@ -666,12 +666,12 @@ function pullOver() {
 function policeStop() {
   say('Blue lights', 'You get as far as the end of the road. Blue lights in the mirror.\n\nA policeman taps on your window. "Evening, sir. Had a drink tonight, have we? Blow into this, please."', [{ label: 'OK', run: breathStart }]);
 }
-// The breath test: hold to blow for about 6 seconds; the lights climb from green to red
+// The breath test: hold to blow for about 3 seconds; the lights climb from green to red; a ping when you've blown long enough
 //   1 drink: half way, a pass. 2 or 3: all the way to red, three beeps, a fail; blow again, fail again, and a £300 fine
-const BREATH_TIME = { secs: 6 };                                       // how long you have to blow for
+const BREATH_TIME = { secs: 3 };                                       // how long you have to blow for (Steve: faster; it was 6)
 const BREATH_LEDS = 10;                                                // the row of lights on the breathalyser
 const BREATH_FINE = 300;
-const BREATH = { drinks: 1, t0: null, lit: 0, tries: 0, beeped: false, ticket: false };
+const BREATH = { drinks: 1, t0: null, lit: 0, tries: 0, beeped: false, pinged: false, ticket: false };
 function breathStart() {
   BREATH.drinks = boozeDrinks();                                       // what's still in you
   BREATH.tries = 0;
@@ -680,7 +680,7 @@ function breathStart() {
   show('breath');
 }
 // Ready for a (fresh) blow
-function breathReset() { BREATH.t0 = null; BREATH.lit = 0; BREATH.beeped = false; BREATH.short = false; }
+function breathReset() { BREATH.t0 = null; BREATH.lit = 0; BREATH.beeped = false; BREATH.pinged = false; BREATH.short = false; }
 // How far up the lights go for him (1 drink: half; more: all the way)
 const breathTop = () => (BREATH.drinks <= 1 ? BREATH_LEDS / 2 : BREATH_LEDS);
 // Press and hold: he starts blowing
@@ -698,6 +698,15 @@ function breathTick() {
   for (let k = BREATH.lit; k < lit; k++) breathBeep(k);                // each light that comes on beeps, each a bit higher (sound.js)
   BREATH.lit = lit;
   if (BREATH.lit >= BREATH_LEDS && !BREATH.beeped) { BREATH.beeped = true; sfx('beep3'); }   // red: beep beep beep
+  breathDonePing();                                                    // blown long enough: ping
+}
+// Blown for long enough: it pings once, so you know you can stop (Steve)
+function breathDonePing() {
+  const secs = (performance.now() - BREATH.t0) / 1000;                 // how long he's blown for
+  const longEnough = secs >= BREATH_TIME.secs;
+  if (!longEnough || BREATH.pinged) return;                           // not yet, or it's already pinged
+  BREATH.pinged = true;
+  sfx('ping');
 }
 // Let go: long enough? then the result; too short, blow again
 function breathUp() {
@@ -797,7 +806,7 @@ function wifeLine() {
 function wifeRemark() {
   const k = kickedLamps();
   if (S.road && !S.road.walked) return '"Where IS the car, Husband?"';
-  if (S.road) return '"Look after my car, Husband. It\'s the only one that works."';
+  if (S.road) return '"I\'m not a taxi, Husband. Get that wheel and be quick about it."';
   if (S.flags.carAt) return `"Where's the car? Still outside the pub? Of course it is."`;
   if (S.fine && S.fine.clamped && !S.fine.paid) return '"There\'s a yellow thing on your car, Husband. The neighbours are looking."';
   if (boozeNow() > 0) return '"Have you been at the pub? You have. I can smell it."';

@@ -1769,7 +1769,7 @@ SCREENS.breath = {
       text('FIXED PENALTY', tx + 8, ty + 4, C.white);
       text('£' + BREATH_FINE, tx + 28, ty + 36, C.ink, 3);
     }
-    const msg = BREATH.ticket ? 'You\'ve been fined.' : BREATH.short ? 'Not long enough! Press and hold to blow, and keep going.' : 'Press and hold to blow into it. Keep going till he says stop (about ' + BREATH_TIME.secs + ' seconds).';
+    const msg = BREATH.ticket ? 'You\'ve been fined.' : BREATH.short ? 'Not long enough! Press and hold to blow, and keep going.' : 'Press and hold to blow into it. Keep going till it pings (about ' + BREATH_TIME.secs + ' seconds).';
     tip('The breath test', msg, 1, 8);
     hud();
   },

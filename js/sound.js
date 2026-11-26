@@ -113,6 +113,7 @@ const SOUNDS = {
     o1.connect(f); o2.connect(f); f.connect(g); g.connect(MASTER);
     o1.start(t); o2.start(t); o1.stop(t + 5.1); o2.stop(t + 5.1);
   },
+  ping(t) { tone(t, 2093, 0.5, 0.2); tone(t, 4186, 0.25, 0.05); },                                            // the breathalyser: done, you can stop blowing
   beep3(t) { for (let i = 0; i < 3; i++) tone(t + i * 0.25, 2000, 0.12, 0.14, 'square'); },                     // the breathalyser at red
   ringtone(t) { for (let i = 0; i < 6; i++) tone(t + i * 0.08, i % 2 ? 1320 : 1040, 0.07, 0.1, 'square'); }   // a mobile ringing (one burst)
 };
