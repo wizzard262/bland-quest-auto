@@ -94,14 +94,14 @@ function lastScrew() {
   const out = S.flags.screws || [];
   return out[out.length - 1];
 }
-// The ratchet on a bolt, its 10 mm socket over the head, handle at angle a
-function ratchet(x, y, a, len = 90) {
+// The ratchet on a bolt, its socket over the head (a 10 mm unless you say: socketR), handle at angle a
+function ratchet(x, y, a, len = 90, socketR = 9) {
   const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;        // the end of the handle
   const gx = x + Math.cos(a) * len * 0.6, gy = y + Math.sin(a) * len * 0.6;   // where its grip starts
   pipe(x, y, ex, ey, 6, C.steel);
   pipe(gx, gy, ex, ey, 9, hex('#1c1c1c'));                              // the rubber grip
-  disc(x, y, 14, C.steel2); ring(x, y, 14, C.steel);                   // the ratchet's head
-  disc(x, y, 9, C.steel); ring(x, y, 9, C.greyDark); disc(x, y, 3, C.greyDark);   // the socket
+  disc(x, y, socketR + 5, C.steel2); ring(x, y, socketR + 5, C.steel); // the ratchet's head
+  disc(x, y, socketR, C.steel); ring(x, y, socketR, C.greyDark); disc(x, y, Math.max(2, socketR / 3), C.greyDark);   // the socket
 }
 
 // =====================================================================

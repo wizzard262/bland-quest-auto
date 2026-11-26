@@ -652,23 +652,13 @@ function bankFront(name, shut) {
   if (!(ANIM && ANIM.kind === 'walk')) { const [x, y] = manSpot('place'), m = P(x, y); man(m[0], m[1], 'stand', 2); }
 }                                                // how far back the buildings on the street go (their fronts are at y = 40)
 // A big picture sign standing on the roofline above a shop's name, on its front (y = 40): what the shop is (Steve)
-//   the Post Office an envelope, the Phone Shop a mobile, Worn Out and Tired a tyre, the PC Shop a laptop
-const ROOF_SIGNS = { 'Post Office': postOfficeEnvelope, 'Phone Shop': phoneShopSign, 'Worn Out and Tired': tyrePlaceSign, 'PC Shop': pcShopSign, 'Police Station': policeBadgeSign };
+//   the Phone Shop a mobile, Worn Out and Tired a tyre, the PC Shop a laptop (the Post Office has its red board instead: Steve)
+const ROOF_SIGNS = { 'Phone Shop': phoneShopSign, 'Worn Out and Tired': tyrePlaceSign, 'PC Shop': pcShopSign, 'Police Station': policeBadgeSign };
 function roofSign(name) {
   const draw = ROOF_SIGNS[name];
   if (!draw) return;                                                      // most shops have only their name
   for (const x of [88, 110]) onLeft(40, x, x + 2, 84, 88, C.steel);       // two brackets holding it up
   draw();
-}
-// The Post Office: an envelope
-function postOfficeEnvelope() {
-  const x0 = 82, x1 = 118, z0 = 86, z1 = 106, mid = (x0 + x1) / 2;
-  onLeft(40, x0 - 1, x1 + 1, z0 - 1, z1 + 1, C.red);                     // a red edge
-  onLeft(40, x0, x1, z0, z1, C.white);                                    // the envelope
-  line(...P(x0, 40, z1), ...P(mid, 40, z0 + 7), C.red);                    // the flap: a V from the top corners…
-  line(...P(mid, 40, z0 + 7), ...P(x1, 40, z1), C.red);                    // …to the middle
-  line(...P(x0, 40, z0), ...P(mid - 4, 40, z0 + 9), shade(C.white, 0.8)); // the folds at the bottom corners
-  line(...P(x1, 40, z0), ...P(mid + 4, 40, z0 + 9), shade(C.white, 0.8));
 }
 // The Phone Shop: a mobile phone standing up, its screen lit, a home button
 function phoneShopSign() {
@@ -678,15 +668,17 @@ function phoneShopSign() {
   onLeft(40, 99, 101, 87, 89, C.steel);                                   // the home button
 }
 // Worn Out and Tired: a tyre standing on its edge, tread round it, a silver wheel in the middle
-function tyrePlaceSign() {
-  const cx = 100, cz = 100, r = 14;
+function tyrePlaceSign() { tyreSign(40, 100, 100, 1); }
+// The tyre sign on a wall facing you (y = yf), its middle at cx, cz; s: its size (1 = the street's; the town map's is smaller)
+function tyreSign(yf, cx, cz, s) {
+  const r = 14 * s, block = 3 * s;
   for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) {                   // the tyre, as a ring of chunky tread blocks
     const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
-    onLeft(40, x - 3, x + 3, z - 3, z + 3, C.tyre);
+    onLeft(yf, x - block, x + block, z - block, z + block, C.tyre);
   }
-  onLeft(40, cx - 9, cx + 9, cz - 9, cz + 9, C.tyre);                     // its sidewall
-  onLeft(40, cx - 6, cx + 6, cz - 6, cz + 6, C.rim);                      // the wheel
-  onLeft(40, cx - 2, cx + 2, cz - 2, cz + 2, C.steel2);                   // its hub
+  onLeft(yf, cx - 9 * s, cx + 9 * s, cz - 9 * s, cz + 9 * s, C.tyre);     // its sidewall
+  onLeft(yf, cx - 6 * s, cx + 6 * s, cz - 6 * s, cz + 6 * s, C.rim);      // the wheel
+  onLeft(yf, cx - 2 * s, cx + 2 * s, cz - 2 * s, cz + 2 * s, C.steel2);   // its hub
 }
 // A police badge on a wall facing you (y = yf): a silver shield, navy inside, a gold star in the middle (Steve)
 //   cx: its middle across; z0: the bottom of its point; s: its size (1 = the close-up's)
@@ -736,6 +728,7 @@ function shopExterior(name, shut) {
   onLeft(40, 0, 200, 60, 78, C.white); onLeft(40, 2, 198, 61, 77, name === POLICE ? C.white : shade(col, 1.15));
   if (name === 'BustBlockers') { onLeft(40, 2, 198, 61, 77, BUST_BLUE); bustTicket(40, 20, 180, 61, 77); }   // the bust video shop: its yellow ticket sign on blue   // (the police: a white board, so the name reads on the dark blue)
   if (name === 'BustBlockers') frontSign('BUSTBLOCKERS', 34, 40, 142, 76, 14, '#1a3a9a');   // its name in blue on the ticket
+  else if (name === 'Post Office') postOfficeBoard(40, 2, 198, 61, 77);                 // a red board, POST OFFICE in white (Steve)
   else frontSign(name, 6, 40, 188, 77, 16);
   roofSign(name);                                                                                                    // a picture sign above its name: the envelope, the phone, the tyre, the laptop (Steve)
   if (pub) {                                                                                                       // the pub: timbers, a hanging sign, no awning

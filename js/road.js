@@ -568,9 +568,10 @@ function wheelAt(x, y, screw) {
   disc(x, y, 1, C.steel2);
   if (screw) spareScrew(x + 6, y + 4, 1);                  // the screw in it
 }
-// Outside the tyre shop in your own car, the flat spare still in the boot: you can get it out and bring it in
+// Outside the tyre shop or the Scrap Yard in your own car, the flat spare still in the boot: you can get it out and bring it in
+const SPARE_PLACES = [TYRE_SHOP, 'Scrap Yard'];
 function canFetchSpare() {
-  return S.place === TYRE_SHOP && S.spare === 'flat' && !S.spareOut && !S.road && !S.flags.taxi;
+  return SPARE_PLACES.includes(S.place) && S.spare === 'flat' && !S.spareOut && !S.road && !S.flags.taxi;
 }
 function fetchSpare() {
   if (!canFetchSpare()) return;
@@ -581,13 +582,18 @@ function fetchSpare() {
 }
 // Over the counter: handed to him (give), or handed back to you. You're stood there, so you see it go (Steve)
 const TYRE_HAND = { you: [104, 80], ms: 1800, give: true };
-function handTyre(give) {
+function handTyre(give, speaks = true) {
   S.counter = null;                                                     // the whole shop, not the close-up of him
   S.spot.place = TYRE_HAND.you.slice();
   TYRE_HAND.give = give;
   moment('tyrehand', TYRE_HAND.ms);
   sfx('thud', TYRE_HAND.ms * 0.85 / 1000);                              // it lands in their arms
-  SPEAKER = keeperHead();                                               // what he says next comes from him
+  if (speaks) SPEAKER = keeperHead();                                   // what he says next comes from him
+}
+// A swap: yours over to him, then his back to you (the Scrap Yard: Steve)
+function swapTyre() {
+  handTyre(true);                                                       // yours, with the screw in, over the counter…
+  ANIM.then = () => handTyre(false, false);                             // …and one off a wreck back (what he says waits for both)
 }
 MOMENTS.tyrehand = function (p) {
   [ISO.ox, ISO.oy] = SHOP_VIEW;
@@ -623,13 +629,17 @@ function spareAt(place) {
     noHelp(place, '"A screw in your spare? Can\'t plug that, it\'s in the shoulder. New tyre on your wheel: thirty-five quid."\n\n"So where is it? In your boot? Go and get it, mate. You\'ve got to bring it in."');
     return true;
   }
+  if (yard && !S.spareOut) {                                            // the yard swaps it: the same every time, till you bring yours in
+    noHelp(place, '"A spare? I\'ll swap you one off a wreck. Tenner."\n\n"Where\'s yours, then? In your boot? Go and get it, mate. You\'ve got to bring it in."');
+    return true;
+  }
   if (!spend(price)) { anger(10); say(place, declinedWords()); return true; }
-  if (yard) {                                                           // off a wreck: he hands it over, and you carry it out
+  if (yard) {                                                           // off a wreck: you hand yours over, he hands one back, and you carry it out
     closeLead('spare-yard', 'ok');
     closeLead('spare-shop', 'skip');
     spareMended('A spare off a wreck at the Scrap Yard: £10');
     S.spareOut = true;                                                   // in your arms, till you're back in the car
-    handTyre(false);
+    swapTyre();
     say(place, '"A spare? Off that one. It\'s got a bit of tread left. Tenner."\n\nHe passes it over the counter. The one with the screw in is his now. He seems pleased.');
     return true;
   }

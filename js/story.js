@@ -214,7 +214,7 @@ const PLACE_INFO = {
   'Clutch & Co': { closedDays: ['TUE', 'WED'] }
 };
 // Things you can buy: price, what it is, and where it goes
-const ZAM_SOCKETS = 'Socket set, "108 pieces*"';                         // off Zamanon: there's no 10 in it
+const ZAM_SOCKETS = 'Socket set, "108 pieces*"';                         // off Zamanon: it's Whitworth, imperial, not metric (Steve)
 const ITEMS = {
   'mot-sheet': { name: 'MOT failure sheet', price: 0, none: true },
   'extractor-cheap': { name: 'Bolt extractor (cheap)', price: 8.99 },
@@ -846,6 +846,94 @@ function needTen(title) {
   }
   say(title, 'It\'s a 10. They\'re all 10s.\n\nYou\'ve got every socket but the 10, and every spanner but the 10. You need a full socket set.');
 }
+// ---------- before you know it's a 10: try your sockets and spanners on it, one size at a time (Steve) ----------
+//   Too small won't go over the head; too big spins round on it. Once you've found 9 too small and 11 too big, it's a 10, and the 10 is the one you haven't got
+const SOCKET_SIZES = [8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19];        // what's in drawer 1 (no 10)
+const SPANNERS_IN_DRAWER = SPANNER_SIZES.filter(n => n !== SPANNER_MISSING);   // what's in drawer 2 (no 10)
+const NEEDED_SIZE = 10;                                                 // what they all are
+const SIZE_TRY_MS = 1400;                                               // trying one on: in, a go at it, out again
+let SIZE_TRY = null;                                                    // the one being tried now: { which, tool, size } (the moment draws it)
+// Tap a bolt or the nut without a 10: try something on it (or, once you know, you need a 10)
+function whatSize(which) {
+  if (S.flags.tenKnown) return needTen(REDO[which].name);              // you know it's a 10, and you've no 10
+  say(REDO[which].name, 'What size is it? No idea. You\'ll have to try them.', toolChoice(which));
+}
+// The two things you can try, or leave it
+function toolChoice(which) {
+  return [
+    { label: 'Try a socket', run() { pickSize(which, 'socket'); } },
+    { label: 'Try a spanner', run() { pickSize(which, 'spanner'); } },
+    { label: 'Leave it', run() {} }
+  ];
+}
+// Every size of that tool you've got (no 10), the ones you've tried marked with a cross
+function pickSize(which, tool) {
+  const sizes = tool === 'socket' ? SOCKET_SIZES : SPANNERS_IN_DRAWER;   // what's in its drawer
+  const tried = sizesTried(tool);                                       // what you've already had a go with
+  const pick = n => ({ label: tried.includes(n) ? `${n} ✗` : String(n), run() { trySize(which, tool, n); } });
+  const options = sizes.map(pick);                                      // one button for each size
+  options.push({ label: 'Leave it', run() {} });
+  say(REDO[which].name, `Which ${tool}? (mm)`, options);
+}
+// The sizes of a tool you've tried so far
+function sizesTried(tool) {
+  S.flags.sizesTried = S.flags.sizesTried || { socket: [], spanner: [] };
+  return S.flags.sizesTried[tool];
+}
+// Have you tried a 9 and an 11 (of either)? Then it's a 10
+function tenWorkedOut() {
+  const all = sizesTried('socket').concat(sizesTried('spanner'));
+  return all.includes(NEEDED_SIZE - 1) && all.includes(NEEDED_SIZE + 1);
+}
+// Try one on: you see it go on (or not), then how it went
+function trySize(which, tool, size) {
+  pass(2);
+  const tried = sizesTried(tool);
+  if (!tried.includes(size)) tried.push(size);                          // crossed off
+  const tooSmall = size < NEEDED_SIZE;
+  SIZE_TRY = { which, tool, size };
+  moment('sizeTry', SIZE_TRY_MS);
+  ANIM.then = () => { SIZE_TRY = null; };
+  sfx(tooSmall ? 'clink' : 'slip', SIZE_TRY_MS * 0.45 / 1000);          // it knocks on the head, or slips round it
+  const name = REDO[which].name;
+  const how = tooSmall ? `${size}: too small. It won't go over the head.` : `${size}: too big. It just spins round on it.`;
+  if (tenWorkedOut()) return tenDawns(name, how);                       // that's it: it's a 10
+  frustrated();
+  say(name, how, [
+    { label: `Another ${tool}`, run() { pickSize(which, tool); } },
+    { label: tool === 'socket' ? 'Try a spanner' : 'Try a socket', run() { pickSize(which, tool === 'socket' ? 'spanner' : 'socket'); } },
+    { label: 'Leave it', run() {} }
+  ]);
+}
+// 9's too small and 11's too big: it's a 10. And you know what that means
+function tenDawns(name, how) {
+  S.flags.tenKnown = true;
+  say(name, how + '\n\n9\'s too small. 11\'s too big. So it\'s a 10.\n\nIs it a 10? It\'s a 10. Where\'s the 10?', [{ label: 'OK', run() { needTen(name); } }]);
+}
+// The moment: the socket on its ratchet, or the spanner, comes in to the bolt; too small, it knocks against the head and won't go on;
+// too big, it goes over and spins round, gripping nothing; then it comes away
+MOMENTS.sizeTry = function (p) {
+  if (!SIZE_TRY) return;
+  const { which, tool, size } = SIZE_TRY;
+  const [bx, by] = REDO[which].at, r = REDO[which].r;
+  const tooSmall = size < NEEDED_SIZE;
+  const coming = Math.min(1, p / 0.3), going = p > 0.8 ? (p - 0.8) / 0.2 : 0;   // in, a go at it, away again
+  const off = (1 - coming + going) * 46;                                // how far away it is
+  const go = p > 0.3 && p < 0.8 ? (p - 0.3) / 0.5 : 0;                  // the go at it
+  const knock = tooSmall ? Math.abs(Math.sin(go * Math.PI * 6)) * 3 : 0;   // too small: it bumps against the head
+  const sit = tooSmall ? r * 0.9 + knock : 0;                           // …and sits off to one side of it; too big: right over it
+  const x = bx + off * 0.7 + sit * 0.7, y = by - off * 0.7 - sit * 0.7;
+  const wobble = tooSmall ? 0 : Math.sin(go * Math.PI * 2) * 2.4;       // too big: round and round it goes
+  if (tool === 'socket') return ratchet(x, y, -0.9 + wobble, 80, r * size / NEEDED_SIZE + 1);
+  const turn = -0.9 + wobble;                                           // the spanner: its jaw on the bolt, the handle up and to the right
+  const jaw = [x, y], end = [x + Math.cos(turn) * 70, y + Math.sin(turn) * 70];
+  drawSpanner(end, jaw, spannerFor(r, size));
+};
+// A spanner as big on screen as this bolt (a 10 just fits its head); a smaller or bigger one in step
+function spannerFor(r, size) {
+  const fits = (r * 1.25 - 2.4) / 0.28;                                 // the drawer's size whose jaw fits this bolt (spannerHead, screens.js)
+  return fits * size / NEEDED_SIZE;
+}
 // Bought a socket set: that's the 10 sorted
 function boughtSockets() {
   closeLead('ten-shop', 'ok');
@@ -1340,16 +1428,21 @@ function buy(id, place) {
 // =====================================================================
 // WHEN YOU OPEN CERTAIN SCREENS
 // =====================================================================
+// Out from under the car, just after nut 3 dropped: you see it bounce away across the floor (once). Returns true if it did
+function nutGetsAway() {
+  if (!S.flags.n3lost || S.flags.nutEscaped) return false;             // not dropped, or already gone
+  S.flags.nutEscaped = true;
+  moment('nutEscape', 2200); sfx('drop');
+  say('Nut 3', 'There it goes: out from under the car, bouncing across the floor… and gone. Somewhere.');
+  return true;
+}
 const SCREEN_ENTER = {
   city() { S.spareOut = false; S.wheelOut = false; },                  // off in the car: whatever tyre you were carrying is in the boot
   boot() { GAUGE_T0 = performance.now(); },                            // the boot opens: the gauge's needle rides up from 0 (car.js)
   garage() {
-    if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf() && !(S.flags.n3lost && !S.flags.nutEscaped)) return wifeComesIn();
+    if (nutGetsAway()) return;                                          // the nut you just dropped: first, before anything else (Steve)
+    if (isBedtime() && !isAsleep() && S.flags.wifeCalled !== nightOf()) return wifeComesIn();
     if (brotherArrives()) return;                                       // your brother, come to help (brother.js)
-    if (!S.flags.n3lost || S.flags.nutEscaped) return;
-    S.flags.nutEscaped = true;
-    moment('nutEscape', 2200); sfx('drop');
-    say('Nut 3', 'There it goes: out from under the car, bouncing across the floor… and gone. Somewhere.');
   },
   home() {
     const cameFrom = S.history[S.history.length - 1];                 // the screen he's just left
@@ -1787,7 +1880,7 @@ const ACTIONS = {
   },
   // ----- under the car: the gearbox -----
   bolt1() {
-    if (!haveTen()) return needTen('Bolt 1');
+    if (!haveTen()) return whatSize('b1');
     pass(10); S.flags.b1 = true; moment('bolt1Out', 1200); sfx('ratchet'); sfx('clink', 0.9); note('sensor-off', 'Bolt 1 out', 'ok'); say('Bolt 1', 'It comes out. Just like that. Suspicious.');
   },
   // tap bolt 2: the first time, the socket; once it's rounded off, try whatever you've got
@@ -1800,7 +1893,7 @@ const ACTIONS = {
     say('Bolt 2', 'Rounded off. What do you try on it?', opts);
   },
   bolt2() {
-    if (!haveTen()) return needTen('Bolt 2');
+    if (!haveTen()) return whatSize('b2');
     pass(10);
     if (S.flags.b2round) { anger(5); moment('boltSpin', 1200); sfx('slip'); sfx('slip', 0.5); return say('Bolt 2', 'The socket just spins round and round on it. It\'s rounded off.'); }
     S.flags.b2round = true;
@@ -1811,7 +1904,7 @@ const ACTIONS = {
     say('Bolt 2', 'The socket slips. The bolt head is rounded off. Brilliant.');
   },
   nut3() {
-    if (!haveTen()) return needTen('Nut 3');
+    if (!haveTen()) return whatSize('n3');
     pass(10);
     S.flags.n3lost = true;
     anger(10);
@@ -2252,12 +2345,12 @@ function openParcel(item) {
     lead('codes', 'plug-in', 'Plug the reader in (key to II)', 'you', 'sure', 'dash');
     return say('A parcel', 'A used code reader. The plug looks right!\n\nThe port is under the dash.');
   }
-  if (item === 'sockets-zam') {                                        // the Zamanon socket set: no 10 in it
+  if (item === 'sockets-zam') {                                        // the Zamanon socket set: Whitworth, imperial, not metric (Steve)
     S.inv['sockets-zam'] = true;                                       // onto the garage shelf all the same
     anger(10);
     const ten = findJob('ten');
-    if (ten && ten.status === 'open') note('ten', 'The Zamanon socket set: every size but the 10', 'x');
-    return say('A parcel', 'A socket set! 108 pieces*. You count them. 107.\n\n8, 9, 11, 12, 13… There\'s a 10-shaped gap.\n\nThe small print: "*contents may vary."');
+    if (ten && ten.status === 'open') note('ten', 'The Zamanon socket set: Whitworth (imperial), not metric. No 10 mm', 'x');
+    return say('A parcel', 'A socket set! 108 pieces*. You open it.\n\n1/8 W, 3/16 W, 1/4 W, 5/16 W… They\'re all in fractions of an inch. Whitworth. Imperial. For a tractor from 1952.\n\nNot one of them is 10 mm.\n\nThe small print: "*Whitworth sizes."');
   }
   if (item === 'sensor-lot') return openJobLot();                     // 300 sensors (sensors.js)
   if (item === 'part-mega') {

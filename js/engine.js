@@ -6,7 +6,7 @@
 // =====================================================================
 // STATE
 // =====================================================================
-const VERSION = 'v108';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
+const VERSION = 'v109';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
 const START_MONEY = 140;                                              // it runs out part way, so you have to go and see Mum & Dad, or Paul (Steve)
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
@@ -317,7 +317,9 @@ function show(screen) {
 }
 function back() {
   const prev = S.history.pop() || 'home';
+  const outFromUnder = S.screen === 'under' && prev === 'garage';  // out from under the car, into the garage
   S.screen = prev;
+  if (outFromUnder && nutGetsAway()) return;                        // the dropped nut gets away (story.js)
   render();
 }
 // Leaving the house or garage for town

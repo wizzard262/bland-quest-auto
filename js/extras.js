@@ -240,34 +240,41 @@ function gameBoxSpine(lift) {
   disc(discX, discY, 9, C.steel2); disc(discX, discY, 8, C.steel); disc(discX - 3, discY - 3, 2, C.white);
   disc(discX, discY, 2, GAME_BOX_COLOUR);
 }
-// The front of the game box, pulled down: the title, a picture, and CD-ROM 1990 along the bottom
+// The front of the game box, pulled down: the title, a picture (a pirate ship), and CD-ROM 1990 along the bottom
 function gameBoxFront() {
   const title = '<div class="gbtitle"><small>The Secret of</small>MONKEY ISLAND</div>';
   const foot = '<div class="gbfoot"><span>CD-ROM</span><span>1990</span></div>';
   return `<div class="ov gamebox">${title}${islandPicture()}${foot}</div>`;
 }
-// The picture on the box (our own): a dark island shaped like a monkey's head, at sunset, a little boat sailing up to it
+// The picture on the box (our own): a pirate ship at sunset, black sails and the skull and crossbones, a little island behind (Steve)
 function islandPicture() {
   const r = (x, y, w, h, col) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col}"/>`;
   const round = (x, y, size, col) => `<circle cx="${x}" cy="${y}" r="${size}" fill="${col}"/>`;
-  // the sky, in strips from night down to sunset, some stars, and the sun going down behind the island
+  // the sky, in strips from night down to sunset, some stars, and the sun going down
   const sky = r(0, 0, 96, 10, '#281850') + r(0, 10, 96, 9, '#58246c') + r(0, 19, 96, 9, '#a03868') + r(0, 28, 96, 8, '#e06848') + r(0, 36, 96, 8, '#f8a848');
   const stars = [[6, 4], [18, 8], [29, 3], [66, 5], [80, 9], [90, 3]].map(([x, y]) => r(x, y, 1, 1, '#fff4c0')).join('');
-  const sun = round(48, 30, 21, '#f8e070');
-  // the island: the monkey's head and ears in dark rock, his face a paler cliff; caves for his eyes, nose and mouth
-  const rock = '#2c2018', cliff = '#7a5636', cave = '#0c0810';
-  const head = round(33, 29, 6, rock) + round(63, 29, 6, rock) + round(33, 29, 3, cliff) + round(63, 29, 3, cliff) + round(48, 28, 15, rock);
-  const face = round(43, 27, 5, cliff) + round(53, 27, 5, cliff) + `<ellipse cx="48" cy="37" rx="10" ry="7" fill="${cliff}"/>`;
-  const caves = r(42, 26, 3, 4, cave) + r(51, 26, 3, 4, cave) + r(46, 34, 1, 2, cave) + r(49, 34, 1, 2, cave) + r(43, 39, 10, 2, cave);
-  const eyes = r(43, 27, 1, 1, '#f8d038') + r(52, 27, 1, 1, '#f8d038');   // something's lit inside
-  // the beach, and two palm trees
-  const beach = '<ellipse cx="48" cy="45" rx="36" ry="4" fill="#d8b070"/>';
-  const palm = (x, y) => r(x, y, 2, 14, '#3a2818') + r(x - 5, y, 5, 1, '#2a6a38') + r(x - 6, y + 1, 3, 2, '#2a6a38') + r(x + 2, y, 5, 1, '#2a6a38') + r(x + 5, y + 1, 3, 2, '#2a6a38') + r(x - 2, y - 2, 6, 2, '#3e8a3a');
-  // the sea, the sun's light on it, and the boat
+  const sun = round(70, 38, 13, '#f8e070');
+  // far off, a little island with a palm tree on it
+  const island = `<ellipse cx="84" cy="44" rx="11" ry="3" fill="#2c2018"/>` + r(85, 34, 1, 9, '#2c2018') + r(81, 33, 4, 1, '#2c2018') + r(86, 33, 4, 1, '#2c2018') + r(83, 32, 5, 1, '#2c2018');
+  // the sea, and the sun's light on it
   const sea = r(0, 44, 96, 20, '#18406a');
-  const glints = [[30, 52, 9], [52, 53, 12], [40, 56, 8], [60, 59, 10], [4, 52, 6], [80, 51, 7]].map(([x, y, w]) => r(x, y, w, 1, '#f8a848')).join('');
-  const boat = r(13, 57, 15, 2, '#5a3820') + r(15, 59, 11, 2, '#3a2414') + r(20, 47, 1, 10, '#1c120a') + '<polygon points="22,48 29,56 22,56" fill="#f0e8d0"/>';
-  return `<svg class="pic" viewBox="0 0 96 64" shape-rendering="crispEdges" aria-label="An island shaped like a monkey's head, at sunset">${sky}${stars}${sun}${sea}${beach}${head}${face}${caves}${eyes}${palm(20, 31)}${palm(76, 30)}${glints}${boat}</svg>`;
+  const glints = [[58, 47, 18], [62, 50, 12], [40, 58, 8], [66, 54, 9], [4, 52, 6], [86, 60, 7]].map(([x, y, w]) => r(x, y, w, 1, '#f8a848')).join('');
+  // the ship: a dark wooden hull, high at the back, with a row of gun ports and a gold stripe
+  const wood = '#3a2414', dark = '#1c120a';
+  const hull = `<polygon points="12,40 20,40 20,36 30,36 30,41 70,41 80,37 76,50 22,50 14,46" fill="${wood}"/>` + r(22, 43, 54, 1, '#c89030');
+  const ports = [26, 33, 40, 47, 54, 61, 68].map(x => r(x, 45, 3, 2, dark)).join('');
+  const windows = r(14, 42, 2, 2, '#f8d038') + r(17, 42, 2, 2, '#f8d038');            // lit windows in its back
+  // three masts with black sails, a bowsprit at the front
+  const masts = [[28, 10], [46, 6], [62, 12]].map(([x, top]) => r(x, top, 1, 41 - top, dark)).join('') + `<line x1="76" y1="40" x2="90" y2="33" stroke="${dark}" stroke-width="1"/>`;
+  const sail = (x, y, w, h) => `<polygon points="${x},${y} ${x + w},${y} ${x + w - 1},${y + h} ${x + 1},${y + h}" fill="#141018"/>`;
+  const sails = sail(23, 13, 11, 9) + sail(22, 24, 13, 9) + sail(40, 9, 13, 10) + sail(39, 21, 15, 11) + sail(57, 15, 11, 9) + sail(56, 26, 13, 8)
+    + '<polygon points="76,38 89,34 78,30" fill="#141018"/>';                          // the jib at the front
+  // the flag on the main mast: the skull and crossbones
+  const flag = r(47, 3, 9, 6, '#101010') + r(50, 4, 3, 2, '#f0f0e8') + r(51, 6, 1, 1, '#f0f0e8') + r(48, 7, 1, 1, '#f0f0e8') + r(54, 7, 1, 1, '#f0f0e8') + r(49, 6, 1, 1, '#f0f0e8') + r(53, 6, 1, 1, '#f0f0e8');
+  const skullEyes = r(50, 4, 1, 1, '#101010') + r(52, 4, 1, 1, '#101010');
+  // its wake, white on the water
+  const wake = r(10, 50, 10, 1, '#d8e0f0') + r(4, 52, 9, 1, '#a8b8d8') + r(76, 50, 6, 1, '#d8e0f0');
+  return `<svg class="pic" viewBox="0 0 96 64" shape-rendering="crispEdges" aria-label="A pirate ship at sunset, flying the skull and crossbones">${sky}${stars}${sun}${sea}${island}${glints}${wake}${hull}${ports}${windows}${masts}${sails}${flag}${skullEyes}</svg>`;
 }
 // What you say about it
 function gameBoxWords() {
@@ -1183,7 +1190,7 @@ Object.assign(ACTIONS, {
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     if (name === SCREW_JAR) return shelfJar();                      // the screw jar (screws.js)
     if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch
-    if (name === ZAM_SOCKETS) return say(name, '107 pieces. Every size but the 10.');   // off Zamanon
+    if (name === ZAM_SOCKETS) return say(name, 'Whitworth. Imperial. 1/4 W, 5/16 W, 3/8 W… Not one metric size, and no 10 mm.');   // off Zamanon
     if (name === SOCKET_SET) return say(name, 'Every size, even the 10. For now.');   // for the bolts under the car
     if (name === METER_NAME) return testMeter();                     // the multimeter: it works now
     if (name === GAUGE_NAME) return say(name, 'A dial on a stick. It lives on the shelf now.');   // the tyre pressure gauge

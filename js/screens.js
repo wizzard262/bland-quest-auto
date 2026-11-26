@@ -532,6 +532,7 @@ function motorUnit(lot, x0, y0, x1, y1, col) {
   for (let z = 2; z < h - 9; z += 2) line(...P(x0 + a + 4, y1 - a, z), ...P(x0 + a + 30, y1 - a, z), C.steel2);
   onLeft(y1 - a, x0 + 44, x0 + 50, 0, h - 10, C.ink);                                     // the office door
   onLeft(y1 - a, x0 + 52, x1 - a - 3, 4, h - 11, C.glass);                                // the office window
+  if (lot.place[0] === TYRE_SHOP) { tyreSign(y1 - a, (x0 + x1) / 2, h + 9, 0.5); return h + 18; }   // the tyre shop: its tyre on the roof, as on its sign (Steve)
   return h + 6;
 }
 // A shop: a flat roof with a parapet, a striped awning over a big window, the door
@@ -540,7 +541,8 @@ function shopUnit(lot, x0, y0, x1, y1, col, big) {
   ibox(x0 + a, y0 + a, x1 - a, y1 - a, 0, h, col, C.steel);
   onLeft(y1 - a, x0 + a, x1 - a, h, h + 2, shade(col, 0.8));                              // the parapet
   onLeft(y1 - a, x0 + a, x1 - a, h - 9, h - 1, C.white);                                  // the sign board
-  if (lot.place[0] !== 'BustBlockers') frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 1, 8);   // (BustBlocker has its own ticket sign)
+  if (lot.place[0] === 'Post Office') postOfficeBoard(y1 - a, x0 + a, x1 - a, h - 9, h - 1);   // the Post Office: its red board (Steve)
+  else if (lot.place[0] !== 'BustBlockers') frontSign(lot.place[0], x0 + a, y1 - a, x1 - x0 - 2 * a, h - 1, 8);   // (BustBlocker has its own ticket sign)
   for (let x = x0 + a + 4; x < x0 + 40; x += 4) ibox(x, y1 - a, x + 2, y1 - a + 4, h - 12, h - 11, (x / 4) % 2 ? C.white : shade(col, 0.75));   // the striped awning
   onLeft(y1 - a, x0 + a + 4, x0 + 40, 2, h - 12, C.glass);                                // the shop window
   onLeft(y1 - a, x0 + 44, x0 + 50, 0, h - 10, C.ink);                                     // the door
@@ -661,7 +663,7 @@ SCREENS.place = {
       const [dx0, dx1] = name === 'Bank' ? BANK_DOOR : [148, 176];   // where the door is (the bank's is in the middle)
       spot(shut ? 'The door (' + esc(shut.split('.')[0]) + ')' : 'Go in', isoArea(dx0, name === 'Bank' ? 25 : 39, dx1, name === 'Bank' ? 27 : 41, 0, 50), 'act:enter', [(dx0 + dx1) / 2, 50]);
       spot('Back in the car', isoArea(40, 72, 86, 96, 0, 20), 'city', [64, 62]);
-      if (canFetchSpare()) spot('Boot: get the flat spare out', isoArea(36, 72, 50, 96, 2, 20), 'act:sparefetch', [34, 60]);   // at the tyre shop: bring it in (road.js)
+      if (canFetchSpare()) spot('Boot: get the flat spare out', isoArea(36, 72, 50, 96, 2, 20), 'act:sparefetch', [34, 60]);   // at the tyre shop or the Scrap Yard: bring it in (road.js)
       tip(name, shut ? esc(shut) : 'Open. Tap the door to go in.', 1, 8);
       return hud();
     }
@@ -836,7 +838,7 @@ function appHTML(app) {
     ${product('reader-cheap', '<span class="stars">★★★★☆</span> · *not all cars · FREE delivery tomorrow')}
     ${true ? product('headlight-zam', '<span class="stars">★★★★☆</span> · *check your side · arrives tomorrow') : ''}
     ${findJob('new-sensor') ? product('part-mega', '<span class="stars">★★★☆☆</span> "fits all models*" · *not all models · arrives tomorrow') : ''}
-    ${findJob('ten') ? product('sockets-zam', '<span class="stars">★★★★☆</span> · *contents may vary · arrives tomorrow') : ''}
+    ${findJob('ten') ? product('sockets-zam', '<span class="stars">★★★★☆</span> · *see small print · arrives tomorrow') : ''}
     ${S.flags.meterFlat || findJob('meter-battery') ? product('battery-23a', '<span class="stars">★★★★☆</span> · "for garage door remotes, car alarms, multimeters" · arrives tomorrow') : ''}
     <tr><td>Universal Car Sensor Fits All Models 2005 2006 2007 Zafira Astra Golf Tractor<br><span class="meta">Sponsored</span></td><td>£24.99</td><td class="red">Unavailable</td></tr></table></div>`;
   if (app === 'eBuy') return `<div class="top"><b class="logo"><i style="color:#e53238">T</i><i style="color:#0064d2">h</i><i style="color:#f5af02">ee</i> <i style="color:#86b817">Bay</i></b><span class="search">zafira code reader</span><span class="sbtn">Search</span></div><div class="body"><table>
@@ -1637,6 +1639,13 @@ function frontSign(name, x, yf, len, z, tall, col) {
   const fit = signFontSize(name, len, tall);                              // as big as fits the board
   const colour = col ? `;color:${col}` : '';
   LABELS.push(`<div class="front" style="left:${sx / W * 100}%;top:${sy / H * 100}%;width:${len / W * 100}%;height:${tall / H * 100}%;font-size:${fit / W * 100}cqw;line-height:${tall / W * 100}cqw${colour}">${esc(name)}</div>`);
+}
+// The Post Office's sign, like a real one on an English high street: a red board, POST OFFICE in white capitals (Steve)
+//   on a wall facing you (y = yf), from x0 to x1, from z0 up to z1
+const POST_RED = hex('#d2232a');
+function postOfficeBoard(yf, x0, x1, z0, z1) {
+  onLeft(yf, x0, x1, z0, z1, POST_RED);                                   // the red board
+  frontSign('POST OFFICE', x0 + 4, yf, x1 - x0 - 8, z1, z1 - z0, '#ffffff');   // the words, in white
 }
 // BUSTBLOCKER: the video shop that went bust. A blue front, its yellow torn-ticket sign with the name in blue (like the real
 //   thing it's a joke about), all boarded up (Steve). On a wall facing you (y = yf), from x0 to x1, its sign from z0 to z1
