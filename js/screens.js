@@ -1253,6 +1253,8 @@ const SENSOR_SCREWS = 4;
 const BOX_CORNERS = [[66, 66], [134, 124], [66, 124]];             // the 3 holes in its corners for the bolts and the nut that hold it to the gearbox
 // Is the box on the workbench? Only once it's off the car, and until it goes back on
 const boxOnBench = () => !!S.flags.boxOff && !S.flags.boxUp && !S.flags.fitted;
+// The new sensor's in and all four screws hold it (the snapped one's hole too, once you've found a screw): no trying other sensors now (Steve)
+const sensorScrewedIn = () => !!S.flags.fits && (!S.flags.sheared || !!S.flags.screw3);
 // Draw the box's screws: in (a slotted head, tap to undo), out (an empty hole) or snapped (a bright stub)
 function benchScrews(f) {
   const out = f.screws || [];                                          // the screws undone so far
@@ -1286,6 +1288,7 @@ function benchTip(f, boxHere, b) {
   if (!boxHere) return f.fitted || f.boxUp ? 'Nothing to work on. The box is back on the car.' : 'Nothing to work on yet. The sensor is still on the car, in its box.';
   if (!f.sensorOut) return f.sheared ? 'Three screws out, one snapped off. Lift the old sensor out.' : 'The box, with the old sensor screwed into it: 4 screws round it.';
   if (!b) return 'The empty box. Pick a part to try in its hole.';
+  if (sensorScrewedIn()) return 'The new sensor is in, all four screws done up. Fit the box back on the car.';
   return ({ over: 'Held over the hole.', stuck: 'Stuck halfway.', in: 'It\'s in!' })[b.state] + (b.rotated ? ' Pins lined up.' : '');
 }
 SCREENS.bench = {
@@ -1322,7 +1325,7 @@ SCREENS.bench = {
     if (S.inv['old-sensor'] && !holdingOld && !beingLifted) {                          // the old sensor, standing on the bench (just as it looked under the car): tap it to try it in the hole
       ISO.ox = 240; ISO.oy = 64;
       sensorUnit({ part: 'old-sensor', rotated: true }, P(190, 30, 0), 0);
-      if (boxHere) spot('The old sensor: try it', isoArea(180, 20, 200, 40, 0, 44), 'act:pick:old-sensor');
+      if (boxHere && !sensorScrewedIn()) spot('The old sensor: try it', isoArea(180, 20, 200, 40, 0, 44), 'act:pick:old-sensor');   // not once the new one's screwed in
     }
     tip('Workbench', benchTip(f, boxHere, b), 1, 8);
     hud();
@@ -1333,7 +1336,7 @@ SCREENS.bench = {
     if (boxHere && !f.sensorOut) {                                     // the old sensor is still screwed into the box
       a.push({ label: 'Lift the old sensor out', act: 'boxout' });
     }
-    if (boxHere && f.sensorOut) {                                      // the box is empty: try parts in its hole
+    if (boxHere && f.sensorOut && !sensorScrewedIn()) {                // the box's hole is free: try parts in it (not once the new one's screwed in)
       a.push(...benchSensorButtons());                                 // every sensor you've got (sensors.js)
       if (S.flags.cutSeen && !S.flags.soldered) a.push({ label: 'Solder the old plug on', act: 'soldergo' });   // one with bare wires, no plug
     }

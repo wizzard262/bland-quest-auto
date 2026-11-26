@@ -2088,6 +2088,7 @@ const ACTIONS = {
   // try a sensor in the box's hole: lined up and pushed in, in one go
   pick(id) {
     const b = S.bench;
+    if (sensorScrewedIn()) return say('The workbench', `The ${sensorName(S.flags.fittedPart)} is in, and all four screws hold it. You're not trying anything else in there now.`);   // screwed in (Steve)
     if (b && b.state === 'stuck') return say('The workbench', 'The other one\'s stuck in the hole. Pull it out first.');
     if (b && b.state === 'in' && b.part === 'old-sensor') return say('The workbench', 'The old one\'s back in the hole. Pull it out first.');
     const rotated = id === 'part-p4l' ? !!S.flags.linedUp : true;       // the Parts 4 Less one: the first time, you don't line the pins up (and it jams)

@@ -3570,6 +3570,28 @@ test('the splash: as the car hits the puddle he is level with it, and stops dead
   expect(errors).toEqual([]);
 });
 
+test('once the new sensor is in and all four screws hold it, no other sensor can be tried in the box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  // on the bench: the new sensor's in, the snapped screw's stub is out, but no screw for its hole yet (three screws in)
+  await page.evaluate(() => {
+    Object.assign(S.flags, { boxOff: true, sensorOut: true, fits: true, fittedPart: 'part-p4l', sheared: 4, stubOut: true });
+    S.bench = { part: 'part-p4l', rotated: true, state: 'in' };
+    S.inv['part-p4l'] = true; S.inv['part-mega'] = true; S.inv['old-sensor'] = true;
+    show('bench');
+  });
+  await expect(page.locator('.acts button', { hasText: 'Try the' }).first()).toBeVisible();   // three screws: you can still try others
+  // the fourth screw goes in: nothing else can be tried
+  await page.evaluate(() => { S.flags.screw3 = true; render(); });
+  await expect(page.locator('.acts button', { hasText: 'Try the' })).toHaveCount(0);
+  await expect(page.locator('.hs[data-go="act:pick:old-sensor"]')).toHaveCount(0);
+  await page.evaluate(() => ACTIONS.pick('part-mega'));
+  expect(await dialogText(page)).toContain('all four screws');
+  await ok(page);
+  expect(await page.evaluate(() => [S.bench.part, S.bench.state])).toEqual(['part-p4l', 'in']);   // still the new one, still in
+  expect(errors).toEqual([]);
+});
+
 test('the screw jar: once the stub is out you need a third screw; the jar on the garage shelf spills everywhere; sweep it up with the dustpan; try screws from the tray till one fits', async ({ page }) => {
   const errors = [];
   await start(page, errors);
