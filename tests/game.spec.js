@@ -1298,7 +1298,7 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   expect(await lampsOn('home')).toBe(1);
   expect(await lampsOn('garage')).toBe(1);
   const oneKicked = await nightLit();
-  expect(new Set(oneKicked)).toEqual(new Set(['false,true', 'true,true']));   // left flickers, right always on
+  expect(new Set(oneKicked)).toEqual(new Set(['true,false', 'true,true']));   // left flickers, right always on (turned along the street, the left one is drawn second)
   await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the second: the right one too
   expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: true });
   expect(await lampsOn('home')).toBe(2);
@@ -1319,6 +1319,29 @@ test('kick both headlights in: each shows cracked wherever you see the car, and 
   expect(await dialogText(page)).toContain('exactly right');
   await ok(page);
   expect(await page.evaluate(() => S.lamps.right)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('the same headlight is smashed wherever you see the car: kick the left one and it is on your left as you face the front, on the drive, outside a shop, on the town map and at Mill Lane', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { anger(100); render(); }); await ok(page);   // the first kick: the left one
+  expect(await page.evaluate(() => kickedLamps())).toEqual({ left: true, right: false });
+  // On this screen: is the smashed lamp left of the whole one, on screen? (the car faces us, so your left is the screen's left)
+  const smashedOnLeft = setUp => page.evaluate(js => {
+    DIALOG = null;
+    new Function(js)();                                                   // go there
+    render();
+    const middle = lamp => lamp.pts.reduce((sum, p) => sum + p[0], 0) / lamp.pts.length;   // across the screen
+    const smashed = OUR_LAMPS.find(l => l.cracked);
+    const gap = lamp => Math.abs(middle(lamp) - middle(smashed));
+    const whole = OUR_LAMPS.filter(l => !l.cracked).sort((a, b) => gap(a) - gap(b))[0];   // its other headlight: the whole one nearest it (not the wife's car's)
+    return middle(smashed) < middle(whole);
+  }, setUp);
+  expect(await smashedOnLeft("S.place = null; S.screen = 'home';")).toBe(true);                               // on the drive
+  expect(await smashedOnLeft("S.place = 'Tool Shop'; S.inside = false; S.screen = 'place';")).toBe(true);      // outside a shop
+  expect(await smashedOnLeft("S.place = 'Tool Shop'; S.screen = 'city';")).toBe(true);                         // on the town map
+  expect(await smashedOnLeft("S.road = { spare: false, walked: false }; S.screen = 'roadside';")).toBe(true);   // at Mill Lane
   expect(errors).toEqual([]);
 });
 

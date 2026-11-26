@@ -369,7 +369,8 @@ function isoCar(x, y, s = 1, col = C.car, opts = {}) {
   const ours = !broken && !opts.shape && col === C.car;                                  // your car (the only blue one)
   const hasLights = ours || !!opts.lights || (!broken && col === WIFE_CAR);               // has its lights on at night: yours, the wife's, a taxi…
   const lit = hasLights && opts.off ? 'off' : hasLights;                                  // …but not parked up at home (opts.off)
-  const kicked = opts.lampState || (ours ? kickedLamps() : { left: false, right: false });   // which of its headlights you've kicked in (the kick scene says for itself)
+  const kickedNamed = opts.lampState || (ours ? kickedLamps() : { left: false, right: false });   // which of its headlights you've kicked in (the kick scene says for itself)
+  const kicked = lampsThisWayRound(kickedNamed, !!opts.alongX);                          // which lamp on the drawing that is
   if (!dz) poly(F([[-2, 2, sink], [26, 2, sink], [26, L + 2, sink], [-2, L + 2, sink]]), shade(C.floor, 0.6));     // shadow
   // the back: a solid hatch, or a saloon's rear window, and the flat deck behind it
   poly(F([[i0, K.hy, K.tz], [i1, K.hy, K.tz], [i1, K.ry0, K.rz], [i0, K.ry0, K.rz]]), K.rearGlass || rev ? glass : shade(col, 0.7));
@@ -458,6 +459,14 @@ function carBack(K, tail, col, broken) {
 // When the lights are on, a whole one is full on and a cracked one flickers (each on its own)
 let OUR_LAMPS = [];                                                   // where your car's headlights are on this screen: { pts, seed, cracked, crack } (render empties it)
 const LAMP_ON = hex('#fff4b8');                                       // a headlight, lit
+// The kicked lamps, as drawn on a car turned this way (Steve: the same headlight is smashed in every view)
+//   The "left" headlight is the one on your left as you face the car's front: as you kicked it, and under the bonnet.
+//   On the drive and in the kick scene the car is drawn the plain way round, and that lamp is the drawing's left one.
+//   Turned along the street (at a shop, on the town map, Mill Lane), x and y swap over: a mirror image, so the lamps swap too
+function lampsThisWayRound(named, alongX) {
+  if (!alongX) return named;                                         // the plain way round: as named
+  return { left: named.right, right: named.left };                  // mirrored: swap them over
+}
 // Which of your headlights you've kicked in (and not replaced yet)
 function kickedLamps() {
   const known = typeof brokeOpen === 'function';                      // (the anger code is loaded after the drawing kit)
