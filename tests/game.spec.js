@@ -657,7 +657,7 @@ test('not knowing the size: try your sockets and spanners on the bolt; too small
   expect(errors).toEqual([]);
 });
 
-test('a socket set off Zamanon: arrives tomorrow, and it is Whitworth (imperial), not metric; the bolts still need the one from a tool shop', async ({ page }) => {
+test('a socket set off Zamanon: arrives tomorrow; under the car you find it is Whitworth (imperial), not metric, and it goes in the parts box; the bolts still need the one from a tool shop', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   await page.evaluate(() => { S.screen = 'pc'; S.app = 'MegaMart'; render(); });
@@ -671,9 +671,20 @@ test('a socket set off Zamanon: arrives tomorrow, and it is Whitworth (imperial)
   await ok(page);
   expect(await page.evaluate(() => [leadOpen('ten-online'), S.parcels.some(p => p.item === 'sockets-zam')])).toEqual([false, true]);
   await page.evaluate(() => { S.parcels = []; S.anger = 10; S.screen = 'home'; render(); openParcel('sockets-zam'); });
+  expect(await dialogText(page)).toContain('108 pieces');
+  expect(await dialogText(page)).not.toContain('Whitworth');           // you don't know yet
+  await ok(page);
+  expect(await page.evaluate(() => [S.anger, storeList().some(r => r[0] === ZAM_SOCKETS)])).toEqual([10, true]);   // on the garage shelf
+  // under the car: you try it on a bolt, and only now find out
+  await page.evaluate(() => { S.flags.codes = true; S.flags.sensorJob = true; S.flags.tenKnown = true; S.screen = 'underZoom'; render(); });   // (you'd worked out it's a 10 before you ordered it)
+  await tap(page, 'act:nut3');
+  expect(await page.evaluate(() => ANIM && ANIM.kind)).toBe('sizeTry');   // you see a socket go on, and not fit
   expect(await dialogText(page)).toContain('Whitworth');
   await ok(page);
-  expect(await page.evaluate(() => [S.anger, haveTen(), findJob('ten').status, leadOpen('ten-shop'), storeList().some(r => r[0] === ZAM_SOCKETS)])).toEqual([20, false, 'open', true, true]);
+  expect(await page.evaluate(() => [S.anger, haveTen(), findJob('ten').status, leadOpen('ten-shop'), storeList().some(r => r[0] === ZAM_SOCKETS), S.junked])).toEqual([20, false, 'open', true, false, ['sockets-zam']]);   // in the parts box
+  await tap(page, 'act:nut3');                                         // next time: you know you need a 10
+  expect(await dialogText(page)).toContain('You need a full socket set');
+  await ok(page);
   expect(errors).toEqual([]);
 });
 

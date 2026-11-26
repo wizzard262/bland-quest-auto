@@ -864,6 +864,7 @@ const SIZE_TRY_MS = 1400;                                               // tryin
 let SIZE_TRY = null;                                                    // the one being tried now: { which, tool, size } (the moment draws it)
 // Tap a bolt or the nut without a 10: try something on it (or, once you know, you need a 10)
 function whatSize(which) {
+  if (S.inv['sockets-zam']) return whitworthTried(which);              // the new set off Zamanon: you try that first
   if (S.flags.tenKnown) return needTen(REDO[which].name);              // you know it's a 10, and you've no 10
   say(REDO[which].name, 'What size is it? No idea. You\'ll have to try them.', toolChoice(which));
 }
@@ -874,6 +875,20 @@ function toolChoice(which) {
     { label: 'Try a spanner', run() { pickSize(which, 'spanner'); } },
     { label: 'Leave it', run() {} }
   ];
+}
+// Under the car with the Zamanon set: you try it, and only now find out it's Whitworth. It goes in the parts box (Steve)
+function whitworthTried(which) {
+  pass(5);
+  anger(10);
+  S.inv['sockets-zam'] = false;                                         // off the shelf…
+  junkIt('sockets-zam');                                                // …and into the parts box
+  const ten = findJob('ten');
+  if (ten && ten.status === 'open') note('ten', 'The Zamanon socket set: Whitworth (imperial), not metric. No 10 mm', 'x');
+  SIZE_TRY = { which, tool: 'socket', size: 9.5 };                      // you see one go on: 3/8 W, not quite a 10, knocking on the head
+  moment('sizeTry', SIZE_TRY_MS);
+  ANIM.then = () => { SIZE_TRY = null; };
+  sfx('clink', SIZE_TRY_MS * 0.45 / 1000);
+  say(REDO[which].name, 'You open the new Zamanon set. 108 pieces*.\n\n3/8 W: won\'t go on. 7/16 W: spins round. They\'re all in fractions of an inch. Whitworth. Imperial. For a tractor from 1952.\n\nNot one of them is 10 mm. The small print: "*Whitworth sizes."\n\nIt goes in the parts box.');
 }
 // Every size of that tool you've got (no 10), the ones you've tried marked with a cross
 function pickSize(which, tool) {
@@ -2348,12 +2363,9 @@ function openParcel(item) {
     lead('codes', 'plug-in', 'Plug the reader in (key to II)', 'you', 'sure', 'dash');
     return say('A parcel', 'A used code reader. The plug looks right!\n\nThe port is under the dash.');
   }
-  if (item === 'sockets-zam') {                                        // the Zamanon socket set: Whitworth, imperial, not metric (Steve)
-    S.inv['sockets-zam'] = true;                                       // onto the garage shelf all the same
-    anger(10);
-    const ten = findJob('ten');
-    if (ten && ten.status === 'open') note('ten', 'The Zamanon socket set: Whitworth (imperial), not metric. No 10 mm', 'x');
-    return say('A parcel', 'A socket set! 108 pieces*. You open it.\n\n1/8 W, 3/16 W, 1/4 W, 5/16 W… They\'re all in fractions of an inch. Whitworth. Imperial. For a tractor from 1952.\n\nNot one of them is 10 mm.\n\nThe small print: "*Whitworth sizes."');
+  if (item === 'sockets-zam') {                                        // the Zamanon socket set: you don't find out it's Whitworth till you're under the car (Steve)
+    S.inv['sockets-zam'] = true;                                       // onto the garage shelf
+    return say('A parcel', 'A socket set! 108 pieces*. A shiny black case.\n\nIt goes on the garage shelf. Now for those bolts under the car.');
   }
   if (item === 'sensor-lot') return openJobLot();                     // 300 sensors (sensors.js)
   if (item === 'part-mega') {

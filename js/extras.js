@@ -332,6 +332,7 @@ const JUNKED = {
   'reader-old': ["Gaz's code reader", 'reader', "Gaz's reader, round plug and all. From 1994. You really should give it back."],
   'reader-cheap': ['The Zamanon code reader', 'reader', '"Fits all cars*". *Fits all lorries.'],
   'extractor-cheap': ['The cheap extractor (snapped)', 'extractor', 'Half of the cheap bolt extractor. The other half is still stuck in something.'],
+  'sockets-zam': ['The Zamanon socket set (Whitworth)', 'sockets', '"108 pieces*". *Whitworth sizes. For a tractor from 1952.'],
   'old-sensor': ['The old sensor', 'badsensor', 'The old sensor, its plug cut off. It was never the sensor anyway. Probably.']
 };
 // A thing found to be no good: its name, how it's drawn and what you think (the wrong sensors come from SENSORS)
@@ -392,6 +393,13 @@ function drawJunked(j) {
     for (const u of [-5, 0, 5]) box(u - 1.5, 3, u + 1.5, 6, hex('#303030'));   // its buttons
     pipe(...corner(0, 13), ...corner(8, 22), 4, C.ink);                         // its thick lead
     box(6, 22, 12, 26, hex('#303030'));                                        // the plug on the end
+    return;
+  }
+  if (kind === 'sockets') {                                                  // a socket set: its black case, open, a row of shiny sockets
+    box(-16, -9, 16, 9, hex('#1c1c20'));                                      // the case
+    box(-14, -7, 14, 7, hex('#2e2e34'));                                      // its tray
+    for (let k = 0; k < 6; k++) box(-12 + k * 4.4, -4, -9.5 + k * 4.4, 4, C.steel);   // the sockets, smallest to biggest
+    box(-16, 9, 16, 11, C.red);                                               // the red catch strip along the front
     return;
   }
   if (kind === 'extractor') {                                                // the snapped extractor: a tapered spiral bit, its broken end bright
@@ -1190,7 +1198,7 @@ Object.assign(ACTIONS, {
     if (name === DICE) return shelfDice();                          // fluffy dice: hang them in the car
     if (name === SCREW_JAR) return shelfJar();                      // the screw jar (screws.js)
     if (name === GLOVE_TORCH) return say(name, 'Click. Nothing. The batteries inside have gone furry.');   // the glove box torch
-    if (name === ZAM_SOCKETS) return say(name, 'Whitworth. Imperial. 1/4 W, 5/16 W, 3/8 W… Not one metric size, and no 10 mm.');   // off Zamanon
+    if (name === ZAM_SOCKETS) return say(name, '108 pieces*. Still in its case. Shiny. Try it on the bolts under the car.');   // off Zamanon: you find out what it is under the car (Steve)
     if (name === SOCKET_SET) return say(name, 'Every size, even the 10. For now.');   // for the bolts under the car
     if (name === METER_NAME) return testMeter();                     // the multimeter: it works now
     if (name === GAUGE_NAME) return say(name, 'A dial on a stick. It lives on the shelf now.');   // the tyre pressure gauge
