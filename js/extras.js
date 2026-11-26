@@ -271,6 +271,7 @@ function islandPicture() {
 }
 // What you say about it
 function gameBoxWords() {
+  SPEAKER = offScreenMe();                                             // you say it (you're not drawn at the shelf)
   say('The Secret of MONKEY ISLAND', '"Point and click puzzle games. So tedious. You trudge back and forth, try everything on everything, and when you finally solve one puzzle there\'s another one behind it."\n\n"Who\'d play that?"');
 }
 SCREENS.shelf = {

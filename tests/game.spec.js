@@ -4198,6 +4198,40 @@ test('ringing people after midnight: they complain it is late', async ({ page })
   expect(errors).toEqual([]);
 });
 
+test('all speech is a speech bubble with the speech noise: on the phone (ringing out, or a call coming in) and in person; telling you things is a box', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await page.evaluate(() => { window.PITCHES = []; chatter = (n, pitch) => PITCHES.push(pitch); });   // listen for the garbled speech
+  // [what to run, a bubble?, which voice (null: no speech noise)]
+  const cases = [
+    ["S.screen = 'phone'; ACTIONS.ring('Gaz')", true, 120],                                    // ringing out: from the phone
+    ["S.screen = 'phone'; S.mins = 11 * 60; ACTIONS.ring('Wife')", true, 290],
+    ["S.screen = 'phone'; ACTIONS.ring('Mum')", true, 290],
+    ["S.screen = 'phone'; S.flags.gazTried = false; say('Ringing Gaz', 'No answer.')", false, null],   // nobody talks: a box
+    ["S.screen = 'garage'; incomingCall('Paul', '\"Mate.\"', 'mate'); answerCall()", true, 120],   // a call coming in: from the phone in your pocket
+    ["S.screen = 'shelf'; gameBoxWords()", true, 120],                                           // you, where you're not drawn
+    ["S.screen = 'place'; S.place = 'Café'; S.inside = true; S.money = 50; coffeeServed(['one', 'two'])", true, 120],   // told, then he talks
+    ["S.screen = 'home'; say('The taxi', 'Home. \"Been out celebrating, have we?\"')", true, 120],   // someone not drawn here
+    ["S.screen = 'garage'; say('The 10 mm', 'It is not there.')", false, null]                  // just telling you: a box
+  ];
+  for (const [code, bubble, voice] of cases) {
+    const [at, title, heard] = await page.evaluate(c => {
+      DIALOG = null; ANIM = null; CALL = null; PITCHES = [];
+      new Function(c)();
+      render();
+      return [DIALOG && DIALOG.at, DIALOG && DIALOG.title, PITCHES.slice()];
+    }, code);
+    expect(!!at, code).toBe(bubble);
+    expect(heard, code).toEqual(voice ? [voice] : []);
+    if (bubble) await expect(page.locator('.dlg.bubble'), code).toBeVisible();
+    else await expect(page.locator('.dlg.note'), code).toBeVisible();
+  }
+  // the call coming in: the bubble points down at the phone in your pocket
+  const pocket = await page.evaluate(() => { DIALOG = null; S.screen = 'garage'; render(); incomingCall('Paul', '"Mate."', 'mate'); answerCall(); const [x, y] = phoneIconAt(1); return [DIALOG.at[0] - x, DIALOG.at[1] - y]; });
+  expect(pocket).toEqual([5, 0]);
+  expect(errors).toEqual([]);
+});
+
 test('everyone who talks makes the speech noise: the tester, the first time too; on the phone; part of the way through a message', async ({ page }) => {
   const errors = [];
   await start(page, errors, true);                                       // in the MOT Test Centre

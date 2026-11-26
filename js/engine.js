@@ -6,7 +6,7 @@
 // =====================================================================
 // STATE
 // =====================================================================
-const VERSION = 'v107';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
+const VERSION = 'v108';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
 const START_MONEY = 140;                                              // it runs out part way, so you have to go and see Mum & Dad, or Paul (Steve)
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
@@ -36,6 +36,7 @@ let S = freshState();
 let DIALOG = null;                     // the dialog box on screen (not saved)
 let SPEAKER_FOR = null;               // whose next line SPEAKER is for (null: whoever says the next thing)
 let SPEAKER = null;                    // [x, y] picture position of whoever is talking: the next dialog is their speech bubble
+const PHONE_VOICE = [240, 104];        // on the phone screen, where their voice comes out: the phone
 
 // =====================================================================
 // TIME, MONEY, ANGER
@@ -354,11 +355,21 @@ function say(title, body, options) {
   SPEAKER_FOR = null;
   SPEAKER = null;
   const spoken = !!at || saidAloud(title, body);                       // someone talking: they chatter when it comes up (voiceDialog)
-  DIALOG = { title, body, at, spoken, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
+  const from = at || (spoken ? voiceAt() : null);                      // all speech is a bubble: from them, or where their voice comes from (Steve)
+  DIALOG = { title, body, at: from, spoken, options: options && options.length ? options : [{ label: 'OK', run: () => {} }] };
   render();
 }
+// Where you are, when you're not drawn on this screen (a counter close-up, a shelf, the phone): low down on the left
+const offScreenMe = () => [W * 0.22, H - 2];
+// Where someone else's voice comes from, when nobody has said: the phone, the shopkeeper, or someone off to the right
+function voiceAt() {
+  if (S.screen === 'phone') return PHONE_VOICE;                        // on the phone: out of the phone
+  const inShop = S.screen === 'place' && S.inside;                     // in a shop, the pub, or at someone's door
+  if (inShop) return keeperHead();                                     // whoever's behind the counter
+  return [W * 0.78, H - 2];                                            // somebody not drawn here: low down on the right, clear of you
+}
 // Messages that tell you what happens and then have someone speak, part of the way through
-const TELL_THEN_TALK = ['The taxi', 'Home', 'Blue lights', 'Dad'];
+const TELL_THEN_TALK = ['The taxi', 'Home', 'Blue lights', 'Dad', 'Café'];
 // Is somebody talking in this message (with no bubble)? Their words are in quotes
 function saidAloud(title, body) {
   if (title === 'The posters') return false;                          // quotes, but nobody's talking
@@ -387,7 +398,7 @@ function speakChatter(who, body) {
 }
 // Something you say: a speech bubble from your own head; tap anywhere to carry on, then `then` runs (their answer)
 function sayMe(line, then) {
-  DIALOG = { title: 'You', body: line, at: meHead(), spoken: true, options: [{ label: 'OK', run: then || (() => {}) }] };   // (you talk in the man's voice too)
+  DIALOG = { title: 'You', body: line, at: meHead() || offScreenMe(), spoken: true, options: [{ label: 'OK', run: then || (() => {}) }] };   // (you talk in the man's voice too)
   render();
 }
 // A dialog with nothing to choose (just OK) carries on with a tap anywhere: no OK button needed

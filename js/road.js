@@ -481,7 +481,7 @@ Object.assign(ACTIONS, {
     sfx('buzz');
     pass(5);
     const them = (line, then) => {                                     // her voice, and her bubble from the phone (Steve)
-      SPEAKER = RECOVERY_VOICE;
+      SPEAKER = PHONE_VOICE;
       say(RECOVERY, line, [{ label: 'OK', run: then }]);
     };
     them('"Thank you for calling Fleengrag Car Recovery. You are number one in the queue. What\'s the problem?"', () => {   // (she never asks where you are: Steve)
@@ -651,7 +651,6 @@ function spareMended(how) {
 }
 // On a flat, stuck by your car, with a little life left in the phone: all it's good for is ringing for help
 const RECOVERY = 'Fleengrag Car Recovery';
-const RECOVERY_VOICE = [240, 104];                                   // where her voice comes out: the phone
 let ON_RECOVERY = false;                                             // talking to them now (not saved: reload, and you can ring again)
 const brokenDown = () => !!S.road && !FLAT_DRIVE && !S.road.walked && !S.flags.phoneDead;
 // Mid-sentence, the screen goes black

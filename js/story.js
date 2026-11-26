@@ -533,8 +533,17 @@ function stopRinging() {
 function answerCall() {
   const { who, words } = CALL;
   stopRinging();
-  if (inPub()) { ON_PHONE = true; SPEAKER = phoneInHand(); }
+  if (inPub()) ON_PHONE = true;                                       // in the pub you see him hold it to his ear
+  SPEAKER = callerVoice();                                            // their words: a bubble from the phone (Steve)
   say(who, words, [{ label: 'OK', run() { ON_PHONE = false; } }]);
+}
+// Where a caller's voice comes from: the phone at his ear (the pub), the phone screen, or the phone in your pocket
+function callerVoice() {
+  if (inPub()) return phoneInHand();                                   // held to his ear
+  if (S.screen === 'phone') return PHONE_VOICE;                        // the phone's out
+  const s = W > 500 ? 2 : 1;                                           // (the town map is drawn twice size)
+  const [x, y] = phoneIconAt(s);                                       // in your pocket, bottom right
+  return [x + 5 * s, y];                                               // the top of it
 }
 // Not answered: a missed call, and then they text
 function missedCall() {
