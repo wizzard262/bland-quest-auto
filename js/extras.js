@@ -139,26 +139,23 @@ const BOOKS = [                                          // mixed up along the s
   ['Zafira 1999–2005 Petrol (Excite only)', ['Chapter 7: Automatic transmission. "Removal is a dealer operation."', 'Page 7-12 has a drawing of a sensor that looks nothing like yours.', 'Someone has written "LIES" in the margin, in biro. It might have been you.']],
   ['Fanged Noumena (Nick Land)', ['"What appears to humanity as the history of capitalism is an invasion from the future."', 'You read the same page four times. Your head hurts. The car is still broken.', '"Machinic desire can seem a little inhuman." So can the gearbox.']],
   ['Car Electrics Made Simple (1987)', ['Chapter 1: What is electricity?', 'Chapter 2: Points and condensers.', 'Chapter 9: "Computers in cars? A fad."']],
-  ['How to Swear Less', ['The bookmark is on page 3.', 'Page 3: "Count to ten."', 'Someone has added a lot of words in the margins. Some of them are new to you.']],
   ['Zafira Diesel', ['Everything about the diesel. Your car is petrol.', 'Glow plugs. Your car doesn\'t have glow plugs.', 'The gearbox chapter says "As petrol models." The petrol book says "As diesel models."']],
   ['Das Kapital (Karl Marx)', ['Volume 1: Commodities.', 'The car is a commodity. The sensor is a commodity. The £120 diagnostic is surplus value.', 'Nothing about gearboxes. Marx never owned a Zafira.']],
   ['The Complete Gearbox', ['412 pages on manual gearboxes.', 'One paragraph on automatics: "These are best left to specialists."', 'The specialists are three months away.']],
-  ['Classic Minis', ['Not even slightly useful.', 'You read it for twenty minutes anyway.', 'You now want a Mini. That doesn\'t help either.']],
   ['Ford Sierra 1982–93', ['Not your car. Not even close.', 'Someone has done every job in it, in pencil, with the dates.', 'The last entry: "Sold it. Bought a Zafira. Mistake."']],
   ['The Trial (Franz Kafka)', ['"Someone must have slandered Josef K., for one morning, without having done anything wrong, he was arrested."', 'K. is never told what he\'s charged with. The court is always in another office, up another staircase, open by appointment only.', 'A man waits all his life at the door of the Law. You\'ve waited three days for a sensor. You know how he feels.']],
   ['Wiring Diagrams Vol. 2', ['Volume 2 starts at circuit 214.', 'Volume 1 is missing.', 'Circuit 214: "Continued from Volume 1."']],
   ['Fly Fishing (J. R. Hartley)', ['A lovely old book about fly fishing.', 'You have no idea why it\'s in the garage.', 'Inside the cover, in pencil: "Found it at last. J.R.H."']],
   ['Zafira 1.6 Plus (Deutsch)', ['Ihr Fahrzeug ist mit einem Wählhebelsensor ausgestattet…', 'It\'s exactly your car. It\'s in German.', 'There\'s a lovely clear diagram. All the labels are in German too.']],
   ['A Thousand Plateaus (Deleuze & Guattari)', ['"Make rhizomes, not roots."', 'The wiring loom under the car is, you realise, a rhizome.', 'You close it. You don\'t feel deterritorialised. You feel tired.']],
-  ['Astra 1998–2004', ['"The Astra and Zafira share many parts." It doesn\'t say which.', 'A whole page of torque settings. None of them for anything you\'ve got.', 'A pressed flower. Nobody knows how it got there.']],
   ['LEGO Instructions: Zafira (Model 1:24)', ['Step 1 of 212: Find the two grey 2x4 bricks.', 'Step 87: Fit the gearbox sensor (piece 4211). Simply click it in.', 'If only. You look at the real one and back at the picture.']],
   ['Practical Car Maintenance', ['Lovely pictures of a 1972 Cortina.', '"Always use the correct tool."', '"If in doubt, consult your dealer." The dealer is £120 an hour.']],
   // a page can be { text, pic }: words on the left, a picture on the right
   ['The Myth of Sisyphus (Albert Camus)', [{ text: 'Opposite the title page, a picture: a man pushing his car up a hill. He looks a lot like you.', pic: 'sisyphus' },
     'The gods condemned Sisyphus to push a rock to the top of a mountain, where it rolled back down. For ever.', 'You think about the gearbox sensor.',
     '"The struggle itself toward the heights is enough to fill a man\'s heart. One must imagine Sisyphus happy."', 'You do not feel happy. You feel like Sisyphus.']],
-  ['Vectra Workshop Manual', ['You don\'t own a Vectra. You never have.', 'It\'s very thorough. About the Vectra.', 'Stamped inside: "Property of E & D Motors. DO NOT REMOVE."']],
   ['Fiesta Mk3 (borrowed, 2004)', ['Inside the cover: "PLEASE GIVE BACK — GAZ".', 'A Fiesta isn\'t a Zafira.', 'A receipt falls out: one pasty, 2004.']],
+  ['Zen and the Art of Motorcycle Maintenance (Robert M. Pirsig)', ['A man and his son ride across America. A screw sticks in a side cover. "Stuckness shouldn\'t be avoided. It\'s the psychic predecessor of all real understanding."', 'You have been stuck for three days. You must understand an awful lot by now.', '"The real cycle you\'re working on is a cycle called yourself." The Zafira is not a motorcycle. You are not sure what you are.']],   // philosophy about fixing things (Steve)
   ['Motor Repair for Beginners', ['Step 1: Take it to a mechanic.', 'Step 2: See step 1.', 'Index: "Gearbox, see Mechanic."']],
   ['The Secret of MONKEY ISLAND (CD-ROM, 1990)', ['The box.']]   // not a book: a game in a big box, thicker than the books (Steve). Pulled down, you see its front (gameBoxFront)
 ];
@@ -166,7 +163,7 @@ const GAME_BOX = BOOKS.length - 1;                         // where the game box
 const CREAM_BOOK = hex('#e8e0c8'), SAND_BOOK = hex('#d8c8a0');
 const BOOK_COLOURS = [C.red, C.car, C.warm, hex('#40a060'), C.white, hex('#9a5ac8'), C.redDim, C.tree1, C.steel2, CARDBOARD, C.car, hex('#e070a8'), C.ink, C.red, hex('#202020'), hex('#a02020'), C.warm, CREAM_BOOK, hex('#3a6a4a'), SAND_BOOK];
 const PALE_BOOKS = [C.white, C.warm, CARDBOARD, CREAM_BOOK, SAND_BOOK];   // the pale ones: dark lettering
-const BOOK_W = 18;                                         // each book's slot on the shelf (21 books, the game box and the car handbook fit along it)
+const BOOK_W = 18;                                         // each book's slot on the shelf (18 books, the game box and the car handbook fit along it)
 const GAME_BOX_W = 40;                                     // the game box's slot: more than twice as thick
 const GAME_BOX_COLOUR = hex('#241848'), GAME_BOX_YELLOW = '#f8d038';   // its night-blue card, and its lettering
 // The picture in the Myth of Sisyphus: our hero, side-on, pushing his car up a hill (pixel-sharp)

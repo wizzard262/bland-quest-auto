@@ -1616,7 +1616,7 @@ test('the manuals: each book has its title on the spine; pull one down and read 
   await start(page, errors);
   await garage(page);
   await page.locator('.hs[data-go="shelf"]').click(); await idle(page);
-  expect(await page.locator('.spine').count()).toBe(22);                                    // 21 books and the game box (no handbook yet: it's in the parts box)
+  expect(await page.locator('.spine').count()).toBe(19);                                    // 18 books and the game box (no handbook yet: it's in the parts box)
   const sierra = await page.evaluate(() => BOOKS.findIndex(b => b[0].startsWith('Ford Sierra')));
   await page.locator(`.hs[data-go="act:book:${sierra}"]`).click();
   await expect(page.locator('.book')).toContainText('Sierra');           // not your car's handbook: that's in the parts box
@@ -1792,7 +1792,7 @@ test('the manuals shelf: The Trial is there, the kinds of book are mixed up alon
   await start(page, errors);
   const titles = await page.evaluate(() => BOOKS.map(b => b[0]));
   expect(titles.some(t => t.startsWith('The Trial (Franz Kafka)'))).toBe(true);
-  const deep = ['Fanged Noumena', 'Das Kapital', 'A Thousand Plateaus', 'The Myth of Sisyphus', 'The Trial'];
+  const deep = ['Fanged Noumena', 'Das Kapital', 'A Thousand Plateaus', 'The Myth of Sisyphus', 'The Trial', 'Zen and the Art'];
   const at = deep.map(d => titles.findIndex(t => t.startsWith(d))).sort((a, b) => a - b);   // where each one stands
   for (let k = 1; k < at.length; k++) expect(Math.abs(at[k] - at[k - 1])).toBeGreaterThan(1);   // never two side by side
   await page.evaluate(() => { S.inv.handbook = true; S.screen = 'shelf'; render(); });
