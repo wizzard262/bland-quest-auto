@@ -560,6 +560,7 @@ const PLUGS = [
 ];
 // The readers you own just now
 const ownedPlugs = () => PLUGS.filter(([id]) => S.inv[id]);
+const PLUG_IN = 'reader-good';                                      // the one that fits, and stays in the port once it's in (S.flags.readerIn)
 // The plug being tried in the port, while its moment plays: { id, x, fits }
 let PLUG_TRY = null;
 
@@ -619,11 +620,19 @@ SCREENS.port = {
     grime(0, 0, W, 120, hex('#2c2e33'), 0.12, 58);                  // under the dashboard, round the port
     rect(0, 120, W, H - 120, PLUG_TRAY);                            // the footwell below, where the plugs lie
     portSocket();
+    const inPort = S.flags.readerIn ? PLUG_IN : null;               // the reader that's plugged in, if one is
     for (const [id, name, cx] of ownedPlugs()) {
+      if (id === inPort) continue;                                  // (drawn in the port, below)
       plugDraw(id, cx, PLUG_TOP);                                   // each reader's plug, on its lead (one that doesn't fit goes in the parts box)
-      spot(name + ': try it', [cx - 50, PLUG_TOP - 4, 100, 80], 'act:tryplug:' + id);
+      if (!inPort) spot(name + ': try it', [cx - 50, PLUG_TOP - 4, 100, 80], 'act:tryplug:' + id);   // the port's taken: nothing else to try
     }
-    tip('The diagnostic port', 'A flat socket with 16 pins. Tap a plug to try it in the port.', 1, 8);
+    if (inPort) {                                                   // plugged in: it stays in the port, its lead down to where it lay
+      const [, , lay] = PLUGS.find(([id]) => id === inPort);
+      plugDraw(inPort, PORT_MIDDLE, PORT_SOCKET[0][1], lay);
+      spot('Code reader: unplug it', [PORT_MIDDLE - 50, PORT_SOCKET[0][1] - 4, 100, 90], 'act:unplug');
+    }
+    const words = inPort ? 'Your code reader is plugged in. Tap it to unplug it.' : 'A flat socket with 16 pins. Tap a plug to try it in the port.';
+    tip('The diagnostic port', words, 1, 8);
     hud();
   },
   actions() { return []; }   // ◀ Back to the seat

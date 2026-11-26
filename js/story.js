@@ -1763,11 +1763,7 @@ const ACTIONS = {
       sfx('click');
       return say('Under the steering wheel', 'You pop the little hatch off. Behind it: a flat socket with 16 pins. The diagnostic port.');
     }
-    if (S.flags.readerIn) return say('Diagnostic port', 'Your code reader is plugged in.', [
-      { label: 'Unplug it', run: unplugReader },
-      { label: 'Leave it in', run() {} }
-    ]);
-    if (ownedPlugs().length) return show('port');                        // got a reader or two: close up on the port, to try them
+    if (S.flags.readerIn || ownedPlugs().length) return show('port');   // a reader in, or one or two to try: close up on the port (the same as the button)
     S.flags.hatch = false;                                               // nothing to plug in: put the hatch back
     sfx('click');
   },
@@ -1780,8 +1776,9 @@ const ACTIONS = {
   // try a reader's plug in the port: it goes up to the port; then it fits, or it doesn't
   tryplug(id) {
     if (!S.inv[id] || ANIM) return;                                      // not yours, or one already on its way up
+    if (S.flags.readerIn) return;                                        // the port's taken
     const slot = PLUGS.find(([pid]) => pid === id);                      // where it lies
-    const fits = id === 'reader-good';                                   // only the used one from Thee Bay is the right shape
+    const fits = id === PLUG_IN;                                         // only the used one from Thee Bay is the right shape
     PLUG_TRY = { id, x: slot[2], fits };
     sfx('click');
     moment('plugtry', 900);
@@ -2315,10 +2312,7 @@ function nutSpotted() {
 // A reader's plug tried in the port (after its moment): the wrong ones don't fit; the right one goes in
 function plugTried(id) {
   const first = !S.flags['tried-' + id];                               // the first go makes you cross; after that you knew
-  if (id === 'reader-good') {
-    show('dash');                                                      // it's in: back in the seat, the reader on its lead
-    return ACTIONS.plug();
-  }
+  if (id === PLUG_IN) return ACTIONS.plug();                           // it's in: you stay at the port, like the others (Steve); no power, and it comes back out
   S.flags['tried-' + id] = true;
   S.inv[id] = false;                                                   // no good: it goes in the parts box
   junkIt(id);

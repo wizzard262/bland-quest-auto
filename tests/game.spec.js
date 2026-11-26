@@ -2045,8 +2045,9 @@ test('the diagnostic port close up: Gaz\'s round plug and the MegaMart lorry plu
   await tap(page, 'act:tryplug:reader-good');                          // the key's at 0: it fits, but nothing wakes up
   expect(await dialogText(page)).toContain('key needs to be at II');
   await ok(page);
-  expect(await page.evaluate(() => S.screen)).toBe('dash');
-  expect(await flag(page, 'readerIn')).toBe(false);
+  expect(await page.evaluate(() => S.screen)).toBe('port');           // like the others, you stay at the port (Steve)
+  expect(await flag(page, 'readerIn')).toBe(false);                    // and it comes back out
+  await goBack(page);                                                  // back to the seat
   await page.evaluate(() => { S.key = 2; render(); });                // key to II, and try again
   await act(page, 'Try a reader in the port');
   expect(await page.evaluate(() => S.screen)).toBe('port');
@@ -2055,7 +2056,17 @@ test('the diagnostic port close up: Gaz\'s round plug and the MegaMart lorry plu
   await ok(page);
   expect(await flag(page, 'readerIn')).toBe(true);
   expect(await flag(page, 'codes')).toBe(true);
+  expect(await page.evaluate(() => S.screen)).toBe('port');           // still at the port, the reader in it
+  await expect(page.locator('.hs[data-go="act:tryplug:reader-good"]')).toHaveCount(0);
+  await expect(page.locator('.hs[data-go="act:unplug"]')).toHaveCount(1);   // tap it to unplug it
+  await goBack(page);                                                  // the seat: the reader hangs on its lead
   expect(await page.evaluate(() => S.screen)).toBe('dash');
+  await tap(page, 'act:hatch');                                        // the hatch takes you to the port too (no question)
+  expect(await page.evaluate(() => [S.screen, !!DIALOG])).toEqual(['port', false]);
+  await tap(page, 'act:unplug');
+  await ok(page);
+  expect(await flag(page, 'readerIn')).toBe(false);
+  await expect(page.locator('.hs[data-go="act:tryplug:reader-good"]')).toHaveCount(1);   // back with the others
   expect(errors).toEqual([]);
 });
 
