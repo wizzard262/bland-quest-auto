@@ -272,13 +272,75 @@ SCREENS.garden = {
     exitDoor(ROOM.d, BACK_DOOR);
     standingMan('garden');
     spot('Back door: go in', isoArea(BACK_DOOR[0], ROOM.d - 4, BACK_DOOR[1], ROOM.d, 0, BACK_DOOR[2]), 'act:backin', [38, 128]);
-    spot('The shed (locked)', isoArea(132, 6, 172, 34, 0, 34), 'act:look:Shed', [150, 44]);
+    spot(S.inv.shedKey ? 'The shed: unlock it' : 'The shed (locked)', isoArea(132, 6, 172, 34, 0, 34), 'act:shed', [150, 44]);   // locked till you've found its key in the parts box
     if (out) spot('Talk to the wife', isoArea(...LOUNGER, 0, 26), 'act:wife', [80, 104]);
     hud();
   },
   actions() { return []; }
 };
 SCREENS.garden.night = d => { nightShade(0, 18, W, H, d); keepHud(18); };   // dusk in the garden
+
+// =====================================================================
+// THE SHED, OPENED UP: plank walls, a dusty window, a shelf of empty flower pots, and a rusty saw on a nail (Steve: "for now")
+// =====================================================================
+const SHED_SAW = 'Rusty saw';                                         // its name on the garage shelf (drawn by drawProduct)
+const SHED_SAW_WORDS = 'Rusty, blunt, and three teeth missing. No use for anything on a car.';
+const SHED_WALL = hex('#5a4a38'), SHED_GAP = hex('#3e3226'), SHED_FLOOR = hex('#4a3e30');
+const SHED_SAW_AT = [176, 66, 4];                                     // where the saw hangs: its picture's top-left, and its size (4 pixels a grid square)
+const SAW_BLADE = [[2, 15], [22, 10], [22, 21], [2, 19]];             // the saw's blade, on its 32 x 32 grid (drawProduct; and the clean patch it leaves on the shed wall)
+const POT = hex('#b0603a');                                           // terracotta
+// The rusty saw: off the wall and onto the garage shelf
+function sawToShelf() {
+  S.flags.shedSaw = true;                                             // on the garage shelf now
+  sfx('clink');
+  render();
+  say(SHED_SAW, 'It goes on the garage shelf, next to the things that work.');
+}
+// The dusty window, top right: the sky through grubby glass, a cobweb in its corner
+function shedWindow() {
+  rect(356, 36, 92, 76, C.wood);                                      // the frame
+  rect(362, 42, 80, 64, skyColour());                                 // the glass
+  grime(362, 42, 80, 64, skyColour(), 0.35, 23);                      // years of dust on it
+  rect(400, 42, 4, 64, C.wood);                                       // the glazing bar
+  for (let k = 0; k < 5; k++) line(362, 42, 362 + 6 + k * 5, 42 + 18 - k * 4, C.white);   // the cobweb's threads
+  for (const r of [6, 11]) line(362, 42 + r, 362 + r, 42, C.white);  // and its rings
+}
+// The shelf on the left: two brackets, a board, and empty flower pots stacked on it
+function shedShelf() {
+  rect(28, 132, 150, 6, C.wood);                                      // the board
+  for (const x of [40, 160]) rect(x, 138, 4, 14, shade(C.wood, 0.8)); // its brackets
+  for (const [x, n] of [[40, 3], [86, 1], [124, 2]]) {                // stacks of pots, one inside the next
+    for (let k = 0; k < n; k++) {
+      const top = 108 - k * 6;                                        // each one sits a bit higher
+      poly([[x, top], [x + 30, top], [x + 25, 132], [x + 5, 132]], shade(POT, 1 - k * 0.08));
+      rect(x - 1, top, 32, 4, shade(POT, 1.15 - k * 0.08));           // its rim
+    }
+  }
+}
+SCREENS.shed = {
+  size: [480, 270],
+  paint() {
+    rect(0, 0, W, H, SHED_WALL);                                      // the back wall
+    grime(0, 0, W, 222, SHED_WALL, 0.1, 41);                          // grubby
+    for (let x = 0; x < W; x += 24) rect(x, 0, 2, 222, SHED_GAP);     // the gaps between its planks
+    rect(0, 222, W, 48, SHED_FLOOR);                                  // the floor
+    for (let y = 230; y < H; y += 12) rect(0, y, W, 1, SHED_GAP);     // its boards
+    shedWindow();
+    shedShelf();
+    const [sx, sy, size] = SHED_SAW_AT;
+    if (!S.flags.shedSaw) {                                           // the saw, on its nail
+      drawProduct(SHED_SAW, 'saw', sx, sy, size);
+      spot(SHED_SAW, [sx, sy + 32, 32 * size, 60], 'act:shedsaw');
+    } else {                                                          // gone: a cleaner patch where it hung
+      poly(SAW_BLADE.map(([a, b]) => [sx + a * size, sy + b * size]), shade(SHED_WALL, 1.2));
+    }
+    rect(sx + 25 * size, sy + 12 * size, 4, 4, C.steel2);             // the nail
+    tip('The shed', 'Dark, dusty, and it smells of creosote.', 1, 8);
+    hud();
+  },
+  actions() { return []; }   // ◀ Back to the garden
+};
+SCREENS.shed.night = d => { nightShade(0, 18, W, H, d); keepHud(18); };   // dusk in the shed too
 // The garden's sky with its sun or moon, on the page behind the picture (so the scenery is in front of them); hidden on every other screen
 function showSky() {
   const inGarden = S.screen === 'garden';

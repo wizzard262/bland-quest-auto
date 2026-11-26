@@ -4143,6 +4143,45 @@ test('the back door between the sofa and the computer goes out to the garden; so
   expect(errors).toEqual([]);
 });
 
+test('the shed is locked till you find its key in the parts box; inside, a rusty saw that can go on the garage shelf', async ({ page }) => {
+  const errors = [];
+  await start(page, errors);
+  await goRoom(page);
+  await tap(page, 'act:garden'); await idle(page);
+  // locked: the key's probably in the parts box
+  await expect(page.locator('.hs[data-go="act:shed"] + .lab')).toHaveText('The shed (locked)');
+  await tap(page, 'act:shed');
+  expect(await dialogText(page)).toContain('parts box');
+  await ok(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garden');             // still outside it
+  // the key is in the parts box, near the bottom: take it
+  await page.evaluate(() => { PILE = null; makePile(); takeShedKey(PILE.find(j => j.shedKey)); });
+  expect(await dialogText(page)).toContain('SHED');
+  await ok(page);
+  expect(await page.evaluate(() => [S.inv.shedKey, PILE.some(j => j.shedKey)])).toEqual([true, false]);
+  expect(await page.evaluate(() => { makePile(); return PILE.some(j => j.shedKey); })).toBe(false);   // a new heap: it doesn't come back
+  // now the shed opens: the saw on the wall
+  await page.evaluate(() => show('garden'));
+  await expect(page.locator('.hs[data-go="act:shed"] + .lab')).toHaveText('The shed: unlock it');
+  await tap(page, 'act:shed'); await idle(page);
+  expect(await page.evaluate(() => S.screen)).toBe('shed');
+  await tap(page, 'act:shedsaw');
+  expect(await dialogText(page)).toContain('No use');
+  await choose(page, 'Put it on the garage shelf');
+  expect(await page.evaluate(() => S.flags.shedSaw)).toBe(true);
+  await expect(page.locator('.hs[data-go="act:shedsaw"]')).toHaveCount(0);   // gone off the wall
+  await goBack(page);
+  expect(await page.evaluate(() => S.screen)).toBe('garden');
+  // on the garage shelf: tap it, still no use
+  await page.evaluate(() => show('stores'));
+  const k = await page.evaluate(() => storeList().findIndex(([name]) => name === SHED_SAW));
+  expect(k).toBeGreaterThanOrEqual(0);
+  await tap(page, 'act:storelook:' + k);
+  expect(await dialogText(page)).toContain('No use');
+  await ok(page);
+  expect(errors).toEqual([]);
+});
+
 test('the sun is up in the top right corner of the garden, pulsing 20% every 2 seconds; only in the day, and on no other screen', async ({ page }) => {
   const errors = [];
   await start(page, errors);

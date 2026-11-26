@@ -368,6 +368,7 @@ function makePile() {
   }
   if (!S.inv.handbook) PILE.unshift({ x: 120, y: 150, a: 0.35, k: 0, box: 0, handbook: true });   // the car's handbook, right at the bottom
   if (!S.inv.stick) { const [bx, by, bw] = PART_BOXES[1]; PILE.splice(1, 0, { x: bx + bw / 2, y: by + 60, a: 0.2, k: 0, box: 1, golf: true }); }   // a broken golf club, near the bottom of the other box
+  if (!S.inv.shedKey) PILE.splice(1, 0, { x: 70, y: 200, a: -0.4, k: 0, box: 0, shedKey: true });   // the shed key, near the bottom of the first box (Steve)
   (S.junked || []).forEach((id, n) => PILE.push(junkedSpot(n)));             // what you've thrown in, on top
 }
 // Something you threw in the parts boxes, drawn turned by a
@@ -440,10 +441,35 @@ function takeGolfClub(j) {
   render();
   say('A broken golf club', 'A broken golf club. Long, thin, and bent at the end. Perfect for hooking things out from under the tool chest.\n\n(Nobody in the house has ever played golf.)');
 }
+// The shed key in the parts box: a little brass key, a loop of string, and a paper tag
+function drawShedKey(j) {
+  const { x, y, a } = j, c = Math.cos(a), s = Math.sin(a);
+  const at = (u, v) => [x + u * c - v * s, y + u * s + v * c];               // a point on the key (u along it, v across), turned
+  const box = (u0, v0, u1, v1, col) => poly([at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)], col);
+  const BRASS = hex('#c8a040');
+  const [bowX, bowY] = at(-7, 0);                                            // the round bow you hold it by
+  disc(Math.round(bowX), Math.round(bowY), 4, BRASS);
+  disc(Math.round(bowX), Math.round(bowY), 1, hex('#5a4a34'));               // its hole
+  box(-3, -1, 8, 1, BRASS);                                                  // the shank
+  box(5, 1, 6, 3, BRASS); box(7, 1, 8, 4, BRASS);                            // its teeth
+  const [tagX, tagY] = at(-14, 5);                                           // the tag, on a loop of string
+  line(Math.round(bowX), Math.round(bowY), Math.round(tagX), Math.round(tagY), C.white);
+  box(-20, 3, -10, 9, hex('#f4f0e0'));                                       // the paper tag
+  box(-18, 5, -12, 6, C.ink);                                                // "SHED", scribbled on it
+}
+// Take the shed key out of the parts box: now the shed in the back garden opens
+function takeShedKey(j) {
+  PILE.splice(PILE.indexOf(j), 1);                                           // out of the heap
+  S.inv.shedKey = true;                                                      // in your pocket
+  sfx('clink');
+  render();
+  say('A key', 'A little brass key on a bit of string. The tag says "SHED", in your handwriting.\n\nYou don\'t remember putting it in here.');
+}
 // One bit of junk at x, y, turned by a: each drawn like the real thing (Steve)
 function drawJunk(j) {
   if (j.handbook) return drawHandbookSmall(j);
   if (j.golf) return drawGolfClub(j);
+  if (j.shedKey) return drawShedKey(j);
   if (j.junk) return drawJunked(j);                                         // something you threw in
   const { x, y, a } = j, kind = JUNK[j.k][1];
   const c = Math.cos(a), s = Math.sin(a);
@@ -603,9 +629,10 @@ function rummageEnd() {
   const { x, y, moved } = RUMMAGE;
   RUMMAGE = null;
   if (moved > 4) return;
-  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook || j.golf ? 16 : 10));
+  const top = PILE.slice().reverse().find(j => Math.hypot(j.x - x, j.y - y) < (j.handbook || j.golf || j.shedKey ? 16 : 10));
   if (top && top.handbook) return takeHandbook(top);                             // the handbook!
   if (top && top.golf) return takeGolfClub(top);                                  // the broken golf club: a long stick
+  if (top && top.shedKey) return takeShedKey(top);                                // the key to the shed in the back garden
   if (top && top.junk) { const [name, , line] = junkedInfo(top.junk); say(name, line); return render(); }   // something you threw in
   if (top && JUNK[top.k][1] === 'sensor' && takeBoxSensor(top)) return render();  // an old sensor (not yours): worth a try (sensors.js)
   if (top) { say(JUNK[top.k][0], 'Not what you need.'); render(); }
@@ -726,6 +753,18 @@ function drawProduct(name, kind, x, y, s, n = 0) {
     L(16, 4, 15, 13, 3, C.steel2); L(16, 4, 17, 13, 3, C.steel); O(16, 13, 2, C.steel);
     L(15, 14, 10, 29, 3.4, C.red); L(17, 14, 22, 29, 3.4, C.red);
     for (let k = 0; k < 3; k++) { R(10.5 + k * 0.6, 20 + k * 3, 3, 0.6, hex('#8a1a1a')); R(19 - k * 0.6, 20 + k * 3, 3, 0.6, hex('#8a1a1a')); }
+    return;
+  }
+  if (has('rusty saw')) {                                                  // the rusty saw from the shed: a wide blade, rust, three teeth gone, a wooden handle
+    poly(SAW_BLADE.map(([a, b]) => [q(x + a * s), q(y + b * s)]), C.steel);   // the blade, narrowing to its tip (screens.js)
+    for (let k = 2; k < 22; k += 2) {                                      // its teeth along the bottom edge
+      if (k === 10 || k === 12 || k === 16) continue;                      // three missing
+      P1(k, 19 + Math.round((k - 2) / 10), C.steel2);
+    }
+    for (const [rx, ry] of [[5, 16], [9, 14], [13, 17], [17, 13], [19, 18], [7, 18]]) R(rx, ry, 2, 1, C.rust);   // rust
+    B(21, 8, 9, 15, 3, C.wood);                                            // the handle
+    R(24, 12, 3, 6, DARK);                                                 // the hole for your fingers
+    R(22, 11, 1, 1, C.steel2); R(22, 19, 1, 1, C.steel2);                  // its two rivets
     return;
   }
   if (has('hacksaw', 'saw')) {                                             // a hacksaw: red frame, a blade with teeth
@@ -990,6 +1029,7 @@ function storeList() {
   if (S.flags.gloveTorch) list.push([GLOVE_TORCH, 'torch', 1]);                     // out of the glove box (car.js)
   if (S.flags.meterOK && !S.flags.meterOut) list.push([METER_NAME, 'box', 1]);      // the multimeter, with its new battery in (not while it's out on the fuse box)
   if (S.flags.gloveGauge) list.push([GAUGE_NAME, 'gauge', 1]);                      // the tyre pressure gauge, out of the glove box
+  if (S.flags.shedSaw) list.push([SHED_SAW, 'saw', 1]);                             // the rusty saw, out of the shed
   const lamps = spareLamps();                                                       // spare headlights, waiting for a side to break
   if (lamps.left) list.push(['Headlight (Zafira, left)', 'box', lamps.left]);
   if (lamps.right) list.push(['Headlight (Zafira, right)', 'box', lamps.right]);
@@ -1129,6 +1169,20 @@ function showFuseCopy() {
 // =====================================================================
 Object.assign(ACTIONS, {
   rageback() { S.screen = RAGE.from || 'home'; render(); },             // after losing it: back where you were
+  // the shed in the back garden: locked till you've found its key in the parts box
+  shed() {
+    if (!S.inv.shedKey) return say('Shed', LOOKS.Shed);                 // no key yet: where it might be
+    pass(2);                                                            // the padlock's stiff
+    sfx('drawer');                                                      // the door creaks open
+    show('shed');
+  },
+  // the rusty saw on the shed wall: no use, but it can go on the garage shelf
+  shedsaw() {
+    say(SHED_SAW, SHED_SAW_WORDS, [
+      { label: 'Put it on the garage shelf', run: sawToShelf },
+      { label: 'Leave it in the shed', run() {} }
+    ]);
+  },
   calm() { calmMenu(); },
   // the manuals
   book(n) {
@@ -1202,6 +1256,7 @@ Object.assign(ACTIONS, {
     if (name === SOCKET_SET) return say(name, 'Every size, even the 10. For now.');   // for the bolts under the car
     if (name === METER_NAME) return testMeter();                     // the multimeter: it works now
     if (name === GAUGE_NAME) return say(name, 'A dial on a stick. It lives on the shelf now.');   // the tyre pressure gauge
+    if (name === SHED_SAW) return say(name, SHED_SAW_WORDS);       // the rusty saw from the shed: no use for anything
     say(name, n > 1 ? `You've got ${n}.` : 'On your garage shelf.');
   },
   // fixing what you broke when you lost it
