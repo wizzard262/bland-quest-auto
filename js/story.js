@@ -1038,9 +1038,9 @@ const FRUIT_WIN_CHANCE = 1 / 12;
 function fruitOffer() {
   say('Fruit machine', 'JACKPOT £100, it says. It flashes and plays a little tune at you.\n\nThree the same pays ten times what you put in.', FRUIT_STAKES.map(st => ({ label: `Play for £${st}`, run() { fruitPlay(st); } })).concat([{ label: 'Leave it', run() {} }]));
 }
-// Put the money in and pull: the reels spin, stop one by one, and then you know
+// Put the money in (change from the bar: kerching, as money goes out: Steve) and pull: the reels spin, stop one by one, and then you know
 function fruitPlay(stake) {
-  if (!takeMoney(stake, true)) return noHelp('Fruit machine', 'Your card won\'t go in. It\'s a fruit machine. It takes coins. You get some change from the bar… which your card won\'t pay for either.');   // a treat: the wife won't pay
+  if (!spend(stake, true)) return noHelp('Fruit machine', 'Your card won\'t go in. It\'s a fruit machine. It takes coins. You get some change from the bar… which your card won\'t pay for either.');   // a treat: the wife won't pay
   const win = Math.random() < FRUIT_WIN_CHANCE;
   const pick = () => FRUIT_SYMBOLS[Math.floor(Math.random() * FRUIT_SYMBOLS.length)];
   let result;

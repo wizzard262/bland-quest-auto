@@ -6,7 +6,7 @@
 // =====================================================================
 // STATE
 // =====================================================================
-const VERSION = 'v106';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
+const VERSION = 'v107';                                                // shown after the tagline, at the top and on the title screen: one more with every commit (Steve)
 const START_MONEY = 140;                                              // it runs out part way, so you have to go and see Mum & Dad, or Paul (Steve)
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const SAVE_KEY = 'thankless-task-save-v1';                         // (the game's old name: kept, so saved games still load)
@@ -103,7 +103,7 @@ function spend(amount, treat = false, must = false) {
   if (paid) sfx('kerching');                                       // every purchase: kerching (Steve)
   return paid;
 }
-// The same, with no sound (the fruit machine: it has its own)
+// The same, with no sound (spend plays the kerching)
 function takeMoney(amount, treat = false, must = false) {
   if (cardDeclined(amount)) return payCash(amount);                // the card's blocked (bank.js): cash, if you've got enough on you
   if (S.money < amount) {                                          // not enough in the account

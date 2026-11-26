@@ -3817,7 +3817,7 @@ test('running out of money goes on the list (Mum & Dad, Paul, a bank loan); the 
 });
 
 // ---------- money ----------
-test('every purchase goes kerching, once; nothing bought, no kerching; the fruit machine has its own sounds', async ({ page }) => {
+test('every time money goes out or comes in it goes kerching, once; nothing bought, no kerching', async ({ page }) => {
   const errors = [];
   await start(page, errors);
   const heard = run => page.evaluate(code => {
@@ -3834,7 +3834,10 @@ test('every purchase goes kerching, once; nothing bought, no kerching; the fruit
   expect(await heard('S.money = 100; coffeeServed(["one", "two"])')).toBe(1);   // a coffee
   expect(await heard('S.money = 1; spend(5, true)')).toBe(0);             // can't afford a pint
   expect(await heard('S.money = 0; S.flags.paulLent = true; S.flags.mumMoneyDay = S.day; spend(5)')).toBe(1);   // the wife pays
-  expect(await heard('S.money = 100; fruitPlay(1)')).toBe(0);
+  expect(await heard('S.money = 100; fruitPlay(1)')).toBe(1);            // change from the bar for the fruit machine
+  expect(await heard('S.money = 10; S.flags.mumMoneyDay = undefined; moneyIn(50, "from Mum")')).toBe(1);   // given money
+  expect(await heard('S.money = 10; S.flags.cardBlocked = true; S.cash = 30; bankQuestions(2); DIALOG.options[0].run()')).toBe(1);   // the bank pays your cash in
+  expect(await heard('S.money = 100; S.flags.cardBlocked = true; S.cash = 0; spend(5); S.flags.cardBlocked = false')).toBe(0);   // blocked, no cash: nothing paid
   // a basket at the till
   expect(await heard("S.money = 100; S.place = 'Tool Shop'; S.screen = 'place'; S.inside = true; S.basket = [{ place: S.place, slot: '0-6', name: 'Torch', price: 4.99, kind: 'can' }]; act('checkout')")).toBe(1);
   expect(errors).toEqual([]);

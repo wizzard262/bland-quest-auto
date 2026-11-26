@@ -57,6 +57,7 @@ function bankQuestions(n = 0) {
     SPEAKER = keeperHead();
     if (n + 1 < BANK_QUESTIONS.length) return bankQuestions(n + 1);
     S.flags.cardBlocked = false;                                        // they give up and unblock it
+    if (S.cash) sfx('kerching');                                        // any cash left: paid in, kerching (Steve)
     S.money += S.cash || 0;                                             // and you pay in what's left of the cash
     S.cash = 0;
     finishJob('card', 'Unblocked at the bank, after three security questions (none right)');
